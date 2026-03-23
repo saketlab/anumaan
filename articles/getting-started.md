@@ -1,0 +1,461 @@
+# Getting Started with anumaan
+
+## Introduction
+
+**anumaan** is an R package for preprocessing antimicrobial resistance
+(AMR) surveillance data. It standardizes messy hospital data into
+analysis-ready formats with proper normalization, classification, and
+quality control.
+
+### Key Features
+
+- **Automated pipeline**: Process entire datasets with one function
+- **Organism normalization**: Handles typos, abbreviations, and variants
+- **Antibiotic classification**: WHO AWaRe categories
+- **MDR/XDR classification**: WHO/CDC-compliant definitions
+- **Event deduplication**: Create unique infection episodes
+- **Data validation**: Comprehensive quality checks
+
+### Installation
+
+``` r
+# From source during development
+devtools::install()
+
+# Or install from package file
+install.packages("anumaan_0.1.0.tar.gz", repos = NULL, type = "source")
+```
+
+### Load the Package
+
+``` r
+library(anumaan)
+library(dplyr)
+```
+
+------------------------------------------------------------------------
+
+## Quick Start
+
+### The Complete Pipeline
+
+The simplest way to use anumaan is the
+[`amr_preprocess()`](https://saketlab.github.io/anumaan/reference/amr_preprocess.md)
+function:
+
+``` r
+# Load your data
+library(readxl)
+raw_data <- read_excel("your_data.xlsx")
+
+# Run complete preprocessing
+result <- amr_preprocess(
+  data = raw_data,
+  config = amr_config(
+    hai_cutoff = 2, # Days to classify HAI
+    mdr_definition = "CDC", # MDR criteria
+    fuzzy_match = TRUE # Auto-detect columns
+  ),
+  verbose = TRUE,
+  validate = TRUE,
+  generate_report = TRUE
+)
+
+# Get processed data
+clean_data <- result$data
+
+# View summary
+summary(result)
+```
+
+### What the Pipeline Does
+
+**Phase 1: Standardization** - Maps column names automatically -
+Normalizes organism names (handles typos) - Normalizes antibiotic
+names + AWaRe classification - Standardizes specimen types - Parses
+dates - Cleans R/S/I values
+
+**Phase 2: Enrichment** - Calculates age from DOB - Computes length of
+stay - Classifies HAI vs CAI - Infers missing hospital departments
+
+**Phase 3: Derivation** - Creates event IDs (deduplication) - Classifies
+MDR/XDR - Flags contaminants - Calculates polymicrobial weights - Maps
+to GBD pathogens
+
+------------------------------------------------------------------------
+
+## Sample Data Example
+
+Let’s create a minimal example:
+
+``` r
+# Create sample hospital data
+sample_data <- data.frame(
+  PatientID = c(1, 1, 2, 3),
+  Age = c(65, 65, 34, 78),
+  Gender = c("M", "M", "F", "M"),
+  SampleDate = as.Date(c("2024-01-15", "2024-01-15", "2024-01-20", "2024-02-01")),
+  Specimen = c("Blood", "Blood", "Urine", "Blood"),
+  Organism = c("E. coli", "S. aureus", "E. coli", "K. pneumoniae"),
+  Antibiotic = c("Ampicillin", "Oxacillin", "Ciprofloxacin", "Meropenem"),
+  Result = c("R", "S", "S", "R")
+)
+
+# Process it
+result <- amr_preprocess(sample_data, verbose = FALSE)
+
+# View results
+head(result$data)
+```
+
+------------------------------------------------------------------------
+
+## Using Individual Functions
+
+You can also use functions separately for custom workflows:
+
+### Organism Normalization
+
+``` r
+# Normalize organism names
+data <- data.frame(
+  organism = c("E. coli", "ACINETOBACTER BAUMANNII", "K. pneumoniae")
+)
+
+normalized <- normalize_organism(
+  data,
+  organism_col = "organism",
+  add_organism_group = TRUE
+)
+
+# View results
+normalized[, c("organism", "organism_normalized", "organism_group")]
+```
+
+### Antibiotic Normalization
+
+``` r
+# Add antibiotic classes and AWaRe categories
+data <- data.frame(
+  antibiotic = c("Ampicillin", "Meropenem", "Ciprofloxacin")
+)
+
+normalized <- normalize_antibiotic(
+  data,
+  antibiotic_col = "antibiotic"
+)
+
+# View AWaRe classification
+normalized[, c("antibiotic", "antibiotic_normalized", "aware_category")]
+```
+
+### MDR Classification
+
+``` r
+# Classify multidrug resistance
+# (Requires normalized organism and antibiotic names)
+classified <- classify_mdr(
+  processed_data,
+  organism_col = "organism_normalized",
+  antibiotic_col = "antibiotic_normalized",
+  susceptibility_col = "antibiotic_value"
+)
+
+# Check MDR status
+table(classified$mdr_status)
+```
+
+### Data Transformation
+
+``` r
+# Convert wide format to long
+long_data <- pivot_wide_to_long(
+  wide_data,
+  id_cols = c("PatientID", "Age", "Gender"),
+  antibiotic_cols = NULL # Auto-detect antibiotic columns
+)
+
+# Aggregate to organism-antibiotic level
+aggregated <- collapse_to_antibiotic_level(
+  processed_data,
+  organism_col = "organism_normalized",
+  antibiotic_col = "antibiotic_normalized",
+  susceptibility_col = "antibiotic_value"
+)
+```
+
+------------------------------------------------------------------------
+
+## Configuration Options
+
+Customize the pipeline with
+[`amr_config()`](https://saketlab.github.io/anumaan/reference/amr_config.md):
+
+``` r
+config <- amr_config(
+  # Column mappings (auto-detects common variants)
+  fuzzy_match = TRUE,
+
+  # Time windows
+  hai_cutoff = 2, # Days for HAI classification
+  event_gap_days = 14, # Event deduplication window
+  mortality_window = 14, # Death attribution window
+
+  # Age grouping
+  age_bins = "GBD_standard", # Or custom: c(0, 18, 45, 65, Inf)
+
+  # Resistance definitions
+  mdr_definition = "CDC", # Or "WHO" or numeric threshold
+  xdr_definition = "CDC",
+
+  # Normalization options
+  intermediate_as_resistant = TRUE, # Treat I as R
+
+  # Validation
+  strict_validation = FALSE # Warning vs error on issues
+)
+
+# Use custom config
+result <- amr_preprocess(raw_data, config = config)
+```
+
+------------------------------------------------------------------------
+
+## Data Validation
+
+anumaan includes validation functions:
+
+``` r
+# Check required fields
+validation <- validate_required_fields(
+  raw_data,
+  required_cols = c("PatientID", "Organism", "Antibiotic", "Result"),
+  min_completeness = 0.8
+)
+
+# View validation results
+validation$valid
+validation$messages
+
+# Check data quality
+quality <- validate_data_quality(
+  result$data,
+  check_duplicates = TRUE,
+  check_outliers = TRUE
+)
+```
+
+------------------------------------------------------------------------
+
+## Partial Pipeline
+
+Run only specific phases:
+
+``` r
+# Only standardization (no enrichment or derivation)
+result <- amr_preprocess(
+  raw_data,
+  phases = "standardize",
+  verbose = TRUE
+)
+
+# Standardization + Enrichment (no derivation)
+result <- amr_preprocess(
+  raw_data,
+  phases = c("standardize", "enrich"),
+  verbose = TRUE
+)
+```
+
+------------------------------------------------------------------------
+
+## Working with Results
+
+### Access Processed Data
+
+``` r
+# Main processed data
+clean_data <- result$data
+
+# Configuration used
+config_used <- result$config
+
+# Processing log
+processing_log <- result$log
+
+# Quality report (if generate_report = TRUE)
+report <- result$report
+```
+
+### Export Results
+
+``` r
+# Save processed data
+write.csv(result$data, "processed_amr_data.csv", row.names = FALSE)
+
+# Save full result object
+saveRDS(result, "preprocessing_result.rds")
+
+# Export report
+export_report(result$report, "report.html", format = "html")
+```
+
+------------------------------------------------------------------------
+
+## Common Analysis Tasks
+
+### Calculate Resistance Rates
+
+``` r
+# Overall resistance rate
+result$data %>%
+  filter(!is.na(antibiotic_value)) %>%
+  summarise(
+    total = n(),
+    resistant = sum(antibiotic_value == "R"),
+    resistance_rate = 100 * resistant / total
+  )
+
+# By organism
+result$data %>%
+  group_by(organism_normalized) %>%
+  summarise(
+    n = n(),
+    resistance_rate = 100 * mean(antibiotic_value == "R", na.rm = TRUE)
+  ) %>%
+  arrange(desc(resistance_rate))
+```
+
+### MDR Prevalence
+
+``` r
+# MDR rates by organism
+result$data %>%
+  group_by(organism_normalized) %>%
+  summarise(
+    total = n(),
+    mdr = sum(mdr_status == "MDR", na.rm = TRUE),
+    mdr_rate = 100 * mdr / total
+  )
+```
+
+### Stratified Analysis
+
+``` r
+# Resistance by specimen type
+result$data %>%
+  filter(!is.na(sample_category)) %>%
+  group_by(sample_category) %>%
+  summarise(
+    n = n(),
+    resistance_rate = 100 * mean(antibiotic_value == "R", na.rm = TRUE)
+  )
+```
+
+------------------------------------------------------------------------
+
+## Best Practices
+
+### 1. Always Validate First
+
+``` r
+validation <- validate_required_fields(raw_data)
+if (!validation$valid) {
+  print(validation$messages)
+  stop("Fix validation issues before processing")
+}
+```
+
+### 2. Use Verbose Mode During Development
+
+``` r
+result <- amr_preprocess(raw_data, verbose = TRUE)
+```
+
+### 3. Review the Preprocessing Report
+
+``` r
+summary(result)
+print(result$report)
+```
+
+### 4. Document Your Configuration
+
+``` r
+# Save config for reproducibility
+config <- amr_config(hai_cutoff = 3, mdr_definition = 5)
+saveRDS(config, "my_amr_config.rds")
+
+# Later, reload
+config <- readRDS("my_amr_config.rds")
+result <- amr_preprocess(data, config = config)
+```
+
+------------------------------------------------------------------------
+
+## Troubleshooting
+
+### Column Not Found
+
+**Error:** `Column 'organism' not found`
+
+**Solution:** The package auto-detects common column name variants: -
+Organism: “Organism”, “pathogen”, “bacteria”, “microorganism” -
+Antibiotic: “antibiotic”, “drug”, “antimicrobial” - Result: “Result”,
+“susceptibility”, “resistance”, “Remarks”
+
+If your columns don’t match, check with:
+
+``` r
+names(raw_data)
+```
+
+### Organism Not Normalizing
+
+**Issue:** Organism names remain unchanged
+
+**Solution:** Some organisms may not be in the reference database. They
+will remain as-is but can still be processed. Check with:
+
+``` r
+# See what's normalized
+table(result$data$organism_normalized)
+```
+
+### Too Many/Few Events
+
+**Issue:** Event deduplication too aggressive or not enough
+
+**Solution:** Adjust time window:
+
+``` r
+config <- amr_config(event_gap_days = 7) # Decrease to create more events
+config <- amr_config(event_gap_days = 30) # Increase to merge more
+```
+
+------------------------------------------------------------------------
+
+## Getting Help
+
+``` r
+# Function documentation
+?amr_preprocess
+?normalize_organism
+?classify_mdr
+
+# Package overview
+help(package = "anumaan")
+
+# List all functions
+ls("package:anumaan")
+```
+
+For more details, see the package **GUIDE.md** file.
+
+------------------------------------------------------------------------
+
+## Session Info
+
+``` r
+sessionInfo()
+```
