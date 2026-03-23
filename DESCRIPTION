@@ -1,0 +1,60 @@
+Package: anumaan
+Type: Package
+Title: Antimicrobial Resistance Surveillance Preprocessing and Burden Estimation
+Version: 0.1.0.9000
+Authors@R: c(
+    person(
+      "Nilanjana", "Dey",
+      email = "nilanjanadey@gmail.com",
+      role = c("aut")
+    ),
+    person(
+      "Nima", "Jijo",
+      email = "nimajijopallath@gmail.com",
+      role = c("aut")
+    ),
+    person(
+      "Namrata", "Kharat",
+      email = "namratak.ndmc@gmail.com",
+      role = c("aut")
+    ),
+    person(
+      "Saket", "Choudhary",
+      email = "saketc@iitb.ac.in",
+      role = c("aut", "cre")
+    )
+  )
+Description: anumaan provides a preprocessing pipeline for antimicrobial resistance (AMR)
+    surveillance data and performs burden estimation. Supports polymicrobial weighting, MDR/XDR classification, and burden
+    estimation calculations.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.0.0)
+Imports:
+    dplyr (>= 1.0.0),
+    tidyr (>= 1.0.0),
+    stringr (>= 1.4.0),
+    stringdist (>= 0.9.0),
+    lubridate (>= 1.7.0),
+    readr (>= 2.0.0),
+    readxl (>= 1.3.0),
+    tibble (>= 3.0.0),
+    rlang (>= 0.4.0),
+    ggplot2 (>= 3.4.0),
+    scales (>= 1.2.0),
+    fitdistrplus (>= 1.1.0),
+    RColorBrewer (>= 1.1.0)
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    lme4 (>= 1.1.0),
+    ggpubr,
+    ggrepel,
+    pkgdown
+VignetteBuilder: knitr
+URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
+BugReports: https://github.com/saketlab/anumaan/issues

@@ -1,0 +1,164 @@
+organism_name,organism_group
+Staphylococcus aureus,Gram-positive cocci
+Staphylococcus epidermidis,Gram-positive cocci
+Staphylococcus haemolyticus,Gram-positive cocci
+Staphylococcus saprophyticus,Gram-positive cocci
+Coag-neg. staphylococci not specified,Gram-positive cocci
+Other coagulase-negative staphylococci (CNS),Gram-positive cocci
+Coagulase-negative staphylococci,Gram-positive cocci
+Staphylococcus spp. not specified,Gram-positive cocci
+Staphylococcus spp.,Gram-positive cocci
+Streptococcus pneumoniae,Gram-positive cocci
+Streptococcus agalactiae (B),Gram-positive cocci
+Streptococcus agalactiae,Gram-positive cocci
+Streptococcus pyogenes (A),Gram-positive cocci
+Streptococcus pyogenes,Gram-positive cocci
+Other haemolytic streptococci (C G),Gram-positive cocci
+Streptococcus spp. other,Gram-positive cocci
+Streptococcus spp. not specified,Gram-positive cocci
+Streptococcus spp.,Gram-positive cocci
+Enterococcus faecalis,Gram-positive cocci
+Enterococcus faecium,Gram-positive cocci
+Enterococcus spp. other,Gram-positive cocci
+Enterococcus spp. not specified,Gram-positive cocci
+Enterococcus spp.,Gram-positive cocci
+Gram-positive cocci not specified,Gram-positive cocci
+Other Gram-positive cocci,Gram-positive cocci
+Moraxella catarrhalis,Gram-negative cocci
+Moraxella spp. other,Gram-negative cocci
+Moraxella spp. not specified,Gram-negative cocci
+Moraxella spp.,Gram-negative cocci
+Neisseria meningitidis,Gram-negative cocci
+Neisseria gonorrhoeae,Gram-negative cocci
+Neisseria spp. other,Gram-negative cocci
+Neisseria spp. not specified,Gram-negative cocci
+Neisseria spp.,Gram-negative cocci
+Gram-negative cocci not specified,Gram-negative cocci
+Other Gram-negative cocci,Gram-negative cocci
+Corynebacterium spp.,Gram-positive bacilli
+Bacillus spp.,Gram-positive bacilli
+Lactobacillus spp.,Gram-positive bacilli
+Listeria monocytogenes,Gram-positive bacilli
+Gram-positive bacilli not specified,Gram-positive bacilli
+Other Gram-positive bacilli,Gram-positive bacilli
+Citrobacter freundii,Enterobacterales
+Citrobacter koseri (e.g. diversus),Enterobacterales
+Citrobacter koseri,Enterobacterales
+Citrobacter spp. other,Enterobacterales
+Citrobacter spp. not specified,Enterobacterales
+Citrobacter spp.,Enterobacterales
+Enterobacter cloacae,Enterobacterales
+Enterobacter aerogenes (renamed to Klebsiella aerogenes),Enterobacterales
+Enterobacter aerogenes,Enterobacterales
+Enterobacter asburiae,Enterobacterales
+Enterobacter gergoviae,Enterobacterales
+Enterobacter spp. other,Enterobacterales
+Enterobacter spp. not specified,Enterobacterales
+Enterobacter spp.,Enterobacterales
+Escherichia coli,Enterobacterales
+Klebsiella aerogenes,Enterobacterales
+Klebsiella pneumoniae,Enterobacterales
+Klebsiella oxytoca,Enterobacterales
+Klebsiella spp. other,Enterobacterales
+Klebsiella spp. not specified,Enterobacterales
+Klebsiella spp.,Enterobacterales
+Proteus mirabilis,Enterobacterales
+Proteus vulgaris,Enterobacterales
+Proteus rettegeri,Enterobacterales
+Proteus spp. other,Enterobacterales
+Proteus spp. not specified,Enterobacterales
+Proteus spp.,Enterobacterales
+Serratia marcescens,Enterobacterales
+Serratia liquefaciens,Enterobacterales
+Serratia spp. other,Enterobacterales
+Serratia spp. not specified,Enterobacterales
+Serratia spp.,Enterobacterales
+Hafnia alvei,Enterobacterales
+Morganella morganii,Enterobacterales
+Morganella spp.,Enterobacterales
+Providencia spp.,Enterobacterales
+Salmonella Enteritidis,Enterobacterales
+Salmonella Typhi or Paratyphi,Enterobacterales
+Salmonella Typhi,Enterobacterales
+Salmonella Paratyphi,Enterobacterales
+Salmonella Typhimurium,Enterobacterales
+Salmonella spp. not specified,Enterobacterales
+Salmonella spp. other,Enterobacterales
+Salmonella spp.,Enterobacterales
+Shigella spp.,Enterobacterales
+Yersinia spp.,Enterobacterales
+Other Enterobacterales,Enterobacterales
+Enterobacterales not specified,Enterobacterales
+Aeromonas spp.,Gram-negative bacilli
+Acinetobacter baumannii,Gram-negative bacilli
+Acinetobacter calcoaceticus,Gram-negative bacilli
+Acinetobacter haemolyticus,Gram-negative bacilli
+Acinetobacter lwoffii,Gram-negative bacilli
+Acinetobacter spp. other,Gram-negative bacilli
+Acinetobacter spp. not specified,Gram-negative bacilli
+Acinetobacter spp.,Gram-negative bacilli
+Pseudomonas aeruginosa,Gram-negative bacilli
+Stenotrophomonas maltophilia,Gram-negative bacilli
+Burkholderia cepacia,Gram-negative bacilli
+Pseudomonadaceae family other,Gram-negative bacilli
+Pseudomonadaceae family not specified,Gram-negative bacilli
+Pseudomonas spp.,Gram-negative bacilli
+Haemophilus influenzae,Gram-negative bacilli
+Haemophilus parainfluenzae,Gram-negative bacilli
+Haemophilus spp. other,Gram-negative bacilli
+Haemophilus spp. not specified,Gram-negative bacilli
+Haemophilus spp.,Gram-negative bacilli
+Legionella spp.,Gram-negative bacilli
+Achromobacter spp.,Gram-negative bacilli
+Agrobacterium spp.,Gram-negative bacilli
+Alcaligenes spp.,Gram-negative bacilli
+Campylobacter spp.,Gram-negative bacilli
+Flavobacterium spp.,Gram-negative bacilli
+Gardnerella spp.,Gram-negative bacilli
+Helicobacter pylori,Gram-negative bacilli
+Pasteurella spp.,Gram-negative bacilli
+Non-fermenting Gram-negative bacilli,Gram-negative bacilli
+Gram-negative bacilli not specified,Gram-negative bacilli
+Other Gram-negative bacilli non-enterobacterales,Gram-negative bacilli
+Other Gram-negative bacilli,Gram-negative bacilli
+Bacteroides fragilis,Anaerobes
+Bacteroides spp. other,Anaerobes
+Bacteroides spp. not specified,Anaerobes
+Bacteroides spp.,Anaerobes
+Clostridioides difficile,Anaerobes
+Clostridium spp. other,Anaerobes
+Clostridium spp.,Anaerobes
+Propionibacterium spp.,Anaerobes
+Prevotella spp.,Anaerobes
+Fusobacterium spp.,Anaerobes
+Anaerobes not specified,Anaerobes
+Other anaerobes,Anaerobes
+Mycobacterium atypical,Other bacteria
+Mycobacterium tuberculosis complex,Other bacteria
+Mycobacterium tuberculosis,Other bacteria
+Mycobacterium spp.,Other bacteria
+Chlamydia spp.,Other bacteria
+Mycoplasma spp.,Other bacteria
+Actinomyces spp.,Other bacteria
+Nocardia spp.,Other bacteria
+Other bacteria,Other bacteria
+Other bacteria not specified,Other bacteria
+Candida albicans,Fungi
+Candida auris,Fungi
+Candida glabrata,Fungi
+Candida krusei,Fungi
+Candida tropicalis,Fungi
+Candida parapsilosis,Fungi
+Candida spp. other,Fungi
+Candida spp. not specified,Fungi
+Candida spp.,Fungi
+Aspergillus fumigatus,Fungi
+Aspergillus niger,Fungi
+Aspergillus spp. other,Fungi
+Aspergillus spp. not specified,Fungi
+Aspergillus spp.,Fungi
+Cryptococcus neoformans,Fungi
+Mucor spp.,Fungi
+Other yeasts,Fungi
+Fungi other,Fungi
+Fungi not specified,Fungi

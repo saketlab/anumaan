@@ -1,0 +1,67 @@
+specimen_name,sample_category,sterile_classification
+Abdominal fluid,Body fluid,Sterile site
+Abdominal pus,Abscess/Wound/Pus,Non-sterile site
+Abscess aspirate,Abscess/Wound/Pus,Non-sterile site
+BAL (Bronchoalveolar lavage),Respiratory tract,Non-sterile site
+Bile,Body fluid,Body fluid
+Blood,Blood,Sterile site
+Blood-central catheter,Blood,Sterile site
+Blood-peripheral,Blood,Sterile site
+Bone,Sterile tissue,Sterile site
+Bone Marrow,Blood,Sterile site
+Cervical Swab,Genital tract,Non-sterile site
+CSF (Cerebrospinal fluid),CNS/Ocular,Sterile site
+Deep Biopsy,Sterile tissue,Sterile site
+Deep Tissue,Sterile tissue,Sterile site
+Drain Fluid,Body fluid,Body fluid
+Ear Swab,ENT/Head & Neck,Non-sterile site
+Endometrium,Genital tract,Non-sterile site
+Endotracheal aspirate (ETA),Respiratory tract,Non-sterile site
+Ethmoidal tissue,ENT/Head & Neck,Non-sterile site
+Faeces,Intestinal tract,Non-sterile site
+Fluid from sterile site,Sterile tissue,Sterile site
+FNAC (Fine Needle Aspiration),Others,Sterile site
+Gastric fluid,Intestinal tract,Non-sterile site
+Genital tract,Genital tract,Non-sterile site
+ICTD fluid,Body fluid,Body fluid
+Intestinal fluid,Intestinal tract,Non-sterile site
+Intra operative bile,Body fluid,Body fluid
+Intra operative fluid,Body fluid,Sterile site
+Intracostal tube fluid,Body fluid,Body fluid
+Iobectomy tissue,Sterile tissue,Sterile site
+Joint Fluid,Body fluid,Sterile site
+Nasal scrapping,ENT/Head & Neck,Non-sterile site
+Nasal tissue,ENT/Head & Neck,Non-sterile site
+Necrosum,Abscess/Wound/Pus,Non-sterile site
+Ocular-deep,CNS/Ocular,Sterile site
+Ocular-superficial,CNS/Ocular,Non-sterile site
+Oral cavity crust,Respiratory tract,Non-sterile site
+Others,Others,Others
+Palatal mucosa,Respiratory tract,Non-sterile site
+Pancreatic drain fluid,Body fluid,Body fluid
+Pericardial fluid,Body fluid,Sterile site
+Peripheral catheter-blood,Blood,Sterile site
+Peritoneal fluid,Body fluid,Sterile site
+Pigtail fluid,Body fluid,Body fluid
+Placental Membrane,Genital tract,Sterile site
+Pleural fluid,Body fluid,Sterile site
+PTBD fluid,Body fluid,Body fluid
+Pus aspirate,Abscess/Wound/Pus,Non-sterile site
+Pus/exudate,Abscess/Wound/Pus,Non-sterile site
+Sinus mass,ENT/Head & Neck,Non-sterile site
+Skin and Soft Tissue,Abscess/Wound/Pus,Non-sterile site
+Skin biopsy,Abscess/Wound/Pus,Non-sterile site
+Sputum,Respiratory tract,Non-sterile site
+Superficial Tissue,Abscess/Wound/Pus,Non-sterile site
+Throat swab,Respiratory tract,Non-sterile site
+Vaginal swab,Genital tract,Non-sterile site
+Vascular Catheter tip,Catheter/Device,Device-associated
+Vitreous fluid,CNS/Ocular,Sterile site
+Wound swab,Abscess/Wound/Pus,Non-sterile site
+Urine,Urine,Non-sterile site
+Pus,Abscess/Wound/Pus,Non-sterile site
+Stool,Intestinal tract,Non-sterile site
+Miscellaneous,Others,Non-sterile site
+Fluid,Body fluid,Body fluid
+CSF,CNS/Ocular,Sterile site
+Throat Swab,Respiratory tract,Non-sterile site

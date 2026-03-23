@@ -1,0 +1,62 @@
+# R session files
+.Rhistory
+.RData
+.Rproj.user/
+
+# Package build artifacts
+*.tar.gz
+*.Rcheck/
+anumaan.Rcheck
+src/*.o
+src/*.so
+src/*.dll
+
+# Data files (keep README, .gitkeep, and .rda package data)
+data/*.csv
+data/*.xlsx
+data/*.xls
+data/*.txt
+data/*.zip
+data/*.rds
+!data/*.rda
+!data/.gitkeep
+!data/README.md
+
+# Test output
+tests/output_data/*.csv
+tests/output_data/*.rds
+tests/output_data/*.xlsx
+tests/output_plots/
+tests/test_plots/
+
+# Generated output
+output_data/
+output_plots/
+
+# Spatial data (shapefiles are large)
+spatial_data/*.shp
+spatial_data/*.shx
+spatial_data/*.dbf
+spatial_data/*.prj
+spatial_data/*.zip
+
+# Vignette build artifacts
+doc/
+Meta/
+vignettes/*.html
+vignettes/*.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+*.swp
+*.swo
+*~
+.claude/
+
+# Temp files
+*.tmp
+*.log

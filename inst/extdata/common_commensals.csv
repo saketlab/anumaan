@@ -1,0 +1,12 @@
+Syndrome,Type of culture/specimen,Common commensals
+Bloodstream infections,Blood culture,Coagulase-negative Staphylococcus; Staphylococcus epidermidis; Staphylococcus hominis; Staphylococcus haemolyticus; Staphylococcus capitis; Staphylococcus warneri; Corynebacterium species; Corynebacterium striatum; Corynebacterium jeikeium; Cutibacterium; Cutibacterium acnes; Micrococcus species; Micrococcus luteus; Bacillus (non-anthracis); Bacillus subtilis; Bacillus cereus; Viridans streptococci; Aerococcus spp.; Kocuria spp.; Dermacoccus spp.; Rothia spp.
+Meningitis,CSF culture,Same as blood (skin flora contamination during needle insertion)
+Lower respiratory tract infections,Sputum / ETA / non-sterile respiratory samples,"Viridans group streptococci; Non-pathogenic Neisseria spp.; Haemophilus parainfluenzae; Anaerobic oral flora (Prevotella, Porphyromonas, Fusobacterium); Staphylococcus epidermidis; Rothia spp.; Actinomyces spp."
+Endocarditis,Blood culture & tissue,Same as blood
+Peritoneal & intra-abdominal infections,Intra-abdominal fluid / tissue vs superficial swabs,Coagulase-negative Staphylococcus; Staphylococcus epidermidis; Staphylococcus hominis; Staphylococcus haemolyticus; Corynebacterium species (diphtheroids); Micrococcus species; Cutibacterium (Propionibacterium) acnes; Bacillus species
+Diarrhoea,Stool culture,Bacteroides-Prevotella group; Eubacterium; Lactobacillus; Faecalibacterium
+Urinary tract infections / pyelonephritis,Urine culture (MSU / catheter),"Lactobacillus species; Corynebacterium species; Coagulase-negative Staphylococcus (Staphylococcus epidermidis, Staphylococcus saprophyticus); Micrococcus species"
+Bone & joint infections,Bone / joint aspirate vs superficial swabs,"Coagulase-negative Staphylococcus (Staphylococcus epidermidis, Staphylococcus hominis, Staphylococcus haemolyticus, Staphylococcus capitis); Corynebacterium species; Micrococcus species; Cutibacterium (Propionibacterium) acnes"
+Skin & subcutaneous infections,Surface swab vs deep tissue / pus,Coagulase-negative Staphylococcus; Corynebacterium species; Micrococcus species; Cutibacterium (Propionibacterium) acnes
+Tuberculosis,Mycobacterial culture / GeneXpert,Neisseria spp. (non-pathogenic); Haemophilus spp.; Moraxella catarrhalis
+Typhoid / invasive Salmonella,Blood / sterile site culture,No typical commensals (growth usually clinically significant)

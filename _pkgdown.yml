@@ -1,0 +1,247 @@
+url: https://saketlab.github.io/anumaan/
+
+development:
+  mode: release
+
+template:
+  bootstrap: 5
+  light-switch: true
+  preset: default
+  bslib:
+    primary: "#0071e3"
+    border-radius: "0.5rem"
+  includes:
+    in_header: |
+      <link rel="stylesheet" href="extra.css">
+      <meta name="keywords" content="AMR, antimicrobial resistance, R package, burden estimation, YLL, YLD, DALY, GBD, India, surveillance, hospital infections, MDR, XDR">
+      <meta name="author" content="Saket Choudhary, Nilanjana Dey, Nima Jijo, Namrata Kharat">
+      <meta name="robots" content="index, follow">
+      <meta property="og:type" content="website">
+      <meta property="og:url" content="https://saketlab.github.io/anumaan/">
+      <meta property="og:title" content="anumaan - AMR Surveillance Preprocessing and Burden Estimation">
+      <meta property="og:description" content="R package for preprocessing antimicrobial resistance surveillance data and estimating disease burden using GBD methodology.">
+      <meta property="og:site_name" content="anumaan">
+      <meta property="og:locale" content="en_US">
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "anumaan",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "R package for preprocessing antimicrobial resistance surveillance data and estimating disease burden",
+        "author": {
+          "@type": "Organization",
+          "name": "Saket Lab",
+          "url": "https://saketlab.org"
+        },
+        "url": "https://saketlab.github.io/anumaan/",
+        "downloadUrl": "https://github.com/saketlab/anumaan",
+        "programmingLanguage": "R"
+      }
+      </script>
+
+home:
+  title: "anumaan - AMR Surveillance Preprocessing and Burden Estimation"
+  description: >
+    R package for preprocessing antimicrobial resistance surveillance data
+    and estimating disease burden (YLL, YLD, DALY) using GBD methodology.
+
+  links:
+  - text: Browse source code
+    href: https://github.com/saketlab/anumaan
+  - text: Report a bug
+    href: https://github.com/saketlab/anumaan/issues
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github, lightswitch]
+
+  components:
+    reference:
+      text: Reference
+      href: reference/index.html
+
+    articles:
+      text: Articles
+      menu:
+      - text: Getting Started
+        href: articles/getting-started.html
+
+    news:
+      text: Changelog
+      href: news/index.html
+
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/saketlab/anumaan
+      aria-label: GitHub
+
+reference:
+- title: "Pipeline"
+  desc: "Main preprocessing pipeline and configuration"
+  contents:
+  - amr_preprocess
+  - amr_config
+  - validate_config
+
+- title: "Normalization"
+  desc: "Standardize column names, organisms, antibiotics, and specimens"
+  contents:
+  - standardize_column_names
+  - normalize_organism
+  - normalize_antibiotic
+  - normalize_specimen
+  - standardize_gender
+  - standardize_outcome
+  - standardize_susceptibility
+  - recode_intermediate
+  - parse_dates
+
+- title: "Classification"
+  desc: "MDR/XDR classification, organism grouping, and AWaRe"
+  contents:
+  - classify_mdr
+  - classify_xdr
+  - classify_org_group
+  - classify_aware
+  - classify_antibiotic_class
+  - classify_mortality
+
+- title: "Enrichment"
+  desc: "Derive missing variables from existing data"
+  contents:
+  - enrich_age
+  - enrich_los
+  - enrich_infection_type
+  - enrich_hospital_department
+  - assign_age_bins
+  - derive_age
+
+- title: "Deduplication and collapsing"
+  desc: "Event IDs, deduplication, and data reshaping"
+  contents:
+  - create_event_ids
+  - deduplicate_events
+  - flag_contaminants
+  - flag_polymicrobial
+  - collapse_to_antibiotic_level
+  - collapse_to_class_level
+  - create_wide_format
+  - pivot_wide_to_long
+  - create_resistance_profile
+  - compute_polymicrobial_weight
+
+- title: "Resistance profiles"
+  desc: "Marginal resistance, coresistance, and profile computation"
+  contents:
+  - starts_with("compute_")
+  - select_resistance_class
+  - prioritize_resistance
+
+- title: "Burden estimation (YLL/YLD)"
+  desc: "GBD-methodology burden calculations"
+  contents:
+  - starts_with("calculate_")
+  - starts_with("fit_")
+  - starts_with("assign_rr")
+  - load_rr_reference
+  - lookup_rr
+  - add_rr_mappings
+  - map_class_to_rr
+  - map_to_rr_pathogen
+
+- title: "LOS modeling"
+  desc: "Length-of-stay distribution fitting and comparison"
+  contents:
+  - safe_fit
+  - fit_distributions
+  - compare_distribution_aic
+  - summarise_distribution
+  - plot_los_distributions
+  - prepare_los_data
+  - get_los_by_resistance
+
+- title: "Burden plots"
+  desc: "GBD-style and hospital-level burden visualizations"
+  contents:
+  - compute_hospital_daly
+  - plot_gbd_fig4
+  - plot_gbd_fig6
+  - plot_burden_comparison
+  - plot_burden_heatmap
+  - plot_daly_lollipop
+  - plot_resistance_fraction
+
+- title: "Visualization"
+  desc: "Generic AMR plotting utilities"
+  contents:
+  - amr_theme
+  - get_amr_palette
+  - plot_bar
+  - plot_grouped_bar
+  - plot_stacked_bar
+  - plot_heatmap
+  - plot_histogram
+  - plot_line
+  - plot_proportion
+  - plot_resistance_heatmap
+
+- title: "Spatial analysis"
+  desc: "Spatial metrics and mapping"
+  contents:
+  - starts_with("create_spatial")
+  - starts_with("create_choropleth")
+  - starts_with("create_interactive")
+  - starts_with("calculate_spatial")
+  - starts_with("calculate_distance")
+  - detect_hotspots
+
+- title: "Validation and reporting"
+  desc: "Data quality checks and reports"
+  contents:
+  - validate_data_quality
+  - validate_required_fields
+  - check_logical_consistency
+  - starts_with("summarize_")
+  - generate_preprocessing_report
+  - export_report
+
+- title: "Utilities"
+  desc: "Helper functions"
+  contents:
+  - round_to_sum
+  - shorten_drug_class
+  - default_column_mappings
+  - get_age_bins
+  - get_antimicrobial_categories
+  - get_beta_lactam_hierarchy
+  - get_contaminant_list
+  - get_magiorakos_thresholds
+  - is_contaminant
+  - groom_optional_columns
+  - remove_duplicate_rows
+  - extract_genus
+  - extract_species
+
+authors:
+  Saket Choudhary:
+    href: https://github.com/saketkc
+  Nilanjana Dey:
+    href: https://github.com/nilanjanadey
+  Nima Jijo:
+    href: https://github.com/nimajijo
+
+footer:
+  structure:
+    left: developed_by
+    right: built_with
+  components:
+    developed_by: "Developed by [Saket Lab](https://saketlab.org)"
+    built_with: "Built with [pkgdown](https://pkgdown.r-lib.org/)"
