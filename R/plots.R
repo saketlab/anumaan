@@ -87,7 +87,7 @@ compute_hospital_daly <- function(hospital_counts,
 }
 
 
-#' GBD Figure 4 — Deaths by Organism Group (Overlapping Bars)
+#' GBD Figure 4 -- Deaths by Organism Group (Overlapping Bars)
 #'
 #' Overlapping bar chart showing deaths associated with vs attributable to AMR,
 #' grouped by organism, replicating GBD Lancet 2022 Figure 4.
@@ -186,7 +186,7 @@ plot_gbd_fig4 <- function(deaths_df, total_deaths, title = NULL) {
 }
 
 
-#' GBD Figure 6 — Attributable Deaths Heatmap (Pathogen x Drug Class)
+#' GBD Figure 6 -- Attributable Deaths Heatmap (Pathogen x Drug Class)
 #'
 #' Heatmap of deaths attributable to AMR by pathogen and antibiotic class,
 #' replicating GBD Lancet 2022 Figure 6. Includes an "All pathogens" summary

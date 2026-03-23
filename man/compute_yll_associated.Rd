@@ -70,67 +70,53 @@ frame directly (column \code{pathogen_col} and \code{p_lk_col}).
 
 \item{p_lk_col}{Character. P_Lk value column. Default \code{"P_Lk"}.}
 
-\item{patient_col}{Character.  Unique patient identifier column.}
+\item{profiles_with_rr}{Named list or \code{NULL}. Output from
+\code{assign_rr_to_profiles()} for per-profile / per-class breakdowns.}
 
-\item{outcome_col}{Character.  Final outcome column.}
+\item{rr_profile_col}{Character. Dominant-class RR column in profile data.
+Default \code{"RR_death_profile"}.}
 
-\item{death_value}{Character.  Value(s) indicating a fatal outcome.
-Default \code{"Death"}.  Pass a vector to match multiple labels
-(e.g. \code{c("Death","Died")}).}
+\item{probability_col}{Character. Profile prevalence column.
+Default \code{"probability"}.}
 
-\item{age_bin_col}{Character.  Column containing GBD-standard age
-bin labels (e.g. \code{"0-1"}, \code{"1-5"}, …, \code{"85+"}).  Use
-\code{age_bin_map} to recode non-standard labels.}
+\item{dominant_class_col}{Character. Column identifying the dominant
+antibiotic class. Default \code{"dominant_class"}.}
 
-\item{sex_col}{Character.  Column containing patient sex.}
+\item{patient_data}{Data frame or \code{NULL}. Patient-level records for
+per-patient YLL output.}
 
-\item{syndrome_col}{Character or \code{NULL}.  Syndrome column.
-When \code{NULL} all syndromes are pooled; when supplied the
-\code{by_syndrome} and \code{by_syndrome_pathogen} outputs are populated.}
+\item{patient_col}{Character or \code{NULL}. Patient identifier column in
+\code{patient_data}.}
 
-\item{syndrome_name}{Character or \code{NULL}.  If supplied, data
-are filtered to this syndrome before computation.  \code{NULL} = all.}
+\item{outcome_col}{Character or \code{NULL}. Final outcome column in
+\code{patient_data}.}
 
-\item{le_path}{Character.  Path to the India life expectancy
-xlsx file.  Defaults to the bundled \code{inst/extdata} copy.}
+\item{death_value}{Character. Value(s) indicating a fatal outcome.
+Default \code{"Death"}.}
 
-\item{male_value}{Character.  Value in \code{sex_col} for males.
+\item{age_bin_col}{Character or \code{NULL}. Age bin column in
+\code{patient_data}.}
+
+\item{sex_col}{Character or \code{NULL}. Sex column in \code{patient_data}.}
+
+\item{syndrome_col}{Character or \code{NULL}. Syndrome column.}
+
+\item{syndrome_name}{Character or \code{NULL}. If supplied, filters
+\code{patient_data} to this syndrome.}
+
+\item{patient_pathogen_col}{Character or \code{NULL}. Pathogen column name
+in \code{patient_data} (e.g. \code{"organism_name"}).}
+
+\item{le_path}{Character or \code{NULL}. Path to the life expectancy file.}
+
+\item{male_value}{Character. Value in \code{sex_col} for males.
 Default \code{"Male"}.}
 
-\item{female_value}{Character.  Value in \code{sex_col} for females.
-Default \code{"Female"}.  All other values use the combined LE.}
+\item{female_value}{Character. Value in \code{sex_col} for females.
+Default \code{"Female"}.}
 
-\item{age_bin_map}{Named character vector remapping non-standard
-age bin labels to LE-table labels.  Default \code{c("<1" = "0-1")}.}
-
-\item{data}{Data frame of patient-level microbiology records
-(one row per patient × antibiotic test or per patient × pathogen).}
-
-\item{facility_col}{Character or \code{NULL}.  Facility identifier
-column.  When supplied, polymicrobial weights are computed per facility
-(with global fallback) and results include a \code{by_facility} breakdown.}
-
-\item{date_culture_col}{Character or \code{NULL}.  Culture date column
-used to define polymicrobial episodes (\code{flag_polymicrobial()}).
-Set \code{NULL} to skip polymicrobial flagging (all weights = 1).}
-
-\item{specimen_col}{Character or \code{NULL}.  Specimen type column
-used together with \code{date_culture_col} for episode definition.}
-
-\item{poly_weight_method}{Character.  Passed to
-\code{compute_polymicrobial_weight()}: \code{"monomicrobial_proportion"}
-(default), \code{"equal"}, or \code{"manual"}.}
-
-\item{min_mono_per_facility}{Integer.  Minimum monomicrobial isolates a
-facility must have for per-facility weights.  Facilities below this
-threshold fall back to globally-pooled proportions.  Default \code{30L}.}
-
-\item{gap_days}{Numeric.  Maximum days between cultures
-considered the same episode.  Default \code{14}.}
-
-\item{stratify_by}{Character vector or \code{NULL}.  Additional
-column names to include as stratification dimensions in the
-\code{stratified} output (e.g. \code{c("location", "Age_bin", "sex")}).}
+\item{age_bin_map}{Named character vector remapping non-standard age bin
+labels. Default \code{c("<1" = "0-1")}.}
 }
 \value{
 A named list:
@@ -140,15 +126,15 @@ A named list:
   \item{\code{per_pathogen}}{Data frame: YLL summed per pathogen k, pooled
     across facilities.  Columns: \code{pathogen_col}, \code{n_patients},
     \code{YLL_associated_k}.}
-  \item{\code{by_age_sex}}{Data frame: YLL by \code{age_bin_col} × sex.}
-  \item{\code{by_pathogen_age_sex}}{Data frame: YLL by pathogen ×
-    \code{age_bin_col} × sex.}
+  \item{\code{by_age_sex}}{Data frame: YLL by \code{age_bin_col} x sex.}
+  \item{\code{by_pathogen_age_sex}}{Data frame: YLL by pathogen x
+    \code{age_bin_col} x sex.}
   \item{\code{by_facility}}{Data frame (only when \code{facility_col} is
-    supplied): per-facility YLL, one row per facility × pathogen.}
+    supplied): per-facility YLL, one row per facility x pathogen.}
   \item{\code{by_syndrome}}{Data frame (only when \code{syndrome_col} is
     supplied and \code{syndrome_name} is \code{NULL}): YLL by syndrome.}
   \item{\code{by_syndrome_pathogen}}{Data frame (only when
-    \code{syndrome_col} supplied): YLL by syndrome × pathogen.}
+    \code{syndrome_col} supplied): YLL by syndrome x pathogen.}
   \item{\code{stratified}}{Data frame (only when \code{stratify_by} is
     supplied): YLL aggregated by the requested columns.}
   \item{\code{patient_data}}{The death-cohort data frame used for
@@ -161,7 +147,7 @@ Named list:
   \item{\code{by_pathogen}}{Data frame: \code{pathogen}, \code{P_Lk},
     \code{sum_r_prime}, \code{susceptible_fraction}, \code{denominator},
     \code{R_K_star}, \code{base_yll}, \code{YLL_K}.}
-  \item{\code{by_pathogen_profile}}{Data frame: one row per pathogen ×
+  \item{\code{by_pathogen_profile}}{Data frame: one row per pathogen x
     resistant profile with \code{P_Lk}, \code{R_star},
     \code{YLL_Kdelta}.}
   \item{\code{total_yll}}{Scalar: sum of YLL_K.}
@@ -173,7 +159,7 @@ Computes years of life lost (YLL) associated with AMR directly from
 patient-level facility records, without requiring population-level
 P_LK (syndrome fractions) or R_kd (resistance profile scalars).
 
-Implements YLL — Associated (Eq. 12):
+Implements YLL -- Associated (Eq. 12):
 }
 \details{
 For every fatal patient with pathogen k (and optionally syndrome L) the
@@ -181,7 +167,7 @@ individual YLL contribution is:
 \deqn{\text{YLL}_{r,k} = \text{LE}(\text{age\_bin}_r, \text{sex}_r)
   \times w_{r,k}}
 where \eqn{w_{r,k}} is the polymicrobial death weight for patient r and
-pathogen k (= 1 for monomicrobial, 0–1 for polymicrobial episodes).
+pathogen k (= 1 for monomicrobial, 0-1 for polymicrobial episodes).
 Total YLL associated:
 \deqn{\text{YLL}_{\text{associated}} = \sum_{r,k} \text{YLL}_{r,k}}
 
@@ -201,9 +187,9 @@ skipped and all weights default to 1.
 
 where \eqn{R_K^* = \sum_\delta R^*_{K\delta}} (sum of per-profile fatal
 resistance prevalences from \code{compute_fatal_resistance_prevalence}).
-For a single syndrome (BSI): YLL_K = base_YLL × P_KL × R_K*.
+For a single syndrome (BSI): YLL_K = base_YLL x P_KL x R_K*.
 
-Also returns per-profile YLL_Kδ = base_YLL × P_KL × R*_Kδ.
+Also returns per-profile YLL_Kdelta = base_YLL x P_KL x R*_Kdelta.
 }
 \examples{
 \dontrun{

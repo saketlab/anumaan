@@ -2,7 +2,7 @@
 % Please edit documentation in R/yll.R
 \name{compute_fatal_resistance_prevalence}
 \alias{compute_fatal_resistance_prevalence}
-\title{Compute Per-Profile Fatal Prevalence of Resistance R_Kδ* (Eq. 13)}
+\title{Compute Per-Profile Fatal Prevalence of Resistance R_Kdelta* (Eq. 13)}
 \usage{
 compute_fatal_resistance_prevalence(
   profiles_with_rr,
@@ -19,7 +19,7 @@ compute_fatal_resistance_prevalence(
 pathogen.  Each element must contain \code{probability_col},
 \code{rr_profile_col}, and \code{dominant_class_col}.}
 
-\item{probability_col}{Character. Profile prevalence column R'_Kδ.
+\item{probability_col}{Character. Profile prevalence column R'_Kdelta.
 Default \code{"probability"}.}
 
 \item{rr_profile_col}{Character. Dominant-class converted RR.
@@ -27,12 +27,18 @@ Default \code{"RR_LOS_profile"}.}
 
 \item{dominant_class_col}{Character. Column identifying the dominant class
 (or \code{"all_susceptible"}).  Default \code{"dominant_class"}.}
+
+\item{facility_col}{Character or \code{NULL}. Facility identifier column.
+Default \code{NULL}.}
+
+\item{facility_name}{Character or \code{NULL}. If provided, stored in
+the output for provenance tracking. Default \code{NULL}.}
 }
 \value{
 Named list (one per pathogen).  Each element:
 \describe{
   \item{\code{per_profile}}{Data frame of resistant profiles augmented with
-    \code{R_star} (R*_Kδ per profile) and \code{numerator_delta}.}
+    \code{R_star} (R*_Kdelta per profile) and \code{numerator_delta}.}
   \item{\code{R_K_star}}{Scalar: \eqn{\sum_\delta R^*_{K\delta}} =
     total fatal resistance prevalence for pathogen K.}
   \item{\code{sum_r_prime}}{Scalar: \eqn{\sum_\delta R'_{K\delta}}
@@ -44,7 +50,7 @@ Named list (one per pathogen).  Each element:
 }
 }
 \description{
-For each **resistant** profile δ of pathogen K, computes the fatal
+For each **resistant** profile delta of pathogen K, computes the fatal
 prevalence of resistance:
 }
 \details{
@@ -59,12 +65,12 @@ where the sums \eqn{\sum_\delta} run over \strong{resistant profiles only}
 (profiles with at least one resistant antibiotic class, i.e.
 \code{dominant_class != "all_susceptible"}).  The term
 \eqn{(1 - \sum_\delta R'_{K\delta})} is the susceptible fraction and must
-be > 0 for the formula to give R*_Kδ < 1.
+be > 0 for the formula to give R*_Kdelta < 1.
 
 \strong{Important:} pass the output of \code{assign_rr_to_profiles()}
-\emph{directly} — do \emph{not} call \code{filter_profiles_to_rr_classes()}
+\emph{directly} -- do \emph{not} call \code{filter_profiles_to_rr_classes()}
 first, because renormalisation would set \eqn{\sum R'_{K\delta} = 1} and
-collapse the denominator, producing R*_Kδ = 1 for every pathogen.
+collapse the denominator, producing R*_Kdelta = 1 for every pathogen.
 }
 \references{
 Bhaswati Ganguli. DALY Methodology for AMR (YLD notes). March 2026. Eq. 13.

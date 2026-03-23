@@ -69,7 +69,7 @@ Default \code{"pathogen"}.}
 
 \item{p_lk_col}{Character. P_Lk value column. Default \code{"P_Lk"}.}
 
-\item{probability_col}{Character. Profile prevalence R'_Kδ column.
+\item{probability_col}{Character. Profile prevalence R'_Kdelta column.
 Default \code{"probability"}.}
 
 \item{rr_profile_col}{Character. Dominant-class mortality RR column.
@@ -78,39 +78,41 @@ Default \code{"RR_death_profile"}.}
 \item{dominant_class_col}{Character. Dominant class column.
 Default \code{"dominant_class"}.}
 
-\item{patient_col}{Character.  Patient identifier column.}
+\item{patient_data}{Data frame or \code{NULL}. Patient-level records for
+per-patient attributable YLL output.}
 
-\item{age_bin_col}{Character.  Age bin column.}
+\item{patient_col}{Character or \code{NULL}. Patient identifier column in
+\code{patient_data}.}
 
-\item{sex_col}{Character.  Normalised sex column in
-\code{yll_patient_data}.  \code{compute_yll_associated()} stores the
-normalised values in \code{".sex_norm"}; pass that here.
-Default \code{".sex_norm"}.}
+\item{outcome_col}{Character or \code{NULL}. Final outcome column in
+\code{patient_data}.}
 
-\item{syndrome_col}{Character or \code{NULL}.  Syndrome column.}
+\item{death_value}{Character. Value(s) indicating a fatal outcome.
+Default \code{"Death"}.}
 
-\item{yll_patient_data}{Data frame.  The \code{$patient_data} element from
-\code{compute_yll_associated()}.  Must contain \code{yll_contribution},
-\code{life_expectancy}, \code{death_weight}, plus \code{pathogen_col},
-\code{patient_col}, \code{age_bin_col}, and \code{sex_col}.}
+\item{age_bin_col}{Character or \code{NULL}. Age bin column in
+\code{patient_data}.}
 
-\item{paf_mort}{Named list returned by \code{compute_paf_rr_mortality()}.
-Each entry corresponds to one pathogen k and must contain
-\code{$PAF_k_mort} (scalar) and, for per-profile mode,
-\code{$per_profile} (data frame with \code{profile_col} and
-\code{PAF_mortality}).}
+\item{sex_col}{Character or \code{NULL}. Sex column in \code{patient_data}.}
 
-\item{resistance_profile_col}{Character or \code{NULL}.  Column in
-\code{yll_patient_data} containing the resistance profile delta label.
-When \code{NULL} (default), scalar \code{PAF_k_mort} is used.}
+\item{syndrome_col}{Character or \code{NULL}. Syndrome column.}
 
-\item{profile_col}{Character.  Column name in \code{paf_mort$per_profile}
-holding the profile label.  Default \code{"profile"}.}
+\item{syndrome_name}{Character or \code{NULL}. If supplied, filters
+\code{patient_data} to this syndrome.}
 
-\item{facility_col}{Character or \code{NULL}.  Facility column.}
+\item{patient_pathogen_col}{Character or \code{NULL}. Pathogen column name
+in \code{patient_data} (e.g. \code{"organism_name"}).}
 
-\item{stratify_by}{Character vector or \code{NULL}.  Additional
-stratification columns (always includes \code{pathogen_col}).}
+\item{le_path}{Character or \code{NULL}. Path to the life expectancy file.}
+
+\item{male_value}{Character. Value in \code{sex_col} for males.
+Default \code{"Male"}.}
+
+\item{female_value}{Character. Value in \code{sex_col} for females.
+Default \code{"Female"}.}
+
+\item{age_bin_map}{Named character vector remapping non-standard age bin
+labels. Default \code{c("<1" = "0-1")}.}
 }
 \value{
 A list:
@@ -119,13 +121,13 @@ A list:
     \item{per_pathogen}{One row per pathogen: \code{pathogen_col},
       \code{n_patients}, \code{YLL_associated_k}, \code{PAF_k_mort},
       \code{YLL_attributable_k}.}
-    \item{by_age_sex}{YLL attributable stratified by age_bin × sex.}
-    \item{by_pathogen_age_sex}{YLL attributable by pathogen × age_bin × sex.}
+    \item{by_age_sex}{YLL attributable stratified by age_bin x sex.}
+    \item{by_pathogen_age_sex}{YLL attributable by pathogen x age_bin x sex.}
     \item{by_facility}{Per-facility breakdown (when \code{facility_col}
       supplied).}
     \item{by_syndrome}{Per-syndrome breakdown (when \code{syndrome_col}
       supplied).}
-    \item{by_syndrome_pathogen}{Per-syndrome × pathogen (when
+    \item{by_syndrome_pathogen}{Per-syndrome x pathogen (when
       \code{syndrome_col} supplied).}
     \item{stratified}{User-defined stratification (when \code{stratify_by}
       supplied).}
@@ -135,7 +137,7 @@ A list:
 
 Named list:
 \describe{
-  \item{\code{by_profile}}{Data frame: one row per pathogen × resistant
+  \item{\code{by_profile}}{Data frame: one row per pathogen x resistant
     profile with \code{R_prime}, \code{RR_dominant}, \code{excess_risk},
     \code{numerator_delta}, \code{denominator}, \code{MortPAF},
     \code{P_Lk}, \code{base_yll}, \code{YLL_Kdelta}.}
@@ -151,7 +153,7 @@ Takes the per-patient YLL data produced by \code{compute_yll_associated()}
 \code{yll_contribution}) and multiplies by the mortality PAF from
 \code{compute_paf_rr_mortality()} to produce AMR-attributable YLL.
 
-Implements YLL — Attributable (Bhaswati Ganguli, DALY Methodology, 2026):
+Implements YLL -- Attributable (Bhaswati Ganguli, DALY Methodology, 2026):
 }
 \details{
 \strong{Two PAF modes:}
@@ -169,18 +171,18 @@ Implements YLL — Attributable (Bhaswati Ganguli, DALY Methodology, 2026):
 \deqn{\text{YLL}^{\text{attr}}_{i,k} =
   \text{yll\_contribution}_{i,k} \times \text{PAF}_{k(,\delta)}}
 
-\strong{Eq. 15 — Mortality PAF per profile δ:}
+\strong{Eq. 15 -- Mortality PAF per profile delta:}
 \deqn{
   \text{MortPAF}_{K\delta} =
     \frac{R'_{K\delta} \cdot (RR_{Kd^*}(\delta) - 1)}
          {1 + \sum_{\delta'} R'_{K\delta'} \cdot (RR_{Kd^*}(\delta') - 1)}
 }
 
-Numerator is \strong{per profile} δ; denominator is \strong{shared} across
+Numerator is \strong{per profile} delta; denominator is \strong{shared} across
 all resistant profiles of pathogen K. The sum \eqn{\sum_{\delta'}} runs
 over resistant profiles only (\code{dominant_class != "all_susceptible"}).
 
-\strong{Eq. 14 — Attributable YLL per profile:}
+\strong{Eq. 14 -- Attributable YLL per profile:}
 \deqn{
   YLL_{K\delta} = \text{BaseYLL} \times P_{KL} \times \text{MortPAF}_{K\delta}
 }
@@ -212,5 +214,5 @@ yll_attr <- compute_yll_attributable(
 }
 }
 \references{
-Bhaswati Ganguli. DALY Methodology for AMR. March 2026. Eq. 14–15.
+Bhaswati Ganguli. DALY Methodology for AMR. March 2026. Eq. 14-15.
 }

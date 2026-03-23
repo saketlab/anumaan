@@ -79,7 +79,7 @@ Default \code{c("weibull","lnorm","gamma")}. Ignored when
 before computing the RR. \code{"mean"} (default) fits the best
 parametric distribution (Weibull / Lognormal / Gamma by AIC) and
 returns the analytical mean. \code{"median"} uses the empirical
-median directly — no distribution fitting, more robust to outliers
+median directly -- no distribution fitting, more robust to outliers
 but ignores the shape of the LOS distribution.}
 
 \item{hai_threshold_hours}{Numeric. Gap threshold (hours) for HAI/CAI

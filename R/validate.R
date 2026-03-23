@@ -105,11 +105,11 @@ validate_required_fields <- function(data,
   # Print messages
   if (is_valid) {
     message(sprintf(
-      "✓ Validation passed: All %d required columns present and complete",
+      "[v] Validation passed: All %d required columns present and complete",
       length(required_cols)
     ))
   } else {
-    message("✗ Validation failed:")
+    message("[x] Validation failed:")
     for (msg in validation_msgs) {
       message(sprintf("  - %s", msg))
     }
@@ -221,7 +221,7 @@ remove_duplicate_rows <- function(data,
   n_removed <- n_before - n_after
 
   message(sprintf(
-    "Removed %d duplicate rows: %d → %d (%.1f%% retained)",
+    "Removed %d duplicate rows: %d -> %d (%.1f%% retained)",
     n_removed, n_before, n_after, 100 * n_after / n_before
   ))
 
@@ -321,7 +321,7 @@ validate_data_quality <- function(data,
     quality_issues <- c(
       quality_issues,
       sprintf(
-        "Overall completeness too low: %.1f%% (target: ≥50%%)",
+        "Overall completeness too low: %.1f%% (target: >=50%%)",
         overall_completeness * 100
       )
     )
@@ -343,11 +343,11 @@ validate_data_quality <- function(data,
   # Print results
   if (passes_quality) {
     message(sprintf(
-      "✓ Quality check passed: %d rows × %d cols, %.1f%% complete",
+      "[v] Quality check passed: %d rows x %d cols, %.1f%% complete",
       n_rows, ncol(data), overall_completeness * 100
     ))
   } else {
-    message("✗ Quality issues detected:")
+    message("[x] Quality issues detected:")
     for (issue in quality_issues) {
       message(sprintf("  - %s", issue))
     }
@@ -500,11 +500,11 @@ check_logical_consistency <- function(data,
   # Print results
   if (is_consistent) {
     message(sprintf(
-      "✓ Logical consistency: All %d checks passed",
+      "[v] Logical consistency: All %d checks passed",
       length(checks)
     ))
   } else {
-    message("✗ Logical inconsistencies found:")
+    message("[x] Logical inconsistencies found:")
     for (msg in summary_msgs) {
       message(sprintf("  - %s", msg))
     }

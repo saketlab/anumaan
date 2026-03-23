@@ -2,7 +2,7 @@
 % Please edit documentation in R/burden.R
 \name{calculate_P_Lk_fatal}
 \alias{calculate_P_Lk_fatal}
-\title{Calculate fatal pathogen distribution (P_{Lk})}
+\title{Calculate fatal pathogen distribution (P_\{Lk\})}
 \usage{
 calculate_P_Lk_fatal(
   data,

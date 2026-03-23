@@ -2,7 +2,7 @@
 % Please edit documentation in R/plots.R
 \name{plot_gbd_fig6}
 \alias{plot_gbd_fig6}
-\title{GBD Figure 6 — Attributable Deaths Heatmap (Pathogen x Drug Class)}
+\title{GBD Figure 6 -- Attributable Deaths Heatmap (Pathogen x Drug Class)}
 \usage{
 plot_gbd_fig6(profile_df, total_deaths, total_attributable, title = NULL)
 }

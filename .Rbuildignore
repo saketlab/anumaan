@@ -19,3 +19,7 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+^data$
+^\.here$
+inst/extdata/\.~lock\..*
+^tests/output_data/\.gitkeep$

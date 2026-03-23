@@ -58,11 +58,11 @@ amr_preprocess <- function(data,
   start_time <- Sys.time()
 
   if (verbose) {
-    message("═══════════════════════════════════════════════════════")
+    message("=======================================================")
     message("  anumaan Preprocessing Pipeline")
-    message("═══════════════════════════════════════════════════════")
+    message("=======================================================")
     message(sprintf("Started: %s", format(start_time, "%Y-%m-%d %H:%M:%S")))
-    message(sprintf("Input: %d rows × %d columns", nrow(data), ncol(data)))
+    message(sprintf("Input: %d rows x %d columns", nrow(data), ncol(data)))
   }
 
   # Initialize config
@@ -93,7 +93,7 @@ amr_preprocess <- function(data,
   # PRE-VALIDATION
   # ========================================
   if (validate && verbose) {
-    message("\n─── Pre-Processing Validation ───")
+    message("\n--- Pre-Processing Validation ---")
   }
 
   if (validate) {
@@ -119,9 +119,9 @@ amr_preprocess <- function(data,
   # ========================================
   if ("standardize" %in% phases) {
     if (verbose) {
-      message("\n═══════════════════════════════════════════════════════")
+      message("\n=======================================================")
       message("  PHASE 1: STANDARDIZATION")
-      message("═══════════════════════════════════════════════════════")
+      message("=======================================================")
     }
 
     # Step 1.1: Column name standardization
@@ -139,7 +139,7 @@ amr_preprocess <- function(data,
     date_cols <- c("date_of_admission", "date_of_culture", "date_of_final_outcome", "DOB")
     existing_date_cols <- intersect(date_cols, names(data))
     for (col in existing_date_cols) {
-      data <- parse_dates(data, date_col = col)
+      data <- parse_dates(data, date_columns = col)
     }
 
     # Step 1.3: Standardize values
@@ -169,9 +169,9 @@ amr_preprocess <- function(data,
   # ========================================
   if ("enrich" %in% phases) {
     if (verbose) {
-      message("\n═══════════════════════════════════════════════════════")
+      message("\n=======================================================")
       message("  PHASE 2: ENRICHMENT")
-      message("═══════════════════════════════════════════════════════")
+      message("=======================================================")
     }
 
     # Step 2.1: Enrich Age
@@ -202,9 +202,9 @@ amr_preprocess <- function(data,
   # ========================================
   if ("derive" %in% phases) {
     if (verbose) {
-      message("\n═══════════════════════════════════════════════════════")
+      message("\n=======================================================")
       message("  PHASE 3: DERIVATION")
-      message("═══════════════════════════════════════════════════════")
+      message("=======================================================")
     }
 
     # Step 3.1: Assign age bins
@@ -234,7 +234,7 @@ amr_preprocess <- function(data,
       data <- classify_aware(data)
     }
 
-    # Step 3.5: Create event IDs (patient → isolate level)
+    # Step 3.5: Create event IDs (patient -> isolate level)
     if (all(c("patient_id", "date_of_culture", "organism_normalized") %in% names(data))) {
       if (verbose) message("\n[3.5] Creating event IDs...")
       data <- create_event_ids(data, gap_days = config$event_gap_days)
@@ -266,7 +266,7 @@ amr_preprocess <- function(data,
       data <- compute_polymicrobial_weight(data, method = "monomicrobial_proportion")
     }
 
-    # Step 3.9: Apply death weights (placeholder — not yet implemented)
+    # Step 3.9: Apply death weights (placeholder -- not yet implemented)
     if ("mortality_infection" %in% names(data)) {
       if (verbose) message("\n[3.10] Death weights: skipped (not yet implemented)")
     }
@@ -292,7 +292,7 @@ amr_preprocess <- function(data,
   # POST-VALIDATION
   # ========================================
   if (validate && verbose) {
-    message("\n─── Post-Processing Validation ───")
+    message("\n--- Post-Processing Validation ---")
   }
 
   if (validate) {
@@ -316,7 +316,7 @@ amr_preprocess <- function(data,
   # ========================================
   report <- NULL
   if (generate_report) {
-    if (verbose) message("\n─── Generating Preprocessing Report ───")
+    if (verbose) message("\n--- Generating Preprocessing Report ---")
     report <- generate_preprocessing_report(
       raw_data = original_summary,
       processed_data = data,
@@ -354,13 +354,13 @@ amr_preprocess <- function(data,
   class(result) <- c("amr_result", "list")
 
   if (verbose) {
-    message("\n═══════════════════════════════════════════════════════")
+    message("\n=======================================================")
     message("  PIPELINE COMPLETE")
-    message("═══════════════════════════════════════════════════════")
+    message("=======================================================")
     message(sprintf("Completed: %s", format(end_time, "%Y-%m-%d %H:%M:%S")))
     message(sprintf("Elapsed time: %.2f seconds", elapsed))
-    message(sprintf("Output: %d rows × %d columns", nrow(data), ncol(data)))
-    message("═══════════════════════════════════════════════════════")
+    message(sprintf("Output: %d rows x %d columns", nrow(data), ncol(data)))
+    message("=======================================================")
   }
 
   return(result)
@@ -383,9 +383,9 @@ amr_preprocess <- function(data,
 #' summary(result)
 #' }
 summary.amr_result <- function(object, ...) {
-  cat("═══════════════════════════════════════════════════════\n")
+  cat("=======================================================\n")
   cat("  anumaan Preprocessing Summary\n")
-  cat("═══════════════════════════════════════════════════════\n\n")
+  cat("=======================================================\n\n")
 
   # Metadata
   cat("Pipeline Information:\n")
@@ -397,12 +397,12 @@ summary.amr_result <- function(object, ...) {
   # Data dimensions
   cat("Data Transformation:\n")
   cat(sprintf(
-    "  Input:  %d rows × %d columns\n",
+    "  Input:  %d rows x %d columns\n",
     object$metadata$n_rows_input,
     object$metadata$n_cols_input
   ))
   cat(sprintf(
-    "  Output: %d rows × %d columns\n",
+    "  Output: %d rows x %d columns\n",
     object$metadata$n_rows_output,
     object$metadata$n_cols_output
   ))
@@ -429,7 +429,7 @@ summary.amr_result <- function(object, ...) {
 
     if (!is.null(object$log$validation$post_consistency)) {
       if (object$log$validation$post_consistency$consistent) {
-        cat("  Logical consistency: PASSED ✓\n")
+        cat("  Logical consistency: PASSED [v]\n")
       } else {
         cat(sprintf(
           "  Logical consistency: FAILED (%d issues)\n",
@@ -473,13 +473,13 @@ summary.amr_result <- function(object, ...) {
     cat(sprintf("  Infection-related deaths: %d\n", n_deaths))
   }
 
-  cat("\n═══════════════════════════════════════════════════════\n")
+  cat("\n=======================================================\n")
   cat("Access components:\n")
   cat("  result$data    - Preprocessed data frame\n")
   cat("  result$config  - Configuration used\n")
   cat("  result$log     - Processing logs\n")
   cat("  result$report  - Preprocessing report\n")
-  cat("═══════════════════════════════════════════════════════\n")
+  cat("=======================================================\n")
 
   invisible(object)
 }
@@ -494,7 +494,7 @@ summary.amr_result <- function(object, ...) {
 #' @export
 print.amr_result <- function(x, ...) {
   cat("anumaan preprocessing result\n")
-  cat(sprintf("  %d rows × %d columns\n", nrow(x$data), ncol(x$data)))
+  cat(sprintf("  %d rows x %d columns\n", nrow(x$data), ncol(x$data)))
   cat(sprintf("  Phases: %s\n", paste(x$metadata$phases_run, collapse = ", ")))
   cat("\nUse summary() for detailed information\n")
   invisible(x)

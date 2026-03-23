@@ -3,13 +3,13 @@
 #
 # Workflow (three steps):
 #
-#   Step 1 — compute_marginal_resistance()
+#   Step 1 -- compute_marginal_resistance()
 #     Collapses drug-level data to class level (R if ANY drug in class R),
-#     computes marginal resistance per pathogen × class, and flags classes
+#     computes marginal resistance per pathogen x class, and flags classes
 #     whose marginal resistance is at or below zero_threshold. The flagged
-#     list is informational — downstream profiling can choose to exclude them.
+#     list is informational -- downstream profiling can choose to exclude them.
 #
-#   Step 2 — compute_pairwise_coresistance()
+#   Step 2 -- compute_pairwise_coresistance()
 #     Uses the collapsed class-level data from Step 1 to compute pairwise
 #     co-resistance matrices for ALL tested classes per pathogen:
 #
@@ -17,7 +17,7 @@
 #       R[k, c_i, c_j] = # isolates resistant to both
 #       Prev[k, c_i, c_j] = R / T
 #
-#   Step 3 — compute_resistance_profiles()
+#   Step 3 -- compute_resistance_profiles()
 #     Enumerates all 2^n binary resistance profiles delta in {0,1}^n and
 #     estimates profile probabilities via a simplex-constrained weighted
 #     least-squares QP (GBD eq. 7.5.1.3), using the marginal and pairwise
@@ -32,7 +32,7 @@
 #   Antimicrobial Resistance Collaborators. Lancet. 2022.
 
 
-# ── Internal helper ───────────────────────────────────────────────────────────
+# -- Internal helper -----------------------------------------------------------
 
 #' Validate that required columns exist in a data frame
 #' @keywords internal
@@ -47,20 +47,20 @@
 }
 
 
-# ── Step 1 ────────────────────────────────────────────────────────────────────
+# -- Step 1 --------------------------------------------------------------------
 
 #' Compute Marginal Resistance per Pathogen and Antibiotic Class
 #'
 #' Collapses drug-level susceptibility data to antibiotic-class level per
 #' isolate (\eqn{R_{e,k,c} = 1} if resistant to \strong{any} drug in class
-#' \eqn{c}), then computes marginal resistance for every pathogen × class
+#' \eqn{c}), then computes marginal resistance for every pathogen x class
 #' combination found in the data.
 #'
 #' Classes whose marginal resistance is at or below \code{zero_threshold} are
-#' listed in \code{$near_zero} as a flag for downstream use — they are
+#' listed in \code{$near_zero} as a flag for downstream use -- they are
 #' \strong{not} removed here.
 #'
-#' @param data Data frame. Pre-processed AMR data at isolate × antibiotic
+#' @param data Data frame. Pre-processed AMR data at isolate x antibiotic
 #'   level (one row per isolate-antibiotic combination). Results must already
 #'   be binary (\code{"S"} / \code{"R"}); no reclassification is applied.
 #' @param pathogen_col Character. Column with pathogen names.
@@ -113,7 +113,7 @@
 #'   \item{\code{near_zero}}{Subset of \code{marginal} where
 #'     \code{marginal_resistance <= zero_threshold}. These classes are
 #'     candidates for exclusion in downstream profiling.}
-#'   \item{\code{class_long}}{Collapsed isolate × pathogen × class data frame
+#'   \item{\code{class_long}}{Collapsed isolate x pathogen x class data frame
 #'     (columns: \code{isolate_col}, \code{pathogen_col}, \code{org_group_col},
 #'     \code{antibiotic_class_col}, \code{class_result}). Pass this directly
 #'     to \code{compute_pairwise_coresistance()}.}
@@ -153,7 +153,7 @@ compute_marginal_resistance <- function(
     antibiotic_class_col, antibiotic_value_col
   ))
 
-  # ── Optional facility filter ──────────────────────────────────────────────
+  # -- Optional facility filter ----------------------------------------------
 
   if (!is.null(facility_col) || !is.null(facility_name)) {
     if (is.null(facility_col) || is.null(facility_name)) {
@@ -166,12 +166,12 @@ compute_marginal_resistance <- function(
       stop(sprintf("No rows found for %s = '%s'.", facility_col, facility_name))
     }
     message(sprintf(
-      "Facility filter applied: %s = '%s' (%d → %d rows).",
+      "Facility filter applied: %s = '%s' (%d -> %d rows).",
       facility_col, facility_name, n_before, nrow(data)
     ))
   }
 
-  # ── Optional outcome filter ───────────────────────────────────────────────
+  # -- Optional outcome filter -----------------------------------------------
 
   if (!is.null(outcome_col) || !is.null(outcome_value)) {
     if (is.null(outcome_col) || is.null(outcome_value)) {
@@ -184,12 +184,12 @@ compute_marginal_resistance <- function(
       stop(sprintf("No rows found for %s = '%s'.", outcome_col, outcome_value))
     }
     message(sprintf(
-      "Outcome filter applied: %s = '%s' (%d → %d rows).",
+      "Outcome filter applied: %s = '%s' (%d -> %d rows).",
       outcome_col, outcome_value, n_before, nrow(data)
     ))
   }
 
-  # ── Collapse to isolate × pathogen × class ───────────────────────────────
+  # -- Collapse to isolate x pathogen x class -------------------------------
   #
   # R_{e,k,c} = 1 if resistant to ANY drug in class c.
 
@@ -213,7 +213,7 @@ compute_marginal_resistance <- function(
     dplyr::n_distinct(class_long[[antibiotic_class_col]])
   ))
 
-  # ── Marginal resistance per pathogen × class ─────────────────────────────
+  # -- Marginal resistance per pathogen x class -----------------------------
 
   marg_grp <- c(pathogen_col, org_group_col, antibiotic_class_col)
   if (!is.null(facility_col)) marg_grp <- c(facility_col, marg_grp)
@@ -234,7 +234,7 @@ compute_marginal_resistance <- function(
       dplyr::desc(marginal_resistance)
     )
 
-  # ── Flag near-zero classes ────────────────────────────────────────────────
+  # -- Flag near-zero classes ------------------------------------------------
 
   near_zero <- marginal %>%
     dplyr::filter(marginal_resistance <= zero_threshold)
@@ -257,7 +257,7 @@ compute_marginal_resistance <- function(
     ))
   }
 
-  # ── Minimum-tests threshold (optional) ────────────────────────────────────
+  # -- Minimum-tests threshold (optional) ------------------------------------
   # Drop pathogen-class combinations with too few isolates tested.
   # class_long is filtered to match so the exclusion carries through to
   # compute_pairwise_coresistance() and compute_resistance_profiles().
@@ -291,7 +291,7 @@ compute_marginal_resistance <- function(
     ]
 
     # Align class_long: remove isolate rows for excluded pathogen-class combos.
-    # Join keys: pathogen × class (facility/outcome are already constant if filtered).
+    # Join keys: pathogen x class (facility/outcome are already constant if filtered).
     join_keys <- c(pathogen_col, antibiotic_class_col)
     if (!is.null(facility_col)) join_keys <- c(facility_col, join_keys)
     if (!is.null(outcome_col)) join_keys <- c(outcome_col, join_keys)
@@ -315,7 +315,7 @@ compute_marginal_resistance <- function(
 }
 
 
-# ── Step 2 ────────────────────────────────────────────────────────────────────
+# -- Step 2 --------------------------------------------------------------------
 
 #' Compute Pairwise Co-resistance Matrices per Pathogen
 #'
@@ -331,7 +331,7 @@ compute_marginal_resistance <- function(
 #'   \text{Prev}_{k,i,j} = R_{k,i,j} \;/\; T_{k,i,j}
 #' }
 #'
-#' Matrices are computed for \strong{all} tested classes — no filtering by
+#' Matrices are computed for \strong{all} tested classes -- no filtering by
 #' marginal resistance or GBD core list is applied here.
 #'
 #' @param marginal_output The list returned by
@@ -409,7 +409,7 @@ compute_pairwise_coresistance <- function(
     org_group_col, antibiotic_class_col
   ))
 
-  # ── Optional facility filter ──────────────────────────────────────────────
+  # -- Optional facility filter ----------------------------------------------
 
   if (!is.null(facility_col) || !is.null(facility_name)) {
     if (is.null(facility_col) || is.null(facility_name)) {
@@ -431,12 +431,12 @@ compute_pairwise_coresistance <- function(
       stop(sprintf("No rows in class_long for %s = '%s'.", facility_col, facility_name))
     }
     message(sprintf(
-      "Facility filter applied: %s = '%s' (%d → %d rows in class_long).",
+      "Facility filter applied: %s = '%s' (%d -> %d rows in class_long).",
       facility_col, facility_name, n_before, nrow(class_long)
     ))
   }
 
-  # ── Optional outcome filter ───────────────────────────────────────────────
+  # -- Optional outcome filter -----------------------------------------------
 
   if (!is.null(outcome_col) || !is.null(outcome_value)) {
     if (is.null(outcome_col) || is.null(outcome_value)) {
@@ -458,7 +458,7 @@ compute_pairwise_coresistance <- function(
       stop(sprintf("No rows in class_long for %s = '%s'.", outcome_col, outcome_value))
     }
     message(sprintf(
-      "Outcome filter applied: %s = '%s' (%d → %d rows in class_long).",
+      "Outcome filter applied: %s = '%s' (%d -> %d rows in class_long).",
       outcome_col, outcome_value, n_before, nrow(class_long)
     ))
   }
@@ -482,7 +482,7 @@ compute_pairwise_coresistance <- function(
         id_cols     = !!rlang::sym(isolate_col),
         names_from  = !!rlang::sym(antibiotic_class_col),
         values_from = class_result
-        # isolates not tested for a class → NA
+        # isolates not tested for a class -> NA
       )
 
     # Binary matrix: 1 = R, 0 = S, NA = not tested
@@ -524,7 +524,7 @@ compute_pairwise_coresistance <- function(
     )
 
     message(sprintf(
-      "'%s': %d classes, %d isolates — co-resistance matrix built.",
+      "'%s': %d classes, %d isolates -- co-resistance matrix built.",
       path, n_c, nrow(bin_mat)
     ))
   }
@@ -533,7 +533,7 @@ compute_pairwise_coresistance <- function(
 }
 
 
-# ── Step 3 ────────────────────────────────────────────────────────────────────
+# -- Step 3 --------------------------------------------------------------------
 
 #' Compute Resistance Profile Probabilities per Pathogen
 #'
@@ -579,9 +579,9 @@ compute_pairwise_coresistance <- function(
 #'   and label creation (10-100x faster than previous versions). However,
 #'   computational complexity is still exponential in the number of classes:
 #'   \itemize{
-#'     \item \strong{n ≤ 14}: Fast (seconds to minutes)
+#'     \item \strong{n <= 14}: Fast (seconds to minutes)
 #'     \item \strong{n = 15}: Moderate (minutes)
-#'     \item \strong{n ≥ 16}: Slow and memory-intensive (use \code{top_n_classes})
+#'     \item \strong{n >= 16}: Slow and memory-intensive (use \code{top_n_classes})
 #'   }
 #'   For large datasets with many pathogens, consider using \code{top_n_classes}
 #'   to limit each pathogen to its most-tested classes (e.g., \code{top_n_classes = 12}).
@@ -596,7 +596,7 @@ compute_pairwise_coresistance <- function(
 #'   the top \code{top_n_pathogens} pathogens ranked by total isolates tested
 #'   (sum of \code{n_tested} across all antibiotic classes, descending) are
 #'   processed. Applied after the \code{pathogens} argument filter. Useful for
-#'   focusing on the most data-rich pathogens — e.g. \code{top_n_pathogens = 5}
+#'   focusing on the most data-rich pathogens -- e.g. \code{top_n_pathogens = 5}
 #'   runs profiles for only the 5 most-tested pathogens.
 #' @param exclude_near_zero  Logical. If \code{TRUE} (default), antibiotic
 #'   classes that appear in \code{marginal_output$near_zero} for a given
@@ -605,14 +605,14 @@ compute_pairwise_coresistance <- function(
 #'   the top \code{top_n_classes} antibiotic classes ranked by \code{n_tested}
 #'   (descending) are kept per pathogen before profile enumeration. Useful for
 #'   capping the combinatorial explosion (2^n profiles) for pathogens tested
-#'   against many drug classes — e.g. \code{top_n_classes = 5} gives at most
+#'   against many drug classes -- e.g. \code{top_n_classes = 5} gives at most
 #'   32 profiles. Applied after \code{exclude_near_zero}.
 #' @param sigma_sq           Positive numeric. Assumed variance for each
 #'   constraint (uniform). Default \code{1}.
 #' @param ridge              Positive numeric. Ridge term added to the QP
 #'   Hessian for numerical stability. Default \code{1e-8}.
 #' @param pathogen_col       Character. Column name for pathogens. Must match
-#'   the column used in Steps 1–2. Default \code{"organism_name"}.
+#'   the column used in Steps 1-2. Default \code{"organism_name"}.
 #' @param antibiotic_class_col Character. Column name for antibiotic classes.
 #'   Default \code{"antibiotic_class"}.
 #' @param facility_col Character or \code{NULL}. Column identifying the
@@ -633,6 +633,8 @@ compute_pairwise_coresistance <- function(
 #'   \code{NULL}. Default \code{NULL}.
 #' @param outcome_value Character or \code{NULL}. Outcome value to retain
 #'   (e.g. \code{"discharged"}, \code{"dead"}). Default \code{NULL}.
+#' @param n_cores Integer. Number of CPU cores for parallel computation.
+#'   Default \code{1L} (sequential).
 #'
 #' @return Named list, one entry per pathogen, each a list with:
 #' \describe{
@@ -686,7 +688,7 @@ compute_resistance_profiles <- function(
   outcome_value = NULL,
   n_cores = 1L
 ) {
-  # ── Input validation ───────────────────────────────────────────────────────
+  # -- Input validation -------------------------------------------------------
   if (!is.list(marginal_output) ||
     !all(c("marginal", "near_zero", "class_long") %in% names(marginal_output))) {
     stop("marginal_output must be the list returned by compute_marginal_resistance().")
@@ -724,7 +726,7 @@ compute_resistance_profiles <- function(
     top_n_classes <- as.integer(top_n_classes)
   }
 
-  # ── Optional facility filter ──────────────────────────────────────────────
+  # -- Optional facility filter ----------------------------------------------
 
   if (!is.null(facility_col) || !is.null(facility_name)) {
     if (is.null(facility_col) || is.null(facility_name)) {
@@ -756,7 +758,7 @@ compute_resistance_profiles <- function(
     ))
   }
 
-  # ── Optional outcome filter ───────────────────────────────────────────────
+  # -- Optional outcome filter -----------------------------------------------
 
   if (!is.null(outcome_col) || !is.null(outcome_value)) {
     if (is.null(outcome_col) || is.null(outcome_value)) {
@@ -801,7 +803,7 @@ compute_resistance_profiles <- function(
     all_pathogens <- pathogens
   }
 
-  # ── Restrict to top N most-tested pathogens ─────────────────────────────────
+  # -- Restrict to top N most-tested pathogens ---------------------------------
   if (!is.null(top_n_pathogens)) {
     path_tested <- marginal_output$marginal %>%
       dplyr::filter(!!rlang::sym(pathogen_col) %in% all_pathogens) %>%
@@ -840,7 +842,7 @@ compute_resistance_profiles <- function(
     ))
   }
 
-  # ── Per-pathogen worker (closure over outer env) ──────────────────────────
+  # -- Per-pathogen worker (closure over outer env) --------------------------
   .process_one <- function(path_idx) {
     path <- all_pathogens[path_idx]
 
@@ -851,7 +853,7 @@ compute_resistance_profiles <- function(
       ))
     }
 
-    # ── Determine antibiotic classes ───────────────────────────────────────
+    # -- Determine antibiotic classes ---------------------------------------
     marg_k <- marginal_output$marginal[
       marginal_output$marginal[[pathogen_col]] == path,
     ]
@@ -900,25 +902,25 @@ compute_resistance_profiles <- function(
 
     if (n > 18L) {
       warning(sprintf(
-        "'%s': %d classes → 2^%d = %d profiles. This may be very slow and memory-intensive.",
+        "'%s': %d classes -> 2^%d = %d profiles. This may be very slow and memory-intensive.",
         path, n, n, n_profiles
       ))
     }
 
-    # ── Marginal resistance vector r_kd ────────────────────────────────────
+    # -- Marginal resistance vector r_kd ------------------------------------
     r_marg <- setNames(
       marg_k$marginal_resistance,
       marg_k[[antibiotic_class_col]]
     )[classes]
 
-    # ── Pairwise co-resistance matrix (may be NULL) ────────────────────────
+    # -- Pairwise co-resistance matrix (may be NULL) ------------------------
     co_mat <- if (path %in% names(coresistance_output)) {
       coresistance_output[[path]]$prevalence
     } else {
       NULL
     }
 
-    # ── Enumerate 2^n resistance profiles ─────────────────────────────────
+    # -- Enumerate 2^n resistance profiles ---------------------------------
     profiles_mat <- matrix(
       as.integer(
         outer(0L:(n_profiles - 1L), 2L^(0L:(n - 1L)), bitwAnd) > 0L
@@ -931,7 +933,7 @@ compute_resistance_profiles <- function(
     char_mat[profiles_mat == 1L] <- "R"
     profile_labels <- do.call(paste0, as.data.frame(char_mat))
 
-    # ── Constraint matrix M (m × 2^n) and target vector v ─────────────────
+    # -- Constraint matrix M (m x 2^n) and target vector v -----------------
     M_marg <- t(profiles_mat)
     v_marg <- r_marg
 
@@ -979,7 +981,7 @@ compute_resistance_profiles <- function(
         path, sum(was_capped),
         paste(
           sprintf(
-            "(%s,%s) %.4f→%.4f",
+            "(%s,%s) %.4f->%.4f",
             c1_names[was_capped], c2_names[was_capped],
             co_vals[was_capped], capped_co[was_capped]
           ),
@@ -1001,15 +1003,15 @@ compute_resistance_profiles <- function(
     v <- c(v_marg, v_pair)
     storage.mode(M) <- "double"
 
-    # ── QP: simplex-constrained weighted least-squares ─────────────────────
+    # -- QP: simplex-constrained weighted least-squares ---------------------
     #
-    # Minimise  (1/2) p^T H p  −  d^T p
+    # Minimise  (1/2) p^T H p  -  d^T p
     #   H = (2/sigma_sq) * M^T M  +  ridge * I   (guaranteed pos-def)
     #   d = (2/sigma_sq) * M^T v
     # Subject to: sum(p) = 1, p >= 0
     #
     # OSQP path: constraint matrix A = rbind([1...1], I_{2^n}) stored sparse
-    #   → O(2^n) memory vs O(4^n) for the dense diag() used by quadprog.
+    #   -> O(2^n) memory vs O(4^n) for the dense diag() used by quadprog.
     # quadprog path: retained as fallback when osqp/Matrix are unavailable.
     coef <- 2.0 / sigma_sq
     H_mat <- coef * crossprod(M)
@@ -1043,7 +1045,7 @@ compute_resistance_profiles <- function(
           }
           pmax(res$x, 0.0)
         } else {
-          # quadprog fallback — dense Amat, slow for n > 12
+          # quadprog fallback -- dense Amat, slow for n > 12
           Amat <- cbind(rep(1.0, n_profiles), diag(n_profiles))
           bvec <- c(1.0, rep(0.0, n_profiles))
           sol <- quadprog::solve.QP(
@@ -1064,7 +1066,7 @@ compute_resistance_profiles <- function(
 
     p_hat <- p_hat / sum(p_hat)
 
-    # ── Constraint residuals ───────────────────────────────────────────────
+    # -- Constraint residuals -----------------------------------------------
     residuals <- drop(M %*% p_hat) - v
     names(residuals) <- c(
       paste0("marg_", classes),
@@ -1079,7 +1081,7 @@ compute_resistance_profiles <- function(
     profiles_df <- cbind(profiles_df, as.data.frame(profiles_mat))
 
     message(sprintf(
-      "'%s': n=%d classes → %d profiles. Max |residual| = %.5f.",
+      "'%s': n=%d classes -> %d profiles. Max |residual| = %.5f.",
       path, n, n_profiles, max(abs(residuals))
     ))
 
@@ -1095,7 +1097,7 @@ compute_resistance_profiles <- function(
     )
   }
 
-  # ── Execute: parallel or sequential ───────────────────────────────────────
+  # -- Execute: parallel or sequential ---------------------------------------
   if (n_cores > 1L) {
     all_results <- parallel::mclapply(
       seq_along(all_pathogens), .process_one,
@@ -1106,7 +1108,7 @@ compute_resistance_profiles <- function(
     all_results <- lapply(seq_along(all_pathogens), .process_one)
   }
 
-  # ── Collect results ────────────────────────────────────────────────────────
+  # -- Collect results --------------------------------------------------------
   for (res in all_results) {
     if (is.null(res) || inherits(res, "try-error")) next
     if (res$type == "success") {
@@ -1116,11 +1118,11 @@ compute_resistance_profiles <- function(
     }
   }
 
-  # ── Summary: pathogens skipped because only 1 class remained ──────────────
+  # -- Summary: pathogens skipped because only 1 class remained --------------
   if (length(skipped_single) > 0) {
     skipped_tbl <- do.call(rbind, skipped_single)
     message(sprintf(
-      "\n%d pathogen(s) skipped — only 1 antibiotic class remained after filtering.",
+      "\n%d pathogen(s) skipped -- only 1 antibiotic class remained after filtering.",
       length(skipped_single)
     ))
     message(paste0(

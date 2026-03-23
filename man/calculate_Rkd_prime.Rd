@@ -2,7 +2,7 @@
 % Please edit documentation in R/burden.R
 \name{calculate_Rkd_prime}
 \alias{calculate_Rkd_prime}
-\title{Calculate non-fatal prevalence of resistance (R'_{k,d})}
+\title{Calculate non-fatal prevalence of resistance (R'_\{k,d\})}
 \usage{
 calculate_Rkd_prime(
   ast_data,
@@ -28,10 +28,19 @@ calculate_Rkd_prime(
 
 \item{ast_result_col}{Character. AST result column ("R", "S", "I").}
 
+\item{drug_class_col}{Character or NULL. Pre-existing drug class column
+in \code{ast_data}. Used instead of \code{antibiotic_class_map} when supplied.}
+
 \item{antibiotic_class_map}{Data frame with columns:
 antibiotic, drug_class.}
 
 \item{facility_col}{Character or NULL. Facility column if present.}
+
+\item{facility_name}{Character or NULL. If provided, filters data to
+the specified facility before computation.}
+
+\item{pathogen_name}{Character vector or NULL. If provided, filters data
+to the specified pathogen(s).}
 }
 \value{
 Data frame with columns:
@@ -40,7 +49,7 @@ Data frame with columns:
 }
 \description{
 Computes isolate-wise prevalence of resistance for each
-pathogen–drug combination, with optional facility stratification.
+pathogen-drug combination, with optional facility stratification.
 Antibiotics are collapsed to classes, retaining the maximum
 resistance prevalence within each class.
 }

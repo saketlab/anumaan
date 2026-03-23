@@ -51,10 +51,10 @@ Per-profile associated fraction:
   fraction_K_delta = R'_K_delta * RR_K_delta / E_RR_k
 
 Overall associated fraction (all resistant profiles combined):
-  Fraction_k = sum_{delta != 0}  fraction_K_delta
+  Fraction_k = sum_\{delta != 0\}  fraction_K_delta
 
 where delta != 0 denotes profiles with at least one resistant class.
 
 Note: E_RR_k is numerically identical to the `denominator` produced by
-compute_paf_los() — both equal 1 + sum_d R'_kd*(RR_kd - 1).
+compute_paf_los() -- both equal 1 + sum_d R'_kd*(RR_kd - 1).
 }

@@ -19,7 +19,7 @@
 #' @param susceptibility_col Character. Susceptibility column. Default "antibiotic_value".
 #' @param rr_col Character. RR value column. Default "rr_value".
 #'   If missing, only hierarchy is used.
-#' @param hierarchy Named numeric vector. Custom hierarchy (class name → rank).
+#' @param hierarchy Named numeric vector. Custom hierarchy (class name -> rank).
 #'   If NULL, uses default from get_beta_lactam_hierarchy().
 #' @param filter_resistant Logical. If TRUE, only consider resistant (R) classes.
 #'   Default TRUE.
@@ -96,7 +96,7 @@ select_resistance_class <- function(data,
   n_events_after <- dplyr::n_distinct(selected[[event_col]])
 
   message(sprintf(
-    "Selected: %d rows from %d events (avg %.2f classes/event before → 1.0 after)",
+    "Selected: %d rows from %d events (avg %.2f classes/event before -> 1.0 after)",
     n_after,
     n_events_after,
     n_before / n_events_before
@@ -155,7 +155,7 @@ prioritize_resistance <- function(data,
 
   # Priority logic
   if (!is.null(rr_col) && rr_col %in% names(data)) {
-    # Priority: hierarchy rank (lower = better) → RR (higher = better) → alphabetical
+    # Priority: hierarchy rank (lower = better) -> RR (higher = better) -> alphabetical
     selected <- data %>%
       dplyr::group_by(!!rlang::sym(event_col)) %>%
       dplyr::arrange(
@@ -170,7 +170,7 @@ prioritize_resistance <- function(data,
         selection_confidence = "high"
       )
   } else {
-    # Priority: hierarchy rank only → alphabetical
+    # Priority: hierarchy rank only -> alphabetical
     selected <- data %>%
       dplyr::group_by(!!rlang::sym(event_col)) %>%
       dplyr::arrange(

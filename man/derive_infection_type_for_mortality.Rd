@@ -68,7 +68,7 @@ relative-risk model. Key differences from the LOS version:
         ambiguous.
   \item Performs a dedicated death-date data-quality check: patients whose
         \code{final_outcome} equals \code{death_value} but whose outcome
-        date is missing — yet admission or culture date is present — are
+        date is missing -- yet admission or culture date is present -- are
         listed. HAI/CAI derivation is unaffected (it uses admission vs
         culture date), but the missing death date is surfaced for review.
 }

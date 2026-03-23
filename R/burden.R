@@ -18,7 +18,7 @@
 #   GBD 2019 Diseases and Injuries Collaborators. Lancet. 2020.
 
 
-# ── D_J ───────────────────────────────────────────────────────────────────────
+# -- D_J -----------------------------------------------------------------------
 
 #' Calculate Deaths by Underlying Cause (D_J)
 #'
@@ -31,7 +31,7 @@
 #' \code{facility_data} instead, which directly counts deaths by syndrome.
 #'
 #' @param pop_data Data frame. Population-level vital registration or mortality
-#'   data. Required — this function does not accept facility-level data.
+#'   data. Required -- this function does not accept facility-level data.
 #' @param cause_col Character. Column containing the underlying cause of death
 #'   (cause J), e.g. an ICD-10 code or cause name. Default \code{"cause_of_death"}.
 #' @param deaths_col Character. Column with pre-aggregated death counts. Set to
@@ -126,7 +126,7 @@ calculate_deaths_by_cause <- function(pop_data,
 }
 
 
-# ── S_J ───────────────────────────────────────────────────────────────────────
+# -- S_J -----------------------------------------------------------------------
 
 #' Calculate Infection Fraction of Deaths by Cause (S_J)
 #'
@@ -227,7 +227,7 @@ calculate_infection_fraction <- function(pop_data,
 }
 
 
-# ── M_LJ ──────────────────────────────────────────────────────────────────────
+# -- M_LJ ----------------------------------------------------------------------
 
 #' Calculate Infectious Syndrome Fraction (M_LJ)
 #'
@@ -315,7 +315,7 @@ calculate_syndrome_fraction <- function(pop_data,
 
   if (nrow(infection_pop) == 0) {
     warning(sprintf(
-      "No infection deaths found — all values of '%s' are 0 or FALSE.",
+      "No infection deaths found -- all values of '%s' are 0 or FALSE.",
       infection_flag_col
     ))
   }
@@ -355,7 +355,7 @@ calculate_syndrome_fraction <- function(pop_data,
 }
 
 
-# ── Deaths by Syndrome (D_L) ──────────────────────────────────────────────────
+# -- Deaths by Syndrome (D_L) --------------------------------------------------
 
 #' Calculate Deaths by Infectious Syndrome (D_L)
 #'
@@ -496,7 +496,7 @@ calculate_syndrome_deaths <- function(d_j = NULL,
     )
   }
 
-  # ── Mode 1: Pre-computed components ──────────────────────────────────────────
+  # -- Mode 1: Pre-computed components ------------------------------------------
   if (has_components) {
     message("Mode 1: Computing D_L from pre-computed D_J, S_J, M_LJ components...")
 
@@ -569,7 +569,7 @@ calculate_syndrome_deaths <- function(d_j = NULL,
     return(result)
   }
 
-  # ── Mode 2: Raw population data — compute all components internally ───────────
+  # -- Mode 2: Raw population data -- compute all components internally -----------
   if (has_pop_data) {
     message("Mode 2: Computing D_L from raw population data (all components computed internally)...")
 
@@ -605,8 +605,8 @@ calculate_syndrome_deaths <- function(d_j = NULL,
     ))
   }
 
-  # ── Mode 3: Facility fallback — count unique patients who died by syndrome ────
-  message("Mode 3: No population data — counting deaths by syndrome from facility data (LOW confidence)...")
+  # -- Mode 3: Facility fallback -- count unique patients who died by syndrome ----
+  message("Mode 3: No population data -- counting deaths by syndrome from facility data (LOW confidence)...")
 
   # Validate required columns
   if (!syndrome_col %in% names(facility_data)) {
@@ -732,12 +732,12 @@ calculate_syndrome_deaths <- function(d_j = NULL,
 }
 
 
-# ── R'Kd : Non-fatal prevalence of resistance ────────────────────────────────
+# -- R'Kd : Non-fatal prevalence of resistance --------------------------------
 
-#' Calculate non-fatal prevalence of resistance (R'_{k,d})
+#' Calculate non-fatal prevalence of resistance (R'_\{k,d\})
 #'
 #' Computes isolate-wise prevalence of resistance for each
-#' pathogen–drug combination, with optional facility stratification.
+#' pathogen-drug combination, with optional facility stratification.
 #' Antibiotics are collapsed to classes, retaining the maximum
 #' resistance prevalence within each class.
 #'
@@ -747,8 +747,14 @@ calculate_syndrome_deaths <- function(d_j = NULL,
 #' @param antibiotic_col Character. Antibiotic name column (d).
 #' @param ast_result_col Character. AST result column ("R", "S", "I").
 #' @param facility_col Character or NULL. Facility column if present.
+#' @param drug_class_col Character or NULL. Pre-existing drug class column
+#'   in \code{ast_data}. Used instead of \code{antibiotic_class_map} when supplied.
 #' @param antibiotic_class_map Data frame with columns:
 #'   antibiotic, drug_class.
+#' @param facility_name Character or NULL. If provided, filters data to
+#'   the specified facility before computation.
+#' @param pathogen_name Character vector or NULL. If provided, filters data
+#'   to the specified pathogen(s).
 #'
 #' @return Data frame with columns:
 #'   pathogen, drug_class, R_kd_prime, N_tested, N_resistant
@@ -768,7 +774,7 @@ calculate_Rkd_prime <- function(ast_data,
                                 facility_name = NULL,
                                 # Pathogen filter
                                 pathogen_name = NULL) {
-  ## ── sanity checks ─────────────────────────────────────────────
+  ## -- sanity checks ---------------------------------------------
   required_cols <- c(
     isolate_col, pathogen_col,
     antibiotic_col, ast_result_col
@@ -781,7 +787,7 @@ calculate_Rkd_prime <- function(ast_data,
     ))
   }
 
-  ## ── facility filter (explicit) ────────────────────────────────
+  ## -- facility filter (explicit) --------------------------------
   if (!is.null(facility_name)) {
     if (is.null(facility_col)) {
       stop("facility_col must be provided if facility_name is specified.")
@@ -790,7 +796,7 @@ calculate_Rkd_prime <- function(ast_data,
       dplyr::filter(.data[[facility_col]] == facility_name)
   }
 
-  ## ── pathogen filter ───────────────────────────────────────────
+  ## -- pathogen filter -------------------------------------------
   if (!is.null(pathogen_name)) {
     ast_data <- ast_data %>%
       dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
@@ -806,7 +812,7 @@ calculate_Rkd_prime <- function(ast_data,
     ))
   }
 
-  ## ── antibiotic class resolution ───────────────────────────────
+  ## -- antibiotic class resolution -------------------------------
   if (!is.null(drug_class_col)) {
     if (!drug_class_col %in% names(ast_data)) {
       stop("Specified drug_class_col not found in data.")
@@ -831,7 +837,7 @@ calculate_Rkd_prime <- function(ast_data,
       )
   }
 
-  ## ── resistance flag ───────────────────────────────────────────
+  ## -- resistance flag -------------------------------------------
   working <- working %>%
     dplyr::mutate(
       resistant_flag = dplyr::if_else(
@@ -839,7 +845,7 @@ calculate_Rkd_prime <- function(ast_data,
       )
     )
 
-  ## ── isolate-wise collapse ─────────────────────────────────────
+  ## -- isolate-wise collapse -------------------------------------
   isolate_level <- working %>%
     dplyr::group_by(
       .data[[isolate_col]],
@@ -852,7 +858,7 @@ calculate_Rkd_prime <- function(ast_data,
       .groups   = "drop"
     )
 
-  ## ── pathogen × drug-class aggregation ─────────────────────────
+  ## -- pathogen x drug-class aggregation -------------------------
   result <- isolate_level %>%
     dplyr::group_by(
       .data[[pathogen_col]],
@@ -869,9 +875,9 @@ calculate_Rkd_prime <- function(ast_data,
 }
 
 
-# ── P'LK : Non-fatal pathogen distribution ────────────────────────────────────
+# -- P'LK : Non-fatal pathogen distribution ------------------------------------
 
-#' Calculate non-fatal pathogen distribution (P'_{Lk})
+#' Calculate non-fatal pathogen distribution (P'_\{Lk\})
 #'
 #' Computes the non-fatal pathogen distribution for a given infectious syndrome
 #' (L) using facility-level microbiology data. This quantity represents the
@@ -936,7 +942,7 @@ calculate_P_Lk_prime <- function(data,
                                  facility_col = NULL,
                                  facility_name = NULL,
                                  pathogen_name = NULL) {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   if (xor(is.null(specimen_col), is.null(specimen_name))) {
     stop("specimen_col and specimen_name must both be provided or both be NULL.")
   }
@@ -956,7 +962,7 @@ calculate_P_Lk_prime <- function(data,
     stop("facility_col must be provided when facility_name is specified.")
   }
 
-  # ── Step 1: Filter syndrome + specimen (optional) + non-fatal ─────────────
+  # -- Step 1: Filter syndrome + specimen (optional) + non-fatal -------------
   df <- data %>%
     dplyr::filter(
       .data[[syndrome_col]] == syndrome_name,
@@ -970,7 +976,7 @@ calculate_P_Lk_prime <- function(data,
     stop("No non-fatal records remain after syndrome/specimen filtering.")
   }
 
-  # ── Step 2: Optional single-facility restriction ───────────────────────────
+  # -- Step 2: Optional single-facility restriction ---------------------------
   if (!is.null(facility_name)) {
     df <- df %>% dplyr::filter(.data[[facility_col]] == facility_name)
     if (nrow(df) == 0) {
@@ -978,7 +984,7 @@ calculate_P_Lk_prime <- function(data,
     }
   }
 
-  # ── Step 3: Optional pathogen filter ─────────────────────────────────────
+  # -- Step 3: Optional pathogen filter -------------------------------------
   if (!is.null(pathogen_name)) {
     df <- df %>% dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
     if (nrow(df) == 0) {
@@ -993,7 +999,7 @@ calculate_P_Lk_prime <- function(data,
     ))
   }
 
-  # ── Step 4: GLASS filter — polymicrobial patients only ───────────────────
+  # -- Step 4: GLASS filter -- polymicrobial patients only -------------------
   # Monomicrobial patients (polymicrobial_col == 0) are never filtered.
   if (!is.null(glass_ref)) {
     if (is.data.frame(glass_ref)) {
@@ -1022,7 +1028,7 @@ calculate_P_Lk_prime <- function(data,
     }
   }
 
-  # ── Step 5: Deduplicate to one row per patient × pathogen ────────────────
+  # -- Step 5: Deduplicate to one row per patient x pathogen ----------------
   # The raw data has one row per antibiotic tested. Collapse to patient-pathogen
   # level first so that each patient-pathogen pair contributes exactly once.
   group_cols <- if (!is.null(facility_col)) c(facility_col, patient_col) else patient_col
@@ -1030,7 +1036,7 @@ calculate_P_Lk_prime <- function(data,
   patient_pathogen <- df %>%
     dplyr::distinct(dplyr::across(dplyr::all_of(c(group_cols, pathogen_col))))
 
-  # ── Step 5b: Fractional weight 1/m_r ─────────────────────────────────────
+  # -- Step 5b: Fractional weight 1/m_r -------------------------------------
   # m_r = distinct valid pathogens for patient r (within facility if relevant).
   patient_pathogen <- patient_pathogen %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) %>%
@@ -1040,14 +1046,14 @@ calculate_P_Lk_prime <- function(data,
     ) %>%
     dplyr::ungroup()
 
-  # ── Step 6: N^NF_LK = weighted sum per (facility, pathogen) ──────────────
+  # -- Step 6: N^NF_LK = weighted sum per (facility, pathogen) --------------
   agg_cols <- if (!is.null(facility_col)) c(facility_col, pathogen_col) else pathogen_col
 
   N_LK <- patient_pathogen %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(agg_cols))) %>%
     dplyr::summarise(N_NF_LK = sum(weight, na.rm = TRUE), .groups = "drop")
 
-  # ── Step 7: N^NF_L = unique non-fatal patients per facility ──────────────
+  # -- Step 7: N^NF_L = unique non-fatal patients per facility --------------
   fac_grp <- if (!is.null(facility_col)) facility_col else character(0)
 
   N_L <- df %>%
@@ -1057,7 +1063,7 @@ calculate_P_Lk_prime <- function(data,
       .groups = "drop"
     )
 
-  # ── Step 8: Compute P'_LK and return ─────────────────────────────────────
+  # -- Step 8: Compute P'_LK and return -------------------------------------
   if (!is.null(facility_col)) {
     facility_level <- dplyr::left_join(N_LK, N_L, by = facility_col) %>%
       dplyr::mutate(P_Lk_prime = N_NF_LK / N_NF_L)
@@ -1093,9 +1099,9 @@ calculate_P_Lk_prime <- function(data,
 }
 
 
-# ── P_LK : Fatal pathogen distribution ────────────────────────────────────────
+# -- P_LK : Fatal pathogen distribution ----------------------------------------
 
-#' Calculate fatal pathogen distribution (P_{Lk})
+#' Calculate fatal pathogen distribution (P_\{Lk\})
 #'
 #' Computes the fatal pathogen distribution for a given infectious syndrome
 #' (L) using facility-level microbiology data. This quantity represents the
@@ -1164,7 +1170,7 @@ calculate_P_Lk_fatal <- function(data,
                                  facility_col = NULL,
                                  facility_name = NULL,
                                  pathogen_name = NULL) {
-  # ── Input validation ───────────────────────────────────────────────────────
+  # -- Input validation -------------------------------------------------------
   required_cols <- c(
     syndrome_col, polymicrobial_col,
     patient_col, pathogen_col, outcome_col
@@ -1184,7 +1190,7 @@ calculate_P_Lk_fatal <- function(data,
     stop("specimen_name must be provided when specimen_col is specified.")
   }
 
-  # ── Step 1: Filter syndrome + (optional specimen) + fatal outcome ─────────
+  # -- Step 1: Filter syndrome + (optional specimen) + fatal outcome ---------
   df <- data %>%
     dplyr::filter(
       .data[[syndrome_col]] == syndrome_name,
@@ -1201,7 +1207,7 @@ calculate_P_Lk_fatal <- function(data,
     ))
   }
 
-  # ── Step 2: Optional single-facility restriction ───────────────────────────
+  # -- Step 2: Optional single-facility restriction ---------------------------
   if (!is.null(facility_name)) {
     df <- df %>% dplyr::filter(.data[[facility_col]] == facility_name)
     if (nrow(df) == 0) {
@@ -1209,7 +1215,7 @@ calculate_P_Lk_fatal <- function(data,
     }
   }
 
-  # ── Step 3: Optional pathogen filter ──────────────────────────────────────
+  # -- Step 3: Optional pathogen filter --------------------------------------
   if (!is.null(pathogen_name)) {
     df <- df %>% dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
     if (nrow(df) == 0) {
@@ -1224,7 +1230,7 @@ calculate_P_Lk_fatal <- function(data,
     ))
   }
 
-  # ── Step 4: GLASS filter — polymicrobial patients only ────────────────────
+  # -- Step 4: GLASS filter -- polymicrobial patients only --------------------
   # Monomicrobial patients (polymicrobial_col == 0) are never filtered.
   if (!is.null(glass_ref)) {
     if (is.data.frame(glass_ref)) {
@@ -1259,7 +1265,7 @@ calculate_P_Lk_fatal <- function(data,
     }
   }
 
-  # ── Step 5: Patient-level fractional weight 1/m_r ─────────────────────────
+  # -- Step 5: Patient-level fractional weight 1/m_r -------------------------
   # m_r = distinct valid pathogens for fatal patient r.
   group_cols <- if (!is.null(facility_col)) c(facility_col, patient_col) else patient_col
 
@@ -1271,14 +1277,14 @@ calculate_P_Lk_fatal <- function(data,
     ) %>%
     dplyr::ungroup()
 
-  # ── Step 6: N^F_LK = weighted sum per (facility, pathogen) ───────────────
+  # -- Step 6: N^F_LK = weighted sum per (facility, pathogen) ---------------
   agg_cols <- if (!is.null(facility_col)) c(facility_col, pathogen_col) else pathogen_col
 
   N_LK <- df %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(agg_cols))) %>%
     dplyr::summarise(N_F_LK = sum(weight, na.rm = TRUE), .groups = "drop")
 
-  # ── Step 7: N^F_L = unique fatal patients per facility ────────────────────
+  # -- Step 7: N^F_L = unique fatal patients per facility --------------------
   fac_grp <- if (!is.null(facility_col)) facility_col else character(0)
 
   N_L <- df %>%
@@ -1288,7 +1294,7 @@ calculate_P_Lk_fatal <- function(data,
       .groups = "drop"
     )
 
-  # ── Step 8: Compute P_LK and return ───────────────────────────────────────
+  # -- Step 8: Compute P_LK and return ---------------------------------------
   if (!is.null(facility_col)) {
     facility_level <- dplyr::left_join(N_LK, N_L, by = facility_col) %>%
       dplyr::mutate(P_Lk_fatal = N_F_LK / N_F_L)
@@ -1324,9 +1330,9 @@ calculate_P_Lk_fatal <- function(data,
 }
 
 
-# ── CFR_LK : Case fatality ratio by syndrome and pathogen ──────────────────────
+# -- CFR_LK : Case fatality ratio by syndrome and pathogen ----------------------
 
-#' Calculate case fatality ratio by syndrome and pathogen (CFR_{Lk})
+#' Calculate case fatality ratio by syndrome and pathogen (CFR_\{Lk\})
 #'
 #' Computes the case fatality ratio (CFR) for each pathogen (k) within a
 #' specified infectious syndrome (L) using facility-level microbiology data.
@@ -1388,7 +1394,7 @@ calculate_cfr_lk <- function(data,
                              facility_col = NULL,
                              facility_name = NULL,
                              pathogen_name = NULL) {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   required_cols <- c(
     syndrome_col, specimen_col, polymicrobial_col,
     patient_col, pathogen_col, outcome_col
@@ -1404,7 +1410,7 @@ calculate_cfr_lk <- function(data,
     stop("facility_col must be provided when facility_name is specified.")
   }
 
-  # ── Step 1: Filter syndrome + specimen ───────────────────────────────────
+  # -- Step 1: Filter syndrome + specimen -----------------------------------
   df <- data %>%
     dplyr::filter(
       .data[[syndrome_col]] == syndrome_name,
@@ -1414,7 +1420,7 @@ calculate_cfr_lk <- function(data,
     stop("No records remain after syndrome/specimen filtering.")
   }
 
-  # ── Step 2: Optional single-facility restriction ──────────────────────────
+  # -- Step 2: Optional single-facility restriction --------------------------
   if (!is.null(facility_name)) {
     df <- df %>% dplyr::filter(.data[[facility_col]] == facility_name)
     if (nrow(df) == 0) {
@@ -1422,7 +1428,7 @@ calculate_cfr_lk <- function(data,
     }
   }
 
-  # ── Step 3: Optional pathogen filter ─────────────────────────────────────
+  # -- Step 3: Optional pathogen filter -------------------------------------
   if (!is.null(pathogen_name)) {
     df <- df %>% dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
     if (nrow(df) == 0) {
@@ -1437,7 +1443,7 @@ calculate_cfr_lk <- function(data,
     ))
   }
 
-  # ── Step 4: GLASS filter — polymicrobial patients only ───────────────────
+  # -- Step 4: GLASS filter -- polymicrobial patients only -------------------
   if (!is.null(glass_ref)) {
     if (is.data.frame(glass_ref)) {
       valid_pathogens <- glass_ref %>%
@@ -1465,7 +1471,7 @@ calculate_cfr_lk <- function(data,
     }
   }
 
-  # ── Step 5: Patient-level fractional weight 1/m_r ────────────────────────
+  # -- Step 5: Patient-level fractional weight 1/m_r ------------------------
   group_cols <- if (!is.null(facility_col)) c(facility_col, patient_col) else patient_col
 
   df <- df %>%
@@ -1477,7 +1483,7 @@ calculate_cfr_lk <- function(data,
     ) %>%
     dplyr::ungroup()
 
-  # ── Step 6: Weighted deaths + totals per (facility, pathogen) ─────────────
+  # -- Step 6: Weighted deaths + totals per (facility, pathogen) -------------
   agg_cols <- if (!is.null(facility_col)) c(facility_col, pathogen_col) else pathogen_col
 
   cfr_raw <- df %>%
@@ -1493,7 +1499,7 @@ calculate_cfr_lk <- function(data,
       .groups = "drop"
     )
 
-  # ── Step 7: Pooled across facilities (if applicable) ──────────────────────
+  # -- Step 7: Pooled across facilities (if applicable) ----------------------
   if (!is.null(facility_col) && is.null(facility_name)) {
     pooled <- cfr_raw %>%
       dplyr::group_by(.data[[pathogen_col]]) %>%
@@ -1524,12 +1530,12 @@ calculate_cfr_lk <- function(data,
 }
 
 
-# ── Incident cases by syndrome (direct count) ─────────────────────────────────
+# -- Incident cases by syndrome (direct count) ---------------------------------
 
 #' Count incident cases by syndrome from facility data
 #'
 #' Counts the number of unique patients per infectious syndrome directly from
-#' facility-level data. This is the direct-count approach to incidence —
+#' facility-level data. This is the direct-count approach to incidence --
 #' no CFR, no CR_L adjustment, no pathogen weighting. Use this when you
 #' want raw facility-reported case counts rather than the formula-derived
 #' estimate from \code{calculate_incidence_L()}.
@@ -1550,6 +1556,10 @@ calculate_cfr_lk <- function(data,
 #'   per facility. Default \code{NULL}.
 #' @param facility_name Character or NULL. If provided, restricts the count
 #'   to that facility only. Default \code{NULL}.
+#' @param pathogen_col Character or NULL. Pathogen identifier column.
+#'   Required when \code{pathogen_name} is specified. Default \code{NULL}.
+#' @param pathogen_name Character or NULL. If provided, restricts the count
+#'   to the specified pathogen(s). Default \code{NULL}.
 #'
 #' @return Data frame with columns:
 #'   \code{syndrome_col}, \code{n_cases} (unique patient count),
@@ -1563,7 +1573,7 @@ count_incident_cases <- function(data,
                                  facility_name = NULL,
                                  pathogen_col = NULL,
                                  pathogen_name = NULL) {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   required_cols <- c(syndrome_col, patient_col)
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
@@ -1585,7 +1595,7 @@ count_incident_cases <- function(data,
     stop(sprintf("pathogen_col '%s' not found in data.", pathogen_col))
   }
 
-  # ── Step 1: Filter to syndrome ────────────────────────────────────────────
+  # -- Step 1: Filter to syndrome --------------------------------------------
   df <- data %>%
     dplyr::filter(.data[[syndrome_col]] == syndrome_name)
 
@@ -1594,7 +1604,7 @@ count_incident_cases <- function(data,
     return(data.frame())
   }
 
-  # ── Step 1b: Optional pathogen filter ────────────────────────────────────
+  # -- Step 1b: Optional pathogen filter ------------------------------------
   if (!is.null(pathogen_name)) {
     df <- df %>% dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
     if (nrow(df) == 0) {
@@ -1609,7 +1619,7 @@ count_incident_cases <- function(data,
     ))
   }
 
-  # ── Step 2: Optional single-facility restriction ───────────────────────────
+  # -- Step 2: Optional single-facility restriction ---------------------------
   if (!is.null(facility_name)) {
     n_before <- nrow(df)
     df <- df %>% dplyr::filter(.data[[facility_col]] == facility_name)
@@ -1622,9 +1632,9 @@ count_incident_cases <- function(data,
     ))
   }
 
-  # ── Step 3: Count unique patients ─────────────────────────────────────────
+  # -- Step 3: Count unique patients -----------------------------------------
   # Group by facility if facility_col is supplied (and no specific facility
-  # was requested — i.e., return one row per facility).
+  # was requested -- i.e., return one row per facility).
   group_vars <- if (!is.null(facility_col)) {
     c(facility_col, syndrome_col)
   } else {
@@ -1649,7 +1659,7 @@ count_incident_cases <- function(data,
 }
 
 
-# ── Top N pathogens ───────────────────────────────────────────────────────────
+# -- Top N pathogens -----------------------------------------------------------
 
 #' Identify top N pathogens by occurrence
 #'
@@ -1690,7 +1700,7 @@ get_top_pathogens <- function(data,
                               outcome_name = NULL,
                               facility_col = NULL,
                               facility_name = NULL) {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   if (!pathogen_col %in% names(data)) {
     stop(sprintf("pathogen_col '%s' not found in data.", pathogen_col))
   }
@@ -1700,7 +1710,7 @@ get_top_pathogens <- function(data,
 
   df <- data
 
-  # ── Optional filters ──────────────────────────────────────────────────────
+  # -- Optional filters ------------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     df <- df %>% dplyr::filter(.data[[syndrome_col]] == syndrome_name)
   }
@@ -1719,7 +1729,7 @@ get_top_pathogens <- function(data,
     return(data.frame())
   }
 
-  # ── Count and rank per facility (if requested) or overall ─────────────────
+  # -- Count and rank per facility (if requested) or overall -----------------
   group_vars <- if (!is.null(facility_col)) {
     c(facility_col, pathogen_col)
   } else {
@@ -1756,7 +1766,7 @@ get_top_pathogens <- function(data,
 
   return(ranked)
 }
-# ── YLD per pathogen ──────────────────────────────────────────────────────────
+# -- YLD per pathogen ----------------------------------------------------------
 
 #' Calculate YLD per pathogen
 #'
@@ -1836,7 +1846,7 @@ calculate_YLD <- function(incidence_data,
                           pathogen_name = NULL,
                           plk_col = "P_Lk_prime",
                           incidence_col = "n_cases") {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   use_scalar_proxy <- !is.null(DW_sepsis)
 
   if (use_scalar_proxy) {
@@ -1874,7 +1884,7 @@ calculate_YLD <- function(incidence_data,
   pool_by_facility <- !is.null(facility_col) && is.null(facility_name) &&
     is.data.frame(incidence_data)
 
-  # ── Pathogen filter ───────────────────────────────────────────────────────
+  # -- Pathogen filter -------------------------------------------------------
   if (!is.null(pathogen_name)) {
     P_Lk_prime_tbl <- P_Lk_prime_tbl %>%
       dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
@@ -1886,7 +1896,7 @@ calculate_YLD <- function(incidence_data,
     }
   }
 
-  # ── Single facility restriction ───────────────────────────────────────────
+  # -- Single facility restriction -------------------------------------------
   if (!is.null(facility_name) && !is.null(facility_col)) {
     if (facility_col %in% names(P_Lk_prime_tbl)) {
       P_Lk_prime_tbl <- P_Lk_prime_tbl %>%
@@ -1899,9 +1909,9 @@ calculate_YLD <- function(incidence_data,
     }
   }
 
-  # ═════════════════════════════════════════════════════════════════════════
+  # =========================================================================
   # POOLED / NO-FACILITY MODE
-  # ═════════════════════════════════════════════════════════════════════════
+  # =========================================================================
   if (!pool_by_facility) {
     # Resolve scalar incidence
     if (is.data.frame(incidence_data)) {
@@ -1955,9 +1965,9 @@ calculate_YLD <- function(incidence_data,
     return(result)
   }
 
-  # ═════════════════════════════════════════════════════════════════════════
+  # =========================================================================
   # FACILITY-LEVEL MODE
-  # ═════════════════════════════════════════════════════════════════════════
+  # =========================================================================
 
   if (!use_scalar_proxy) {
     if (is.null(facility_state_map)) {
@@ -2054,7 +2064,7 @@ calculate_YLD <- function(incidence_data,
 }
 
 
-# ── CR_L : CFR adjustment factor ───────────────────────────────────────────────
+# -- CR_L : CFR adjustment factor -----------------------------------------------
 
 #' Calculate the CFR adjustment factor (CR_L)
 #'
@@ -2112,7 +2122,7 @@ calculate_CR_L <- function(data,
                            adjustment_ref,
                            facility_col = NULL,
                            facility_name = NULL) {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   required_cols <- c(syndrome_col, patient_col, visit_type_col)
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
@@ -2129,7 +2139,7 @@ calculate_CR_L <- function(data,
     stop("facility_col must be provided when facility_name is specified.")
   }
 
-  # ── Look up adjustment type ───────────────────────────────────────────────
+  # -- Look up adjustment type -----------------------------------------------
   adj_type <- adjustment_ref %>%
     dplyr::filter(.data[["infectious_syndrome"]] == syndrome_name) %>%
     dplyr::pull(.data[["adjustment_factor_on_CFR"]])
@@ -2148,7 +2158,7 @@ calculate_CR_L <- function(data,
   adj_type <- trimws(adj_type[1])
 
   if (adj_type == "None") {
-    message(sprintf("CR_L for '%s': adjustment type = None → CR_L = 1.", syndrome_name))
+    message(sprintf("CR_L for '%s': adjustment type = None -> CR_L = 1.", syndrome_name))
     return(data.frame(
       syndrome        = syndrome_name,
       adjustment_type = "None",
@@ -2156,7 +2166,7 @@ calculate_CR_L <- function(data,
     ))
   }
 
-  # ── Filter to syndrome ────────────────────────────────────────────────────
+  # -- Filter to syndrome ----------------------------------------------------
   df <- data %>%
     dplyr::filter(.data[[syndrome_col]] == syndrome_name)
 
@@ -2169,7 +2179,7 @@ calculate_CR_L <- function(data,
 
   fac_grp <- if (!is.null(facility_col)) facility_col else character(0)
 
-  # ── Inpatient ratio ───────────────────────────────────────────────────────
+  # -- Inpatient ratio -------------------------------------------------------
   if (adj_type == "Inpatient ratio") {
     result <- df %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(fac_grp, patient_col)))) %>%
@@ -2189,7 +2199,7 @@ calculate_CR_L <- function(data,
         adjustment_type = "Inpatient ratio"
       )
 
-    # ── Outpatient to inpatient ratio ─────────────────────────────────────────
+    # -- Outpatient to inpatient ratio -----------------------------------------
   } else if (adj_type == "Outpatient to inpatient ratio") {
     result <- df %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(fac_grp, patient_col)))) %>%
@@ -2233,7 +2243,7 @@ calculate_CR_L <- function(data,
 }
 
 
-# ── Incidence (formula-based) ──────────────────────────────────────────────────
+# -- Incidence (formula-based) --------------------------------------------------
 
 #' Calculate syndrome incidence from deaths, CFR, and CR_L (formula-based)
 #'
@@ -2287,7 +2297,7 @@ calculate_incidence_L <- function(deaths_L,
                                   plk_col = "P_Lk_prime",
                                   facility_col = NULL,
                                   deaths_col = "deaths") {
-  # ── Input validation ──────────────────────────────────────────────────────
+  # -- Input validation ------------------------------------------------------
   for (tbl_name in c("cfr_lk_tbl", "P_Lk_prime_tbl")) {
     tbl <- get(tbl_name)
     if (!pathogen_col %in% names(tbl)) {
@@ -2318,7 +2328,7 @@ calculate_incidence_L <- function(deaths_L,
     }
   }
 
-  # ── Join P'LK and CFR_LK ─────────────────────────────────────────────────
+  # -- Join P'LK and CFR_LK -------------------------------------------------
   join_cols <- if (!is.null(facility_col)) c(facility_col, pathogen_col) else pathogen_col
 
   merged <- dplyr::inner_join(P_Lk_prime_tbl, cfr_lk_tbl, by = join_cols)
@@ -2331,7 +2341,7 @@ calculate_incidence_L <- function(deaths_L,
     ))
   }
 
-  # ── CFR_L = sum_K( P'_LK × CFR_LK ) per facility ────────────────────────
+  # -- CFR_L = sum_K( P'_LK x CFR_LK ) per facility ------------------------
   grp <- if (!is.null(facility_col)) facility_col else character(0)
 
   cfr_L_tbl <- merged %>%
@@ -2341,7 +2351,7 @@ calculate_incidence_L <- function(deaths_L,
       .groups = "drop"
     )
 
-  # ── Attach deaths and compute I_L ─────────────────────────────────────────
+  # -- Attach deaths and compute I_L -----------------------------------------
   if (!is.null(facility_col)) {
     result <- dplyr::left_join(cfr_L_tbl, deaths_L, by = facility_col) %>%
       dplyr::rename(deaths = dplyr::all_of(deaths_col)) %>%
@@ -2370,7 +2380,7 @@ calculate_incidence_L <- function(deaths_L,
   }
 
   message(sprintf(
-    "Incidence I_L computed: CFR_L = %.4f, CR_L = %.4f → I_L = %.1f%s.",
+    "Incidence I_L computed: CFR_L = %.4f, CR_L = %.4f -> I_L = %.1f%s.",
     mean(result$CFR_L, na.rm = TRUE),
     mean(result$CR_L, na.rm = TRUE),
     mean(result$I_L, na.rm = TRUE),
@@ -2380,22 +2390,22 @@ calculate_incidence_L <- function(deaths_L,
 }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # LOS-BASED RR AND PAF FOR YLD ATTRIBUTABLE TO AMR
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #
 # Implements two procedures for estimating RR_LOS(k, c):
 #
-#   Procedure 1 — fit_los_rr_nima()
+#   Procedure 1 -- fit_los_rr_nima()
 #     Distribution fitting (Weibull / Lognormal / Gamma) on drug-level R vs S
 #     LOS vectors per centre. Produces one overall RR per pathogen. Validation.
 #
-#   Procedure 2 — fit_los_rr_poisson()
+#   Procedure 2 -- fit_los_rr_poisson()
 #     Quasi-Poisson regression on class-level binary wide matrix, with HAI as
 #     covariate. Produces per-class RR(k, c) with 95% CI. Primary PAF input.
 #     Two model options:
-#       "pooled_fe"  (default) — one model across all centres with centre FE
-#       "per_centre"           — per-centre models, RRs pooled afterwards
+#       "pooled_fe"  (default) -- one model across all centres with centre FE
+#       "per_centre"           -- per-centre models, RRs pooled afterwards
 #
 #   LOS computation:
 #     HAI: LOS = date_discharge - date_of_first_positive_culture
@@ -2415,7 +2425,7 @@ calculate_incidence_L <- function(deaths_L,
 # References:
 #   Antimicrobial Resistance Collaborators. Lancet. 2022.
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
+# -- Internal helpers ----------------------------------------------------------
 
 #' Compute analytical mean LOS from a fitdistrplus fit object
 #' @keywords internal
@@ -2446,7 +2456,7 @@ calculate_incidence_L <- function(deaths_L,
 .safe_fitdist <- function(x, dist) safe_fit(x, dist)
 
 
-# ── Step 1a ───────────────────────────────────────────────────────────────────
+# -- Step 1a -------------------------------------------------------------------
 
 #' Derive Infection Type (HAI / CAI) per Patient
 #'
@@ -2466,6 +2476,8 @@ calculate_incidence_L <- function(deaths_L,
 #' @param date_culture_col Character. Date of first positive culture.
 #'   Default \code{"date_of_first_positive_culture"}.
 #' @param hai_threshold_hours Numeric. Gap threshold in hours. Default \code{48}.
+#' @param patient_id_col Character. Unique patient identifier column.
+#'   Default \code{"PatientInformation_id"}.
 #'
 #' @return \code{data} with column \code{infection_type_derived}
 #'   (\code{"HAI"} / \code{"CAI"} / \code{"Unknown"}).
@@ -2590,7 +2602,7 @@ derive_infection_type <- function(
 }
 
 
-# ── Step 1b ───────────────────────────────────────────────────────────────────
+# -- Step 1b -------------------------------------------------------------------
 
 #' Compute Patient-Level Post-Infection LOS
 #'
@@ -2631,6 +2643,8 @@ derive_infection_type <- function(
 #'   whose discharge date is missing. Values that are \code{NA}, zero, or
 #'   negative are treated as invalid and those patients are excluded.
 #'   Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. If provided, filters data
+#'   to the specified facility before computing LOS. Default \code{NULL}.
 #' @param max_los Numeric. Upper cap on LOS in days; patients exceeding this
 #'   are excluded. Default \code{200}.
 #'
@@ -2654,7 +2668,7 @@ compute_patient_los <- function(
   los_col = NULL,
   max_los = 200
 ) {
-  # ── Column validation ──────────────────────────────────────────────────────
+  # -- Column validation ------------------------------------------------------
   required <- c(
     patient_id_col, facility_col, organism_col,
     date_admission_col, date_discharge_col, date_culture_col,
@@ -2673,7 +2687,7 @@ compute_patient_los <- function(
     stop(sprintf("los_col '%s' not found in data.", los_col))
   }
 
-  # ── Facility filtering ─────────────────────────────────────────────────────
+  # -- Facility filtering -----------------------------------------------------
   if (!is.null(facility_name)) {
     avail <- unique(data[[facility_col]])
     if (!facility_name %in% avail) {
@@ -2695,7 +2709,7 @@ compute_patient_los <- function(
     ))
   }
 
-  # ── Syndrome filtering ────────────────────────────────────────────────────
+  # -- Syndrome filtering ----------------------------------------------------
   if (!is.null(syndrome_name)) {
     avail_syn <- unique(data[[syndrome_col]])
     if (!syndrome_name %in% avail_syn) {
@@ -2712,7 +2726,7 @@ compute_patient_los <- function(
     ))
   }
 
-  # ── Checkpoint: discharge date coverage ───────────────────────────────────
+  # -- Checkpoint: discharge date coverage -----------------------------------
   discharged_data <- data[data[[final_outcome_col]] == final_outcome_value, ]
   n_total <- nrow(discharged_data)
   n_no_disc <- sum(is.na(as.Date(discharged_data[[date_discharge_col]])))
@@ -2734,7 +2748,7 @@ compute_patient_los <- function(
     }
   }
 
-  # ── Pre-compute episode-minimum culture dates ──────────────────────────────
+  # -- Pre-compute episode-minimum culture dates ------------------------------
   # A new episode starts only when BOTH conditions are met:
   #   1. Gap from the current episode's start date > 14 days
   #   2. Organism differs from the current episode's first organism
@@ -2784,7 +2798,7 @@ compute_patient_los <- function(
       .cult_ep_min
     )
 
-  # ── LOS computation ───────────────────────────────────────────────────────
+  # -- LOS computation -------------------------------------------------------
   unknown_types_lc <- c("unknown", "not known")
 
   los_data <- data %>%
@@ -2798,7 +2812,7 @@ compute_patient_los <- function(
       .cult = .cult_ep_min,
       .inf_lc = tolower(trimws(as.character(.data[[infection_type_derived_col]]))),
       LOS_days = dplyr::case_when(
-        # ── Patients WITH a discharge date ────────────────────────────
+        # -- Patients WITH a discharge date ----------------------------
         # HAI: clock starts at culture date
         !is.na(.disc) & .inf_lc == "hai" ~
           as.numeric(.disc - .cult),
@@ -2816,7 +2830,7 @@ compute_patient_los <- function(
         # All other infection types with discharge date: fallback to admission
         !is.na(.disc) ~
           as.numeric(.disc - .adm),
-        # ── Patients WITHOUT a discharge date: resolved below ─────────
+        # -- Patients WITHOUT a discharge date: resolved below ---------
         TRUE ~ NA_real_
       )
     )
@@ -2838,7 +2852,7 @@ compute_patient_los <- function(
       )
   }
 
-  # ── Final filtering and deduplication ─────────────────────────────────────
+  # -- Final filtering and deduplication -------------------------------------
   los_data <- los_data %>%
     dplyr::select(-".adm", -".disc", -".cult", -".cult_ep_min", -".inf_lc") %>%
     dplyr::filter(!is.na(LOS_days), LOS_days > 0L, LOS_days <= max_los) %>%
@@ -2857,7 +2871,7 @@ compute_patient_los <- function(
 }
 
 
-# ── Step 1c (internal) ────────────────────────────────────────────────────────
+# -- Step 1c (internal) --------------------------------------------------------
 
 #' Collapse drug-level data to antibiotic-class binary wide matrix
 #'
@@ -2928,7 +2942,7 @@ compute_patient_los <- function(
 }
 
 
-# ── Procedure 1 ───────────────────────────────────────────────────────────────
+# -- Procedure 1 ---------------------------------------------------------------
 
 #' Estimate Per-Profile LOS Relative Risk via Distribution Fitting (Nima Procedure)
 #'
@@ -2984,7 +2998,7 @@ compute_patient_los <- function(
 #'   before computing the RR. \code{"mean"} (default) fits the best
 #'   parametric distribution (Weibull / Lognormal / Gamma by AIC) and
 #'   returns the analytical mean. \code{"median"} uses the empirical
-#'   median directly — no distribution fitting, more robust to outliers
+#'   median directly -- no distribution fitting, more robust to outliers
 #'   but ignores the shape of the LOS distribution.
 #' @param hai_threshold_hours Numeric. Gap threshold (hours) for HAI/CAI
 #'   derivation. Default \code{48}.
@@ -3033,7 +3047,7 @@ fit_los_rr_nima <- function(
   max_los = 365,
   min_n = 10L
 ) {
-  # ── Input validation ───────────────────────────────────────────────────────
+  # -- Input validation -------------------------------------------------------
   los_summary <- match.arg(los_summary)
   if (los_summary == "mean" && !requireNamespace("fitdistrplus", quietly = TRUE)) {
     stop("Package 'fitdistrplus' is required for los_summary='mean': install.packages('fitdistrplus')")
@@ -3058,7 +3072,7 @@ fit_los_rr_nima <- function(
     ))
   }
 
-  # ── Facility filtering ─────────────────────────────────────────────────────
+  # -- Facility filtering -----------------------------------------------------
   if (!is.null(facility_name)) {
     avail <- unique(data[[facility_col]])
     if (!facility_name %in% avail) {
@@ -3080,7 +3094,7 @@ fit_los_rr_nima <- function(
     ))
   }
 
-  # ── Derive infection type (HAI / CAI) ──────────────────────────────────────
+  # -- Derive infection type (HAI / CAI) --------------------------------------
   data <- derive_infection_type(
     data,
     infection_type_col  = infection_type_col,
@@ -3089,7 +3103,7 @@ fit_los_rr_nima <- function(
     hai_threshold_hours = hai_threshold_hours
   )
 
-  # ── Filter to discharged patients (+ optional syndrome) ───────────────────
+  # -- Filter to discharged patients (+ optional syndrome) -------------------
   df <- dplyr::filter(data, .data[[final_outcome_col]] == final_outcome_value)
   if (!is.null(syndrome_name)) {
     df <- dplyr::filter(df, .data[[syndrome_col]] == syndrome_name)
@@ -3104,12 +3118,12 @@ fit_los_rr_nima <- function(
     return(list())
   }
 
-  # ── Checkpoint: discharge date coverage & HAI/CAI split ───────────────────
+  # -- Checkpoint: discharge date coverage & HAI/CAI split -------------------
   n_total <- nrow(df)
   n_no_disc <- sum(is.na(as.Date(df[[date_discharge_col]])))
   if (n_no_disc > 0L) {
     message(sprintf(
-      "Checkpoint: %d of %d discharged patient(s) are missing a discharge date — excluded.",
+      "Checkpoint: %d of %d discharged patient(s) are missing a discharge date -- excluded.",
       n_no_disc, n_total
     ))
   }
@@ -3122,7 +3136,7 @@ fit_los_rr_nima <- function(
     n_total
   ))
 
-  # ── Resolve pathogens ──────────────────────────────────────────────────────
+  # -- Resolve pathogens ------------------------------------------------------
   pathogens <- if (!is.null(organism_name)) {
     organism_name
   } else {
@@ -3132,7 +3146,7 @@ fit_los_rr_nima <- function(
   no_profile <- setdiff(pathogens, names(resistance_profiles))
   if (length(no_profile) > 0L) {
     message(sprintf(
-      "Note: %d pathogen(s) skipped — not in resistance_profiles: %s",
+      "Note: %d pathogen(s) skipped -- not in resistance_profiles: %s",
       length(no_profile), paste(no_profile, collapse = ", ")
     ))
   }
@@ -3141,7 +3155,7 @@ fit_los_rr_nima <- function(
     stop("No pathogens remain after intersecting with resistance_profiles names.")
   }
 
-  # ── Inner helper: LOS point estimate (mean via distribution fit OR median) ──
+  # -- Inner helper: LOS point estimate (mean via distribution fit OR median) --
   # Returns list(estimate, best_dist).
   # los_summary == "mean"  : fit best parametric distribution by AIC,
   #                          return the analytical mean of that distribution.
@@ -3195,7 +3209,7 @@ fit_los_rr_nima <- function(
       next
     }
 
-    # ── HAI/CAI-specific LOS (delegates to compute_patient_los) ───────────
+    # -- HAI/CAI-specific LOS (delegates to compute_patient_los) -----------
     los_pat <- compute_patient_los(
       path_df,
       patient_id_col             = patient_id_col,
@@ -3215,7 +3229,7 @@ fit_los_rr_nima <- function(
       next
     }
 
-    # ── Class-level resistance wide matrix (patient × class, binary) ───────
+    # -- Class-level resistance wide matrix (patient x class, binary) -------
     resist_wide <- .build_class_resistance_wide(
       path_df,
       patient_id_col       = patient_id_col,
@@ -3224,7 +3238,7 @@ fit_los_rr_nima <- function(
       antibiotic_value_col = antibiotic_value_col
     )
 
-    # ── Map profile class names → safe column names in resist_wide ─────────
+    # -- Map profile class names -> safe column names in resist_wide ---------
     # compute_resistance_profiles() uses original names; resist_wide uses
     # make.names()-sanitised names in the same alphabetical order.
     prof_classes_orig <- resistance_profiles[[path]]$classes
@@ -3233,13 +3247,13 @@ fit_los_rr_nima <- function(
     missing_cls <- setdiff(prof_classes_safe, names(resist_wide))
     if (length(missing_cls) > 0L) {
       message(sprintf(
-        "'%s': %d class(es) from profiles absent in patient resistance data (%s) — skipping.",
+        "'%s': %d class(es) from profiles absent in patient resistance data (%s) -- skipping.",
         path, length(missing_cls), paste(missing_cls, collapse = ", ")
       ))
       next
     }
 
-    # ── Join LOS + class-resistance, assign profile label per patient ──────
+    # -- Join LOS + class-resistance, assign profile label per patient ------
     # Profile label = "R"/"S" per class in prof_classes_safe order.
     # Patients with any untested class (NA in resist_wide) are excluded.
     model_data <- dplyr::inner_join(
@@ -3262,13 +3276,13 @@ fit_los_rr_nima <- function(
 
     if (nrow(model_data) == 0L) {
       message(sprintf(
-        "'%s': no patients with complete class-resistance data after joining — skipping.",
+        "'%s': no patients with complete class-resistance data after joining -- skipping.",
         path
       ))
       next
     }
 
-    # ── Reference: all-susceptible profile ────────────────────────────────
+    # -- Reference: all-susceptible profile --------------------------------
     all_s_label <- paste(rep("S", length(prof_classes_safe)), collapse = "")
     los_S_ref <- model_data %>%
       dplyr::filter(patient_profile == all_s_label) %>%
@@ -3276,14 +3290,14 @@ fit_los_rr_nima <- function(
 
     if (length(los_S_ref) == 0L) {
       warning(sprintf(
-        "'%s': no all-susceptible patients found (profile label '%s') — relative LOS framework requires a susceptible reference; skipping.",
+        "'%s': no all-susceptible patients found (profile label '%s') -- relative LOS framework requires a susceptible reference; skipping.",
         path, all_s_label
       ))
       next
     }
     if (length(los_S_ref) < min_n) {
       warning(sprintf(
-        "'%s': all-S profile has only %d patient(s) (min_n=%d) — insufficient reference sample; skipping.",
+        "'%s': all-S profile has only %d patient(s) (min_n=%d) -- insufficient reference sample; skipping.",
         path, length(los_S_ref), min_n
       ))
       next
@@ -3297,14 +3311,14 @@ fit_los_rr_nima <- function(
         sprintf("%s LOS estimate is %.4g (must be > 0)", los_summary, est_S_ref$estimate)
       }
       warning(sprintf(
-        "'%s': all-S reference LOS could not be used as denominator — %s; skipping.",
+        "'%s': all-S reference LOS could not be used as denominator -- %s; skipping.",
         path, reason
       ))
       next
     }
     los_S_estimate <- est_S_ref$estimate
 
-    # ── Per-profile RR_LOS_k_delta computation ────────────────────────────
+    # -- Per-profile RR_LOS_k_delta computation ----------------------------
     prof_df <- resistance_profiles[[path]]$profiles
     profile_rr_rows <- vector("list", nrow(prof_df))
 
@@ -3320,7 +3334,7 @@ fit_los_rr_nima <- function(
 
       if (n_delta == 0L) {
         message(sprintf(
-          "'%s' profile '%s': 0 patients matched — possible label mismatch or no observations for this profile.",
+          "'%s' profile '%s': 0 patients matched -- possible label mismatch or no observations for this profile.",
           path, delta_label
         ))
         profile_rr_rows[[i]] <- data.frame(
@@ -3336,7 +3350,7 @@ fit_los_rr_nima <- function(
       }
       if (n_delta < min_n) {
         message(sprintf(
-          "'%s' profile '%s': only %d patient(s) (min_n=%d) — relative LOS set to NA.",
+          "'%s' profile '%s': only %d patient(s) (min_n=%d) -- relative LOS set to NA.",
           path, delta_label, n_delta, min_n
         ))
         profile_rr_rows[[i]] <- data.frame(
@@ -3361,13 +3375,13 @@ fit_los_rr_nima <- function(
       if (!is.na(rr_delta)) {
         if (rr_delta > 10) {
           message(sprintf(
-            "'%s' profile '%s': extreme relative LOS = %.2f (LOS_delta=%.2f / LOS_S=%.2f) — check data.",
+            "'%s' profile '%s': extreme relative LOS = %.2f (LOS_delta=%.2f / LOS_S=%.2f) -- check data.",
             path, delta_label, rr_delta,
             est_delta$estimate, los_S_estimate
           ))
         } else if (rr_delta < 1) {
           message(sprintf(
-            "'%s' profile '%s': relative LOS = %.4f < 1 (resistant patients have shorter LOS than susceptible) — verify.",
+            "'%s' profile '%s': relative LOS = %.4f < 1 (resistant patients have shorter LOS than susceptible) -- verify.",
             path, delta_label, rr_delta
           ))
         }
@@ -3398,14 +3412,14 @@ fit_los_rr_nima <- function(
 
     if (n_rr_valid == 0L) {
       warning(sprintf(
-        "'%s': all %d profile(s) have NA relative LOS — no usable relative LOS values produced for this pathogen.",
+        "'%s': all %d profile(s) have NA relative LOS -- no usable relative LOS values produced for this pathogen.",
         path, nrow(rr_k_delta)
       ))
     }
 
     if (all(rr_k_delta$n_patients == 0L)) {
       warning(sprintf(
-        "'%s': every profile matched 0 patients — profile labels in resistance_profiles may not align with patient_profile labels derived from class columns (check make.names() sanitisation).",
+        "'%s': every profile matched 0 patients -- profile labels in resistance_profiles may not align with patient_profile labels derived from class columns (check make.names() sanitisation).",
         path
       ))
     }
@@ -3438,7 +3452,7 @@ fit_los_rr_nima <- function(
 }
 
 
-# ── Procedure 2 ───────────────────────────────────────────────────────────────
+# -- Procedure 2 ---------------------------------------------------------------
 
 #' Estimate Per-Class LOS Relative Risk via Quasi-Poisson Regression
 #'
@@ -3450,7 +3464,7 @@ fit_los_rr_nima <- function(
 #' Resistance is classified at antibiotic class level (class = 1 if any drug
 #' in class = R). HAI enters as a binary covariate to absorb residual baseline
 #' severity differences beyond the LOS clock adjustment. No PreDays covariate
-#' is used — the LOS clock change from admission to culture date for HAI
+#' is used -- the LOS clock change from admission to culture date for HAI
 #' patients already removes the pre-infection period from the outcome.
 #'
 #' Stated limitation: when syndrome_name is supplied, RR_kc_LOS is
@@ -3555,7 +3569,7 @@ fit_los_rr_poisson <- function(
   all_rr <- list()
   per_ctr_rr <- list()
 
-  # ── inner helpers ─────────────────────────────────────────────────────────
+  # -- inner helpers ---------------------------------------------------------
   .fit_one_class <- function(sub_data, cls_col, fac_col, use_fac_fe) {
     vals <- sub_data[[cls_col]]
     if (length(unique(stats::na.omit(vals))) < 2L) {
@@ -3604,7 +3618,7 @@ fit_los_rr_poisson <- function(
     )
   }
 
-  # ── main loop ─────────────────────────────────────────────────────────────
+  # -- main loop -------------------------------------------------------------
   for (path in pathogens) {
     path_df <- df %>%
       dplyr::filter(
@@ -3784,7 +3798,7 @@ fit_los_rr_poisson <- function(
 }
 
 
-# ── Step 2b ───────────────────────────────────────────────────────────────────
+# -- Step 2b -------------------------------------------------------------------
 
 #' Estimate Per-Class LOS Relative Risk via Parametric Distribution Fitting
 #'
@@ -3816,6 +3830,8 @@ fit_los_rr_poisson <- function(
 #' @param syndrome_name Character or \code{NULL}. Restrict to this syndrome.
 #' @param organism_name Character vector or \code{NULL}. Restrict to these
 #'   pathogen(s); otherwise all pathogens in the filtered data.
+#' @param facility_name Character or \code{NULL}. If provided, filters data
+#'   to the specified facility before fitting. Default \code{NULL}.
 #' @param hai_threshold_hours Numeric. Hours after admission before a culture
 #'   is classified as HAI. Default \code{48}.
 #' @param distributions Character vector. Candidate distributions to fit.
@@ -3883,7 +3899,7 @@ fit_los_rr_distribution <- function(
     ))
   }
 
-  # ── Derive infection type (HAI / CAI) ──────────────────────────────────────
+  # -- Derive infection type (HAI / CAI) --------------------------------------
   data <- derive_infection_type(
     data,
     infection_type_col  = infection_type_col,
@@ -3892,7 +3908,7 @@ fit_los_rr_distribution <- function(
     hai_threshold_hours = hai_threshold_hours
   )
 
-  # ── Filter to discharged patients + optional syndrome + optional facility ──
+  # -- Filter to discharged patients + optional syndrome + optional facility --
   df <- dplyr::filter(data, .data[[final_outcome_col]] == final_outcome_value)
   if (!is.null(syndrome_name)) {
     df <- dplyr::filter(df, .data[[syndrome_col]] == syndrome_name)
@@ -3911,14 +3927,14 @@ fit_los_rr_distribution <- function(
     return(data.frame())
   }
 
-  # ── Resolve pathogens ──────────────────────────────────────────────────────
+  # -- Resolve pathogens ------------------------------------------------------
   pathogens <- if (!is.null(organism_name)) {
     organism_name
   } else {
     sort(unique(df[[organism_col]]))
   }
 
-  # ── Inner helper: fit distribution(s) and return analytical mean ───────────
+  # -- Inner helper: fit distribution(s) and return analytical mean -----------
   .fit_dist_mean <- function(los_vec) {
     fits <- Filter(
       Negate(is.null),
@@ -3948,7 +3964,7 @@ fit_los_rr_distribution <- function(
       next
     }
 
-    # ── Patient LOS ────────────────────────────────────────────────────────
+    # -- Patient LOS --------------------------------------------------------
     los_pat <- compute_patient_los(
       path_df,
       patient_id_col             = patient_id_col,
@@ -3967,7 +3983,7 @@ fit_los_rr_distribution <- function(
       next
     }
 
-    # ── Class resistance wide matrix (patient x class, binary 0/1) ──────────
+    # -- Class resistance wide matrix (patient x class, binary 0/1) ----------
     # untested_fill = NA_integer_: patients not tested for a class get NA,
     # so they are excluded from both n_R and n_S for that class (not treated
     # as susceptible). Only patients actually tested contribute to the fit.
@@ -3994,7 +4010,7 @@ fit_los_rr_distribution <- function(
 
     n_fitted <- 0L
 
-    # ── Per-class R vs S distribution fit ──────────────────────────────────
+    # -- Per-class R vs S distribution fit ----------------------------------
     for (cls in class_safe) {
       orig_class <- class_name_map[[cls]]
 
@@ -4010,7 +4026,7 @@ fit_los_rr_distribution <- function(
 
       if (n_r < min_n || n_s < min_n) {
         message(sprintf(
-          "'%s' | class '%s': n_R=%d / n_S=%d — one group below min_n=%d, skipping.",
+          "'%s' | class '%s': n_R=%d / n_S=%d -- one group below min_n=%d, skipping.",
           path, orig_class, n_r, n_s, min_n
         ))
         next
@@ -4033,12 +4049,12 @@ fit_los_rr_distribution <- function(
 
       if (rr_los > 10) {
         message(sprintf(
-          "'%s' | class '%s': extreme RR_LOS = %.2f (mean_R=%.2f / mean_S=%.2f) — check data.",
+          "'%s' | class '%s': extreme RR_LOS = %.2f (mean_R=%.2f / mean_S=%.2f) -- check data.",
           path, orig_class, rr_los, est_r$mean, est_s$mean
         ))
       } else if (rr_los < 1) {
         message(sprintf(
-          "'%s' | class '%s': RR_LOS = %.4f < 1 (resistant patients have shorter LOS than susceptible) — verify.",
+          "'%s' | class '%s': RR_LOS = %.4f < 1 (resistant patients have shorter LOS than susceptible) -- verify.",
           path, orig_class, rr_los
         ))
       }
@@ -4083,7 +4099,7 @@ fit_los_rr_distribution <- function(
 }
 
 
-# ── Step 3 ────────────────────────────────────────────────────────────────────
+# -- Step 3 --------------------------------------------------------------------
 
 #' Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
 #'
@@ -4091,7 +4107,7 @@ fit_los_rr_distribution <- function(
 #' determines the profile-level RR_kd_LOS using the GBD max rule:
 #'   RR_kd_LOS = max over c in C_R(d) of RR_kc_LOS   [if C_R(d) non-empty]
 #'             = 1                                      [if d = all-susceptible]
-#' where C_R(d) = {c : d_c = 1}.
+#' where C_R(d) = \{c : d_c = 1\}.
 #' The CI reported for each profile is that of its dominant (max-RR) class.
 #'
 #' @param profiles_output Named list from compute_resistance_profiles().
@@ -4199,7 +4215,7 @@ assign_rr_to_profiles <- function(
 }
 
 
-# ── Step 3b ───────────────────────────────────────────────────────────────────
+# -- Step 3b -------------------------------------------------------------------
 
 #' Filter Profiles to Classes with Actual RR Estimates
 #'
@@ -4269,7 +4285,7 @@ filter_profiles_to_rr_classes <- function(
 
     if (length(matchable) == 0L) {
       warning(sprintf(
-        "'%s': no profile classes overlap with relative LOS table — all profiles dropped.",
+        "'%s': no profile classes overlap with relative LOS table -- all profiles dropped.",
         path
       ))
       next
@@ -4300,14 +4316,14 @@ filter_profiles_to_rr_classes <- function(
     n_dropped <- n_before - n_after
 
     if (n_after == 0L) {
-      warning(sprintf("'%s': all profiles dropped after matching — skipping.", path))
+      warning(sprintf("'%s': all profiles dropped after matching -- skipping.", path))
       next
     }
 
     # Re-normalise probabilities
     prob_sum <- sum(df_kept[[probability_col]], na.rm = TRUE)
     if (prob_sum <= 0) {
-      warning(sprintf("'%s': probability sum is zero after filtering — skipping.", path))
+      warning(sprintf("'%s': probability sum is zero after filtering -- skipping.", path))
       next
     }
     df_kept[[probability_col]] <- df_kept[[probability_col]] / prob_sum
@@ -4324,7 +4340,7 @@ filter_profiles_to_rr_classes <- function(
 }
 
 
-# ── Step 4 ────────────────────────────────────────────────────────────────────
+# -- Step 4 --------------------------------------------------------------------
 
 #' Compute LOS Population Attributable Fraction per Resistance Profile
 #'
@@ -4385,7 +4401,7 @@ compute_paf_los <- function(
     denom <- 1.0 + sum(numerator_vec, na.rm = TRUE)
     if (!is.finite(denom) || denom <= 0) {
       warning(sprintf(
-        "'%s': PAF denominator = %.6g (must be > 0) — all relative LOS may be < 1 or NA; skipping.",
+        "'%s': PAF denominator = %.6g (must be > 0) -- all relative LOS may be < 1 or NA; skipping.",
         path, denom
       ))
       next
@@ -4413,7 +4429,7 @@ compute_paf_los <- function(
 }
 
 
-# ── Step 5 ────────────────────────────────────────────────────────────────────
+# -- Step 5 --------------------------------------------------------------------
 
 #' Compute Associated-Burden Fractions per Resistance Profile
 #'
@@ -4435,12 +4451,12 @@ compute_paf_los <- function(
 #'   fraction_K_delta = R'_K_delta * RR_K_delta / E_RR_k
 #'
 #' Overall associated fraction (all resistant profiles combined):
-#'   Fraction_k = sum_{delta != 0}  fraction_K_delta
+#'   Fraction_k = sum_\{delta != 0\}  fraction_K_delta
 #'
 #' where delta != 0 denotes profiles with at least one resistant class.
 #'
 #' Note: E_RR_k is numerically identical to the `denominator` produced by
-#' compute_paf_los() — both equal 1 + sum_d R'_kd*(RR_kd - 1).
+#' compute_paf_los() -- both equal 1 + sum_d R'_kd*(RR_kd - 1).
 #'
 #' @param profiles_with_rr Named list from assign_rr_to_profiles() or
 #'   filter_profiles_to_rr_classes().  Each entry is a profile data frame.
@@ -4468,7 +4484,7 @@ compute_fraction_associated <- function(
     stop("profiles_with_rr must be the list returned by assign_rr_to_profiles().")
   }
 
-  # Columns that are metadata / computed — NOT class indicator columns
+  # Columns that are metadata / computed -- NOT class indicator columns
   non_class_cols <- c(
     "profile", probability_col, rr_profile_col,
     "dominant_class", "CI_lower_profile", "CI_upper_profile",
@@ -4498,7 +4514,7 @@ compute_fraction_associated <- function(
     E_RR_k <- sum(p * rr)
 
     if (E_RR_k <= 0) {
-      warning(sprintf("'%s': E[relative LOS] <= 0 — skipping.", path))
+      warning(sprintf("'%s': E[relative LOS] <= 0 -- skipping.", path))
       next
     }
 
@@ -4540,7 +4556,7 @@ compute_fraction_associated <- function(
 }
 
 
-# ── Step 5b ───────────────────────────────────────────────────────────────────
+# -- Step 5b -------------------------------------------------------------------
 
 #' Compute Fatal Prevalence of Resistance (R_kd)
 #'
@@ -4548,7 +4564,7 @@ compute_fraction_associated <- function(
 #' resistance profile delta, using per-profile mortality odds ratios
 #' (OR_death) from \code{fit_mortality_rr_logistic()} in place of LOS
 #' relative risks.  The formula is identical to
-#' \code{compute_fraction_associated()} — only the RR source changes.
+#' \code{compute_fraction_associated()} -- only the RR source changes.
 #'
 #' \deqn{E[\text{OR}_k] = \sum_\delta R'_{K\delta} \cdot \text{OR}_{K\delta}}
 #'
@@ -4604,7 +4620,7 @@ compute_R_kd_fatal <- function(
     stop("profiles_with_rr must be the list returned by assign_rr_to_profiles().")
   }
 
-  # Columns that are metadata / computed — NOT class indicator columns
+  # Columns that are metadata / computed -- NOT class indicator columns
   non_class_cols <- c(
     "profile", probability_col, rr_profile_col,
     "dominant_class", "CI_lower_profile", "CI_upper_profile",
@@ -4635,7 +4651,7 @@ compute_R_kd_fatal <- function(
 
     if (!is.finite(E_OR_k) || E_OR_k <= 0) {
       warning(sprintf(
-        "'%s': E[OR_death] = %.6g (must be > 0) — all mortality ORs may be <= 1 or NA; skipping.",
+        "'%s': E[OR_death] = %.6g (must be > 0) -- all mortality ORs may be <= 1 or NA; skipping.",
         path, E_OR_k
       ))
       next
@@ -4676,7 +4692,7 @@ compute_R_kd_fatal <- function(
   return(out)
 }
 
-# ── Step 6 ────────────────────────────────────────────────────────────────────
+# -- Step 6 --------------------------------------------------------------------
 
 #' Compute YLDs Associated with Resistance
 #'
@@ -4777,7 +4793,7 @@ compute_yld_associated <- function(
   frac_df <- do.call(rbind, frac_rows)
 
   if (is.null(frac_df) || nrow(frac_df) == 0L) {
-    stop("fraction_assoc_list is empty — no fractions to join.")
+    stop("fraction_assoc_list is empty -- no fractions to join.")
   }
 
   names(frac_df)[names(frac_df) == ".pathogen"] <- pathogen_col
@@ -4804,7 +4820,7 @@ compute_yld_associated <- function(
 }
 
 
-# ── Step 7 ────────────────────────────────────────────────────────────────────
+# -- Step 7 --------------------------------------------------------------------
 
 #' Compute YLDs Attributable to Resistance
 #'
@@ -4814,7 +4830,7 @@ compute_yld_associated <- function(
 #'   YLD_attributable_k = YLD_k * PAF_k
 #'
 #' Answers: "How much disability burden exists *only because* infections were
-#' resistant instead of susceptible?"  This is a counterfactual — it measures
+#' resistant instead of susceptible?"  This is a counterfactual -- it measures
 #' the excess burden driven purely by resistance.
 #'
 #' Note: YLD_attributable_k < YLD_associated_k always, because
@@ -4866,7 +4882,7 @@ compute_yld_attributable <- function(
   paf_df <- do.call(rbind, paf_rows)
 
   if (is.null(paf_df) || nrow(paf_df) == 0L) {
-    stop("paf_los_list is empty — no PAFs to join.")
+    stop("paf_los_list is empty -- no PAFs to join.")
   }
 
   names(paf_df)[names(paf_df) == ".pathogen"] <- pathogen_col
@@ -4893,17 +4909,17 @@ compute_yld_attributable <- function(
 }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # MORTALITY-BASED RELATIVE RISK FOR AMR BURDEN
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #
 # Mixed-effects logistic regression per antibiotic class per pathogen:
 #
-#   logit(P(death_i)) = β₀ + β₁·Resistance_ci + β₂·Age_i + β₃·Sex_i
-#                     + β₄·HAI_i + β₅·ICU_i + β₆·Comorbidity_i
-#                     + u_facility   [u_facility ~ N(0, σ²)]
+#   logit(P(death_i)) = beta_0 + beta_1*Resistance_ci + beta_2*Age_i + beta_3*Sex_i
+#                     + beta_4*HAI_i + beta_5*ICU_i + beta_6*Comorbidity_i
+#                     + u_facility   [u_facility ~ N(0, sigma^2)]
 #
-#   OR_death_kc = exp(β₁) : odds ratio for death, resistant vs susceptible,
+#   OR_death_kc = exp(beta_1) : odds ratio for death, resistant vs susceptible,
 #                controlling for age, sex, infection acquisition route,
 #                disease severity (ICU), comorbidity, and facility clustering.
 #
@@ -4920,7 +4936,7 @@ compute_yld_attributable <- function(
 #   Antimicrobial Resistance Collaborators. Lancet. 2022.
 
 
-# ── Step M1 ───────────────────────────────────────────────────────────────────
+# -- Step M1 -------------------------------------------------------------------
 
 #' Derive Infection Type (HAI / CAI) for Mortality RR Model
 #'
@@ -4935,7 +4951,7 @@ compute_yld_attributable <- function(
 #'         ambiguous.
 #'   \item Performs a dedicated death-date data-quality check: patients whose
 #'         \code{final_outcome} equals \code{death_value} but whose outcome
-#'         date is missing — yet admission or culture date is present — are
+#'         date is missing -- yet admission or culture date is present -- are
 #'         listed. HAI/CAI derivation is unaffected (it uses admission vs
 #'         culture date), but the missing death date is surfaced for review.
 #' }
@@ -4971,7 +4987,7 @@ derive_infection_type_for_mortality <- function(
   hai_threshold_hours = 48,
   patient_id_col = "PatientInformation_id"
 ) {
-  # ── Column validation ──────────────────────────────────────────────────────
+  # -- Column validation ------------------------------------------------------
   required <- c(
     infection_type_col, date_admission_col,
     date_culture_col, final_outcome_col
@@ -4986,7 +5002,7 @@ derive_infection_type_for_mortality <- function(
 
   has_outcome_date <- final_outcome_date_col %in% names(data)
 
-  # ── Death-date data-quality check ─────────────────────────────────────────
+  # -- Death-date data-quality check -----------------------------------------
   # Flag deceased patients who are missing their outcome date but do have
   # admission or culture date recorded.  HAI/CAI derivation proceeds normally
   # (it only needs admission vs culture date); this is purely a data-quality
@@ -5038,7 +5054,7 @@ derive_infection_type_for_mortality <- function(
     flagged_df <- data[0L, , drop = FALSE]
   }
 
-  # ── Identify ambiguous labels ──────────────────────────────────────────────
+  # -- Identify ambiguous labels ----------------------------------------------
   ambiguous_mask <- {
     inf_up <- stringr::str_to_upper(stringr::str_trim(
       as.character(data[[infection_type_col]])
@@ -5056,7 +5072,7 @@ derive_infection_type_for_mortality <- function(
       paste0(
         "[Mortality] Cannot infer HAI/CAI for %d patient row(s): ",
         "label is ambiguous AND >=1 date is missing. ",
-        "Assigned 'Not Known' — these rows are excluded from the ",
+        "Assigned 'Not Known' -- these rows are excluded from the ",
         "mortality regression (missing HAI covariate)."
       ),
       n_cannot
@@ -5070,13 +5086,13 @@ derive_infection_type_for_mortality <- function(
       ))
     }
     message(sprintf(
-      "  Breakdown — missing %s: %d | missing %s: %d",
+      "  Breakdown -- missing %s: %d | missing %s: %d",
       date_admission_col, sum(ambiguous_mask & missing_admit),
       date_culture_col,   sum(ambiguous_mask & missing_culture)
     ))
   }
 
-  # ── Derive infection type ──────────────────────────────────────────────────
+  # -- Derive infection type --------------------------------------------------
   # Explicit labels take priority; date-gap only used when label is ambiguous.
   data <- data %>%
     dplyr::mutate(
@@ -5098,7 +5114,7 @@ derive_infection_type_for_mortality <- function(
       ) |
         is.na(.data[[infection_type_col]])),
       infection_type_derived = dplyr::case_when(
-        # ── Explicit HAI labels ────────────────────────────────────────
+        # -- Explicit HAI labels ----------------------------------------
         .inf_raw %in% c(
           "HAI",
           "HOSPITAL ACQUIRED",
@@ -5108,7 +5124,7 @@ derive_infection_type_for_mortality <- function(
           "HOSPITAL ACQUIRED INFECTION",
           "HOSPITAL-ACQUIRED INFECTION"
         ) ~ "HAI",
-        # ── Explicit CAI labels ────────────────────────────────────────
+        # -- Explicit CAI labels ----------------------------------------
         .inf_raw %in% c(
           "CAI",
           "COMMUNITY ACQUIRED",
@@ -5117,16 +5133,16 @@ derive_infection_type_for_mortality <- function(
           "COMMUNITY ACQUIRED INFECTION",
           "COMMUNITY-ACQUIRED INFECTION"
         ) ~ "CAI",
-        # ── Date-gap derivation (both dates present) ──────────────────
+        # -- Date-gap derivation (both dates present) ------------------
         .cannot_infer &
           !is.na(.data[[date_admission_col]]) &
           !is.na(.data[[date_culture_col]]) ~
           dplyr::if_else(.gap_h <= hai_threshold_hours,
             "CAI", "HAI"
           ),
-        # ── Cannot infer ──────────────────────────────────────────────
+        # -- Cannot infer ----------------------------------------------
         .cannot_infer ~ "Not Known",
-        # ── Unrecognised non-empty label ──────────────────────────────
+        # -- Unrecognised non-empty label ------------------------------
         TRUE ~ "Not Known"
       )
     ) %>%
@@ -5145,7 +5161,7 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── Step M2 ───────────────────────────────────────────────────────────────────
+# -- Step M2 -------------------------------------------------------------------
 
 #' Derive ICU Binary Flag per Patient
 #'
@@ -5187,7 +5203,7 @@ derive_infection_type_for_mortality <- function(
 ) {
   if (!unit_type_col %in% names(data)) {
     message(sprintf(
-      "[ICU] Column '%s' not found — ICU covariate will be omitted.",
+      "[ICU] Column '%s' not found -- ICU covariate will be omitted.",
       unit_type_col
     ))
     return(
@@ -5263,7 +5279,7 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── Step M3 ───────────────────────────────────────────────────────────────────
+# -- Step M3 -------------------------------------------------------------------
 
 #' Encode Comorbidity Column for Mortality Model
 #'
@@ -5296,7 +5312,7 @@ derive_infection_type_for_mortality <- function(
 ) {
   if (!comorbidity_col %in% names(data)) {
     message(sprintf(
-      "[Comorbidity] Column '%s' not found — covariate will be omitted.",
+      "[Comorbidity] Column '%s' not found -- covariate will be omitted.",
       comorbidity_col
     ))
     data$comorbidity_encoded <- NA_real_
@@ -5311,7 +5327,7 @@ derive_infection_type_for_mortality <- function(
     data$comorbidity_encoded <- raw
     attr(data, "comorbidity_encoding") <- "numeric"
     message(sprintf(
-      "[Comorbidity] Numeric index detected (range %.1f–%.1f). Used as-is.",
+      "[Comorbidity] Numeric index detected (range %.1f-%.1f). Used as-is.",
       min(raw, na.rm = TRUE), max(raw, na.rm = TRUE)
     ))
     return(data)
@@ -5410,15 +5426,15 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── Step M4 ───────────────────────────────────────────────────────────────────
+# -- Step M4 -------------------------------------------------------------------
 
 #' Check Collinearity Between HAI and ICU Covariates
 #'
-#' Computes the phi (Pearson) correlation coefficient for the 2×2 contingency
-#' table of HAI × ICU. When ICU is hospital-acquired, the two covariates can
+#' Computes the phi (Pearson) correlation coefficient for the 2x2 contingency
+#' table of HAI x ICU. When ICU is hospital-acquired, the two covariates can
 #' be highly correlated, making regression coefficients unstable.
 #'
-#' Perfect separation (any 2×2 marginal = 0) is detected and reported
+#' Perfect separation (any 2x2 marginal = 0) is detected and reported
 #' separately, as it guarantees model non-convergence.
 #'
 #' @param df Patient-level data frame with integer 0/1 columns.
@@ -5427,7 +5443,7 @@ derive_infection_type_for_mortality <- function(
 #' @param phi_threshold Numeric. Absolute phi above which a warning is issued.
 #'   Default \code{0.7}.
 #'
-#' @return Named list: \code{phi}, \code{tbl} (2×2 table),
+#' @return Named list: \code{phi}, \code{tbl} (2x2 table),
 #'   \code{warning_issued} (logical).
 #' @keywords internal
 .check_hai_icu_collinearity <- function(df,
@@ -5492,7 +5508,7 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── Main function ─────────────────────────────────────────────────────────────
+# -- Main function -------------------------------------------------------------
 
 #' Estimate Per-Class Mortality Odds Ratio via Mixed-Effects Logistic Regression
 #'
@@ -5521,7 +5537,7 @@ derive_infection_type_for_mortality <- function(
 #' \code{.encode_comorbidity_mortality()} (numeric Charlson, binary
 #' present/none, or ordinal none/mild/moderate/severe).
 #'
-#' \strong{Pre-fitting checks} per pathogen × class:
+#' \strong{Pre-fitting checks} per pathogen x class:
 #' \itemize{
 #'   \item \code{min_n} patients with complete required covariates.
 #'   \item \code{min_deaths} deaths (ensures outcome variation).
@@ -5552,7 +5568,7 @@ derive_infection_type_for_mortality <- function(
 #' @param comorbidity_col Character or \code{NULL}. Name of the comorbidity
 #'   column to include as a covariate. Set to \code{NULL} (default) to omit
 #'   comorbidity from the model entirely. Supply the column name (e.g.
-#'   \code{"comorbidities"}) to include it — the column is then standardised
+#'   \code{"comorbidities"}) to include it -- the column is then standardised
 #'   automatically by \code{.encode_comorbidity_mortality()}.
 #' @param death_value Character. Value in \code{final_outcome_col} that
 #'   identifies a death event. Default \code{"Death"}.
@@ -5613,7 +5629,7 @@ fit_mortality_rr_logistic <- function(
     )
   }
 
-  # ── Column validation ──────────────────────────────────────────────────────
+  # -- Column validation ------------------------------------------------------
   required <- c(
     patient_id_col, facility_col, organism_col,
     infection_type_col, antibiotic_class_col,
@@ -5632,7 +5648,7 @@ fit_mortality_rr_logistic <- function(
     ))
   }
 
-  # ── Step A: derive infection type (mortality-specific) ─────────────────────
+  # -- Step A: derive infection type (mortality-specific) ---------------------
   data <- derive_infection_type_for_mortality(
     data,
     infection_type_col     = infection_type_col,
@@ -5645,7 +5661,7 @@ fit_mortality_rr_logistic <- function(
     patient_id_col         = patient_id_col
   )
 
-  # ── Step B: optional syndrome filter ──────────────────────────────────────
+  # -- Step B: optional syndrome filter --------------------------------------
   df <- data
   if (!is.null(syndrome_name)) {
     df <- dplyr::filter(df, .data[[syndrome_col]] == syndrome_name)
@@ -5657,7 +5673,7 @@ fit_mortality_rr_logistic <- function(
     sort(unique(df[[organism_col]]))
   }
 
-  # ── Step C: ICU binary (patient level, computed once globally) ─────────────
+  # -- Step C: ICU binary (patient level, computed once globally) -------------
   icu_tbl <- .derive_icu_binary(
     df,
     patient_id_col    = patient_id_col,
@@ -5666,7 +5682,7 @@ fit_mortality_rr_logistic <- function(
   )
   use_icu <- unit_type_col %in% names(df) && !all(is.na(icu_tbl$ICU))
 
-  # ── Step D: patient-level covariate table (one row per patient) ────────────
+  # -- Step D: patient-level covariate table (one row per patient) ------------
   # Variables that are the same for every drug row of a patient are taken
   # from the first row.  The binary death outcome and HAI flag are derived
   # here and then re-used for every class model.
@@ -5699,7 +5715,7 @@ fit_mortality_rr_logistic <- function(
       !!rlang::sym(sex_col) := factor(.data[[sex_col]])
     )
 
-  # ── Syndrome covariate (patient level) ────────────────────────────────────
+  # -- Syndrome covariate (patient level) ------------------------------------
   if (use_syndrome_covariate) {
     syndrome_raw <- df %>%
       dplyr::group_by(!!rlang::sym(patient_id_col)) %>%
@@ -5724,7 +5740,7 @@ fit_mortality_rr_logistic <- function(
     ))
   }
 
-  # ── Step E: comorbidity encoding (patient level) ───────────────────────────
+  # -- Step E: comorbidity encoding (patient level) ---------------------------
   use_comorbidity <- FALSE
   comorbidity_encoding <- "absent"
 
@@ -5760,7 +5776,7 @@ fit_mortality_rr_logistic <- function(
     patient_covars$comorbidity_encoded <- NA_real_
     if (!is.null(comorbidity_col)) {
       message(sprintf(
-        "[Comorbidity] Column '%s' not found — covariate omitted.",
+        "[Comorbidity] Column '%s' not found -- covariate omitted.",
         comorbidity_col
       ))
     }
@@ -5771,7 +5787,7 @@ fit_mortality_rr_logistic <- function(
     by = patient_id_col
   )
 
-  # ── Main loop: one model per pathogen × class ──────────────────────────────
+  # -- Main loop: one model per pathogen x class ------------------------------
   all_or <- list()
 
   for (path in pathogens) {
@@ -5842,7 +5858,7 @@ fit_mortality_rr_logistic <- function(
       next
     }
 
-    # HAI/ICU collinearity check — once per pathogen before the class loop
+    # HAI/ICU collinearity check -- once per pathogen before the class loop
     if (use_icu) {
       invisible(.check_hai_icu_collinearity(
         model_data,
@@ -5853,7 +5869,7 @@ fit_mortality_rr_logistic <- function(
 
     n_facilities <- length(unique(model_data[[facility_col]]))
 
-    # ── Per-class model fit ────────────────────────────────────────────────
+    # -- Per-class model fit ------------------------------------------------
     for (cls in class_safe) {
       orig_class <- class_name_map[[cls]]
 
@@ -5914,21 +5930,21 @@ fit_mortality_rr_logistic <- function(
         fixed_terms <- c(fixed_terms, sprintf("`%s`", syndrome_col))
       }
 
-      # ── EPV check: ≥10 deaths per fixed predictor ──────────────────
+      # -- EPV check: >=10 deaths per fixed predictor ------------------
       n_fixed_preds <- length(fixed_terms)
       epv <- n_deaths_cls / n_fixed_preds
       if (epv < 10) {
         message(sprintf(
-          "'%s' | class '%s': EPV = %.1f (deaths=%d / predictors=%d) < 10 — estimates may be unreliable.",
+          "'%s' | class '%s': EPV = %.1f (deaths=%d / predictors=%d) < 10 -- estimates may be unreliable.",
           path, orig_class, epv, n_deaths_cls, n_fixed_preds
         ))
       }
 
-      # ── Complete separation check ───────────────────────────────────
+      # -- Complete separation check -----------------------------------
       ct_sep <- table(sub[[cls]], sub$death)
       if (any(ct_sep == 0L)) {
         message(sprintf(
-          "'%s' | class '%s': zero cell(s) in resistance × death table (possible complete separation), skipping.",
+          "'%s' | class '%s': zero cell(s) in resistance x death table (possible complete separation), skipping.",
           path, orig_class
         ))
         next
@@ -5965,7 +5981,7 @@ fit_mortality_rr_logistic <- function(
           # Singular fit (random-effect variance collapsed to 0)
           if (lme4::isSingular(fit)) {
             message(sprintf(
-              "'%s' | class '%s': singular fit (random-effect variance ≈ 0).",
+              "'%s' | class '%s': singular fit (random-effect variance ~= 0).",
               path, orig_class
             ))
             conv_warn <- TRUE
@@ -5974,7 +5990,7 @@ fit_mortality_rr_logistic <- function(
           conv_msgs <- fit@optinfo$conv$lme4$messages
           if (!is.null(conv_msgs) && length(conv_msgs) > 0L) {
             message(sprintf(
-              "'%s' | class '%s': convergence warning — %s",
+              "'%s' | class '%s': convergence warning -- %s",
               path, orig_class, paste(conv_msgs, collapse = "; ")
             ))
             conv_warn <- TRUE
@@ -5983,7 +5999,7 @@ fit_mortality_rr_logistic <- function(
         },
         error = function(e) {
           message(sprintf(
-            "'%s' | class '%s': model failed — %s",
+            "'%s' | class '%s': model failed -- %s",
             path, orig_class, conditionMessage(e)
           ))
           NULL
@@ -6013,7 +6029,7 @@ fit_mortality_rr_logistic <- function(
       beta <- coefs[[cname[1L]]]
       se <- sqrt(vcmat[cname[1L], cname[1L]])
 
-      # ── VIF check for multicollinearity ────────────────────────────
+      # -- VIF check for multicollinearity ----------------------------
       if (requireNamespace("car", quietly = TRUE)) {
         vif_vals <- tryCatch(car::vif(model), error = function(e) NULL)
         if (!is.null(vif_vals)) {
@@ -6025,7 +6041,7 @@ fit_mortality_rr_logistic <- function(
           high_vif <- names(vif_num)[vif_num > 10]
           if (length(high_vif) > 0) {
             message(sprintf(
-              "'%s' | class '%s': high VIF (>10) for: %s — check collinearity.",
+              "'%s' | class '%s': high VIF (>10) for: %s -- check collinearity.",
               path, orig_class, paste(high_vif, collapse = ", ")
             ))
           }
@@ -6080,7 +6096,7 @@ fit_mortality_rr_logistic <- function(
 }
 
 
-# ── YLL Associated ────────────────────────────────────────────────────────────
+# -- YLL Associated ------------------------------------------------------------
 
 #' Load and Parse India Life Expectancy Lookup Table
 #'
@@ -6106,12 +6122,12 @@ load_india_life_expectancy <- function(le_path) {
 
   # Table layout (1-indexed rows) for life_expectancy_all.xlsx:
   #   Row  1       : title  ("LIFE EXPECTANCY 2019-2023 INDIA")
-  #   Row  2       : header (Age category, India, state names …)
-  #   Rows  3 – 21 : Combined, 19 age bins
+  #   Row  2       : header (Age category, India, state names ...)
+  #   Rows  3 - 21 : Combined, 19 age bins
   #   Row  22      : "Male" section header
-  #   Rows 23 – 41 : Male, 19 age bins
+  #   Rows 23 - 41 : Male, 19 age bins
   #   Row  42      : "Female" section header
-  #   Rows 43 – 61 : Female, 19 age bins
+  #   Rows 43 - 61 : Female, 19 age bins
   # India life expectancy is always in column 2.
 
   age_bins <- c(
@@ -6151,7 +6167,7 @@ load_india_life_expectancy <- function(le_path) {
 #' \deqn{\text{YLL}_{r,k} = \text{LE}(\text{age\_bin}_r, \text{sex}_r)
 #'   \times w_{r,k}}
 #' where \eqn{w_{r,k}} is the polymicrobial death weight for patient r and
-#' pathogen k (= 1 for monomicrobial, 0–1 for polymicrobial episodes).
+#' pathogen k (= 1 for monomicrobial, 0-1 for polymicrobial episodes).
 #' Total YLL associated:
 #' \deqn{\text{YLL}_{\text{associated}} = \sum_{r,k} \text{YLL}_{r,k}}
 #'
@@ -6164,8 +6180,6 @@ load_india_life_expectancy <- function(le_path) {
 #' If \code{date_culture_col} is \code{NULL} polymicrobial flagging is
 #' skipped and all weights default to 1.
 #'
-#' @param data                  Data frame of patient-level microbiology records
-#'   (one row per patient × antibiotic test or per patient × pathogen).
 #' @param outcome_col           Character.  Final outcome column.
 #' @param death_value           Character.  Value(s) indicating a fatal outcome.
 #'   Default \code{"Death"}.  Pass a vector to match multiple labels
@@ -6173,30 +6187,14 @@ load_india_life_expectancy <- function(le_path) {
 #' @param pathogen_col          Character.  Pathogen / organism column (k).
 #' @param patient_col           Character.  Unique patient identifier column.
 #' @param age_bin_col           Character.  Column containing GBD-standard age
-#'   bin labels (e.g. \code{"0-1"}, \code{"1-5"}, …, \code{"85+"}).  Use
+#'   bin labels (e.g. \code{"0-1"}, \code{"1-5"}, ..., \code{"85+"}).  Use
 #'   \code{age_bin_map} to recode non-standard labels.
 #' @param sex_col               Character.  Column containing patient sex.
-#' @param facility_col          Character or \code{NULL}.  Facility identifier
-#'   column.  When supplied, polymicrobial weights are computed per facility
-#'   (with global fallback) and results include a \code{by_facility} breakdown.
 #' @param syndrome_col          Character or \code{NULL}.  Syndrome column.
 #'   When \code{NULL} all syndromes are pooled; when supplied the
 #'   \code{by_syndrome} and \code{by_syndrome_pathogen} outputs are populated.
 #' @param syndrome_name         Character or \code{NULL}.  If supplied, data
 #'   are filtered to this syndrome before computation.  \code{NULL} = all.
-#' @param date_culture_col      Character or \code{NULL}.  Culture date column
-#'   used to define polymicrobial episodes (\code{flag_polymicrobial()}).
-#'   Set \code{NULL} to skip polymicrobial flagging (all weights = 1).
-#' @param specimen_col          Character or \code{NULL}.  Specimen type column
-#'   used together with \code{date_culture_col} for episode definition.
-#' @param poly_weight_method    Character.  Passed to
-#'   \code{compute_polymicrobial_weight()}: \code{"monomicrobial_proportion"}
-#'   (default), \code{"equal"}, or \code{"manual"}.
-#' @param min_mono_per_facility Integer.  Minimum monomicrobial isolates a
-#'   facility must have for per-facility weights.  Facilities below this
-#'   threshold fall back to globally-pooled proportions.  Default \code{30L}.
-#' @param gap_days              Numeric.  Maximum days between cultures
-#'   considered the same episode.  Default \code{14}.
 #' @param le_path               Character.  Path to the India life expectancy
 #'   xlsx file.  Defaults to the bundled \code{inst/extdata} copy.
 #' @param male_value            Character.  Value in \code{sex_col} for males.
@@ -6205,9 +6203,6 @@ load_india_life_expectancy <- function(le_path) {
 #'   Default \code{"Female"}.  All other values use the combined LE.
 #' @param age_bin_map           Named character vector remapping non-standard
 #'   age bin labels to LE-table labels.  Default \code{c("<1" = "0-1")}.
-#' @param stratify_by           Character vector or \code{NULL}.  Additional
-#'   column names to include as stratification dimensions in the
-#'   \code{stratified} output (e.g. \code{c("location", "Age_bin", "sex")}).
 #'
 #' @return A named list:
 #' \describe{
@@ -6216,15 +6211,15 @@ load_india_life_expectancy <- function(le_path) {
 #'   \item{\code{per_pathogen}}{Data frame: YLL summed per pathogen k, pooled
 #'     across facilities.  Columns: \code{pathogen_col}, \code{n_patients},
 #'     \code{YLL_associated_k}.}
-#'   \item{\code{by_age_sex}}{Data frame: YLL by \code{age_bin_col} × sex.}
-#'   \item{\code{by_pathogen_age_sex}}{Data frame: YLL by pathogen ×
-#'     \code{age_bin_col} × sex.}
+#'   \item{\code{by_age_sex}}{Data frame: YLL by \code{age_bin_col} x sex.}
+#'   \item{\code{by_pathogen_age_sex}}{Data frame: YLL by pathogen x
+#'     \code{age_bin_col} x sex.}
 #'   \item{\code{by_facility}}{Data frame (only when \code{facility_col} is
-#'     supplied): per-facility YLL, one row per facility × pathogen.}
+#'     supplied): per-facility YLL, one row per facility x pathogen.}
 #'   \item{\code{by_syndrome}}{Data frame (only when \code{syndrome_col} is
 #'     supplied and \code{syndrome_name} is \code{NULL}): YLL by syndrome.}
 #'   \item{\code{by_syndrome_pathogen}}{Data frame (only when
-#'     \code{syndrome_col} supplied): YLL by syndrome × pathogen.}
+#'     \code{syndrome_col} supplied): YLL by syndrome x pathogen.}
 #'   \item{\code{stratified}}{Data frame (only when \code{stratify_by} is
 #'     supplied): YLL aggregated by the requested columns.}
 #'   \item{\code{patient_data}}{The death-cohort data frame used for
@@ -6277,7 +6272,7 @@ compute_yll_associated <- function(
   age_bin_map = c("<1" = "0-1"),
   stratify_by = NULL
 ) {
-  # ── Input validation ───────────────────────────────────────────────────────
+  # -- Input validation -------------------------------------------------------
   required_cols <- c(
     outcome_col, pathogen_col, patient_col,
     age_bin_col, sex_col
@@ -6300,10 +6295,10 @@ compute_yll_associated <- function(
     stop("syndrome_col must be supplied when syndrome_name is specified.")
   }
 
-  # ── Step 1: Load life expectancy lookup ───────────────────────────────────
+  # -- Step 1: Load life expectancy lookup -----------------------------------
   le_lookup <- load_india_life_expectancy(le_path)
 
-  # ── Step 2: Polymicrobial weights (per facility; global fallback) ─────────
+  # -- Step 2: Polymicrobial weights (per facility; global fallback) ---------
   # Computed on the FULL data before death filter so the monomicrobial
   # reference pool is not restricted to fatal cases only.
 
@@ -6327,7 +6322,7 @@ compute_yll_associated <- function(
       ),
       error = function(e) {
         message(sprintf(
-          "  [%s] flag_polymicrobial error: %s — weights set to 1.",
+          "  [%s] flag_polymicrobial error: %s -- weights set to 1.",
           label, conditionMessage(e)
         ))
         df_sub$polymicrobial_weight <- 1
@@ -6339,7 +6334,7 @@ compute_yll_associated <- function(
 
     # Ensure required columns exist
     if (!"is_polymicrobial" %in% names(df_flagged)) {
-      message(sprintf("[%s] 'is_polymicrobial' missing — assuming monomicrobial.", label))
+      message(sprintf("[%s] 'is_polymicrobial' missing -- assuming monomicrobial.", label))
       df_flagged$is_polymicrobial <- 0L
     }
 
@@ -6357,7 +6352,7 @@ compute_yll_associated <- function(
 
     if (n_mono < min_mono_per_facility) {
       message(sprintf(
-        "  [%s] n_mono=%d < threshold %d — falling back to equal weights.",
+        "  [%s] n_mono=%d < threshold %d -- falling back to equal weights.",
         label, n_mono, min_mono_per_facility
       ))
     }
@@ -6388,7 +6383,7 @@ compute_yll_associated <- function(
     data_weighted <- .compute_poly_weights(data, label = "global")
   }
 
-  # ── Step 3: Filter to death cohort ────────────────────────────────────────
+  # -- Step 3: Filter to death cohort ----------------------------------------
   df <- data_weighted %>%
     dplyr::filter(
       .data[[outcome_col]] %in% death_value,
@@ -6415,7 +6410,7 @@ compute_yll_associated <- function(
     }
   ))
 
-  # ── Step 4: Recode age bins; normalise sex ────────────────────────────────
+  # -- Step 4: Recode age bins; normalise sex --------------------------------
   if (length(age_bin_map) > 0L) {
     df[[age_bin_col]] <- dplyr::recode(
       as.character(df[[age_bin_col]]),
@@ -6432,7 +6427,7 @@ compute_yll_associated <- function(
       )
     )
 
-  # ── Step 5: Join life expectancy (age bin × sex) ──────────────────────────
+  # -- Step 5: Join life expectancy (age bin x sex) --------------------------
   join_by <- stats::setNames(c("age_bin", "sex"), c(age_bin_col, ".sex_norm"))
   df <- dplyr::left_join(df, le_lookup, by = join_by)
 
@@ -6444,17 +6439,17 @@ compute_yll_associated <- function(
     ))
   }
 
-  # ── Step 6: YLL per patient-pathogen row ──────────────────────────────────
+  # -- Step 6: YLL per patient-pathogen row ----------------------------------
   # death_weight = polymicrobial_weight from weight.R
-  #   mono patient  → weight = 1.0  (full LE attributed to this pathogen)
-  #   poly patient  → weight = 0–1  (fractional LE per pathogen)
+  #   mono patient  -> weight = 1.0  (full LE attributed to this pathogen)
+  #   poly patient  -> weight = 0-1  (fractional LE per pathogen)
   df <- df %>%
     dplyr::mutate(
       death_weight     = dplyr::coalesce(polymicrobial_weight, 1.0),
       yll_contribution = life_expectancy * death_weight
     )
 
-  # ── Step 7: Aggregate ─────────────────────────────────────────────────────
+  # -- Step 7: Aggregate -----------------------------------------------------
 
   .agg <- function(df, grp_cols) {
     df %>%
@@ -6483,11 +6478,11 @@ compute_yll_associated <- function(
     by_path_fac
   }
 
-  # By age_bin × sex
+  # By age_bin x sex
   by_age_sex <- .agg(df, c(age_bin_col, ".sex_norm")) %>%
     dplyr::rename(sex = ".sex_norm")
 
-  # By pathogen × age_bin × sex
+  # By pathogen x age_bin x sex
   by_pathogen_age_sex <- .agg(df, c(pathogen_col, age_bin_col, ".sex_norm")) %>%
     dplyr::rename(sex = ".sex_norm")
 
@@ -6518,7 +6513,7 @@ compute_yll_associated <- function(
     NULL
   }
 
-  # ── Step 8: Total and summary message ─────────────────────────────────────
+  # -- Step 8: Total and summary message -------------------------------------
   YLL_total <- sum(per_pathogen$YLL_associated_k, na.rm = TRUE)
 
   message(sprintf(
@@ -6528,7 +6523,7 @@ compute_yll_associated <- function(
     sum(per_pathogen$n_patients, na.rm = TRUE)
   ))
 
-  # ── Return ─────────────────────────────────────────────────────────────────
+  # -- Return -----------------------------------------------------------------
   out <- list(
     total               = YLL_total,
     per_pathogen        = per_pathogen,
@@ -6545,7 +6540,7 @@ compute_yll_associated <- function(
 }
 
 
-# ── YLL Attributable ──────────────────────────────────────────────────────────
+# -- YLL Attributable ----------------------------------------------------------
 
 #' Compute YLL Attributable to AMR
 #'
@@ -6569,31 +6564,12 @@ compute_yll_associated <- function(
 #' \deqn{\text{YLL}^{\text{attr}}_{i,k} =
 #'   \text{yll\_contribution}_{i,k} \times \text{PAF}_{k(,\delta)}}
 #'
-#' @param yll_patient_data Data frame.  The \code{$patient_data} element from
-#'   \code{compute_yll_associated()}.  Must contain \code{yll_contribution},
-#'   \code{life_expectancy}, \code{death_weight}, plus \code{pathogen_col},
-#'   \code{patient_col}, \code{age_bin_col}, and \code{sex_col}.
-#' @param paf_mort Named list returned by \code{compute_paf_rr_mortality()}.
-#'   Each entry corresponds to one pathogen k and must contain
-#'   \code{$PAF_k_mort} (scalar) and, for per-profile mode,
-#'   \code{$per_profile} (data frame with \code{profile_col} and
-#'   \code{PAF_mortality}).
-#' @param pathogen_col  Character.  Pathogen column in \code{yll_patient_data}.
+#' @param pathogen_col  Character.  Pathogen column.
 #' @param patient_col   Character.  Patient identifier column.
 #' @param age_bin_col   Character.  Age bin column.
-#' @param sex_col       Character.  Normalised sex column in
-#'   \code{yll_patient_data}.  \code{compute_yll_associated()} stores the
-#'   normalised values in \code{".sex_norm"}; pass that here.
+#' @param sex_col       Character.  Normalised sex column.
 #'   Default \code{".sex_norm"}.
-#' @param resistance_profile_col Character or \code{NULL}.  Column in
-#'   \code{yll_patient_data} containing the resistance profile delta label.
-#'   When \code{NULL} (default), scalar \code{PAF_k_mort} is used.
-#' @param profile_col   Character.  Column name in \code{paf_mort$per_profile}
-#'   holding the profile label.  Default \code{"profile"}.
-#' @param facility_col  Character or \code{NULL}.  Facility column.
 #' @param syndrome_col  Character or \code{NULL}.  Syndrome column.
-#' @param stratify_by   Character vector or \code{NULL}.  Additional
-#'   stratification columns (always includes \code{pathogen_col}).
 #'
 #' @return A list:
 #'   \describe{
@@ -6601,13 +6577,13 @@ compute_yll_associated <- function(
 #'     \item{per_pathogen}{One row per pathogen: \code{pathogen_col},
 #'       \code{n_patients}, \code{YLL_associated_k}, \code{PAF_k_mort},
 #'       \code{YLL_attributable_k}.}
-#'     \item{by_age_sex}{YLL attributable stratified by age_bin × sex.}
-#'     \item{by_pathogen_age_sex}{YLL attributable by pathogen × age_bin × sex.}
+#'     \item{by_age_sex}{YLL attributable stratified by age_bin x sex.}
+#'     \item{by_pathogen_age_sex}{YLL attributable by pathogen x age_bin x sex.}
 #'     \item{by_facility}{Per-facility breakdown (when \code{facility_col}
 #'       supplied).}
 #'     \item{by_syndrome}{Per-syndrome breakdown (when \code{syndrome_col}
 #'       supplied).}
-#'     \item{by_syndrome_pathogen}{Per-syndrome × pathogen (when
+#'     \item{by_syndrome_pathogen}{Per-syndrome x pathogen (when
 #'       \code{syndrome_col} supplied).}
 #'     \item{stratified}{User-defined stratification (when \code{stratify_by}
 #'       supplied).}
@@ -6652,7 +6628,7 @@ compute_yll_attributable <- function(
   syndrome_col = NULL,
   stratify_by = NULL
 ) {
-  # ── Input validation ───────────────────────────────────────────────────────
+  # -- Input validation -------------------------------------------------------
   required_cols <- c(
     "yll_contribution", "life_expectancy", "death_weight",
     pathogen_col, patient_col, age_bin_col, sex_col
@@ -6682,7 +6658,7 @@ compute_yll_attributable <- function(
 
   df <- yll_patient_data
 
-  # ── Step 1: Build PAF lookup and join ─────────────────────────────────────
+  # -- Step 1: Build PAF lookup and join -------------------------------------
 
   # Always build scalar PAF_k lookup (used for per_pathogen output table).
   paf_scalar_df <- do.call(rbind, lapply(names(paf_mort), function(k) {
@@ -6720,7 +6696,7 @@ compute_yll_attributable <- function(
         YLL_attributable_contribution = yll_contribution * PAF_kd
       )
   } else {
-    # Per-profile: build (pathogen, profile_col) → PAF_mortality lookup
+    # Per-profile: build (pathogen, profile_col) -> PAF_mortality lookup
     paf_profile_df <- do.call(rbind, lapply(names(paf_mort), function(k) {
       pp <- paf_mort[[k]]$per_profile
       if (is.null(pp) || !is.data.frame(pp) || !profile_col %in% names(pp)) {
@@ -6737,7 +6713,7 @@ compute_yll_attributable <- function(
       ))
     }
 
-    # Join: left(pathogen_col, resistance_profile_col) → right(pathogen_col, profile_col)
+    # Join: left(pathogen_col, resistance_profile_col) -> right(pathogen_col, profile_col)
     join_keys <- stats::setNames(
       c(pathogen_col, profile_col),
       c(pathogen_col, resistance_profile_col)
@@ -6759,7 +6735,7 @@ compute_yll_attributable <- function(
       )
   }
 
-  # ── Step 2: Aggregate ─────────────────────────────────────────────────────
+  # -- Step 2: Aggregate -----------------------------------------------------
 
   .agg_attr <- function(df, grp_cols) {
     df %>%
@@ -6772,7 +6748,7 @@ compute_yll_attributable <- function(
       )
   }
 
-  # Rename sex_col → "sex" in output tables
+  # Rename sex_col -> "sex" in output tables
   .rename_sex <- function(tbl) {
     if (sex_col != "sex" && sex_col %in% names(tbl)) {
       names(tbl)[names(tbl) == sex_col] <- "sex"
@@ -6799,11 +6775,11 @@ compute_yll_attributable <- function(
   }
   per_pathogen <- dplyr::left_join(per_pathogen, paf_scalar_df, by = pathogen_col)
 
-  # By age_bin × sex
+  # By age_bin x sex
   by_age_sex <- .agg_attr(df, c(age_bin_col, sex_col)) %>%
     .rename_sex()
 
-  # By pathogen × age_bin × sex
+  # By pathogen x age_bin x sex
   by_pathogen_age_sex <- .agg_attr(df, c(pathogen_col, age_bin_col, sex_col)) %>%
     .rename_sex()
 
@@ -6834,7 +6810,7 @@ compute_yll_attributable <- function(
     NULL
   }
 
-  # ── Step 3: Total and summary ──────────────────────────────────────────────
+  # -- Step 3: Total and summary ----------------------------------------------
   YLL_attributable_total <- sum(per_pathogen$YLL_attributable_k, na.rm = TRUE)
   YLL_associated_total <- sum(per_pathogen$YLL_associated_k, na.rm = TRUE)
 
@@ -6846,7 +6822,7 @@ compute_yll_attributable <- function(
     sum(per_pathogen$n_patients, na.rm = TRUE)
   ))
 
-  # ── Return ─────────────────────────────────────────────────────────────────
+  # -- Return -----------------------------------------------------------------
   out <- list(
     total               = YLL_attributable_total,
     per_pathogen        = per_pathogen,
@@ -6863,7 +6839,7 @@ compute_yll_attributable <- function(
 }
 
 
-# ── PAF Mortality ─────────────────────────────────────────────────────────────
+# -- PAF Mortality -------------------------------------------------------------
 
 #' Compute Mortality Population Attributable Fraction per Resistance Profile
 #'
@@ -6954,7 +6930,7 @@ compute_paf_rr_mortality <- function(
 
     if (!is.finite(denom) || denom <= 0) {
       warning(sprintf(
-        "'%s': PAF_mortality denominator = %.6g (must be > 0) — all mortality ORs may be <= 1 or NA; skipping.",
+        "'%s': PAF_mortality denominator = %.6g (must be > 0) -- all mortality ORs may be <= 1 or NA; skipping.",
         path, denom
       ))
       next

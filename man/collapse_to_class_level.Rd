@@ -23,13 +23,16 @@ collapse_to_class_level(
 \item{class_col}{Character. Antibiotic class column. Default "antibiotic_class".}
 
 \item{susceptibility_col}{Character. Susceptibility column. Default "antibiotic_value".}
+
+\item{extra_cols}{Character vector or NULL. Additional columns to carry
+through the aggregation. Default NULL.}
 }
 \value{
 Aggregated data frame (one row per event-organism-class)
 }
 \description{
 Aggregates resistance at antibiotic class level instead of individual drugs.
-Uses "any R in class → class R" logic.
+Uses "any R in class -> class R" logic.
 }
 \examples{
 \dontrun{

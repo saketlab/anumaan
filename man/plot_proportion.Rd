@@ -60,9 +60,10 @@ A ggplot object
 Creates a 100% stacked bar plot showing proportions with percentage labels.
 }
 \examples{
-# 100\% proportion plot
+\dontrun{
 plot_proportion(data,
   x = "organism", fill = "resistance_status",
   palette = "resistance"
 )
+}
 }

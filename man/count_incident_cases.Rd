@@ -32,6 +32,12 @@ per facility. Default \code{NULL}.}
 
 \item{facility_name}{Character or NULL. If provided, restricts the count
 to that facility only. Default \code{NULL}.}
+
+\item{pathogen_col}{Character or NULL. Pathogen identifier column.
+Required when \code{pathogen_name} is specified. Default \code{NULL}.}
+
+\item{pathogen_name}{Character or NULL. If provided, restricts the count
+to the specified pathogen(s). Default \code{NULL}.}
 }
 \value{
 Data frame with columns:
@@ -40,7 +46,7 @@ Data frame with columns:
 }
 \description{
 Counts the number of unique patients per infectious syndrome directly from
-facility-level data. This is the direct-count approach to incidence —
+facility-level data. This is the direct-count approach to incidence --
 no CFR, no CR_L adjustment, no pathogen weighting. Use this when you
 want raw facility-reported case counts rather than the formula-derived
 estimate from \code{calculate_incidence_L()}.

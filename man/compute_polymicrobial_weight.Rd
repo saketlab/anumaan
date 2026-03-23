@@ -52,7 +52,7 @@ supplied, monomicrobial proportions are computed per-syndrome.}
 with \code{syndrome_col}, data are first filtered to that syndrome.}
 }
 \value{
-Data frame with \code{polymicrobial_weight} column (range 0–1),
+Data frame with \code{polymicrobial_weight} column (range 0-1),
   plus \code{weight_method} and \code{weight_confidence} audit columns.
   \code{episode_id} is removed (internal use only).
 }

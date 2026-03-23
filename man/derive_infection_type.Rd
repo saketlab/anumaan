@@ -25,6 +25,9 @@ Default \code{"type_of_infection"}.}
 Default \code{"date_of_first_positive_culture"}.}
 
 \item{hai_threshold_hours}{Numeric. Gap threshold in hours. Default \code{48}.}
+
+\item{patient_id_col}{Character. Unique patient identifier column.
+Default \code{"PatientInformation_id"}.}
 }
 \value{
 \code{data} with column \code{infection_type_derived}

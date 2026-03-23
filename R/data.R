@@ -221,3 +221,94 @@ get_antimicrobial_categories <- function(organism_group = "Enterobacterales") {
     return(categories$Enterobacterales)
   }
 }
+
+
+#' Get Organism Taxonomy Mapping
+#'
+#' Reads the organism taxonomy from inst/extdata/organisms.csv and returns
+#' a data frame mapping organism names to organism groups.
+#'
+#' @return Data frame with columns organism_name and org_group
+#' @keywords internal
+get_organism_taxonomy <- function() {
+  file_path <- find_extdata_file("organisms.csv")
+  if (file_path == "") {
+    warning("organisms.csv not found. Returning empty taxonomy.")
+    return(data.frame(
+      organism_name = character(),
+      org_group = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+  taxonomy <- utils::read.csv(file_path, stringsAsFactors = FALSE)
+  if ("organism_group" %in% names(taxonomy) && !"org_group" %in% names(taxonomy)) {
+    names(taxonomy)[names(taxonomy) == "organism_group"] <- "org_group"
+  }
+  taxonomy
+}
+
+
+#' Get RR Pathogen Mapping
+#'
+#' Returns a mapping from normalized organism names to RR pathogen categories
+#' used in burden estimation. Reads from inst/extdata/organisms.csv.
+#'
+#' @return Data frame with columns organism_name and rr_pathogen
+#' @keywords internal
+get_rr_pathogen_map <- function() {
+  file_path <- find_extdata_file("organisms.csv")
+  if (file_path == "") {
+    warning("organisms.csv not found. Returning empty RR pathogen map.")
+    return(data.frame(
+      organism_name = character(),
+      rr_pathogen = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+  taxonomy <- utils::read.csv(file_path, stringsAsFactors = FALSE)
+  # Use organism_name as the rr_pathogen if no dedicated column exists
+  if (!"rr_pathogen" %in% names(taxonomy)) {
+    taxonomy$rr_pathogen <- taxonomy$organism_name
+  }
+  taxonomy[, c("organism_name", "rr_pathogen")]
+}
+
+
+#' Get Antibiotic Class to RR Drug Mapping
+#'
+#' Returns a mapping from WHO antibiotic classes to RR drug categories.
+#' Reads from inst/extdata/WHO_aware_class.csv.
+#'
+#' @return Data frame with columns Class and rr_drug
+#' @keywords internal
+get_class_rr_map <- function() {
+  file_path <- find_extdata_file("WHO_aware_class.csv")
+  if (file_path == "") {
+    warning("WHO_aware_class.csv not found. Returning empty class-RR map.")
+    return(data.frame(
+      Class = character(),
+      rr_drug = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+  who <- utils::read.csv(file_path, stringsAsFactors = FALSE)
+  if (!"rr_drug" %in% names(who)) {
+    who$rr_drug <- who$Class
+  }
+  unique(who[, c("Class", "rr_drug")])
+}
+
+
+#' Normalize String for Joining
+#'
+#' Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
+#'
+#' @param x Character vector
+#' @return Character vector of normalized strings
+#' @keywords internal
+normalize_join <- function(x) {
+  x <- tolower(trimws(x))
+  x <- gsub("[^a-z0-9 ]", "", x)
+  x <- gsub("\\s+", " ", x)
+  x
+}

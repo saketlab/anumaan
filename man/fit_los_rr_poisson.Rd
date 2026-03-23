@@ -93,7 +93,7 @@ LOS is computed with HAI/CAI-specific clock (see compute_patient_los).
 Resistance is classified at antibiotic class level (class = 1 if any drug
 in class = R). HAI enters as a binary covariate to absorb residual baseline
 severity differences beyond the LOS clock adjustment. No PreDays covariate
-is used — the LOS clock change from admission to culture date for HAI
+is used -- the LOS clock change from admission to culture date for HAI
 patients already removes the pre-infection period from the outcome.
 
 Stated limitation: when syndrome_name is supplied, RR_kc_LOS is

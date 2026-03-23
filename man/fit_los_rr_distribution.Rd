@@ -63,6 +63,9 @@ fit_los_rr_distribution(
 \item{organism_name}{Character vector or \code{NULL}. Restrict to these
 pathogen(s); otherwise all pathogens in the filtered data.}
 
+\item{facility_name}{Character or \code{NULL}. If provided, filters data
+to the specified facility before fitting. Default \code{NULL}.}
+
 \item{hai_threshold_hours}{Numeric. Hours after admission before a culture
 is classified as HAI. Default \code{48}.}
 

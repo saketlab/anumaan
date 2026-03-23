@@ -103,6 +103,9 @@ fit_mortality_rr_logistic(
 
 \item{organism_name}{Character vector or \code{NULL}. Filter to pathogen(s).}
 
+\item{facility_name}{Character or \code{NULL}. If provided, filters data
+to the specified facility before fitting.}
+
 \item{hai_threshold_hours}{Numeric. Default \code{48}.}
 
 \item{icu_values}{Character vector. ICU location labels.}
@@ -134,7 +137,7 @@ For each pathogen k and antibiotic class c, fits:
 }
 and returns \code{OR_death_kc = exp(b1)} with 95\% Wald CI.
 
-For each pathogen × antibiotic class combination, fits a mixed-effects
+For each pathogen x antibiotic class combination, fits a mixed-effects
 logistic regression (facility random intercept) with resistance, age, sex,
 and HAI as fixed effects. Returns a data frame of mortality odds ratios (OR)
 and 95% Wald CIs. Use \code{convert_or_to_rr()} to convert ORs to RRs.
@@ -157,7 +160,7 @@ that admission records an ICU unit type.
 \code{.encode_comorbidity_mortality()} (numeric Charlson, binary
 present/none, or ordinal none/mild/moderate/severe).
 
-\strong{Pre-fitting checks} per pathogen × class:
+\strong{Pre-fitting checks} per pathogen x class:
 \itemize{
   \item \code{min_n} patients with complete required covariates.
   \item \code{min_deaths} deaths (ensures outcome variation).

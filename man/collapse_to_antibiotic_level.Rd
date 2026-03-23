@@ -26,7 +26,7 @@ collapse_to_antibiotic_level(
 Default "antibiotic_value".}
 
 \item{aggregation_rule}{Character. Rule for aggregation: "any_R" (default,
-any R → R), "most_resistant" (R > I > S), "most_common" (mode).}
+any R -> R), "most_resistant" (R > I > S), "most_common" (mode).}
 }
 \value{
 Aggregated data frame (one row per event-organism-antibiotic)
@@ -37,7 +37,7 @@ you have reviewed your data and decided to collapse duplicates.
 }
 \details{
 Aggregates multiple test results for the same organism-antibiotic combination
-within an event. Uses "any R → R" logic where resistance in any test
+within an event. Uses "any R -> R" logic where resistance in any test
 results in resistant classification.
 
 **When to use**: After you've cleaned and normalized data, if you have
@@ -53,7 +53,7 @@ data \%>\%
   group_by(event_id, organism_normalized, antibiotic_normalized) \%>\%
   filter(n() > 1)
 
-# Then decide to collapse using any R → R
+# Then decide to collapse using any R -> R
 collapsed <- collapse_to_antibiotic_level(data)
 
 # Or use most common result

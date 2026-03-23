@@ -110,7 +110,7 @@ pivot_wide_to_long <- function(data,
   n_after <- nrow(long_data)
 
   message(sprintf(
-    "Pivoted: %d rows → %d rows (wide → long)",
+    "Pivoted: %d rows -> %d rows (wide -> long)",
     n_before, n_after
   ))
 
@@ -136,7 +136,7 @@ pivot_wide_to_long <- function(data,
   }
 
   message(sprintf(
-    "Final long format: %d rows × %d columns",
+    "Final long format: %d rows x %d columns",
     nrow(long_data), ncol(long_data)
   ))
 
@@ -159,7 +159,7 @@ pivot_wide_to_long <- function(data,
 #' you have reviewed your data and decided to collapse duplicates.
 #'
 #' Aggregates multiple test results for the same organism-antibiotic combination
-#' within an event. Uses "any R → R" logic where resistance in any test
+#' within an event. Uses "any R -> R" logic where resistance in any test
 #' results in resistant classification.
 #'
 #' **When to use**: After you've cleaned and normalized data, if you have
@@ -175,7 +175,7 @@ pivot_wide_to_long <- function(data,
 #' @param susceptibility_col Character. Susceptibility column (S/I/R).
 #'   Default "antibiotic_value".
 #' @param aggregation_rule Character. Rule for aggregation: "any_R" (default,
-#'   any R → R), "most_resistant" (R > I > S), "most_common" (mode).
+#'   any R -> R), "most_resistant" (R > I > S), "most_common" (mode).
 #'
 #' @return Aggregated data frame (one row per event-organism-antibiotic)
 #' @export
@@ -187,7 +187,7 @@ pivot_wide_to_long <- function(data,
 #'   group_by(event_id, organism_normalized, antibiotic_normalized) %>%
 #'   filter(n() > 1)
 #'
-#' # Then decide to collapse using any R → R
+#' # Then decide to collapse using any R -> R
 #' collapsed <- collapse_to_antibiotic_level(data)
 #'
 #' # Or use most common result
@@ -248,7 +248,7 @@ collapse_to_antibiotic_level <- function(data,
 
   # Apply aggregation rule
   if (aggregation_rule == "any_R") {
-    # Any R → R
+    # Any R -> R
     collapsed <- data %>%
       dplyr::group_by(
         !!rlang::sym(event_col),
@@ -335,7 +335,7 @@ collapse_to_antibiotic_level <- function(data,
   n_removed <- n_before - n_after
 
   message(sprintf(
-    "Collapsed: %d → %d rows (%d duplicates removed)",
+    "Collapsed: %d -> %d rows (%d duplicates removed)",
     n_before, n_after, n_removed
   ))
 
@@ -346,13 +346,15 @@ collapse_to_antibiotic_level <- function(data,
 #' Collapse to Class Level
 #'
 #' Aggregates resistance at antibiotic class level instead of individual drugs.
-#' Uses "any R in class → class R" logic.
+#' Uses "any R in class -> class R" logic.
 #'
 #' @param data Data frame with antibiotic class information
 #' @param event_col Character. Event ID column. Default "event_id".
 #' @param organism_col Character. Organism column. Default "organism_normalized".
 #' @param class_col Character. Antibiotic class column. Default "antibiotic_class".
 #' @param susceptibility_col Character. Susceptibility column. Default "antibiotic_value".
+#' @param extra_cols Character vector or NULL. Additional columns to carry
+#'   through the aggregation. Default NULL.
 #'
 #' @return Aggregated data frame (one row per event-organism-class)
 #' @export
@@ -449,7 +451,7 @@ collapse_to_class_level <- function(data,
   n_after <- nrow(collapsed)
 
   message(sprintf(
-    "Collapsed: %d rows → %d class-level rows",
+    "Collapsed: %d rows -> %d class-level rows",
     n_before, n_after
   ))
 
@@ -563,14 +565,14 @@ create_wide_format <- function(data,
   n_antibiotics <- ncol(wide_data) - length(keep_cols)
 
   message(sprintf(
-    "Created wide format: %d events × %d antibiotics",
+    "Created wide format: %d events x %d antibiotics",
     n_after, n_antibiotics
   ))
 
   # Check for data loss
   if (n_after != n_events_before) {
     warning(sprintf(
-      "⚠ Row count mismatch: %d events in original data, %d rows in wide format",
+      "[!] Row count mismatch: %d events in original data, %d rows in wide format",
       n_events_before, n_after
     ))
   }

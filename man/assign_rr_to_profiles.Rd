@@ -51,7 +51,7 @@ For each resistance profile delta (from compute_resistance_profiles()),
 determines the profile-level RR_kd_LOS using the GBD max rule:
   RR_kd_LOS = max over c in C_R(d) of RR_kc_LOS   [if C_R(d) non-empty]
             = 1                                      [if d = all-susceptible]
-where C_R(d) = {c : d_c = 1}.
+where C_R(d) = \{c : d_c = 1\}.
 The CI reported for each profile is that of its dominant (max-RR) class.
 
 For each resistance profile delta, determines the profile-level RR using

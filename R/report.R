@@ -399,15 +399,15 @@ compute_processing_statistics <- function(raw_data, processed_data, preprocessin
 #'
 #' @export
 print.amr_preprocessing_report <- function(x, ...) {
-  cat("═══════════════════════════════════════════════════\n")
+  cat("===================================================\n")
   cat("   AMR Data Preprocessing Report\n")
-  cat("═══════════════════════════════════════════════════\n\n")
+  cat("===================================================\n\n")
 
   cat("Report Generated:", format(x$metadata$report_generated), "\n")
   cat("Package Version:", as.character(x$metadata$package_version), "\n")
   cat("R Version:", x$metadata$r_version, "\n\n")
 
-  cat("─── Raw Data Summary ───\n")
+  cat("--- Raw Data Summary ---\n")
   cat(sprintf("  Rows: %s\n", format(x$raw_data_summary$n_rows, big.mark = ",")))
   cat(sprintf("  Columns: %d\n", x$raw_data_summary$n_cols))
   cat(sprintf("  Memory: %s\n", x$raw_data_summary$memory_size))
@@ -416,23 +416,23 @@ print.amr_preprocessing_report <- function(x, ...) {
     mean(x$raw_data_summary$missing_data$pct_missing)
   ))
 
-  cat("─── Column Mapping ───\n")
+  cat("--- Column Mapping ---\n")
   mapping_summary <- table(x$column_mapping$mapping_method)
   for (method in names(mapping_summary)) {
     cat(sprintf("  %s: %d columns\n", method, mapping_summary[method]))
   }
   cat("\n")
 
-  cat("─── Processing Statistics ───\n")
+  cat("--- Processing Statistics ---\n")
   cat(sprintf("  Runtime: %.2f seconds\n", x$processing_stats$runtime))
   cat(sprintf(
-    "  Rows: %s → %s (%.1f%% retained)\n",
+    "  Rows: %s -> %s (%.1f%% retained)\n",
     format(x$processing_stats$rows_input, big.mark = ","),
     format(x$processing_stats$rows_output, big.mark = ","),
     x$processing_stats$pct_retained
   ))
   cat(sprintf(
-    "  Columns: %d → %d (+%d derived)\n",
+    "  Columns: %d -> %d (+%d derived)\n",
     x$processing_stats$cols_input,
     x$processing_stats$cols_output,
     x$processing_stats$cols_added
@@ -442,30 +442,30 @@ print.amr_preprocessing_report <- function(x, ...) {
     x$processing_stats$variables_derived
   ))
 
-  cat("─── Data Quality ───\n")
+  cat("--- Data Quality ---\n")
   cat(sprintf(
-    "  Completeness: %.1f%% → %.1f%%\n",
+    "  Completeness: %.1f%% -> %.1f%%\n",
     x$data_quality$completeness$pct_complete[1],
     x$data_quality$completeness$pct_complete[2]
   ))
   cat(sprintf(
-    "  Duplicate Rows: %d → %d\n",
+    "  Duplicate Rows: %d -> %d\n",
     x$data_quality$duplicates$raw_duplicate_rows,
     x$data_quality$duplicates$processed_duplicate_rows
   ))
 
   if (length(x$warnings) > 0) {
-    cat(sprintf("\n⚠ Warnings: %d (see $warnings for details)\n", length(x$warnings)))
+    cat(sprintf("\n[!] Warnings: %d (see $warnings for details)\n", length(x$warnings)))
   }
 
   if (length(x$errors) > 0) {
-    cat(sprintf("✖ Errors: %d (see $errors for details)\n", length(x$errors)))
+    cat(sprintf("[x] Errors: %d (see $errors for details)\n", length(x$errors)))
   }
 
-  cat("\n═══════════════════════════════════════════════════\n")
+  cat("\n===================================================\n")
   cat("Use summary(report) for detailed sections\n")
   cat("Use export_report(report, 'file.html') to save\n")
-  cat("═══════════════════════════════════════════════════\n")
+  cat("===================================================\n")
 
   invisible(x)
 }
@@ -539,6 +539,22 @@ export_report_html <- function(report, file) {
   )
 
   writeLines(html, file)
+}
+
+
+#' Export Report as PDF
+#'
+#' @param report Report object
+#' @param file Output file path
+#' @keywords internal
+export_report_pdf <- function(report, file) {
+  # Write as text first, then note PDF requires rmarkdown
+  txt_file <- sub("\\.pdf$", ".txt", file)
+  export_report_txt(report, txt_file)
+  warning(
+    "PDF export requires rmarkdown and a LaTeX installation. ",
+    "Report saved as text to: ", txt_file
+  )
 }
 
 

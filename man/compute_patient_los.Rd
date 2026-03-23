@@ -29,6 +29,9 @@ compute_patient_los(
 
 \item{facility_col}{Character. Default \code{"center_name"}.}
 
+\item{facility_name}{Character or \code{NULL}. If provided, filters data
+to the specified facility before computing LOS. Default \code{NULL}.}
+
 \item{organism_col}{Character. Column containing organism/pathogen names.
 Used for episode grouping: a new episode is only created when the culture
 date gap exceeds 14 days AND the organism differs from the episode's first

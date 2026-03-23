@@ -28,21 +28,21 @@
 \item{phi_threshold}{Numeric. Default \code{0.7}.}
 }
 \value{
-Named list: \code{phi}, \code{tbl} (2×2 table),
+Named list: \code{phi}, \code{tbl} (2x2 table),
   \code{warning_issued} (logical).
 
 Named list: \code{phi}, \code{tbl}, \code{warning_issued}.
 }
 \description{
-Computes the phi (Pearson) correlation coefficient for the 2×2 contingency
-table of HAI × ICU. When ICU is hospital-acquired, the two covariates can
+Computes the phi (Pearson) correlation coefficient for the 2x2 contingency
+table of HAI x ICU. When ICU is hospital-acquired, the two covariates can
 be highly correlated, making regression coefficients unstable.
 
-Computes the phi correlation for the HAI × ICU 2x2 table and warns when
+Computes the phi correlation for the HAI x ICU 2x2 table and warns when
 it exceeds \code{phi_threshold}.
 }
 \details{
-Perfect separation (any 2×2 marginal = 0) is detected and reported
+Perfect separation (any 2x2 marginal = 0) is detected and reported
 separately, as it guarantees model non-convergence.
 }
 \keyword{internal}

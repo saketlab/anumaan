@@ -31,6 +31,12 @@ called with \code{rr_col = "OR_death"}.}
 \item{rr_profile_col}{Character. Default \code{"RR_LOS_profile"}.}
 
 \item{profile_col}{Character. Default \code{"profile"}.}
+
+\item{facility_col}{Character or \code{NULL}. Facility identifier column.
+Default \code{NULL}.}
+
+\item{facility_name}{Character or \code{NULL}. If provided, stored in
+the output for provenance tracking. Default \code{NULL}.}
 }
 \value{
 Named list (one entry per pathogen) containing:
@@ -52,7 +58,7 @@ using the GBD multi-exposure Levin formula, substituting the mortality
 odds ratio (OR_death) from \code{fit_mortality_rr_logistic()} in place of
 the LOS relative risk used by \code{compute_paf_los()}:
 
-Computes PAF_kd_mortality for each pathogen × resistance profile using the
+Computes PAF_kd_mortality for each pathogen x resistance profile using the
 GBD multi-exposure Levin formula with mortality OR substituted for LOS RR:
 }
 \details{

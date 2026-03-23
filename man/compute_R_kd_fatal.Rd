@@ -37,7 +37,7 @@ Computes the fatal prevalence of resistance R_kd for each pathogen k and
 resistance profile delta, using per-profile mortality odds ratios
 (OR_death) from \code{fit_mortality_rr_logistic()} in place of LOS
 relative risks.  The formula is identical to
-\code{compute_fraction_associated()} — only the RR source changes.
+\code{compute_fraction_associated()} -- only the RR source changes.
 }
 \details{
 \deqn{E[\text{OR}_k] = \sum_\delta R'_{K\delta} \cdot \text{OR}_{K\delta}}

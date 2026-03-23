@@ -2,7 +2,7 @@
 % Please edit documentation in R/burden.R
 \name{calculate_cfr_lk}
 \alias{calculate_cfr_lk}
-\title{Calculate case fatality ratio by syndrome and pathogen (CFR_{Lk})}
+\title{Calculate case fatality ratio by syndrome and pathogen (CFR_\{Lk\})}
 \usage{
 calculate_cfr_lk(
   data,

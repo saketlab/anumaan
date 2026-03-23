@@ -35,7 +35,7 @@ compute_resistance_profiles(
 the top \code{top_n_pathogens} pathogens ranked by total isolates tested
 (sum of \code{n_tested} across all antibiotic classes, descending) are
 processed. Applied after the \code{pathogens} argument filter. Useful for
-focusing on the most data-rich pathogens — e.g. \code{top_n_pathogens = 5}
+focusing on the most data-rich pathogens -- e.g. \code{top_n_pathogens = 5}
 runs profiles for only the 5 most-tested pathogens.}
 
 \item{exclude_near_zero}{Logical. If \code{TRUE} (default), antibiotic
@@ -46,7 +46,7 @@ pathogen are excluded from profile enumeration.}
 the top \code{top_n_classes} antibiotic classes ranked by \code{n_tested}
 (descending) are kept per pathogen before profile enumeration. Useful for
 capping the combinatorial explosion (2^n profiles) for pathogens tested
-against many drug classes — e.g. \code{top_n_classes = 5} gives at most
+against many drug classes -- e.g. \code{top_n_classes = 5} gives at most
 32 profiles. Applied after \code{exclude_near_zero}.}
 
 \item{sigma_sq}{Positive numeric. Assumed variance for each
@@ -56,7 +56,7 @@ constraint (uniform). Default \code{1}.}
 Hessian for numerical stability. Default \code{1e-8}.}
 
 \item{pathogen_col}{Character. Column name for pathogens. Must match
-the column used in Steps 1–2. Default \code{"organism_name"}.}
+the column used in Steps 1-2. Default \code{"organism_name"}.}
 
 \item{antibiotic_class_col}{Character. Column name for antibiotic classes.
 Default \code{"antibiotic_class"}.}
@@ -82,6 +82,9 @@ the specified outcome before profile enumeration.
 
 \item{outcome_value}{Character or \code{NULL}. Outcome value to retain
 (e.g. \code{"discharged"}, \code{"dead"}). Default \code{NULL}.}
+
+\item{n_cores}{Integer. Number of CPU cores for parallel computation.
+Default \code{1L} (sequential).}
 }
 \value{
 Named list, one entry per pathogen, each a list with:
@@ -143,9 +146,9 @@ distribution over all profiles.
   and label creation (10-100x faster than previous versions). However,
   computational complexity is still exponential in the number of classes:
   \itemize{
-    \item \strong{n ≤ 14}: Fast (seconds to minutes)
+    \item \strong{n <= 14}: Fast (seconds to minutes)
     \item \strong{n = 15}: Moderate (minutes)
-    \item \strong{n ≥ 16}: Slow and memory-intensive (use \code{top_n_classes})
+    \item \strong{n >= 16}: Slow and memory-intensive (use \code{top_n_classes})
   }
   For large datasets with many pathogens, consider using \code{top_n_classes}
   to limit each pathogen to its most-tested classes (e.g., \code{top_n_classes = 12}).

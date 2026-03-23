@@ -35,7 +35,7 @@ PAF (from \code{compute_paf_los()}).
 YLD_attributable_k = YLD_k * PAF_k
 
 Answers: "How much disability burden exists *only because* infections were
-resistant instead of susceptible?"  This is a counterfactual — it measures
+resistant instead of susceptible?"  This is a counterfactual -- it measures
 the excess burden driven purely by resistance.
 
 Note: YLD_attributable_k < YLD_associated_k always, because

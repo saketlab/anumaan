@@ -11,14 +11,6 @@ normalize_antibiotic(
   add_class = TRUE,
   add_aware = TRUE
 )
-
-normalize_antibiotic(
-  data,
-  antibiotic_col = "antibiotic_name",
-  who_table = NULL,
-  add_class = TRUE,
-  add_aware = TRUE
-)
 }
 \arguments{
 \item{data}{Data frame with antibiotic data}
@@ -32,21 +24,11 @@ loads from inst/extdata/WHO_aware_class.csv.}
 \item{add_class}{Logical. Add antibiotic_class column. Default TRUE.}
 
 \item{add_aware}{Logical. Add aware_category column. Default TRUE.}
-
-\item{col}{Character. Name of the column containing antibiotic names.
-Default "antibiotic_name".}
-
-\item{custom_map}{Optional named character vector of additional mappings.}
 }
 \value{
-Data frame with added column \code{antibiotic_normalized}
-
 Data frame with antibiotic_normalized, antibiotic_class, aware_category
 }
 \description{
-Standardizes antibiotic/drug names by removing punctuation, spaces, and
-applying consistent lowercase formatting.
-
 Standardizes antibiotic names using fuzzy matching against WHO reference.
 Similar approach to organism normalization.
 }

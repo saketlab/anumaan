@@ -18,7 +18,7 @@ compute_p0(
 )
 }
 \arguments{
-\item{data}{Data frame. One row per patient × antibiotic test.}
+\item{data}{Data frame. One row per patient x antibiotic test.}
 
 \item{patient_col}{Character. Unique patient identifier column.}
 
@@ -35,6 +35,12 @@ patients. Default \code{"R"}.}
 \item{syndrome_col}{Character or \code{NULL}.}
 
 \item{syndrome_name}{Character or \code{NULL}.}
+
+\item{facility_col}{Character or \code{NULL}. Facility identifier
+column. Required when \code{facility_name} is specified.}
+
+\item{facility_name}{Character or \code{NULL}. If provided, filters
+data to the specified facility before computing p0.}
 }
 \value{
 Named list: \code{p0} (scalar), \code{n_susceptible},
@@ -42,9 +48,9 @@ Named list: \code{p0} (scalar), \code{n_susceptible},
 }
 \description{
 Computes the baseline death probability \eqn{p_0} among patients who are
-fully susceptible — i.e. \strong{all} antibiotic test results are
+fully susceptible -- i.e. \strong{all} antibiotic test results are
 \code{"S"}. Any patient with at least one \code{"R"} result is excluded.
-Used as the denominator correction for OR → RR conversion (Zhang & Yu 1998).
+Used as the denominator correction for OR -> RR conversion (Zhang & Yu 1998).
 }
 \references{
 Zhang J, Yu KF. What's the relative risk? JAMA. 1998;280(19):1690-1.

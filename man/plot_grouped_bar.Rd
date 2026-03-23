@@ -60,6 +60,7 @@ A ggplot object
 Creates a grouped bar plot for side-by-side comparisons.
 }
 \examples{
-# Grouped bar for comparing MRSA vs MDR
+\dontrun{
 plot_grouped_bar(data, x = "hospital", fill = "mrsa_status")
+}
 }

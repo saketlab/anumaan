@@ -26,7 +26,7 @@ select_resistance_class(
 \item{rr_col}{Character. RR value column. Default "rr_value".
 If missing, only hierarchy is used.}
 
-\item{hierarchy}{Named numeric vector. Custom hierarchy (class name → rank).
+\item{hierarchy}{Named numeric vector. Custom hierarchy (class name -> rank).
 If NULL, uses default from get_beta_lactam_hierarchy().}
 
 \item{filter_resistant}{Logical. If TRUE, only consider resistant (R) classes.

@@ -2,7 +2,7 @@
 % Please edit documentation in R/yll.R
 \name{calculate_P_Lk}
 \alias{calculate_P_Lk}
-\title{Calculate Fatal Pathogen Distribution (P_{LK})}
+\title{Calculate Fatal Pathogen Distribution (P_\{LK\})}
 \usage{
 calculate_P_Lk(
   data,

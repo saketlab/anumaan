@@ -2,7 +2,7 @@
 % Please edit documentation in R/burden.R
 \name{calculate_P_Lk_prime}
 \alias{calculate_P_Lk_prime}
-\title{Calculate non-fatal pathogen distribution (P'_{Lk})}
+\title{Calculate non-fatal pathogen distribution (P'_\{Lk\})}
 \usage{
 calculate_P_Lk_prime(
   data,

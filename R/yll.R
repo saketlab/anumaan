@@ -3,48 +3,48 @@
 # YLL calculation pipeline functions.
 #
 # Functions in this file:
-#   calculate_P_Lk          — Fatal pathogen distribution P_{LK} (Step 4)
-#   compute_base_yll_from_dl — Base YLL block sum_x(D_x^L * e_x*) (Steps 1–3)
+#   calculate_P_Lk          -- Fatal pathogen distribution P_{LK} (Step 4)
+#   compute_base_yll_from_dl -- Base YLL block sum_x(D_x^L * e_x*) (Steps 1-3)
 #
 # Pipeline (Bhaswati Ganguli, DALY Methodology for AMR, 2026):
 #
 #   Step 1.  D_L = deaths by syndrome L (supplied by the caller as a scalar).
-#            For 1000-incidence normalisation: D_L = 1000 × death_rate_L
+#            For 1000-incidence normalisation: D_L = 1000 x death_rate_L
 #            where death_rate_L = (#deaths | L) / (#incidence_L)
-#            and   #incidence_L  = #prevalence_L / (obs_period × avg_LOS).
+#            and   #incidence_L  = #prevalence_L / (obs_period x avg_LOS).
 #
-#   Step 2.  Disaggregate D_L by age (× sex) using observed proportions from
+#   Step 2.  Disaggregate D_L by age (x sex) using observed proportions from
 #            the patient death cohort, yielding {D_x^L} for each age bin x
 #            (same bins as the India life table).
 #
 #   Step 3.  Compute the base YLL block (Eq. 10):
-#              sum_x  D_x^L  ×  e_x*
+#              sum_x  D_x^L  x  e_x*
 #            where e_x* = expectation of life at age bin x (India life table).
 #
 # Aggregation levels (within the same function):
 #   - Overall (all deaths for the syndrome)
 #   - Per pathogen K  (using each pathogen's own age distribution)
-#   - Per age × sex
-#   - Per pathogen × age × sex
+#   - Per age x sex
+#   - Per pathogen x age x sex
 #   - Per facility   (using each facility's own age distribution)
-#   - Per syndrome × pathogen
+#   - Per syndrome x pathogen
 #
 # This base quantity feeds into:
-#   YLL_Kd  (Eq. 11)  = [sum_L base_YLL_L × P_KL] × R_Kd
-#   YLL_K   (Eq. 12)  = sum_δ YLL_Kδ
-#   YLL_Kδ  (Eq. 14)  = [sum_L base_YLL_L × P_KL] × Mort_PAF_Kδ
+#   YLL_Kd  (Eq. 11)  = [sum_L base_YLL_L x P_KL] x R_Kd
+#   YLL_K   (Eq. 12)  = sum_delta YLL_Kdelta
+#   YLL_Kdelta  (Eq. 14)  = [sum_L base_YLL_L x P_KL] x Mort_PAF_Kdelta
 #
 # References:
 #   Bhaswati Ganguli. DALY Methodology for AMR (YLD notes). March 2026.
 #   Antimicrobial Resistance Collaborators. Lancet. 2022.
 
 
-# ── compute_base_yll_from_dl ──────────────────────────────────────────────────
+# -- compute_base_yll_from_dl --------------------------------------------------
 
-#' Compute Base YLL Block from a Scalar D_L (Steps 1–3)
+#' Compute Base YLL Block from a Scalar D_L (Steps 1-3)
 #'
 #' Implements the first part of the YLL pipeline. Takes \eqn{D_L} (deaths by
-#' infectious syndrome, a single scalar), disaggregates it into age × sex
+#' infectious syndrome, a single scalar), disaggregates it into age x sex
 #' strata using observed proportions from the patient death cohort, and
 #' multiplies by the India life expectancy for each stratum to yield the base
 #' YLL block \eqn{\sum_x D_L^x \, e_*^x} (Equation 10).
@@ -65,22 +65,24 @@
 #'   \text{death\_rate}_L = \frac{\#\text{deaths}\mid L}{\#\text{incidence}_L}}
 #' The caller supplies this scalar directly via \code{dl}.
 #'
-#' \strong{Per-pathogen / per-facility YLL:} age (× sex) proportions are
+#' \strong{Per-pathogen / per-facility YLL:} age (x sex) proportions are
 #' re-computed within each subgroup so that each subgroup's YLL reflects its
 #' own age structure, scaled by the shared \code{dl}.
 #'
 #' @param dl Numeric scalar. \eqn{D_L}, the number of deaths for syndrome L
 #'   (e.g. \code{45.2} deaths per 1000 incidences).
 #' @param patient_data Data frame. Patient-level records (one row per
-#'   patient × antibiotic test or per patient × pathogen). Used to derive
-#'   observed age (× sex) proportions from the death cohort.
+#'   patient x antibiotic test or per patient x pathogen). Used to derive
+#'   observed age (x sex) proportions from the death cohort.
+#' @param patient_col Character. Unique patient identifier column in
+#'   \code{patient_data}.
 #' @param outcome_col Character. Final-outcome column in \code{patient_data}.
 #' @param death_value Character (scalar or vector). Value(s) in
 #'   \code{outcome_col} indicating a fatal outcome. Default \code{"Death"}.
 #' @param age_bin_col Character. Column in \code{patient_data} containing
-#'   GBD-standard age bin labels (e.g. \code{"0-1"}, \code{"1-5"}, …,
+#'   GBD-standard age bin labels (e.g. \code{"0-1"}, \code{"1-5"}, ...,
 #'   \code{"85+"}).  Use \code{age_bin_map} to recode non-standard labels
-#'   (default remaps \code{"<1"} → \code{"0-1"}).
+#'   (default remaps \code{"<1"} -> \code{"0-1"}).
 #' @param sex_col Character. Sex column in \code{patient_data}.
 #' @param syndrome_col Character or \code{NULL}. Syndrome column in
 #'   \code{patient_data} (e.g. \code{"infectious_syndrome"}).  Required when
@@ -95,6 +97,8 @@
 #' @param facility_col Character or \code{NULL}. Facility identifier column.
 #'   When supplied, per-facility proportions are computed and \code{by_facility}
 #'   is populated.
+#' @param facility_name Character or \code{NULL}. If provided, filters
+#'   \code{patient_data} to the specified facility before computation.
 #' @param use_sex Logical. Whether to disaggregate by sex as well as age
 #'   (uses sex-specific life expectancy). Default \code{TRUE}.
 #' @param le_path Character. Path to the India life expectancy xlsx file.
@@ -111,15 +115,15 @@
 #' @return A named list:
 #' \describe{
 #'   \item{\code{total}}{Scalar: total base YLL = \eqn{\sum_x D_L^x e_*^x}.}
-#'   \item{\code{by_age_sex}}{Data frame: base YLL by age bin × sex.}
+#'   \item{\code{by_age_sex}}{Data frame: base YLL by age bin x sex.}
 #'   \item{\code{per_pathogen}}{Data frame: base YLL per pathogen K, computed
 #'     using each pathogen's own death age distribution (only when
 #'     \code{pathogen_col} is supplied).}
-#'   \item{\code{by_pathogen_age_sex}}{Data frame: base YLL by pathogen ×
-#'     age bin × sex (only when \code{pathogen_col} is supplied).}
+#'   \item{\code{by_pathogen_age_sex}}{Data frame: base YLL by pathogen x
+#'     age bin x sex (only when \code{pathogen_col} is supplied).}
 #'   \item{\code{by_facility}}{Data frame: base YLL by facility (only when
 #'     \code{facility_col} is supplied).}
-#'   \item{\code{by_syndrome_pathogen}}{Data frame: base YLL by syndrome ×
+#'   \item{\code{by_syndrome_pathogen}}{Data frame: base YLL by syndrome x
 #'     pathogen (only when both \code{syndrome_col} and \code{pathogen_col}
 #'     are supplied).}
 #'   \item{\code{stratified}}{Data frame: base YLL aggregated by
@@ -127,7 +131,7 @@
 #'   \item{\code{disaggregated_dl}}{Data frame: the full expanded table with
 #'     columns \code{D_x_L} (\eqn{D_L^x}), \code{proportion} (\eqn{\hat{p}_x}),
 #'     \code{life_expectancy} (\eqn{e_*^x}), and \code{yll_contribution}
-#'     (\eqn{D_L^x \times e_*^x}) for every age × sex stratum. This is the
+#'     (\eqn{D_L^x \times e_*^x}) for every age x sex stratum. This is the
 #'     row-level audit trail.}
 #' }
 #'
@@ -186,7 +190,7 @@ compute_base_yll_from_dl <- function(
   age_bin_map = c("<1" = "0-1"),
   stratify_by = NULL
 ) {
-  # ── 1. Input validation ───────────────────────────────────────────────────
+  # -- 1. Input validation ---------------------------------------------------
 
   if (!is.numeric(dl) || length(dl) != 1L || is.na(dl) || dl < 0) {
     stop("'dl' must be a single non-negative numeric value (D_L).")
@@ -213,7 +217,7 @@ compute_base_yll_from_dl <- function(
     stop("'facility_col' must be supplied when 'facility_name' is specified.")
   }
 
-  # ── 2. Load India life expectancy lookup ──────────────────────────────────
+  # -- 2. Load India life expectancy lookup ----------------------------------
   # CSV columns: age_bin_gbd, life_expectancy, sex ("Both"/"Male"/"Female")
 
   if (!file.exists(le_path)) {
@@ -222,7 +226,7 @@ compute_base_yll_from_dl <- function(
 
   le_lookup <- utils::read.csv(le_path, stringsAsFactors = FALSE)
 
-  # ── 3. Filter patient_data to death cohort ────────────────────────────────
+  # -- 3. Filter patient_data to death cohort --------------------------------
 
   deaths_df <- patient_data %>%
     dplyr::filter(.data[[outcome_col]] %in% death_value)
@@ -251,7 +255,7 @@ compute_base_yll_from_dl <- function(
     dl
   ))
 
-  # ── 4. Recode age bins; normalise sex ─────────────────────────────────────
+  # -- 4. Recode age bins; normalise sex -------------------------------------
 
   if (length(age_bin_map) > 0L) {
     deaths_df[[age_bin_col]] <- dplyr::recode(
@@ -274,9 +278,9 @@ compute_base_yll_from_dl <- function(
       }
     )
 
-  # ── 4b. Deduplicate to unique patient × pathogen ──────────────────────────
+  # -- 4b. Deduplicate to unique patient x pathogen --------------------------
   # Raw data is long (one row per antibiotic test). Collapse to one row per
-  # patient × pathogen so every patient counts exactly once per organism
+  # patient x pathogen so every patient counts exactly once per organism
   # when computing age/sex proportions and n_deaths.
   dedup_cols <- unique(c(
     patient_col, age_bin_col, sex_strat_col,
@@ -295,7 +299,7 @@ compute_base_yll_from_dl <- function(
     dplyr::n_distinct(deaths_df[[patient_col]])
   ))
 
-  # ── Helper: compute proportions + YLL for a given subgroup of deaths ──────
+  # -- Helper: compute proportions + YLL for a given subgroup of deaths ------
   #
   # For a data frame of deaths (already filtered to a subgroup), compute:
   #   1. age (x sex) proportions
@@ -316,7 +320,7 @@ compute_base_yll_from_dl <- function(
         D_x_L          = dl * proportion
       )
 
-    # Join life expectancy — CSV uses age_bin_gbd and sex columns
+    # Join life expectancy -- CSV uses age_bin_gbd and sex columns
     join_le <- stats::setNames(
       c("age_bin_gbd", "sex"),
       c(age_bin_col, sex_strat_col)
@@ -335,7 +339,7 @@ compute_base_yll_from_dl <- function(
       dplyr::mutate(yll_contribution = D_x_L * life_expectancy)
   }
 
-  # ── 5. Overall disaggregation (all deaths for the syndrome) ───────────────
+  # -- 5. Overall disaggregation (all deaths for the syndrome) ---------------
 
   overall_strata <- .compute_yll_strata(deaths_df, label = "overall")
 
@@ -348,7 +352,7 @@ compute_base_yll_from_dl <- function(
       proportion, D_x_L, life_expectancy, yll_contribution
     )
 
-  # ── 6. Per-pathogen disaggregation ────────────────────────────────────────
+  # -- 6. Per-pathogen disaggregation ----------------------------------------
   #
   # For each pathogen K, re-compute age proportions using only that
   # pathogen's deaths. This reflects K's own age burden.
@@ -388,7 +392,7 @@ compute_base_yll_from_dl <- function(
       )
   }
 
-  # ── 7. Per-facility disaggregation ────────────────────────────────────────
+  # -- 7. Per-facility disaggregation ----------------------------------------
 
   by_facility <- NULL
 
@@ -417,7 +421,7 @@ compute_base_yll_from_dl <- function(
       )
   }
 
-  # ── 8. By syndrome × pathogen ─────────────────────────────────────────────
+  # -- 8. By syndrome x pathogen ---------------------------------------------
 
   by_syndrome_pathogen <- NULL
 
@@ -450,7 +454,7 @@ compute_base_yll_from_dl <- function(
       )
   }
 
-  # ── 9. User-defined stratification ───────────────────────────────────────
+  # -- 9. User-defined stratification ---------------------------------------
 
   stratified <- NULL
 
@@ -487,14 +491,14 @@ compute_base_yll_from_dl <- function(
       )
   }
 
-  # ── 10. Summary message ───────────────────────────────────────────────────
+  # -- 10. Summary message ---------------------------------------------------
 
   message(sprintf(
     "Base YLL (sum_x D_x^L * e_x*): %.4f years | D_L = %.4f | %d age-sex bins",
     YLL_total, dl, nrow(by_age_sex)
   ))
 
-  # ── Return ────────────────────────────────────────────────────────────────
+  # -- Return ----------------------------------------------------------------
 
   out <- list(
     total = YLL_total,
@@ -514,9 +518,9 @@ compute_base_yll_from_dl <- function(
 }
 
 
-# ── calculate_P_Lk ────────────────────────────────────────────────────────────
+# -- calculate_P_Lk ------------------------------------------------------------
 
-#' Calculate Fatal Pathogen Distribution (P_{LK})
+#' Calculate Fatal Pathogen Distribution (P_\{LK\})
 #'
 #' Computes the fatal pathogen distribution for a given infectious syndrome
 #' (L) using facility-level microbiology data. This quantity represents the
@@ -608,7 +612,7 @@ calculate_P_Lk <- function(data,
                            facility_col = NULL,
                            facility_name = NULL,
                            pathogen_name = NULL) {
-  # ── Input validation ───────────────────────────────────────────────────────
+  # -- Input validation -------------------------------------------------------
   required_cols <- c(
     syndrome_col, polymicrobial_col,
     patient_col, pathogen_col, outcome_col
@@ -632,7 +636,7 @@ calculate_P_Lk <- function(data,
     stop("specimen_name must be provided when specimen_col is specified.")
   }
 
-  # ── Step 1: Filter to syndrome + (optional specimen) + fatal outcome ───────
+  # -- Step 1: Filter to syndrome + (optional specimen) + fatal outcome -------
   df <- data %>%
     dplyr::filter(
       .data[[syndrome_col]] == syndrome_name,
@@ -651,7 +655,7 @@ calculate_P_Lk <- function(data,
     ))
   }
 
-  # ── Step 2: Optional single-facility restriction ───────────────────────────
+  # -- Step 2: Optional single-facility restriction ---------------------------
   if (!is.null(facility_name)) {
     df <- df %>% dplyr::filter(.data[[facility_col]] == facility_name)
     if (nrow(df) == 0) {
@@ -659,7 +663,7 @@ calculate_P_Lk <- function(data,
     }
   }
 
-  # ── Step 3: Optional pathogen filter ──────────────────────────────────────
+  # -- Step 3: Optional pathogen filter --------------------------------------
   if (!is.null(pathogen_name)) {
     df <- df %>% dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
     if (nrow(df) == 0) {
@@ -674,7 +678,7 @@ calculate_P_Lk <- function(data,
     ))
   }
 
-  # ── Step 4: GLASS filter — polymicrobial patients only ────────────────────
+  # -- Step 4: GLASS filter -- polymicrobial patients only --------------------
   # Monomicrobial patients are never filtered.
   if (!is.null(glass_ref)) {
     if (is.data.frame(glass_ref)) {
@@ -711,11 +715,11 @@ calculate_P_Lk <- function(data,
     }
   }
 
-  # ── Step 5: Deduplicate to unique patient × pathogen, then weight ────────
+  # -- Step 5: Deduplicate to unique patient x pathogen, then weight --------
   # Raw data has one row per antibiotic tested. Collapse first so each
   # patient-pathogen pair contributes exactly once before weighting.
   # m_r = distinct valid pathogens for patient r.
-  # Monomicrobial → weight = 1; polymicrobial with m pathogens → weight = 1/m.
+  # Monomicrobial -> weight = 1; polymicrobial with m pathogens -> weight = 1/m.
   group_cols <- c(facility_col, patient_col) # c() drops NULL
 
   df <- df %>%
@@ -727,14 +731,14 @@ calculate_P_Lk <- function(data,
     ) %>%
     dplyr::ungroup()
 
-  # ── Step 6: N^F_LK = weighted patient count per (facility ×) pathogen ─────
+  # -- Step 6: N^F_LK = weighted patient count per (facility x) pathogen -----
   agg_cols <- c(facility_col, pathogen_col) # c() drops NULL
 
   N_LK <- df %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(agg_cols))) %>%
     dplyr::summarise(N_F_LK = sum(weight, na.rm = TRUE), .groups = "drop")
 
-  # ── Step 7: N^F_L = unique fatal patients per (facility) ──────────────────
+  # -- Step 7: N^F_L = unique fatal patients per (facility) ------------------
   fac_grp <- if (!is.null(facility_col)) facility_col else character(0)
 
   N_L <- df %>%
@@ -744,7 +748,7 @@ calculate_P_Lk <- function(data,
       .groups = "drop"
     )
 
-  # ── Step 8: Compute P_LK ──────────────────────────────────────────────────
+  # -- Step 8: Compute P_LK --------------------------------------------------
   if (!is.null(facility_col)) {
     facility_level <- dplyr::left_join(N_LK, N_L, by = facility_col) %>%
       dplyr::mutate(P_Lk = N_F_LK / N_F_L)
@@ -782,7 +786,7 @@ calculate_P_Lk <- function(data,
 }
 
 
-# ── .build_class_resistance_wide ─────────────────────────────────────────────
+# -- .build_class_resistance_wide ---------------------------------------------
 
 #' Collapse drug-level data to antibiotic-class binary wide matrix
 #'
@@ -853,7 +857,7 @@ calculate_P_Lk <- function(data,
 }
 
 
-# ── derive_infection_type_for_mortality ───────────────────────────────────────
+# -- derive_infection_type_for_mortality ---------------------------------------
 
 #' Derive Infection Type (HAI / CAI) for Mortality RR Model
 #'
@@ -1010,7 +1014,7 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── .derive_icu_binary ────────────────────────────────────────────────────────
+# -- .derive_icu_binary --------------------------------------------------------
 
 #' Derive ICU Binary Flag per Patient
 #'
@@ -1036,7 +1040,7 @@ derive_infection_type_for_mortality <- function(
 ) {
   if (!unit_type_col %in% names(data)) {
     message(sprintf(
-      "[ICU] Column '%s' not found — ICU covariate will be omitted.",
+      "[ICU] Column '%s' not found -- ICU covariate will be omitted.",
       unit_type_col
     ))
     return(
@@ -1105,7 +1109,7 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── .encode_comorbidity_mortality ─────────────────────────────────────────────
+# -- .encode_comorbidity_mortality ---------------------------------------------
 
 #' Encode Comorbidity Column for Mortality Model
 #'
@@ -1126,7 +1130,7 @@ derive_infection_type_for_mortality <- function(
 ) {
   if (!comorbidity_col %in% names(data)) {
     message(sprintf(
-      "[Comorbidity] Column '%s' not found — covariate will be omitted.",
+      "[Comorbidity] Column '%s' not found -- covariate will be omitted.",
       comorbidity_col
     ))
     data$comorbidity_encoded <- NA_real_
@@ -1199,11 +1203,11 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── .check_hai_icu_collinearity ───────────────────────────────────────────────
+# -- .check_hai_icu_collinearity -----------------------------------------------
 
 #' Check Collinearity Between HAI and ICU Covariates
 #'
-#' Computes the phi correlation for the HAI × ICU 2x2 table and warns when
+#' Computes the phi correlation for the HAI x ICU 2x2 table and warns when
 #' it exceeds \code{phi_threshold}.
 #'
 #' @param df Patient-level data frame with integer 0/1 columns.
@@ -1258,11 +1262,11 @@ derive_infection_type_for_mortality <- function(
 }
 
 
-# ── fit_mortality_rr_logistic ─────────────────────────────────────────────────
+# -- fit_mortality_rr_logistic -------------------------------------------------
 
-#' Fit Mixed Logistic Models to Estimate Mortality OR per Pathogen × Class
+#' Fit Mixed Logistic Models to Estimate Mortality OR per Pathogen x Class
 #'
-#' For each pathogen × antibiotic class combination, fits a mixed-effects
+#' For each pathogen x antibiotic class combination, fits a mixed-effects
 #' logistic regression (facility random intercept) with resistance, age, sex,
 #' and HAI as fixed effects. Returns a data frame of mortality odds ratios (OR)
 #' and 95% Wald CIs. Use \code{convert_or_to_rr()} to convert ORs to RRs.
@@ -1287,6 +1291,8 @@ derive_infection_type_for_mortality <- function(
 #' @param death_value Character. Default \code{"Death"}.
 #' @param syndrome_name Character or \code{NULL}. Filter to one syndrome.
 #' @param organism_name Character vector or \code{NULL}. Filter to pathogen(s).
+#' @param facility_name Character or \code{NULL}. If provided, filters data
+#'   to the specified facility before fitting.
 #' @param hai_threshold_hours Numeric. Default \code{48}.
 #' @param icu_values Character vector. ICU location labels.
 #' @param phi_threshold Numeric. HAI/ICU collinearity threshold. Default \code{0.7}.
@@ -1545,7 +1551,7 @@ fit_mortality_rr_logistic <- function(
       epv <- n_deaths_fit / length(fixed_terms)
       if (epv < 10) {
         message(sprintf(
-          "'%s' | '%s': EPV = %.1f < 10 — estimates may be unreliable.",
+          "'%s' | '%s': EPV = %.1f < 10 -- estimates may be unreliable.",
           path, orig_class, epv
         ))
       }
@@ -1584,7 +1590,7 @@ fit_mortality_rr_logistic <- function(
           conv_msgs <- fit@optinfo$conv$lme4$messages
           if (!is.null(conv_msgs) && length(conv_msgs) > 0L) {
             message(sprintf(
-              "'%s' | '%s': convergence warning — %s",
+              "'%s' | '%s': convergence warning -- %s",
               path, orig_class, paste(conv_msgs, collapse = "; ")
             ))
             conv_warn <- TRUE
@@ -1593,7 +1599,7 @@ fit_mortality_rr_logistic <- function(
         },
         error = function(e) {
           message(sprintf(
-            "'%s' | '%s': model failed — %s",
+            "'%s' | '%s': model failed -- %s",
             path, orig_class, conditionMessage(e)
           ))
           NULL
@@ -1651,16 +1657,16 @@ fit_mortality_rr_logistic <- function(
 }
 
 
-# ── compute_p0 ────────────────────────────────────────────────────────────────
+# -- compute_p0 ----------------------------------------------------------------
 
 #' Compute Baseline Mortality Rate Among Fully Susceptible Patients (p0)
 #'
 #' Computes the baseline death probability \eqn{p_0} among patients who are
-#' fully susceptible — i.e. \strong{all} antibiotic test results are
+#' fully susceptible -- i.e. \strong{all} antibiotic test results are
 #' \code{"S"}. Any patient with at least one \code{"R"} result is excluded.
-#' Used as the denominator correction for OR → RR conversion (Zhang & Yu 1998).
+#' Used as the denominator correction for OR -> RR conversion (Zhang & Yu 1998).
 #'
-#' @param data               Data frame. One row per patient × antibiotic test.
+#' @param data               Data frame. One row per patient x antibiotic test.
 #' @param patient_col        Character. Unique patient identifier column.
 #' @param antibiotic_value_col Character. Antibiotic result column
 #'   (\code{"S"}, \code{"R"}, \code{"I"}).
@@ -1670,6 +1676,10 @@ fit_mortality_rr_logistic <- function(
 #'   patients. Default \code{"R"}.
 #' @param syndrome_col       Character or \code{NULL}.
 #' @param syndrome_name      Character or \code{NULL}.
+#' @param facility_col       Character or \code{NULL}. Facility identifier
+#'   column. Required when \code{facility_name} is specified.
+#' @param facility_name      Character or \code{NULL}. If provided, filters
+#'   data to the specified facility before computing p0.
 #'
 #' @return Named list: \code{p0} (scalar), \code{n_susceptible},
 #'   \code{n_susceptible_deaths}, \code{summary} (one-row data frame).
@@ -1713,7 +1723,7 @@ compute_p0 <- function(data,
   }
   if (nrow(df) == 0) stop("No records remain after filtering.")
 
-  # Flag patients with at least one R result — they are excluded
+  # Flag patients with at least one R result -- they are excluded
   patient_susceptibility <- df %>%
     dplyr::group_by(.data[[patient_col]]) %>%
     dplyr::summarise(
@@ -1759,7 +1769,7 @@ compute_p0 <- function(data,
 }
 
 
-# ── convert_or_to_rr ─────────────────────────────────────────────────────────
+# -- convert_or_to_rr ---------------------------------------------------------
 
 #' Convert Odds Ratios to Relative Risks Using Baseline Mortality (p0)
 #'
@@ -1818,7 +1828,7 @@ convert_or_to_rr <- function(or_data,
 }
 
 
-# ── assign_rr_to_profiles ────────────────────────────────────────────────────
+# -- assign_rr_to_profiles ----------------------------------------------------
 
 #' Assign Per-Class RR to Resistance Profiles (Max Rule)
 #'
@@ -1909,8 +1919,8 @@ assign_rr_to_profiles <- function(
     }
 
     # Name the profile-level RR column after the source column
-    # e.g. rr_col="RR_LOS"   → "RR_LOS_profile"
-    #      rr_col="RR_death" → "RR_death_profile"
+    # e.g. rr_col="RR_LOS"   -> "RR_LOS_profile"
+    #      rr_col="RR_death" -> "RR_death_profile"
     rr_profile_col_name <- paste0(rr_col, "_profile")
     profiles[[rr_profile_col_name]] <- round(rr_profile, 4L)
     profiles$dominant_class <- dom_class
@@ -1929,7 +1939,7 @@ assign_rr_to_profiles <- function(
 }
 
 
-# ── filter_profiles_to_rr_classes ────────────────────────────────────────────
+# -- filter_profiles_to_rr_classes --------------------------------------------
 
 #' Filter Profiles to Classes with Actual RR Estimates
 #'
@@ -1982,7 +1992,7 @@ filter_profiles_to_rr_classes <- function(
     matchable <- intersect(class_cols, rr_classes)
 
     if (length(matchable) == 0L) {
-      warning(sprintf("'%s': no classes overlap with RR table — all profiles dropped.", path))
+      warning(sprintf("'%s': no classes overlap with RR table -- all profiles dropped.", path))
       next
     }
 
@@ -2005,13 +2015,13 @@ filter_profiles_to_rr_classes <- function(
     n_dropped <- n_before - nrow(df_kept)
 
     if (nrow(df_kept) == 0L) {
-      warning(sprintf("'%s': all profiles dropped — skipping.", path))
+      warning(sprintf("'%s': all profiles dropped -- skipping.", path))
       next
     }
 
     prob_sum <- sum(df_kept[[probability_col]], na.rm = TRUE)
     if (prob_sum <= 0) {
-      warning(sprintf("'%s': probability sum is zero — skipping.", path))
+      warning(sprintf("'%s': probability sum is zero -- skipping.", path))
       next
     }
     df_kept[[probability_col]] <- df_kept[[probability_col]] / prob_sum
@@ -2025,11 +2035,11 @@ filter_profiles_to_rr_classes <- function(
 }
 
 
-# ── compute_paf_rr_mortality ─────────────────────────────────────────────────
+# -- compute_paf_rr_mortality -------------------------------------------------
 
 #' Compute Mortality PAF per Resistance Profile (Levin formula)
 #'
-#' Computes PAF_kd_mortality for each pathogen × resistance profile using the
+#' Computes PAF_kd_mortality for each pathogen x resistance profile using the
 #' GBD multi-exposure Levin formula with mortality OR substituted for LOS RR:
 #'
 #' \deqn{\text{PAF}_{kd} =
@@ -2051,6 +2061,10 @@ filter_profiles_to_rr_classes <- function(
 #' @param probability_col Character. Default \code{"probability"}.
 #' @param rr_profile_col Character. Default \code{"RR_LOS_profile"}.
 #' @param profile_col Character. Default \code{"profile"}.
+#' @param facility_col Character or \code{NULL}. Facility identifier column.
+#'   Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. If provided, stored in
+#'   the output for provenance tracking. Default \code{NULL}.
 #'
 #' @return Named list (one per pathogen) with \code{per_profile},
 #'   \code{PAF_k_mort}, and \code{denominator_mort}.
@@ -2083,7 +2097,7 @@ compute_paf_rr_mortality <- function(
     denom <- 1.0 + sum(numerator_vec, na.rm = TRUE)
 
     if (!is.finite(denom) || denom <= 0) {
-      warning(sprintf("'%s': PAF denominator = %.6g — skipping.", path, denom))
+      warning(sprintf("'%s': PAF denominator = %.6g -- skipping.", path, denom))
       next
     }
 
@@ -2107,11 +2121,11 @@ compute_paf_rr_mortality <- function(
 }
 
 
-# ── compute_fatal_resistance_prevalence ───────────────────────────────────────
+# -- compute_fatal_resistance_prevalence ---------------------------------------
 
-#' Compute Per-Profile Fatal Prevalence of Resistance R_Kδ* (Eq. 13)
+#' Compute Per-Profile Fatal Prevalence of Resistance R_Kdelta* (Eq. 13)
 #'
-#' For each **resistant** profile δ of pathogen K, computes the fatal
+#' For each **resistant** profile delta of pathogen K, computes the fatal
 #' prevalence of resistance:
 #'
 #' \deqn{
@@ -2125,28 +2139,32 @@ compute_paf_rr_mortality <- function(
 #' (profiles with at least one resistant antibiotic class, i.e.
 #' \code{dominant_class != "all_susceptible"}).  The term
 #' \eqn{(1 - \sum_\delta R'_{K\delta})} is the susceptible fraction and must
-#' be > 0 for the formula to give R*_Kδ < 1.
+#' be > 0 for the formula to give R*_Kdelta < 1.
 #'
 #' \strong{Important:} pass the output of \code{assign_rr_to_profiles()}
-#' \emph{directly} — do \emph{not} call \code{filter_profiles_to_rr_classes()}
+#' \emph{directly} -- do \emph{not} call \code{filter_profiles_to_rr_classes()}
 #' first, because renormalisation would set \eqn{\sum R'_{K\delta} = 1} and
-#' collapse the denominator, producing R*_Kδ = 1 for every pathogen.
+#' collapse the denominator, producing R*_Kdelta = 1 for every pathogen.
 #'
 #' @param profiles_with_rr Named list from
 #'   \code{assign_rr_to_profiles(rr_col = "RR_death")}, one element per
 #'   pathogen.  Each element must contain \code{probability_col},
 #'   \code{rr_profile_col}, and \code{dominant_class_col}.
-#' @param probability_col     Character. Profile prevalence column R'_Kδ.
+#' @param probability_col     Character. Profile prevalence column R'_Kdelta.
 #'   Default \code{"probability"}.
 #' @param rr_profile_col      Character. Dominant-class converted RR.
 #'   Default \code{"RR_LOS_profile"}.
 #' @param dominant_class_col  Character. Column identifying the dominant class
 #'   (or \code{"all_susceptible"}).  Default \code{"dominant_class"}.
+#' @param facility_col Character or \code{NULL}. Facility identifier column.
+#'   Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. If provided, stored in
+#'   the output for provenance tracking. Default \code{NULL}.
 #'
 #' @return Named list (one per pathogen).  Each element:
 #' \describe{
 #'   \item{\code{per_profile}}{Data frame of resistant profiles augmented with
-#'     \code{R_star} (R*_Kδ per profile) and \code{numerator_delta}.}
+#'     \code{R_star} (R*_Kdelta per profile) and \code{numerator_delta}.}
 #'   \item{\code{R_K_star}}{Scalar: \eqn{\sum_\delta R^*_{K\delta}} =
 #'     total fatal resistance prevalence for pathogen K.}
 #'   \item{\code{sum_r_prime}}{Scalar: \eqn{\sum_\delta R'_{K\delta}}
@@ -2182,35 +2200,35 @@ compute_fatal_resistance_prevalence <- function(
       }
     }
 
-    # ── Keep only RESISTANT profiles (dominant_class != "all_susceptible") ─
+    # -- Keep only RESISTANT profiles (dominant_class != "all_susceptible") -
     df_res <- df[df[[dominant_class_col]] != "all_susceptible", , drop = FALSE]
 
     if (nrow(df_res) == 0L) {
-      warning(sprintf("'%s': no resistant profiles found — skipping.", path))
+      warning(sprintf("'%s': no resistant profiles found -- skipping.", path))
       next
     }
 
-    r_prime <- df_res[[probability_col]] # R'_Kδ
-    rr_dominant <- df_res[[rr_profile_col]] # RR_Kd*(δ)
+    r_prime <- df_res[[probability_col]] # R'_Kdelta
+    rr_dominant <- df_res[[rr_profile_col]] # RR_Kd*(delta)
 
-    # ── Numerator: Σ_δ (R'_Kδ × RR_Kd*(δ))  — summed over all resistant δ ─
+    # -- Numerator: Sigma_delta (R'_Kdelta x RR_Kd*(delta))  -- summed over all resistant delta -
     numerator <- sum(r_prime * rr_dominant, na.rm = TRUE)
 
-    # ── Denominator: (1 − Σ_δ R'_Kδ) + Σ_δ (R'_Kδ × RR_Kd*(δ)) ──────────
+    # -- Denominator: (1 - Sigma_delta R'_Kdelta) + Sigma_delta (R'_Kdelta x RR_Kd*(delta)) ----------
     sum_r_prime <- sum(r_prime, na.rm = TRUE)
     susceptible_frac <- 1.0 - sum_r_prime
     denominator <- susceptible_frac + numerator
 
     if (!is.finite(denominator) || denominator <= 0) {
-      warning(sprintf("'%s': denominator = %.6g — skipping.", path, denominator))
+      warning(sprintf("'%s': denominator = %.6g -- skipping.", path, denominator))
       next
     }
 
-    # ── R*_K = numerator / denominator  (scalar per pathogen K) ───────────
+    # -- R*_K = numerator / denominator  (scalar per pathogen K) -----------
     R_K_star <- numerator / denominator
 
     message(sprintf(
-      "'%s': Σ(R'×RR)=%.4f | susc_frac=%.4f | denom=%.4f | R*_K=%.4f | %d resistant profiles.",
+      "'%s': Sigma(R'xRR)=%.4f | susc_frac=%.4f | denom=%.4f | R*_K=%.4f | %d resistant profiles.",
       path, numerator, susceptible_frac, denominator, R_K_star, nrow(df_res)
     ))
 
@@ -2233,11 +2251,11 @@ compute_fatal_resistance_prevalence <- function(
 }
 
 
-# ── compute_yll_associated ────────────────────────────────────────────────────
+# -- compute_yll_associated ----------------------------------------------------
 
-#' Compute Associated YLL per Pathogen (Eq. 11–12)
+#' Compute Associated YLL per Pathogen (Eq. 11-12)
 #'
-#' Implements YLL — Associated (Eq. 12):
+#' Implements YLL -- Associated (Eq. 12):
 #'
 #' \deqn{
 #'   YLL_K = \left[\sum_L \left(\sum_x D_L^x e_x^*\right) \times P_{KL}\right]
@@ -2246,9 +2264,9 @@ compute_fatal_resistance_prevalence <- function(
 #'
 #' where \eqn{R_K^* = \sum_\delta R^*_{K\delta}} (sum of per-profile fatal
 #' resistance prevalences from \code{compute_fatal_resistance_prevalence}).
-#' For a single syndrome (BSI): YLL_K = base_YLL × P_KL × R_K*.
+#' For a single syndrome (BSI): YLL_K = base_YLL x P_KL x R_K*.
 #'
-#' Also returns per-profile YLL_Kδ = base_YLL × P_KL × R*_Kδ.
+#' Also returns per-profile YLL_Kdelta = base_YLL x P_KL x R*_Kdelta.
 #'
 #' @param base_yll Numeric scalar or list from
 #'   \code{compute_base_yll_from_dl()} (uses \code{$total}).
@@ -2260,13 +2278,44 @@ compute_fatal_resistance_prevalence <- function(
 #' @param pathogen_col Character. Pathogen column in P_Lk. Default
 #'   \code{"pathogen"}.
 #' @param p_lk_col Character. P_Lk value column. Default \code{"P_Lk"}.
+#' @param profiles_with_rr Named list or \code{NULL}. Output from
+#'   \code{assign_rr_to_profiles()} for per-profile / per-class breakdowns.
+#' @param rr_profile_col Character. Dominant-class RR column in profile data.
+#'   Default \code{"RR_death_profile"}.
+#' @param probability_col Character. Profile prevalence column.
+#'   Default \code{"probability"}.
+#' @param dominant_class_col Character. Column identifying the dominant
+#'   antibiotic class. Default \code{"dominant_class"}.
+#' @param patient_data Data frame or \code{NULL}. Patient-level records for
+#'   per-patient YLL output.
+#' @param patient_col Character or \code{NULL}. Patient identifier column in
+#'   \code{patient_data}.
+#' @param outcome_col Character or \code{NULL}. Final outcome column in
+#'   \code{patient_data}.
+#' @param death_value Character. Value(s) indicating a fatal outcome.
+#'   Default \code{"Death"}.
+#' @param age_bin_col Character or \code{NULL}. Age bin column in
+#'   \code{patient_data}.
+#' @param sex_col Character or \code{NULL}. Sex column in \code{patient_data}.
+#' @param syndrome_col Character or \code{NULL}. Syndrome column.
+#' @param syndrome_name Character or \code{NULL}. If supplied, filters
+#'   \code{patient_data} to this syndrome.
+#' @param patient_pathogen_col Character or \code{NULL}. Pathogen column name
+#'   in \code{patient_data} (e.g. \code{"organism_name"}).
+#' @param le_path Character or \code{NULL}. Path to the life expectancy file.
+#' @param male_value Character. Value in \code{sex_col} for males.
+#'   Default \code{"Male"}.
+#' @param female_value Character. Value in \code{sex_col} for females.
+#'   Default \code{"Female"}.
+#' @param age_bin_map Named character vector remapping non-standard age bin
+#'   labels. Default \code{c("<1" = "0-1")}.
 #'
 #' @return Named list:
 #' \describe{
 #'   \item{\code{by_pathogen}}{Data frame: \code{pathogen}, \code{P_Lk},
 #'     \code{sum_r_prime}, \code{susceptible_fraction}, \code{denominator},
 #'     \code{R_K_star}, \code{base_yll}, \code{YLL_K}.}
-#'   \item{\code{by_pathogen_profile}}{Data frame: one row per pathogen ×
+#'   \item{\code{by_pathogen_profile}}{Data frame: one row per pathogen x
 #'     resistant profile with \code{P_Lk}, \code{R_star},
 #'     \code{YLL_Kdelta}.}
 #'   \item{\code{total_yll}}{Scalar: sum of YLL_K.}
@@ -2302,7 +2351,7 @@ compute_yll_associated <- function(
   female_value = "Female",
   age_bin_map = c("<1" = "0-1")
 ) {
-  # ── 1. Extract scalar base YLL ─────────────────────────────────────────────
+  # -- 1. Extract scalar base YLL ---------------------------------------------
   if (is.list(base_yll) && "total" %in% names(base_yll)) {
     base_yll_val <- base_yll$total
   } else if (is.numeric(base_yll) && length(base_yll) == 1L) {
@@ -2314,7 +2363,7 @@ compute_yll_associated <- function(
     stop(sprintf("base_yll_val must be finite and non-negative; got %.6g.", base_yll_val))
   }
 
-  # ── 2. Validate fatal_resistance_prevalence ────────────────────────────────
+  # -- 2. Validate fatal_resistance_prevalence --------------------------------
   if (!is.data.frame(fatal_resistance_prevalence)) {
     stop("'fatal_resistance_prevalence' must be the data frame from compute_fatal_resistance_prevalence().")
   }
@@ -2330,7 +2379,7 @@ compute_yll_associated <- function(
   fr_df <- fatal_resistance_prevalence
   all_pathogens <- fr_df$pathogen
 
-  # ── 3. Build P_Lk lookup ───────────────────────────────────────────────────
+  # -- 3. Build P_Lk lookup ---------------------------------------------------
   if (!is.null(P_Lk)) {
     p_df <- if (!is.data.frame(P_Lk) && is.list(P_Lk) && "P_Lk" %in% names(P_Lk)) P_Lk$P_Lk else P_Lk
     if (!is.data.frame(p_df)) {
@@ -2346,10 +2395,10 @@ compute_yll_associated <- function(
   } else {
     k <- length(all_pathogens)
     p_lookup <- stats::setNames(rep(1.0 / k, k), all_pathogens)
-    message(sprintf("P_Lk is NULL — equal weighting (1 / %d = %.4f).", k, 1 / k))
+    message(sprintf("P_Lk is NULL -- equal weighting (1 / %d = %.4f).", k, 1 / k))
   }
 
-  # ── 4. Compute YLL_K = base_yll × P_KL × R*_K  (scalar per pathogen) ─────
+  # -- 4. Compute YLL_K = base_yll x P_KL x R*_K  (scalar per pathogen) -----
   p_lk_vals <- ifelse(
     all_pathogens %in% names(p_lookup),
     as.numeric(p_lookup[all_pathogens]),
@@ -2386,7 +2435,7 @@ compute_yll_associated <- function(
   total_yll <- sum(by_pathogen$YLL_K, na.rm = TRUE)
   message(sprintf("Total associated YLL = %.4f years", total_yll))
 
-  # ── 5. Per-patient YLL (optional) ─────────────────────────────────────────
+  # -- 5. Per-patient YLL (optional) -----------------------------------------
   by_patient <- NULL
 
   if (!is.null(patient_data) && !is.null(patient_col) &&
@@ -2436,7 +2485,7 @@ compute_yll_associated <- function(
         ))
       }
 
-      # Deduplicate to one row per patient × pathogen (drop antibiotic-level columns)
+      # Deduplicate to one row per patient x pathogen (drop antibiotic-level columns)
       dedup_cols <- intersect(
         c(patient_col, pt_path_col, age_bin_col, ".sex_norm"),
         names(pt)
@@ -2488,7 +2537,7 @@ compute_yll_associated <- function(
     }
   }
 
-  # ── 6. Per-profile and per-class YLL (optional) ───────────────────────────
+  # -- 6. Per-profile and per-class YLL (optional) ---------------------------
   by_profile <- NULL
   by_class <- NULL
 
@@ -2515,7 +2564,7 @@ compute_yll_associated <- function(
       denom_k <- (1.0 - sum(r_prime, na.rm = TRUE)) + numerator_k
       if (!is.finite(denom_k) || denom_k <= 0) next
 
-      # Per-profile R*_Kδ and YLL_Kdelta
+      # Per-profile R*_Kdelta and YLL_Kdelta
       R_star_delta <- (r_prime * rr_dominant) / denom_k
 
       p_lk_val <- if (path %in% names(p_lookup)) as.numeric(p_lookup[[path]]) else 0.0
@@ -2557,24 +2606,24 @@ compute_yll_associated <- function(
 }
 
 
-# ── compute_yll_attributable ──────────────────────────────────────────────────
+# -- compute_yll_attributable --------------------------------------------------
 
-#' Compute Attributable YLL per Pathogen × Resistance Profile (Eq. 14–15)
+#' Compute Attributable YLL per Pathogen x Resistance Profile (Eq. 14-15)
 #'
-#' Implements YLL — Attributable (Bhaswati Ganguli, DALY Methodology, 2026):
+#' Implements YLL -- Attributable (Bhaswati Ganguli, DALY Methodology, 2026):
 #'
-#' \strong{Eq. 15 — Mortality PAF per profile δ:}
+#' \strong{Eq. 15 -- Mortality PAF per profile delta:}
 #' \deqn{
 #'   \text{MortPAF}_{K\delta} =
 #'     \frac{R'_{K\delta} \cdot (RR_{Kd^*}(\delta) - 1)}
 #'          {1 + \sum_{\delta'} R'_{K\delta'} \cdot (RR_{Kd^*}(\delta') - 1)}
 #' }
 #'
-#' Numerator is \strong{per profile} δ; denominator is \strong{shared} across
+#' Numerator is \strong{per profile} delta; denominator is \strong{shared} across
 #' all resistant profiles of pathogen K. The sum \eqn{\sum_{\delta'}} runs
 #' over resistant profiles only (\code{dominant_class != "all_susceptible"}).
 #'
-#' \strong{Eq. 14 — Attributable YLL per profile:}
+#' \strong{Eq. 14 -- Attributable YLL per profile:}
 #' \deqn{
 #'   YLL_{K\delta} = \text{BaseYLL} \times P_{KL} \times \text{MortPAF}_{K\delta}
 #' }
@@ -2593,16 +2642,39 @@ compute_yll_associated <- function(
 #' @param pathogen_col Character. Pathogen column in \code{P_Lk}.
 #'   Default \code{"pathogen"}.
 #' @param p_lk_col Character. P_Lk value column. Default \code{"P_Lk"}.
-#' @param probability_col Character. Profile prevalence R'_Kδ column.
+#' @param probability_col Character. Profile prevalence R'_Kdelta column.
 #'   Default \code{"probability"}.
 #' @param rr_profile_col Character. Dominant-class mortality RR column.
 #'   Default \code{"RR_death_profile"}.
 #' @param dominant_class_col Character. Dominant class column.
 #'   Default \code{"dominant_class"}.
+#' @param patient_data Data frame or \code{NULL}. Patient-level records for
+#'   per-patient attributable YLL output.
+#' @param patient_col Character or \code{NULL}. Patient identifier column in
+#'   \code{patient_data}.
+#' @param outcome_col Character or \code{NULL}. Final outcome column in
+#'   \code{patient_data}.
+#' @param death_value Character. Value(s) indicating a fatal outcome.
+#'   Default \code{"Death"}.
+#' @param age_bin_col Character or \code{NULL}. Age bin column in
+#'   \code{patient_data}.
+#' @param sex_col Character or \code{NULL}. Sex column in \code{patient_data}.
+#' @param syndrome_col Character or \code{NULL}. Syndrome column.
+#' @param syndrome_name Character or \code{NULL}. If supplied, filters
+#'   \code{patient_data} to this syndrome.
+#' @param patient_pathogen_col Character or \code{NULL}. Pathogen column name
+#'   in \code{patient_data} (e.g. \code{"organism_name"}).
+#' @param le_path Character or \code{NULL}. Path to the life expectancy file.
+#' @param male_value Character. Value in \code{sex_col} for males.
+#'   Default \code{"Male"}.
+#' @param female_value Character. Value in \code{sex_col} for females.
+#'   Default \code{"Female"}.
+#' @param age_bin_map Named character vector remapping non-standard age bin
+#'   labels. Default \code{c("<1" = "0-1")}.
 #'
 #' @return Named list:
 #' \describe{
-#'   \item{\code{by_profile}}{Data frame: one row per pathogen × resistant
+#'   \item{\code{by_profile}}{Data frame: one row per pathogen x resistant
 #'     profile with \code{R_prime}, \code{RR_dominant}, \code{excess_risk},
 #'     \code{numerator_delta}, \code{denominator}, \code{MortPAF},
 #'     \code{P_Lk}, \code{base_yll}, \code{YLL_Kdelta}.}
@@ -2614,7 +2686,7 @@ compute_yll_associated <- function(
 #' @export
 #'
 #' @references
-#' Bhaswati Ganguli. DALY Methodology for AMR. March 2026. Eq. 14–15.
+#' Bhaswati Ganguli. DALY Methodology for AMR. March 2026. Eq. 14-15.
 compute_yll_attributable <- function(
   profiles_with_rr,
   base_yll,
@@ -2639,7 +2711,7 @@ compute_yll_attributable <- function(
   female_value = "Female",
   age_bin_map = c("<1" = "0-1")
 ) {
-  # ── 1. Extract scalar base YLL ─────────────────────────────────────────────
+  # -- 1. Extract scalar base YLL ---------------------------------------------
   if (is.list(base_yll) && "total" %in% names(base_yll)) {
     base_yll_val <- base_yll$total
   } else if (is.numeric(base_yll) && length(base_yll) == 1L) {
@@ -2651,12 +2723,12 @@ compute_yll_attributable <- function(
     stop(sprintf("base_yll_val must be finite and non-negative; got %.6g.", base_yll_val))
   }
 
-  # ── 2. Validate profiles_with_rr ──────────────────────────────────────────
+  # -- 2. Validate profiles_with_rr ------------------------------------------
   if (!is.list(profiles_with_rr)) {
     stop("'profiles_with_rr' must be the list from assign_rr_to_profiles().")
   }
 
-  # ── 3. Build P_Lk lookup ───────────────────────────────────────────────────
+  # -- 3. Build P_Lk lookup ---------------------------------------------------
   all_pathogens <- names(profiles_with_rr)
 
   if (!is.null(P_Lk)) {
@@ -2674,10 +2746,10 @@ compute_yll_attributable <- function(
   } else {
     k <- length(all_pathogens)
     p_lookup <- stats::setNames(rep(1.0 / k, k), all_pathogens)
-    message(sprintf("P_Lk is NULL — equal weighting (1 / %d = %.4f).", k, 1 / k))
+    message(sprintf("P_Lk is NULL -- equal weighting (1 / %d = %.4f).", k, 1 / k))
   }
 
-  # ── 4. Compute MortPAF and YLL per pathogen × profile ─────────────────────
+  # -- 4. Compute MortPAF and YLL per pathogen x profile ---------------------
   profile_rows <- list()
   pathogen_rows <- list()
 
@@ -2694,46 +2766,46 @@ compute_yll_attributable <- function(
     df_res <- df[df[[dominant_class_col]] != "all_susceptible", , drop = FALSE]
 
     if (nrow(df_res) == 0L) {
-      warning(sprintf("'%s': no resistant profiles — skipping.", path))
+      warning(sprintf("'%s': no resistant profiles -- skipping.", path))
       next
     }
 
-    r_prime <- df_res[[probability_col]] # R'_Kδ  (per profile)
-    rr_dominant <- df_res[[rr_profile_col]] # RR_Kd*(δ) (per profile)
-    excess <- rr_dominant - 1.0 # (RR_Kd* − 1) per profile
+    r_prime <- df_res[[probability_col]] # R'_Kdelta  (per profile)
+    rr_dominant <- df_res[[rr_profile_col]] # RR_Kd*(delta) (per profile)
+    excess <- rr_dominant - 1.0 # (RR_Kd* - 1) per profile
 
-    # ── Eq. 15 denominator (shared for all δ of pathogen K) ───────────────
-    # 1 + Σ_δ R'_Kδ × (RR_Kd*(δ) − 1)
+    # -- Eq. 15 denominator (shared for all delta of pathogen K) ---------------
+    # 1 + Sigma_delta R'_Kdelta x (RR_Kd*(delta) - 1)
     denominator <- 1.0 + sum(r_prime * excess, na.rm = TRUE)
 
     if (!is.finite(denominator) || denominator <= 0) {
-      warning(sprintf("'%s': denominator = %.6g — skipping.", path, denominator))
+      warning(sprintf("'%s': denominator = %.6g -- skipping.", path, denominator))
       next
     }
 
-    # ── Eq. 15 numerator (per profile δ) ──────────────────────────────────
-    # R'_Kδ × (RR_Kd*(δ) − 1)
+    # -- Eq. 15 numerator (per profile delta) ----------------------------------
+    # R'_Kdelta x (RR_Kd*(delta) - 1)
     numerator_delta <- r_prime * excess
 
-    # ── MortPAF_Kδ = numerator_delta / denominator ────────────────────────
+    # -- MortPAF_Kdelta = numerator_delta / denominator ------------------------
     mort_paf_delta <- numerator_delta / denominator
 
-    # ── P_KL ──────────────────────────────────────────────────────────────
+    # -- P_KL --------------------------------------------------------------
     p_lk_val <- if (path %in% names(p_lookup)) {
       as.numeric(p_lookup[[path]])
     } else {
-      warning(sprintf("'%s' not in P_Lk — set to 0.", path))
+      warning(sprintf("'%s' not in P_Lk -- set to 0.", path))
       0.0
     }
 
-    # ── Eq. 14: YLL_Kδ = BaseYLL × P_KL × MortPAF_Kδ ────────────────────
+    # -- Eq. 14: YLL_Kdelta = BaseYLL x P_KL x MortPAF_Kdelta --------------------
     yll_kdelta <- base_yll_val * p_lk_val * mort_paf_delta
 
-    # ── YLL_K = Σ_δ YLL_Kδ ────────────────────────────────────────────────
+    # -- YLL_K = Sigma_delta YLL_Kdelta ------------------------------------------------
     yll_k <- sum(yll_kdelta, na.rm = TRUE)
 
     message(sprintf(
-      "'%s': P_Lk=%.4f | denom=%.4f | ΣMortPAF=%.4f | YLL_K_attr=%.4f",
+      "'%s': P_Lk=%.4f | denom=%.4f | SigmaMortPAF=%.4f | YLL_K_attr=%.4f",
       path, p_lk_val, denominator,
       sum(mort_paf_delta, na.rm = TRUE), yll_k
     ))
@@ -2772,7 +2844,7 @@ compute_yll_attributable <- function(
   total_yll <- sum(by_pathogen$YLL_K, na.rm = TRUE)
   message(sprintf("Total attributable YLL = %.4f years", total_yll))
 
-  # ── Per-patient attributable YLL (optional) ────────────────────────────────
+  # -- Per-patient attributable YLL (optional) --------------------------------
   by_patient <- NULL
 
   if (!is.null(patient_data) && !is.null(patient_col) &&
@@ -2818,7 +2890,7 @@ compute_yll_attributable <- function(
         ))
       }
 
-      # Select and deduplicate to one row per patient × pathogen
+      # Select and deduplicate to one row per patient x pathogen
       dedup_cols <- intersect(
         c(patient_col, pt_path_col, age_bin_col, ".sex_norm"),
         names(pt)

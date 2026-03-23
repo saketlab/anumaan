@@ -20,7 +20,7 @@ compute_marginal_resistance(
 )
 }
 \arguments{
-\item{data}{Data frame. Pre-processed AMR data at isolate × antibiotic
+\item{data}{Data frame. Pre-processed AMR data at isolate x antibiotic
 level (one row per isolate-antibiotic combination). Results must already
 be binary (\code{"S"} / \code{"R"}); no reclassification is applied.}
 
@@ -85,7 +85,7 @@ Named list:
   \item{\code{near_zero}}{Subset of \code{marginal} where
     \code{marginal_resistance <= zero_threshold}. These classes are
     candidates for exclusion in downstream profiling.}
-  \item{\code{class_long}}{Collapsed isolate × pathogen × class data frame
+  \item{\code{class_long}}{Collapsed isolate x pathogen x class data frame
     (columns: \code{isolate_col}, \code{pathogen_col}, \code{org_group_col},
     \code{antibiotic_class_col}, \code{class_result}). Pass this directly
     to \code{compute_pairwise_coresistance()}.}
@@ -94,12 +94,12 @@ Named list:
 \description{
 Collapses drug-level susceptibility data to antibiotic-class level per
 isolate (\eqn{R_{e,k,c} = 1} if resistant to \strong{any} drug in class
-\eqn{c}), then computes marginal resistance for every pathogen × class
+\eqn{c}), then computes marginal resistance for every pathogen x class
 combination found in the data.
 }
 \details{
 Classes whose marginal resistance is at or below \code{zero_threshold} are
-listed in \code{$near_zero} as a flag for downstream use — they are
+listed in \code{$near_zero} as a flag for downstream use -- they are
 \strong{not} removed here.
 }
 \examples{

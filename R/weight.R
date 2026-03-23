@@ -26,7 +26,7 @@ flag_polymicrobial <- function(data,
                                facility_name = NULL,
                                syndrome_col = NULL,
                                syndrome_name = NULL) {
-  # ── Validate columns ────────────────────────────────────────────────────────
+  # -- Validate columns --------------------------------------------------------
   required_cols <- c(patient_col, organism_col)
   if (!is.null(facility_col)) required_cols <- c(required_cols, facility_col)
   if (!is.null(syndrome_col)) required_cols <- c(required_cols, syndrome_col)
@@ -43,7 +43,7 @@ flag_polymicrobial <- function(data,
     stop("syndrome_col must be supplied when syndrome_name is specified.")
   }
 
-  # ── Optional filters ────────────────────────────────────────────────────────
+  # -- Optional filters --------------------------------------------------------
   if (!is.null(facility_name)) {
     data <- data %>% dplyr::filter(.data[[facility_col]] == facility_name)
     message(sprintf("Filtered to facility: %s (%d rows)", facility_name, nrow(data)))
@@ -55,7 +55,7 @@ flag_polymicrobial <- function(data,
 
   message("Identifying polymicrobial infections (no specimen type, no episode_id)...")
 
-  # ── Temp columns ────────────────────────────────────────────────────────────
+  # -- Temp columns ------------------------------------------------------------
   data <- data %>%
     dplyr::mutate(
       .temp_patient  = as.character(.data[[patient_col]]),
@@ -74,7 +74,7 @@ flag_polymicrobial <- function(data,
     if (!is.null(syndrome_col)) ".temp_syndrome"
   )
 
-  # Distinct patient-context × organism
+  # Distinct patient-context x organism
   distinct_cols <- c(group_cols, ".temp_organism")
   df_unique <- data %>%
     dplyr::distinct(dplyr::across(dplyr::all_of(distinct_cols)))
@@ -150,7 +150,7 @@ flag_polymicrobial <- function(data,
 #' @param syndrome_name    Character or \code{NULL}. When supplied together
 #'   with \code{syndrome_col}, data are first filtered to that syndrome.
 #'
-#' @return Data frame with \code{polymicrobial_weight} column (range 0–1),
+#' @return Data frame with \code{polymicrobial_weight} column (range 0-1),
 #'   plus \code{weight_method} and \code{weight_confidence} audit columns.
 #'   \code{episode_id} is removed (internal use only).
 #' @export
@@ -185,7 +185,7 @@ compute_polymicrobial_weight <- function(data,
                                          facility_name = NULL,
                                          syndrome_col = NULL,
                                          syndrome_name = NULL) {
-  # ── Validate columns ────────────────────────────────────────────────────────
+  # -- Validate columns --------------------------------------------------------
   required_cols <- c(episode_col, organism_col, polymicrobial_col)
   if (!is.null(facility_col)) required_cols <- c(required_cols, facility_col)
   if (!is.null(syndrome_col)) required_cols <- c(required_cols, syndrome_col)
@@ -211,7 +211,7 @@ compute_polymicrobial_weight <- function(data,
     stop("syndrome_col must be supplied when syndrome_name is specified.")
   }
 
-  # ── Optional filters ────────────────────────────────────────────────────────
+  # -- Optional filters --------------------------------------------------------
   if (!is.null(facility_name)) {
     data <- data %>% dplyr::filter(.data[[facility_col]] == facility_name)
     message(sprintf("Filtered to facility: %s (%d rows)", facility_name, nrow(data)))
@@ -229,12 +229,12 @@ compute_polymicrobial_weight <- function(data,
     if (!is.null(syndrome_col)) syndrome_col
   )
 
-  # ── Initialise weight column ────────────────────────────────────────────────
+  # -- Initialise weight column ------------------------------------------------
   data <- data %>% dplyr::mutate(polymicrobial_weight = 1.0)
 
-  # ── Method A: Monomicrobial proportion ─────────────────────────────────────
+  # -- Method A: Monomicrobial proportion -------------------------------------
   if (method == "monomicrobial_proportion") {
-    # Compute monomicrobial proportions — per stratum if strat_cols provided,
+    # Compute monomicrobial proportions -- per stratum if strat_cols provided,
     # globally otherwise.
     mono_base <- data %>% dplyr::filter(.data[[polymicrobial_col]] == 0)
 
@@ -262,7 +262,7 @@ compute_polymicrobial_weight <- function(data,
       nrow(mono_proportions),
       if (nrow(mono_proportions) != 1) "s" else "",
       if (length(strat_cols) > 0) {
-        sprintf(" across %s strata", paste(strat_cols, collapse = " × "))
+        sprintf(" across %s strata", paste(strat_cols, collapse = " x "))
       } else {
         ""
       }
@@ -306,7 +306,7 @@ compute_polymicrobial_weight <- function(data,
     }
   }
 
-  # ── Method B: Equal weighting ───────────────────────────────────────────────
+  # -- Method B: Equal weighting -----------------------------------------------
   else if (method == "equal") {
     data <- data %>%
       dplyr::group_by(!!rlang::sym(episode_col)) %>%
@@ -320,7 +320,7 @@ compute_polymicrobial_weight <- function(data,
     message("Applied equal weighting to all organisms within episodes.")
   }
 
-  # ── Method C: Manual weights ────────────────────────────────────────────────
+  # -- Method C: Manual weights ------------------------------------------------
   else if (method == "manual") {
     manual_weights_df <- data.frame(
       organism = names(weight_map),
@@ -352,7 +352,7 @@ compute_polymicrobial_weight <- function(data,
     message(sprintf("Applied manual weights for %d organisms.", length(weight_map)))
   }
 
-  # ── Validation: weights should sum to 1.0 per episode ──────────────────────
+  # -- Validation: weights should sum to 1.0 per episode ----------------------
   weight_sums <- data %>%
     dplyr::group_by(!!rlang::sym(episode_col)) %>%
     dplyr::summarise(
@@ -370,7 +370,7 @@ compute_polymicrobial_weight <- function(data,
     ))
   }
 
-  # ── Summary ─────────────────────────────────────────────────────────────────
+  # -- Summary -----------------------------------------------------------------
   message("\nWeight statistics (polymicrobial isolates only):")
   weight_summary <- data %>%
     dplyr::filter(.data[[polymicrobial_col]] == 1) %>%

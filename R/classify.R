@@ -334,7 +334,7 @@ flag_contaminants <- function(data,
                               specimen_col = "specimen_type") {
   # Check if required columns exist
   if (!organism_col %in% names(data)) {
-    message(sprintf("⚠ Column '%s' not found. Skipping contaminant flagging.", organism_col))
+    message(sprintf("[!] Column '%s' not found. Skipping contaminant flagging.", organism_col))
     data$is_contaminant <- FALSE
     data$contaminant_confidence <- "insufficient_data"
     data$contaminant_method <- "skipped"
@@ -413,11 +413,11 @@ flag_contaminants <- function(data,
       # Create temporary safe specimen column
       .specimen_lower = tolower(!!rlang::sym(specimen_col)),
       is_contaminant = dplyr::case_when(
-        # Blood contaminants — grepl handles "Blood-peripheral", "Blood-central catheter" etc.
+        # Blood contaminants -- grepl handles "Blood-peripheral", "Blood-central catheter" etc.
         grepl("blood", .specimen_lower) &
           !!rlang::sym(organism_col) %in% contam_blood$names ~ TRUE,
 
-        # Urine contaminants — grepl handles "Urine culture", "Urine" etc.
+        # Urine contaminants -- grepl handles "Urine culture", "Urine" etc.
         grepl("urine", .specimen_lower) &
           !!rlang::sym(organism_col) %in% contam_urine$names ~ TRUE,
 
@@ -526,7 +526,7 @@ classify_mortality <- function(data,
         # Keep high confidence classifications
         !is.na(mortality_confidence) ~ mortality_infection,
 
-        # Proxy: Died but no dates → mark as "Possible"
+        # Proxy: Died but no dates -> mark as "Possible"
         !!rlang::sym(outcome_col) == "Died" ~ "Possible",
         TRUE ~ "No"
       ),
@@ -555,7 +555,7 @@ classify_mortality <- function(data,
   n_proxy <- sum(data$mortality_method == "proxy_outcome_only", na.rm = TRUE)
   if (n_proxy > 0) {
     message(sprintf(
-      "\n⚠ Warning: %d deaths classified using PROXY (dates missing). Low confidence.",
+      "\n[!] Warning: %d deaths classified using PROXY (dates missing). Low confidence.",
       n_proxy
     ))
   }
@@ -690,7 +690,7 @@ classify_xdr <- function(data,
     dplyr::left_join(thresholds, by = stats::setNames("organism_group", organism_group_col)) %>%
     dplyr::mutate(
       n_susceptible_categories = tidyr::replace_na(n_susceptible_categories, 0),
-      # XDR: susceptible to ≤2 categories
+      # XDR: susceptible to <=2 categories
       xdr = n_susceptible_categories <= 2,
       xdr_confidence = dplyr::case_when(
         !is.na(total_categories) ~ "high", # Known pathogen
@@ -915,7 +915,7 @@ parse_age_bin_labels <- function(labels) {
       breaks[i + 1] <- Inf
       clean_labels[i] <- label
     } else if (grepl("^<", label)) {
-      # Handle "<1" format — lower = -Inf to capture ages like -1
+      # Handle "<1" format -- lower = -Inf to capture ages like -1
       upper <- as.numeric(gsub("^<", "", label))
       breaks[i] <- -Inf
       breaks[i + 1] <- upper

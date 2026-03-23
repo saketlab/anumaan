@@ -21,7 +21,7 @@
 #' Event IDs are numbered GLOBALLY per patient in chronological order, so a
 #' patient's events across all organisms/sites form one consistent sequence.
 #'
-#' @param data Data frame (long format — one row per antibiotic test).
+#' @param data Data frame (long format -- one row per antibiotic test).
 #' @param patient_col  Patient ID column. Default "patient_id".
 #' @param date_col     Culture date column. Default "date_of_culture".
 #' @param organism_col Organism column. Default "organism_normalized".
@@ -50,10 +50,10 @@ create_event_ids <- function(data,
   use_antibiogram <- antibiotic_col %in% names(data) && value_col %in% names(data)
 
   if (!use_specimen) {
-    message(sprintf("Column '%s' not found — events created without specimen matching.", specimen_col))
+    message(sprintf("Column '%s' not found -- events created without specimen matching.", specimen_col))
   }
   if (!use_antibiogram) {
-    message("Antibiotic columns not found — events created without antibiogram comparison.")
+    message("Antibiotic columns not found -- events created without antibiogram comparison.")
   }
 
   message(sprintf("Creating events (gap threshold: >%d days) ...", gap_days))
@@ -91,7 +91,7 @@ create_event_ids <- function(data,
   }
 
   # ============================================================================
-  # STEP 3: Unique isolate table — one row per (patient, date, specimen, organism)
+  # STEP 3: Unique isolate table -- one row per (patient, date, specimen, organism)
   # Join antibiogram key onto it.
   # ============================================================================
   df_isolates <- data %>%
@@ -138,7 +138,7 @@ create_event_ids <- function(data,
     dplyr::ungroup()
 
   # ============================================================================
-  # STEP 5: Map provisional keys → global sequential event IDs per patient
+  # STEP 5: Map provisional keys -> global sequential event IDs per patient
   #
   # Each unique provisional_event_key gets one entry in the event index,
   # ordered by its episode start date (then organism, specimen for tie-breaking).
@@ -190,7 +190,7 @@ create_event_ids <- function(data,
   n_patients <- dplyr::n_distinct(data[[patient_col]], na.rm = TRUE)
   n_events <- dplyr::n_distinct(data[["event_id"]], na.rm = TRUE)
   message(sprintf(
-    "Done: %d patients → %d events (%.2f per patient)",
+    "Done: %d patients -> %d events (%.2f per patient)",
     n_patients, n_events, n_events / max(n_patients, 1)
   ))
 
@@ -269,7 +269,7 @@ deduplicate_events <- function(data,
   n_after <- nrow(data)
   n_removed <- n_before - n_after
   message(sprintf(
-    "Deduplication: %d rows removed (%d → %d, %.1f%% retained)",
+    "Deduplication: %d rows removed (%d -> %d, %.1f%% retained)",
     n_removed, n_before, n_after, 100 * n_after / n_before
   ))
 

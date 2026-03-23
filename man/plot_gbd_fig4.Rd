@@ -2,7 +2,7 @@
 % Please edit documentation in R/plots.R
 \name{plot_gbd_fig4}
 \alias{plot_gbd_fig4}
-\title{GBD Figure 4 — Deaths by Organism Group (Overlapping Bars)}
+\title{GBD Figure 4 -- Deaths by Organism Group (Overlapping Bars)}
 \usage{
 plot_gbd_fig4(deaths_df, total_deaths, title = NULL)
 }

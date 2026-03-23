@@ -2,7 +2,7 @@
 % Please edit documentation in R/yll.R
 \name{compute_base_yll_from_dl}
 \alias{compute_base_yll_from_dl}
-\title{Compute Base YLL Block from a Scalar D_L (Steps 1–3)}
+\title{Compute Base YLL Block from a Scalar D_L (Steps 1-3)}
 \usage{
 compute_base_yll_from_dl(
   dl,
@@ -30,8 +30,11 @@ compute_base_yll_from_dl(
 (e.g. \code{45.2} deaths per 1000 incidences).}
 
 \item{patient_data}{Data frame. Patient-level records (one row per
-patient × antibiotic test or per patient × pathogen). Used to derive
-observed age (× sex) proportions from the death cohort.}
+patient x antibiotic test or per patient x pathogen). Used to derive
+observed age (x sex) proportions from the death cohort.}
+
+\item{patient_col}{Character. Unique patient identifier column in
+\code{patient_data}.}
 
 \item{outcome_col}{Character. Final-outcome column in \code{patient_data}.}
 
@@ -39,9 +42,9 @@ observed age (× sex) proportions from the death cohort.}
 \code{outcome_col} indicating a fatal outcome. Default \code{"Death"}.}
 
 \item{age_bin_col}{Character. Column in \code{patient_data} containing
-GBD-standard age bin labels (e.g. \code{"0-1"}, \code{"1-5"}, …,
+GBD-standard age bin labels (e.g. \code{"0-1"}, \code{"1-5"}, ...,
 \code{"85+"}).  Use \code{age_bin_map} to recode non-standard labels
-(default remaps \code{"<1"} → \code{"0-1"}).}
+(default remaps \code{"<1"} -> \code{"0-1"}).}
 
 \item{sex_col}{Character. Sex column in \code{patient_data}.}
 
@@ -61,6 +64,9 @@ When supplied, per-pathogen age proportions are computed and the
 \item{facility_col}{Character or \code{NULL}. Facility identifier column.
 When supplied, per-facility proportions are computed and \code{by_facility}
 is populated.}
+
+\item{facility_name}{Character or \code{NULL}. If provided, filters
+\code{patient_data} to the specified facility before computation.}
 
 \item{use_sex}{Logical. Whether to disaggregate by sex as well as age
 (uses sex-specific life expectancy). Default \code{TRUE}.}
@@ -84,15 +90,15 @@ from \code{patient_data} to include in the \code{stratified} output.}
 A named list:
 \describe{
   \item{\code{total}}{Scalar: total base YLL = \eqn{\sum_x D_L^x e_*^x}.}
-  \item{\code{by_age_sex}}{Data frame: base YLL by age bin × sex.}
+  \item{\code{by_age_sex}}{Data frame: base YLL by age bin x sex.}
   \item{\code{per_pathogen}}{Data frame: base YLL per pathogen K, computed
     using each pathogen's own death age distribution (only when
     \code{pathogen_col} is supplied).}
-  \item{\code{by_pathogen_age_sex}}{Data frame: base YLL by pathogen ×
-    age bin × sex (only when \code{pathogen_col} is supplied).}
+  \item{\code{by_pathogen_age_sex}}{Data frame: base YLL by pathogen x
+    age bin x sex (only when \code{pathogen_col} is supplied).}
   \item{\code{by_facility}}{Data frame: base YLL by facility (only when
     \code{facility_col} is supplied).}
-  \item{\code{by_syndrome_pathogen}}{Data frame: base YLL by syndrome ×
+  \item{\code{by_syndrome_pathogen}}{Data frame: base YLL by syndrome x
     pathogen (only when both \code{syndrome_col} and \code{pathogen_col}
     are supplied).}
   \item{\code{stratified}}{Data frame: base YLL aggregated by
@@ -100,13 +106,13 @@ A named list:
   \item{\code{disaggregated_dl}}{Data frame: the full expanded table with
     columns \code{D_x_L} (\eqn{D_L^x}), \code{proportion} (\eqn{\hat{p}_x}),
     \code{life_expectancy} (\eqn{e_*^x}), and \code{yll_contribution}
-    (\eqn{D_L^x \times e_*^x}) for every age × sex stratum. This is the
+    (\eqn{D_L^x \times e_*^x}) for every age x sex stratum. This is the
     row-level audit trail.}
 }
 }
 \description{
 Implements the first part of the YLL pipeline. Takes \eqn{D_L} (deaths by
-infectious syndrome, a single scalar), disaggregates it into age × sex
+infectious syndrome, a single scalar), disaggregates it into age x sex
 strata using observed proportions from the patient death cohort, and
 multiplies by the India life expectancy for each stratum to yield the base
 YLL block \eqn{\sum_x D_L^x \, e_*^x} (Equation 10).
@@ -128,7 +134,7 @@ and \eqn{\hat{p}_x} is the observed proportion of deaths in age bin
   \text{death\_rate}_L = \frac{\#\text{deaths}\mid L}{\#\text{incidence}_L}}
 The caller supplies this scalar directly via \code{dl}.
 
-\strong{Per-pathogen / per-facility YLL:} age (× sex) proportions are
+\strong{Per-pathogen / per-facility YLL:} age (x sex) proportions are
 re-computed within each subgroup so that each subgroup's YLL reflects its
 own age structure, scaled by the shared \code{dl}.
 }

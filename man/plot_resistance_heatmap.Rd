@@ -38,11 +38,12 @@ antibiotic classes. Shows S (susceptible), R (resistant), Partial (mixed),
 or NT (not tested) for each isolate-class combination.
 }
 \examples{
-# Resistance heatmap
+\dontrun{
 plot_resistance_heatmap(data,
   isolate_col = "event_id",
   class_col = "antibiotic_class",
   result_col = "resistance_status",
   top_n = 20
 )
+}
 }

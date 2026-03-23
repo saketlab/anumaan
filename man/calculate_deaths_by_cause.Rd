@@ -13,7 +13,7 @@ calculate_deaths_by_cause(
 }
 \arguments{
 \item{pop_data}{Data frame. Population-level vital registration or mortality
-data. Required — this function does not accept facility-level data.}
+data. Required -- this function does not accept facility-level data.}
 
 \item{cause_col}{Character. Column containing the underlying cause of death
 (cause J), e.g. an ICD-10 code or cause name. Default \code{"cause_of_death"}.}

@@ -109,7 +109,7 @@ enrich_age <- function(data,
   n_still_missing <- sum(is.na(data[[age_col]]))
   if (n_still_missing > 0) {
     message(sprintf(
-      "⚠ Warning: %d rows still missing Age (%.1f%%)",
+      "[!] Warning: %d rows still missing Age (%.1f%%)",
       n_still_missing,
       100 * n_still_missing / nrow(data)
     ))
@@ -152,7 +152,7 @@ enrich_los <- function(data,
 
   if (!has_admission || !has_outcome) {
     message(sprintf(
-      "⚠ Cannot calculate LOS: missing '%s' or '%s'",
+      "[!] Cannot calculate LOS: missing '%s' or '%s'",
       admission_col, outcome_col
     ))
     return(data)
@@ -191,7 +191,7 @@ enrich_los <- function(data,
 
   if (nrow(negative_los) > 0) {
     warning(sprintf(
-      "⚠ Warning: %d rows have negative LOS (date inconsistency)",
+      "[!] Warning: %d rows have negative LOS (date inconsistency)",
       nrow(negative_los)
     ))
   }
@@ -265,7 +265,7 @@ enrich_infection_type <- function(data,
 
   if (!has_admission || !has_culture) {
     message(sprintf(
-      "⚠ Cannot infer infection type: missing '%s' or '%s'",
+      "[!] Cannot infer infection type: missing '%s' or '%s'",
       admission_col, culture_col
     ))
     return(data)
@@ -368,7 +368,7 @@ enrich_hospital_department <- function(data,
 
   # Need at least one contextual variable
   if (!has_specimen && !has_diagnosis && !has_age) {
-    message("⚠ Cannot infer department: no contextual data available")
+    message("[!] Cannot infer department: no contextual data available")
     return(data)
   }
 

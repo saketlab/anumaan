@@ -657,13 +657,14 @@ plot_heatmap <- function(data, x, y, fill, title = NULL,
 #' @export
 #'
 #' @examples
-#' # Resistance heatmap
+#' \dontrun{
 #' plot_resistance_heatmap(data,
 #'   isolate_col = "event_id",
 #'   class_col = "antibiotic_class",
 #'   result_col = "resistance_status",
 #'   top_n = 20
 #' )
+#' }
 plot_resistance_heatmap <- function(data, isolate_col, class_col, result_col,
                                     top_n = NULL, title = NULL, show_labels = FALSE) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -768,11 +769,12 @@ plot_resistance_heatmap <- function(data, isolate_col, class_col, result_col,
 #' @export
 #'
 #' @examples
-#' # 100% proportion plot
+#' \dontrun{
 #' plot_proportion(data,
 #'   x = "organism", fill = "resistance_status",
 #'   palette = "resistance"
 #' )
+#' }
 plot_proportion <- function(data, x, fill, facet = NULL,
                             title = NULL, xlab = NULL, ylab = "Proportion",
                             palette = "default", show_counts = TRUE,
@@ -935,8 +937,9 @@ plot_proportion <- function(data, x, fill, facet = NULL,
 #' @export
 #'
 #' @examples
-#' # Grouped bar for comparing MRSA vs MDR
+#' \dontrun{
 #' plot_grouped_bar(data, x = "hospital", fill = "mrsa_status")
+#' }
 plot_grouped_bar <- function(data, x, fill, y = NULL, facet = NULL,
                              title = NULL, xlab = NULL, ylab = NULL,
                              palette = "default", show_labels = TRUE,

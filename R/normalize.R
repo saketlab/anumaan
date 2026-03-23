@@ -227,19 +227,7 @@ standardize_column_names <- function(data,
 }
 
 
-#' Normalize Antibiotic Names
-#'
-#' Standardizes antibiotic/drug names by removing punctuation, spaces, and
-#' applying consistent lowercase formatting.
-#'
-#' @param data Data frame containing antibiotic names
-#' @param col Character. Name of the column containing antibiotic names.
-#'   Default "antibiotic_name".
-#' @param custom_map Optional named character vector of additional mappings.
-#'
-#' @return Data frame with added column \code{antibiotic_normalized}
-#'
-#' @export
+#' @keywords internal
 normalize_antibiotic <- function(data, col = "antibiotic_name", custom_map = NULL) {
   if (!col %in% names(data)) {
     stop(sprintf("Column '%s' not found in data", col))
@@ -801,7 +789,7 @@ load_rr_reference <- function() {
     dplyr::filter(!is.na(pathogen), !is.na(drug))
 
   message(sprintf(
-    "✓ Loaded %d pathogen-drug RR combinations",
+    "[v] Loaded %d pathogen-drug RR combinations",
     nrow(rr_data)
   ))
 
@@ -1087,7 +1075,7 @@ normalize_specimen <- function(data,
       min_dist_idx <- which.min(distances)
       min_dist <- distances[min_dist_idx]
 
-      # Accept if distance is small (≤ 2 characters)
+      # Accept if distance is small (<= 2 characters)
       if (min_dist <= 2) {
         specimen_map[input_spec] <- min_dist_idx
       }
@@ -1206,7 +1194,7 @@ get_contaminant_list <- function(syndrome = NULL,
   contaminants <- contaminants[contaminants != ""]
 
   # Generate flexible patterns for each contaminant
-  # This allows matching variations like "Staph" → "Staphylococcus"
+  # This allows matching variations like "Staph" -> "Staphylococcus"
   contaminant_patterns <- lapply(contaminants, function(name) {
     name_lower <- tolower(name)
 
@@ -1219,7 +1207,7 @@ get_contaminant_list <- function(syndrome = NULL,
       genus <- parts[1]
 
       # Only add genus as a standalone pattern for genus-level entries
-      # (e.g. "Micrococcus species", "Aerococcus spp.") — not for specific species
+      # (e.g. "Micrococcus species", "Aerococcus spp.") -- not for specific species
       # like "Staphylococcus epidermidis", which would incorrectly match S. aureus
       is_genus_level <- length(parts) == 1 ||
         grepl("^sp(p\\.?|ecies)$", parts[2], ignore.case = TRUE)
@@ -1241,7 +1229,7 @@ get_contaminant_list <- function(syndrome = NULL,
         species <- parts[2]
 
         # Only add species as standalone if it is a real binomial species name:
-        # - Skip "spp." / "species" — these match any organism with that suffix
+        # - Skip "spp." / "species" -- these match any organism with that suffix
         # - Skip when genus contains a hyphen (descriptor format like "coagulase-negative")
         #   because the second word is another genus name (e.g., "Staphylococcus"),
         #   not a true species, and would match unrelated organisms
@@ -1429,9 +1417,9 @@ clean_antibiotic_values <- function(data,
 
       # Extract first character that is S, I, or R
       # This handles cases like:
-      # - "R   Escherichia coli" → "R"
-      # - "S (HIGH LEVEL)" → "S"
-      # - "I (HIGH LEVEL SYNERGY)" → "I"
+      # - "R   Escherichia coli" -> "R"
+      # - "S (HIGH LEVEL)" -> "S"
+      # - "I (HIGH LEVEL SYNERGY)" -> "I"
 
       # Check if first character is S/I/R
       first_char <- substr(val_upper, 1, 1)
@@ -1484,13 +1472,13 @@ clean_antibiotic_values <- function(data,
   n_na <- sum(is.na(data[[value_col]]))
 
   message(sprintf(
-    "Cleaned: %d unique values → %d (S/I/R)",
+    "Cleaned: %d unique values -> %d (S/I/R)",
     n_unique_before, n_unique_after
   ))
 
   if (n_na > 0) {
     message(sprintf(
-      "⚠ %d values could not be parsed (%.1f%%)",
+      "[!] %d values could not be parsed (%.1f%%)",
       n_na, 100 * n_na / n_before
     ))
   }
@@ -1763,7 +1751,7 @@ normalize_antibiotic <- function(data,
       min_dist_idx <- which.min(distances)
       min_dist <- distances[min_dist_idx]
 
-      # Accept if distance is small (≤ 3 characters)
+      # Accept if distance is small (<= 3 characters)
       if (min_dist <= 3) {
         antibiotic_map[input_abx] <- who_table$ref_lower[min_dist_idx]
       } else {
@@ -1836,7 +1824,7 @@ normalize_antibiotic <- function(data,
   n_matched <- sum(!is.na(data$antibiotic_normalized))
 
   message(sprintf(
-    "Normalized: %d unique names → %d",
+    "Normalized: %d unique names -> %d",
     n_unique_before, n_unique_after
   ))
 

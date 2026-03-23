@@ -82,7 +82,7 @@ that were both tested:
 }
 }
 \details{
-Matrices are computed for \strong{all} tested classes — no filtering by
+Matrices are computed for \strong{all} tested classes -- no filtering by
 marginal resistance or GBD core list is applied here.
 }
 \examples{
