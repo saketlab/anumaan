@@ -33,13 +33,20 @@ jobs:
           MAIN="${{ steps.main_version.outputs.version }}"
           echo "PR version: $PR"
           echo "Main version: $MAIN"
-          if [ "$PR" = "$MAIN" ]; then
+          # Normalize versions to 4 dot-separated segments (padding with zeros)
+          # so that e.g. "1.2" and "1.2.0" are treated as equal, matching R's numeric_version() semantics
+          normalize() {
+            echo "$1" | awk -F. '{for(i=NF+1;i<=4;i++) $i=0; OFS="."; print $1,$2,$3,$4}'
+          }
+          PR_NORM=$(normalize "$PR")
+          MAIN_NORM=$(normalize "$MAIN")
+          if [ "$PR_NORM" = "$MAIN_NORM" ]; then
             echo "::error::Version in DESCRIPTION ($PR) has not been bumped. Please increment the version number."
             exit 1
           fi
-          # Compare dot-separated version segments lexicographically using sort -V
-          LOWER=$(printf '%s\n%s' "$PR" "$MAIN" | sort -V | head -n1)
-          if [ "$LOWER" != "$MAIN" ]; then
+          # Compare normalized versions using sort -V
+          LOWER=$(printf '%s\n%s' "$PR_NORM" "$MAIN_NORM" | sort -V | head -n1)
+          if [ "$LOWER" != "$MAIN_NORM" ]; then
             echo "::error::PR version ($PR) is not greater than main version ($MAIN). Please increment the version number."
             exit 1
           fi
