@@ -55,7 +55,15 @@ Suggests:
     lme4 (>= 1.1.0),
     ggpubr,
     ggrepel,
-    pkgdown
+    pkgdown,
+    sf,
+    leaflet,
+    spdep,
+    tmap,
+    Matrix,
+    osqp,
+    quadprog,
+    car
 VignetteBuilder: knitr
 URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
 BugReports: https://github.com/saketlab/anumaan/issues
