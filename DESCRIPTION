@@ -48,7 +48,9 @@ Imports:
     scales (>= 1.2.0),
     fitdistrplus (>= 1.1.0),
     RColorBrewer (>= 1.1.0),
-    data.table (>= 1.14.0)
+    data.table (>= 1.14.0),
+    ggridges (>= 0.5.0),
+    tidytext (>= 0.3.0)
 Suggests:
     testthat (>= 3.0.0),
     knitr,

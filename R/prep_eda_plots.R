@@ -41,12 +41,12 @@ eda_theme <- function(base_size = 14, legend_position = "top") {
 #' Produces a horizontal bar chart of the top \code{n} organisms ranked by
 #' unique patient count. Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} — one panel per centre, top \emph{n} organisms
+#'   \item \strong{"faceted"} -- one panel per centre, top \emph{n} organisms
 #'     within each centre independently. Facet strips show patient and organism
 #'     counts for that centre.
-#'   \item \strong{"overall"} — all centres pooled; single chart of the top
+#'   \item \strong{"overall"} -- all centres pooled; single chart of the top
 #'     \emph{n} organisms across the entire dataset.
-#'   \item \strong{"single"} — one specific centre; pass the centre name via
+#'   \item \strong{"single"} -- one specific centre; pass the centre name via
 #'     \code{center}.
 #' }
 #'
@@ -100,10 +100,10 @@ plot_top_organisms <- function(data,
                                syndrome_col  = NULL,
                                syndrome_name = NULL) {
 
-  # ── 0. match mode argument ────────────────────────────────────────────────
+  # -- 0. match mode argument ------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate required columns ─────────────────────────────────────────
+  # -- 1. validate required columns -----------------------------------------
   required_cols <- c(patient_col, organism_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
 
@@ -134,7 +134,7 @@ plot_top_organisms <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -142,27 +142,27 @@ plot_top_organisms <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   org_sym <- rlang::sym(organism_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. cleaning — remove blank / NA organism names ───────────────────────
+  # -- 3. cleaning -- remove blank / NA organism names -----------------------
   org_data <- data %>%
     dplyr::filter(
       !is.na(!!org_sym),
       trimws(as.character(!!org_sym)) != ""
     )
 
-  # ── 4. optional: filter to a single centre ───────────────────────────────
+  # -- 4. optional: filter to a single centre -------------------------------
   if (mode == "single") {
     org_data <- org_data %>%
       dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 5. branch by mode ─────────────────────────────────────────────────────
+  # -- 5. branch by mode -----------------------------------------------------
 
-  # ── 5a. OVERALL ───────────────────────────────────────────────────────────
+  # -- 5a. OVERALL -----------------------------------------------------------
   if (mode == "overall") {
 
     total_patients <- dplyr::n_distinct(org_data[[patient_col]])
@@ -208,7 +208,7 @@ plot_top_organisms <- function(data,
     return(p)
   }
 
-  # ── 5b. FACETED or SINGLE (share the same per-centre logic) ──────────────
+  # -- 5b. FACETED or SINGLE (share the same per-centre logic) --------------
 
   # Centre summary for facet strip labels
   center_summary <- org_data %>%
@@ -254,7 +254,7 @@ plot_top_organisms <- function(data,
       by = center_col
     )
 
-  # ── 5c. SINGLE: drop facet_wrap, use just the centre name in the title ────
+  # -- 5c. SINGLE: drop facet_wrap, use just the centre name in the title ----
   if (mode == "single") {
 
     auto_title <- title %||% sprintf(
@@ -292,7 +292,7 @@ plot_top_organisms <- function(data,
     return(p)
   }
 
-  # ── 5d. FACETED ───────────────────────────────────────────────────────────
+  # -- 5d. FACETED -----------------------------------------------------------
 
   auto_title <- title %||% sprintf(
     "Top %d Organisms by Unique Patients \u2014 All Centres", n
@@ -347,11 +347,11 @@ plot_top_organisms <- function(data,
 #'
 #' Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} — top \emph{n} antibiotics per centre
+#'   \item \strong{"faceted"} -- top \emph{n} antibiotics per centre
 #'     independently, one panel per centre.
-#'   \item \strong{"overall"} — all centres pooled; top \emph{n} antibiotics
+#'   \item \strong{"overall"} -- all centres pooled; top \emph{n} antibiotics
 #'     globally.
-#'   \item \strong{"single"} — one specific centre; pass the centre name via
+#'   \item \strong{"single"} -- one specific centre; pass the centre name via
 #'     \code{center}.
 #' }
 #'
@@ -406,10 +406,10 @@ plot_abx_susceptibility <- function(data,
                                     syndrome_col   = NULL,
                                     syndrome_name  = NULL) {
 
-  # ── 0. match mode ─────────────────────────────────────────────────────────
+  # -- 0. match mode ---------------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, antibiotic_col, value_col, organism_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
 
@@ -440,7 +440,7 @@ plot_abx_susceptibility <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -448,14 +448,14 @@ plot_abx_susceptibility <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   abx_sym <- rlang::sym(antibiotic_col)
   val_sym <- rlang::sym(value_col)
   org_sym <- rlang::sym(organism_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. clean: keep only valid R/S rows, drop blank names ─────────────────
+  # -- 3. clean: keep only valid R/S rows, drop blank names -----------------
   abx_clean <- data %>%
     dplyr::filter(
       !!val_sym %in% c("R", "S"),
@@ -466,14 +466,14 @@ plot_abx_susceptibility <- function(data,
       !!ctr_sym, !!pt_sym, !!org_sym, !!abx_sym, !!val_sym
     )
 
-  # ── 4. optional: filter to a single centre ───────────────────────────────
+  # -- 4. optional: filter to a single centre -------------------------------
   if (mode == "single") {
     abx_clean <- abx_clean %>%
       dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 5. worst-phenotype rule ───────────────────────────────────────────────
-  # Per patient × organism × antibiotic: any R → episode = R
+  # -- 5. worst-phenotype rule -----------------------------------------------
+  # Per patient x organism x antibiotic: any R -> episode = R
   if (mode == "overall") {
     abx_episode <- abx_clean %>%
       dplyr::group_by(!!pt_sym, !!org_sym, !!abx_sym) %>%
@@ -490,7 +490,7 @@ plot_abx_susceptibility <- function(data,
       )
   }
 
-  # ── 6. summarise: count unique patients per antibiotic × R/S ─────────────
+  # -- 6. summarise: count unique patients per antibiotic x R/S -------------
   if (mode == "overall") {
 
     abx_summary <- abx_episode %>%
@@ -554,7 +554,7 @@ plot_abx_susceptibility <- function(data,
     return(p)
   }
 
-  # ── 7. per-centre summary (faceted + single) ──────────────────────────────
+  # -- 7. per-centre summary (faceted + single) ------------------------------
   abx_summary <- abx_episode %>%
     dplyr::group_by(!!ctr_sym, !!abx_sym, final_abx) %>%
     dplyr::summarise(
@@ -579,7 +579,7 @@ plot_abx_susceptibility <- function(data,
   abx_summary <- abx_summary %>%
     dplyr::inner_join(top_abx, by = c(center_col, antibiotic_col, "total_tested"))
 
-  # ── 8. SINGLE: no facet ───────────────────────────────────────────────────
+  # -- 8. SINGLE: no facet ---------------------------------------------------
   if (mode == "single") {
 
     auto_title <- title %||% sprintf(
@@ -623,7 +623,7 @@ plot_abx_susceptibility <- function(data,
     return(p)
   }
 
-  # ── 9. FACETED ────────────────────────────────────────────────────────────
+  # -- 9. FACETED ------------------------------------------------------------
   auto_title <- title %||% sprintf(
     "Antibiotic Susceptibility Pattern (Top %d) \u2014 All Centres", n
   )
@@ -671,16 +671,16 @@ plot_abx_susceptibility <- function(data,
 #'
 #' Produces a ggplot2 tile heatmap where:
 #' \itemize{
-#'   \item \strong{x-axis} — antibiotics (ordered by total patients tested,
+#'   \item \strong{x-axis} -- antibiotics (ordered by total patients tested,
 #'     most tested on the left)
-#'   \item \strong{y-axis} — centres
-#'   \item \strong{fill colour} — proportion of patients who were Resistant
+#'   \item \strong{y-axis} -- centres
+#'   \item \strong{fill colour} -- proportion of patients who were Resistant
 #'     for that antibiotic at that centre (0 = fully susceptible, 1 = fully
 #'     resistant)
 #' }
 #'
 #' Only R and S results are used. The same \strong{worst-phenotype rule}
-#' as \code{plot_abx_susceptibility()} is applied: per patient × organism ×
+#' as \code{plot_abx_susceptibility()} is applied: per patient x organism x
 #' antibiotic, any single R marks the episode as R.
 #'
 #' Cells with no data (antibiotic not tested at that centre) are shown in
@@ -688,8 +688,8 @@ plot_abx_susceptibility <- function(data,
 #'
 #' Supports two display modes:
 #' \itemize{
-#'   \item \strong{"all"} (default) — all centres on the y-axis.
-#'   \item \strong{"single"} — filter to one centre before plotting (produces
+#'   \item \strong{"all"} (default) -- all centres on the y-axis.
+#'   \item \strong{"single"} -- filter to one centre before plotting (produces
 #'     a single-row heatmap useful for per-centre reports).
 #' }
 #'
@@ -713,7 +713,7 @@ plot_abx_susceptibility <- function(data,
 #'   Default \code{"center_name"}.
 #' @param show_values    Logical. Print proportion values inside tiles.
 #'   Default \code{TRUE}.
-#' @param midpoint       Numeric. Midpoint of the colour gradient (0–1).
+#' @param midpoint       Numeric. Midpoint of the colour gradient (0-1).
 #'   Default \code{0.5}.
 #' @param low_colour     Character. Colour for proportion = 0 (fully
 #'   susceptible). Default \code{"#1a9850"} (green).
@@ -754,10 +754,10 @@ plot_abx_heatmap <- function(data,
                              syndrome_col   = NULL,
                              syndrome_name  = NULL) {
 
-  # ── 0. match mode ─────────────────────────────────────────────────────────
+  # -- 0. match mode ---------------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, antibiotic_col, value_col,
                      organism_col, center_col)
 
@@ -788,7 +788,7 @@ plot_abx_heatmap <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -796,14 +796,14 @@ plot_abx_heatmap <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   abx_sym <- rlang::sym(antibiotic_col)
   val_sym <- rlang::sym(value_col)
   org_sym <- rlang::sym(organism_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. clean: keep only valid R/S rows, drop blank names ─────────────────
+  # -- 3. clean: keep only valid R/S rows, drop blank names -----------------
   abx_clean <- data %>%
     dplyr::filter(
       !!val_sym %in% c("R", "S"),
@@ -814,13 +814,13 @@ plot_abx_heatmap <- function(data,
       !!ctr_sym, !!pt_sym, !!org_sym, !!abx_sym, !!val_sym
     )
 
-  # ── 4. optional: filter to a single centre ───────────────────────────────
+  # -- 4. optional: filter to a single centre -------------------------------
   if (mode == "single") {
     abx_clean <- abx_clean %>%
       dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 5. worst-phenotype rule ───────────────────────────────────────────────
+  # -- 5. worst-phenotype rule -----------------------------------------------
   abx_episode <- abx_clean %>%
     dplyr::group_by(!!ctr_sym, !!pt_sym, !!org_sym, !!abx_sym) %>%
     dplyr::summarise(
@@ -828,7 +828,7 @@ plot_abx_heatmap <- function(data,
       .groups   = "drop"
     )
 
-  # ── 6. resistance proportion per centre × antibiotic ─────────────────────
+  # -- 6. resistance proportion per centre x antibiotic ---------------------
   # Count R and total, then compute proportion R
   abx_counts <- abx_episode %>%
     dplyr::group_by(!!ctr_sym, !!abx_sym, final_abx) %>%
@@ -848,7 +848,7 @@ plot_abx_heatmap <- function(data,
       value_label = sprintf("%.2f", proportion)
     )
 
-  # ── 7. optional: keep top n antibiotics by total patients tested ──────────
+  # -- 7. optional: keep top n antibiotics by total patients tested ----------
   if (!is.null(n)) {
     if (!is.numeric(n) || n < 1) {
       stop("'n' must be a positive integer or NULL.")
@@ -864,7 +864,7 @@ plot_abx_heatmap <- function(data,
       dplyr::filter(!!abx_sym %in% top_abx)
   }
 
-  # ── 8. order antibiotics by total patients tested (most tested = left) ────
+  # -- 8. order antibiotics by total patients tested (most tested = left) ----
   abx_order <- abx_counts %>%
     dplyr::group_by(!!abx_sym) %>%
     dplyr::summarise(grand_total = sum(total_tested), .groups = "drop") %>%
@@ -879,7 +879,7 @@ plot_abx_heatmap <- function(data,
       !!antibiotic_col := factor(!!abx_sym, levels = abx_order)
     )
 
-  # ── 9. build title ────────────────────────────────────────────────────────
+  # -- 9. build title --------------------------------------------------------
   if (mode == "single") {
     auto_title <- title %||% sprintf(
       "Antibiotic Resistance Proportions \u2014 %s", center
@@ -888,7 +888,7 @@ plot_abx_heatmap <- function(data,
     auto_title <- title %||% "Antibiotic Resistance Proportions Across Centres"
   }
 
-  # ── 10. build plot ────────────────────────────────────────────────────────
+  # -- 10. build plot --------------------------------------------------------
   p <- ggplot2::ggplot(
     heat_data,
     ggplot2::aes(
@@ -920,7 +920,7 @@ plot_abx_heatmap <- function(data,
       axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)
     )
 
-  # ── 11. optional: value labels inside tiles ───────────────────────────────
+  # -- 11. optional: value labels inside tiles -------------------------------
   if (show_values) {
     p <- p +
       ggplot2::geom_text(
@@ -957,9 +957,9 @@ plot_abx_heatmap <- function(data,
 #'
 #' Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} (default) — one panel per centre.
-#'   \item \strong{"overall"} — all centres pooled into one chart.
-#'   \item \strong{"single"} — one specific centre; pass the name via
+#'   \item \strong{"faceted"} (default) -- one panel per centre.
+#'   \item \strong{"overall"} -- all centres pooled into one chart.
+#'   \item \strong{"single"} -- one specific centre; pass the name via
 #'     \code{center}.
 #' }
 #'
@@ -1017,10 +1017,10 @@ plot_outcome_distribution <- function(data,
                                       syndrome_col   = NULL,
                                       syndrome_name  = NULL) {
 
-  # ── 0. match mode ─────────────────────────────────────────────────────────
+  # -- 0. match mode ---------------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, outcome_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
 
@@ -1051,7 +1051,7 @@ plot_outcome_distribution <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -1059,19 +1059,19 @@ plot_outcome_distribution <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   out_sym <- rlang::sym(outcome_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. clean: drop missing outcomes ──────────────────────────────────────
+  # -- 3. clean: drop missing outcomes --------------------------------------
   clean <- data %>%
     dplyr::filter(
       !is.na(!!out_sym),
       trimws(as.character(!!out_sym)) != ""
     )
 
-  # ── 4. optionally merge referred categories ───────────────────────────────
+  # -- 4. optionally merge referred categories -------------------------------
   if (merge_referred) {
     clean <- clean %>%
       dplyr::mutate(
@@ -1084,13 +1084,13 @@ plot_outcome_distribution <- function(data,
     out_sym <- rlang::sym(outcome_col)
   }
 
-  # ── 5. optional: filter to one centre ────────────────────────────────────
+  # -- 5. optional: filter to one centre ------------------------------------
   if (mode == "single") {
     clean <- clean %>%
       dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 6. deduplicate: one outcome per patient (per centre) ─────────────────
+  # -- 6. deduplicate: one outcome per patient (per centre) -----------------
   # Takes the first recorded outcome to handle long-format duplicates
   if (mode == "overall") {
     outcome_unique <- clean %>%
@@ -1108,7 +1108,7 @@ plot_outcome_distribution <- function(data,
       )
   }
 
-  # ── 7. summarise counts and percentages ──────────────────────────────────
+  # -- 7. summarise counts and percentages ----------------------------------
   if (mode == "overall") {
 
     summary_out <- outcome_unique %>%
@@ -1149,7 +1149,7 @@ plot_outcome_distribution <- function(data,
     return(p)
   }
 
-  # ── 8. per-centre summary (faceted + single) ──────────────────────────────
+  # -- 8. per-centre summary (faceted + single) ------------------------------
   summary_out <- outcome_unique %>%
     dplyr::group_by(!!ctr_sym, !!out_sym) %>%
     dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
@@ -1161,7 +1161,7 @@ plot_outcome_distribution <- function(data,
     ) %>%
     dplyr::ungroup()
 
-  # ── 9. SINGLE ─────────────────────────────────────────────────────────────
+  # -- 9. SINGLE -------------------------------------------------------------
   if (mode == "single") {
 
     auto_title <- title %||% sprintf(
@@ -1198,7 +1198,7 @@ plot_outcome_distribution <- function(data,
     return(p)
   }
 
-  # ── 10. FACETED ───────────────────────────────────────────────────────────
+  # -- 10. FACETED -----------------------------------------------------------
   auto_title <- title %||%
     "Distribution of Final Outcomes \u2014 All Centres"
 
@@ -1256,13 +1256,13 @@ plot_outcome_distribution <- function(data,
 #'
 #' Each bar represents one organism. The fill shows outcome proportions.
 #' A \code{n=} label is printed above each bar showing the total number of
-#' unique patients in that organism × resistance group.
+#' unique patients in that organism x resistance group.
 #'
 #' \strong{Resistance grouping:} \code{resistance_filter = "R"} shows patients
 #' who had \emph{at least one} R result for the given organism. \code{"S"} shows
 #' patients with only S results. Because these groups overlap (a patient
 #' resistant to one antibiotic may be susceptible to another), calling the
-#' function twice — once for "R" and once for "S" — gives the most complete
+#' function twice -- once for "R" and once for "S" -- gives the most complete
 #' picture.
 #'
 #' \strong{Top N organisms} are ranked by total unique patients per centre
@@ -1271,9 +1271,9 @@ plot_outcome_distribution <- function(data,
 #'
 #' Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} (default) — one panel per centre.
-#'   \item \strong{"overall"} — all centres pooled.
-#'   \item \strong{"single"} — one specific centre.
+#'   \item \strong{"faceted"} (default) -- one panel per centre.
+#'   \item \strong{"overall"} -- all centres pooled.
+#'   \item \strong{"single"} -- one specific centre.
 #' }
 #'
 #' @param data              Data frame. Long-format AMR dataset.
@@ -1344,11 +1344,11 @@ plot_outcome_by_organism <- function(data,
                                      syndrome_col      = NULL,
                                      syndrome_name     = NULL) {
 
-  # ── 0. match args ─────────────────────────────────────────────────────────
+  # -- 0. match args ---------------------------------------------------------
   resistance_filter <- match.arg(resistance_filter)
   mode              <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, organism_col, antibiotic_col,
                      value_col, outcome_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
@@ -1380,7 +1380,7 @@ plot_outcome_by_organism <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -1388,7 +1388,7 @@ plot_outcome_by_organism <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   org_sym <- rlang::sym(organism_col)
   abx_sym <- rlang::sym(antibiotic_col)
@@ -1396,14 +1396,14 @@ plot_outcome_by_organism <- function(data,
   out_sym <- rlang::sym(outcome_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. clean: drop blank organisms and outcomes ───────────────────────────
+  # -- 3. clean: drop blank organisms and outcomes ---------------------------
   clean <- data %>%
     dplyr::filter(
       !is.na(!!org_sym), trimws(as.character(!!org_sym)) != "",
       !is.na(!!out_sym), trimws(as.character(!!out_sym)) != ""
     )
 
-  # ── 4. merge referred categories ─────────────────────────────────────────
+  # -- 4. merge referred categories -----------------------------------------
   if (merge_referred) {
     clean <- clean %>%
       dplyr::mutate(
@@ -1415,12 +1415,12 @@ plot_outcome_by_organism <- function(data,
     out_sym <- rlang::sym(outcome_col)
   }
 
-  # ── 5. filter to one centre if single mode ────────────────────────────────
+  # -- 5. filter to one centre if single mode --------------------------------
   if (mode == "single") {
     clean <- clean %>% dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 6. identify top N organisms (before R/S split) ───────────────────────
+  # -- 6. identify top N organisms (before R/S split) -----------------------
   # Ranked by total unique patients so both R and S plots show the same organisms
   if (mode == "overall") {
     top_org <- clean %>%
@@ -1444,7 +1444,7 @@ plot_outcome_by_organism <- function(data,
       dplyr::ungroup()
   }
 
-  # ── 7. filter to top N organisms + valid R/S rows ─────────────────────────
+  # -- 7. filter to top N organisms + valid R/S rows -------------------------
   join_cols <- if (mode == "overall") organism_col else c(center_col, organism_col)
 
   df_filtered <- clean %>%
@@ -1458,7 +1458,7 @@ plot_outcome_by_organism <- function(data,
       !!abx_sym, !!val_sym, !!out_sym
     )
 
-  # ── 8. summarise: unique patients per organism × R/S × outcome ───────────
+  # -- 8. summarise: unique patients per organism x R/S x outcome -----------
   if (mode == "overall") {
     summary_data <- df_filtered %>%
       dplyr::group_by(!!org_sym, !!val_sym, !!out_sym) %>%
@@ -1498,7 +1498,7 @@ plot_outcome_by_organism <- function(data,
       dplyr::distinct(!!ctr_sym, !!org_sym, !!val_sym, total_patients)
   }
 
-  # ── 9. filter both tables to the chosen resistance group ──────────────────
+  # -- 9. filter both tables to the chosen resistance group ------------------
   plot_data  <- summary_data %>% dplyr::filter(!!val_sym == resistance_filter)
   label_data <- label_data   %>% dplyr::filter(!!val_sym == resistance_filter)
 
@@ -1509,7 +1509,7 @@ plot_outcome_by_organism <- function(data,
     ))
   }
 
-  # ── 10. build auto title ──────────────────────────────────────────────────
+  # -- 10. build auto title --------------------------------------------------
   rs_label <- if (resistance_filter == "R") "Resistant" else "Susceptible"
 
   if (mode == "overall") {
@@ -1529,7 +1529,7 @@ plot_outcome_by_organism <- function(data,
     )
   }
 
-  # ── 11. OVERALL plot ──────────────────────────────────────────────────────
+  # -- 11. OVERALL plot ------------------------------------------------------
   if (mode == "overall") {
 
     plot_data  <- plot_data  %>% dplyr::mutate(!!organism_col := stats::reorder(!!org_sym, total_patients))
@@ -1566,7 +1566,7 @@ plot_outcome_by_organism <- function(data,
     return(p)
   }
 
-  # ── 12. FACETED + SINGLE share reorder_within logic ──────────────────────
+  # -- 12. FACETED + SINGLE share reorder_within logic ----------------------
   plot_data <- plot_data %>%
     dplyr::mutate(
       org_ordered = tidytext::reorder_within(!!org_sym, total_patients, !!ctr_sym)
@@ -1620,14 +1620,14 @@ plot_outcome_by_organism <- function(data,
 
 
 # ============================================================================
-# DEATH VS DISCHARGED — SIDE-BY-SIDE BAR CHART
+# DEATH VS DISCHARGED -- SIDE-BY-SIDE BAR CHART
 # ============================================================================
 
 #' Plot Death vs Discharged Counts for Top Pathogens
 #'
 #' Produces a side-by-side (dodged) bar chart comparing Death and Discharged
 #' patient counts for the top \code{n} organisms. LAMA and Referred are
-#' excluded — only the two definitive outcomes are shown.
+#' excluded -- only the two definitive outcomes are shown.
 #'
 #' Each bar is labelled with the count and the percentage that outcome
 #' represents out of all Death + Discharged patients for that organism
@@ -1636,8 +1636,8 @@ plot_outcome_by_organism <- function(data,
 #' immediately readable without a separate calculation.
 #'
 #' \strong{Deduplication:} uses
-#' \code{distinct(centre, patient, organism, outcome)} — one record per
-#' patient per organism per outcome — consistent with the original EDA script.
+#' \code{distinct(centre, patient, organism, outcome)} -- one record per
+#' patient per organism per outcome -- consistent with the original EDA script.
 #'
 #' \strong{Top N organisms} are ranked by total unique patients with a known
 #' outcome (Death or Discharged). For \code{mode = "faceted"} the ranking is
@@ -1645,9 +1645,9 @@ plot_outcome_by_organism <- function(data,
 #'
 #' Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} (default) — one panel per centre.
-#'   \item \strong{"overall"} — all centres pooled into one chart.
-#'   \item \strong{"single"} — one specific centre.
+#'   \item \strong{"faceted"} (default) -- one panel per centre.
+#'   \item \strong{"overall"} -- all centres pooled into one chart.
+#'   \item \strong{"single"} -- one specific centre.
 #' }
 #'
 #' @param data              Data frame. Long-format AMR dataset.
@@ -1683,7 +1683,7 @@ plot_outcome_by_organism <- function(data,
 #' @param colours           Named character vector with keys matching
 #'   \code{death_label} and \code{discharged_label}.
 #'   Default \code{c("Death" = "#E74C3C", "Discharged" = "#2ECC71")}.
-#' @param bar_width         Numeric. Width of each individual bar (0–1).
+#' @param bar_width         Numeric. Width of each individual bar (0-1).
 #'   Default \code{0.65}.
 #' @param ncol              Integer. Facet columns
 #'   (\code{mode = "faceted"} only). Default 2.
@@ -1722,10 +1722,10 @@ plot_death_discharged <- function(data,
                                   syndrome_col     = NULL,
                                   syndrome_name    = NULL) {
 
-  # ── 0. match mode ─────────────────────────────────────────────────────────
+  # -- 0. match mode ---------------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, organism_col, outcome_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
 
@@ -1766,7 +1766,7 @@ plot_death_discharged <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -1774,7 +1774,7 @@ plot_death_discharged <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. resolve colours ────────────────────────────────────────────────────
+  # -- 2. resolve colours ----------------------------------------------------
   if (is.null(colours)) {
     colours <- stats::setNames(
       c("#E74C3C", "#2ECC71"),
@@ -1782,7 +1782,7 @@ plot_death_discharged <- function(data,
     )
   }
 
-  # ── 3. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 3. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   org_sym <- rlang::sym(organism_col)
   out_sym <- rlang::sym(outcome_col)
@@ -1790,7 +1790,7 @@ plot_death_discharged <- function(data,
   abx_sym <- rlang::sym(antibiotic_col)
   val_sym <- rlang::sym(value_col)
 
-  # ── 4. keep only Death and Discharged, drop blank organisms ──────────────
+  # -- 4. keep only Death and Discharged, drop blank organisms --------------
   clean <- data %>%
     dplyr::filter(
       !!out_sym %in% c(death_label, discharged_label),
@@ -1804,8 +1804,8 @@ plot_death_discharged <- function(data,
     ))
   }
 
-  # ── 4b. resistance pre-filter (worst-phenotype at organism level) ─────────
-  # Classify each patient × organism as R (any R result) or S (all S results)
+  # -- 4b. resistance pre-filter (worst-phenotype at organism level) ---------
+  # Classify each patient x organism as R (any R result) or S (all S results)
   # from the FULL dataset, then keep only the desired group.
   if (!is.null(resistance_filter)) {
     resist_class <- data %>%
@@ -1835,12 +1835,12 @@ plot_death_discharged <- function(data,
     }
   }
 
-  # ── 5. filter to one centre if single mode ────────────────────────────────
+  # -- 5. filter to one centre if single mode --------------------------------
   if (mode == "single") {
     clean <- clean %>% dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 6. deduplicate: one row per patient × organism × outcome (× centre) ──
+  # -- 6. deduplicate: one row per patient x organism x outcome (x centre) --
   if (mode == "overall") {
     clean <- clean %>%
       dplyr::distinct(!!pt_sym, !!org_sym, !!out_sym)
@@ -1849,7 +1849,7 @@ plot_death_discharged <- function(data,
       dplyr::distinct(!!ctr_sym, !!pt_sym, !!org_sym, !!out_sym)
   }
 
-  # ── 7. identify top N organisms by total known-outcome patients ───────────
+  # -- 7. identify top N organisms by total known-outcome patients -----------
   if (mode == "overall") {
     top_org <- clean %>%
       dplyr::group_by(!!org_sym) %>%
@@ -1875,7 +1875,7 @@ plot_death_discharged <- function(data,
   clean <- clean %>%
     dplyr::semi_join(top_org, by = join_cols)
 
-  # ── 8. count unique patients per organism × outcome (× centre) ───────────
+  # -- 8. count unique patients per organism x outcome (x centre) -----------
   if (mode == "overall") {
     summary_data <- clean %>%
       dplyr::group_by(!!org_sym, !!out_sym) %>%
@@ -1909,7 +1909,7 @@ plot_death_discharged <- function(data,
       dplyr::ungroup()
   }
 
-  # ── 9. build auto title ───────────────────────────────────────────────────
+  # -- 9. build auto title ---------------------------------------------------
   rs_tag <- if (!is.null(resistance_filter)) {
     if (resistance_filter == "R") " (Resistant Patients)" else " (Susceptible Patients)"
   } else ""
@@ -1931,7 +1931,7 @@ plot_death_discharged <- function(data,
     )
   }
 
-  # ── 10. OVERALL plot ──────────────────────────────────────────────────────
+  # -- 10. OVERALL plot ------------------------------------------------------
   if (mode == "overall") {
 
     p <- ggplot2::ggplot(
@@ -1970,7 +1970,7 @@ plot_death_discharged <- function(data,
     return(p)
   }
 
-  # ── 11. FACETED + SINGLE share reorder_within ─────────────────────────────
+  # -- 11. FACETED + SINGLE share reorder_within -----------------------------
   summary_data <- summary_data %>%
     dplyr::mutate(
       org_ordered = tidytext::reorder_within(!!org_sym, total, !!ctr_sym)
@@ -2035,26 +2035,26 @@ plot_death_discharged <- function(data,
 #' and S percentages.
 #'
 #' \strong{Deduplication (worst-phenotype):} before counting, rows are
-#' collapsed by patient × centre × sample type × organism × antibiotic. If
+#' collapsed by patient x centre x sample type x organism x antibiotic. If
 #' the same antibiotic appears more than once for a patient-organism-sample
 #' combination (data entry error or repeat test), any single R result marks
 #' the episode as R. This prevents duplicate rows from inflating counts.
 #'
-#' \strong{Counting unit:} deduplicated AST test results — one record per
-#' patient × organism × antibiotic × sample type combination.
+#' \strong{Counting unit:} deduplicated AST test results -- one record per
+#' patient x organism x antibiotic x sample type combination.
 #'
 #' \strong{Top N ranking:} sample types are ranked by total deduplicated
 #' test count, so the most-tested specimen types appear first.
 #'
-#' \strong{Default sample column:} \code{"sample_type"} — the raw column.
+#' \strong{Default sample column:} \code{"sample_type"} -- the raw column.
 #' Switch to \code{"specimen_normalized"} for standardised values.
 #'
 #' Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} (default) — top \emph{n} sample types per
+#'   \item \strong{"faceted"} (default) -- top \emph{n} sample types per
 #'     centre independently, one panel per centre.
-#'   \item \strong{"overall"} — all centres pooled; top \emph{n} globally.
-#'   \item \strong{"single"} — one specific centre.
+#'   \item \strong{"overall"} -- all centres pooled; top \emph{n} globally.
+#'   \item \strong{"single"} -- one specific centre.
 #' }
 #'
 #' @param data           Data frame. Long-format AMR dataset.
@@ -2112,10 +2112,10 @@ plot_resistance_by_sample <- function(data,
                                       syndrome_col   = NULL,
                                       syndrome_name  = NULL) {
 
-  # ── 0. match mode ─────────────────────────────────────────────────────────
+  # -- 0. match mode ---------------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, sample_col, organism_col, antibiotic_col, value_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
 
@@ -2146,7 +2146,7 @@ plot_resistance_by_sample <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -2154,7 +2154,7 @@ plot_resistance_by_sample <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pat_sym <- rlang::sym(patient_col)
   smp_sym <- rlang::sym(sample_col)
   org_sym <- rlang::sym(organism_col)
@@ -2162,7 +2162,7 @@ plot_resistance_by_sample <- function(data,
   val_sym <- rlang::sym(value_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. clean: valid R/S rows, drop blank sample types and antibiotics ─────
+  # -- 3. clean: valid R/S rows, drop blank sample types and antibiotics -----
   clean <- data %>%
     dplyr::filter(
       !!val_sym %in% c("R", "S"),
@@ -2170,13 +2170,13 @@ plot_resistance_by_sample <- function(data,
       !is.na(!!abx_sym), trimws(as.character(!!abx_sym)) != ""
     )
 
-  # ── 4. filter to one centre if single mode ────────────────────────────────
+  # -- 4. filter to one centre if single mode --------------------------------
   if (mode == "single") {
     clean <- clean %>% dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 5. deduplicate: worst-phenotype per patient × centre × sample ×
-  #       organism × antibiotic — collapses duplicate/conflicting rows ───────
+  # -- 5. deduplicate: worst-phenotype per patient x centre x sample x
+  #       organism x antibiotic -- collapses duplicate/conflicting rows -------
   dedup_cols <- c(center_col, patient_col, sample_col, organism_col, antibiotic_col)
   if (mode == "overall") dedup_cols <- setdiff(dedup_cols, center_col)
 
@@ -2187,7 +2187,7 @@ plot_resistance_by_sample <- function(data,
       .groups = "drop"
     )
 
-  # ── 6. identify top N sample types (by deduplicated test count) ──────────
+  # -- 6. identify top N sample types (by deduplicated test count) ----------
   if (mode == "overall") {
     top_smp <- clean %>%
       dplyr::group_by(!!smp_sym) %>%
@@ -2205,7 +2205,7 @@ plot_resistance_by_sample <- function(data,
   join_cols <- if (mode == "overall") sample_col else c(center_col, sample_col)
   clean <- clean %>% dplyr::semi_join(top_smp, by = join_cols)
 
-  # ── 7. summarise: deduplicated counts per sample type × R/S (× centre) ────
+  # -- 7. summarise: deduplicated counts per sample type x R/S (x centre) ----
   if (mode == "overall") {
     summary_data <- clean %>%
       dplyr::group_by(!!smp_sym, !!val_sym) %>%
@@ -2253,7 +2253,7 @@ plot_resistance_by_sample <- function(data,
     return(p)
   }
 
-  # ── 8. per-centre summary (faceted + single) ──────────────────────────────
+  # -- 8. per-centre summary (faceted + single) ------------------------------
   summary_data <- clean %>%
     dplyr::group_by(!!ctr_sym, !!smp_sym, !!val_sym) %>%
     dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
@@ -2275,7 +2275,7 @@ plot_resistance_by_sample <- function(data,
     dplyr::inner_join(top_smp_with_total,
                       by = c(center_col, sample_col, "total_tests"))
 
-  # ── 9. SINGLE ─────────────────────────────────────────────────────────────
+  # -- 9. SINGLE -------------------------------------------------------------
   if (mode == "single") {
     auto_title <- title %||% sprintf(
       "Antibiotic Resistance by Sample Type (Top %d) \u2014 %s", n, center
@@ -2314,7 +2314,7 @@ plot_resistance_by_sample <- function(data,
     return(p)
   }
 
-  # ── 10. FACETED ───────────────────────────────────────────────────────────
+  # -- 10. FACETED -----------------------------------------------------------
   auto_title <- title %||% sprintf(
     "Antibiotic Resistance by Sample Type (Top %d) \u2014 All Centres", n
   )
@@ -2372,7 +2372,7 @@ plot_resistance_by_sample <- function(data,
 #' Each bar represents one age bin and sums to 100\%. An \code{n=} label above
 #' each bar shows the total patients in that age group.
 #'
-#' \strong{Deduplication:} one record per patient per centre — first recorded
+#' \strong{Deduplication:} one record per patient per centre -- first recorded
 #' outcome and age bin per patient per centre. Each patient contributes exactly
 #' one bar segment per centre.
 #'
@@ -2382,9 +2382,9 @@ plot_resistance_by_sample <- function(data,
 #'
 #' Supports three display modes:
 #' \itemize{
-#'   \item \strong{"faceted"} (default) — one panel per centre.
-#'   \item \strong{"overall"} — all centres pooled; one chart.
-#'   \item \strong{"single"} — one specific centre.
+#'   \item \strong{"faceted"} (default) -- one panel per centre.
+#'   \item \strong{"overall"} -- all centres pooled; one chart.
+#'   \item \strong{"single"} -- one specific centre.
 #' }
 #'
 #' @param data           Data frame. Long-format AMR dataset.
@@ -2405,7 +2405,7 @@ plot_resistance_by_sample <- function(data,
 #' @param age_levels     Character vector or \code{NULL}. Custom ordering of
 #'   age bin labels. If \code{NULL} (default), bins are sorted automatically
 #'   (\code{<1} first, numeric ranges in order, open-ended bins last).
-#' @param palette        Named character vector. Outcome → fill colour mapping.
+#' @param palette        Named character vector. Outcome -> fill colour mapping.
 #'   Unmatched outcomes receive grey. Default uses red/green/grey/blue preset.
 #' @param ncol           Integer. Facet columns (\code{mode = "faceted"} only).
 #'   Default 2.
@@ -2446,10 +2446,10 @@ plot_outcome_by_agebin <- function(data,
                                    syndrome_col   = NULL,
                                    syndrome_name  = NULL) {
 
-  # ── 0. match mode ─────────────────────────────────────────────────────────
+  # -- 0. match mode ---------------------------------------------------------
   mode <- match.arg(mode)
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, agebin_col, outcome_col)
   if (mode != "overall") required_cols <- c(required_cols, center_col)
 
@@ -2477,7 +2477,7 @@ plot_outcome_by_agebin <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -2485,20 +2485,20 @@ plot_outcome_by_agebin <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   age_sym <- rlang::sym(agebin_col)
   out_sym <- rlang::sym(outcome_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. clean: drop missing age bins and outcomes ──────────────────────────
+  # -- 3. clean: drop missing age bins and outcomes --------------------------
   clean <- data %>%
     dplyr::filter(
       !is.na(!!age_sym), trimws(as.character(!!age_sym)) != "",
       !is.na(!!out_sym), trimws(as.character(!!out_sym)) != ""
     )
 
-  # ── 4. merge referred categories ─────────────────────────────────────────
+  # -- 4. merge referred categories -----------------------------------------
   if (merge_referred) {
     clean <- clean %>%
       dplyr::mutate(
@@ -2510,12 +2510,12 @@ plot_outcome_by_agebin <- function(data,
     out_sym <- rlang::sym(outcome_col)
   }
 
-  # ── 5. filter to single centre ────────────────────────────────────────────
+  # -- 5. filter to single centre --------------------------------------------
   if (mode == "single") {
     clean <- clean %>% dplyr::filter(!!ctr_sym == center)
   }
 
-  # ── 6. deduplicate: one row per patient (× centre) ───────────────────────
+  # -- 6. deduplicate: one row per patient (x centre) -----------------------
   if (mode == "overall") {
     clean <- clean %>%
       dplyr::group_by(!!pt_sym) %>%
@@ -2536,7 +2536,7 @@ plot_outcome_by_agebin <- function(data,
     out_sym <- rlang::sym(outcome_col)
   }
 
-  # ── 7. order age bins ─────────────────────────────────────────────────────
+  # -- 7. order age bins -----------------------------------------------------
   if (!is.null(age_levels)) {
     lvls <- age_levels
   } else {
@@ -2544,7 +2544,7 @@ plot_outcome_by_agebin <- function(data,
     lt_bins   <- all_bins[grepl("^<", all_bins)]
     plus_bins <- all_bins[grepl("\\+$", all_bins)]
     range_bins <- setdiff(all_bins, c(lt_bins, plus_bins))
-    lower_num  <- suppressWarnings(as.numeric(sub("[-–].*", "", range_bins)))
+    lower_num  <- suppressWarnings(as.numeric(sub("[--].*", "", range_bins)))
     range_bins <- range_bins[order(lower_num)]
     lvls <- c(sort(lt_bins), range_bins, sort(plus_bins))
   }
@@ -2552,7 +2552,7 @@ plot_outcome_by_agebin <- function(data,
   clean <- clean %>%
     dplyr::mutate(!!agebin_col := factor(!!age_sym, levels = lvls))
 
-  # ── 8. summarise proportions ──────────────────────────────────────────────
+  # -- 8. summarise proportions ----------------------------------------------
   if (mode == "overall") {
     summary_data <- clean %>%
       dplyr::group_by(!!age_sym, !!out_sym) %>%
@@ -2584,7 +2584,7 @@ plot_outcome_by_agebin <- function(data,
       dplyr::distinct(!!ctr_sym, !!age_sym, total)
   }
 
-  # ── 9. build fill colours ─────────────────────────────────────────────────
+  # -- 9. build fill colours -------------------------------------------------
   outcomes_in_data <- unique(as.character(summary_data[[outcome_col]]))
   fill_vals <- ifelse(
     outcomes_in_data %in% names(palette),
@@ -2593,7 +2593,7 @@ plot_outcome_by_agebin <- function(data,
   )
   names(fill_vals) <- outcomes_in_data
 
-  # ── 10. OVERALL ───────────────────────────────────────────────────────────
+  # -- 10. OVERALL -----------------------------------------------------------
   if (mode == "overall") {
     auto_title <- title %||%
       "Proportion of Final Outcomes by Age Bin \u2014 All Centres Pooled"
@@ -2632,7 +2632,7 @@ plot_outcome_by_agebin <- function(data,
     return(p)
   }
 
-  # ── 11. SINGLE ────────────────────────────────────────────────────────────
+  # -- 11. SINGLE ------------------------------------------------------------
   if (mode == "single") {
     auto_title <- title %||% sprintf(
       "Proportion of Final Outcomes by Age Bin \u2014 %s", center
@@ -2672,7 +2672,7 @@ plot_outcome_by_agebin <- function(data,
     return(p)
   }
 
-  # ── 12. FACETED ───────────────────────────────────────────────────────────
+  # -- 12. FACETED -----------------------------------------------------------
   auto_title <- title %||%
     "Proportion of Final Outcomes by Age Bin \u2014 All Centres"
 
@@ -2728,7 +2728,7 @@ plot_outcome_by_agebin <- function(data,
 #' on the x-axis; the two bars per hospital are coloured by infection type.
 #' Count labels are printed above each bar.
 #'
-#' \strong{Deduplication:} \code{distinct(patient, centre, infection type)} —
+#' \strong{Deduplication:} \code{distinct(patient, centre, infection type)} --
 #' each unique patient-centre-infection type combination is counted once. A
 #' patient who has both mono and polymicrobial episodes at the same centre
 #' contributes to both bars, matching the original EDA script.
@@ -2777,7 +2777,7 @@ plot_mono_poly_by_facility <- function(data,
                                        syndrome_col  = NULL,
                                        syndrome_name = NULL) {
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, poly_col, center_col)
   missing_cols  <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0)
@@ -2789,7 +2789,7 @@ plot_mono_poly_by_facility <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -2797,12 +2797,12 @@ plot_mono_poly_by_facility <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   pol_sym <- rlang::sym(poly_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. recode 0/1 → infection_type factor ────────────────────────────────
+  # -- 3. recode 0/1 -> infection_type factor --------------------------------
   clean <- data %>%
     dplyr::filter(!is.na(!!pol_sym)) %>%
     dplyr::mutate(
@@ -2813,12 +2813,12 @@ plot_mono_poly_by_facility <- function(data,
       )
     )
 
-  # ── 4. deduplicate: one row per patient × centre × infection type ─────────
+  # -- 4. deduplicate: one row per patient x centre x infection type ---------
   plot_data <- clean %>%
     dplyr::distinct(!!pt_sym, !!ctr_sym, infection_type) %>%
     dplyr::count(!!ctr_sym, infection_type, name = "n_patients")
 
-  # ── 5. resolve colours ────────────────────────────────────────────────────
+  # -- 5. resolve colours ----------------------------------------------------
   if (is.null(colours)) {
     colours <- stats::setNames(
       c("#2196F3", "#F44336"),
@@ -2826,7 +2826,7 @@ plot_mono_poly_by_facility <- function(data,
     )
   }
 
-  # ── 6. build plot ─────────────────────────────────────────────────────────
+  # -- 6. build plot ---------------------------------------------------------
   auto_title <- title %||%
     "Mono vs Polymicrobial Infections by Facility"
 
@@ -2879,11 +2879,11 @@ plot_mono_poly_by_facility <- function(data,
 #' percentage labels inside each segment, and an \code{n=} total label
 #' above.
 #'
-#' \strong{Classification rule:} for each patient × centre, the earliest
+#' \strong{Classification rule:} for each patient x centre, the earliest
 #' culture date is used. If the time from admission to that culture is
 #' \eqn{\geq} \code{hai_threshold_hours} (default 48 h), the patient is
 #' classified as HAI; otherwise CAI. The existing \code{type_of_infection}
-#' column in the dataset is \emph{ignored} — classification is derived
+#' column in the dataset is \emph{ignored} -- classification is derived
 #' entirely from dates.
 #'
 #' \strong{Deduplication:} one classification per patient per centre
@@ -2930,7 +2930,7 @@ plot_hai_cai_by_facility <- function(data,
                                      syndrome_col        = NULL,
                                      syndrome_name       = NULL) {
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, center_col, admission_col, culture_col)
   missing_cols  <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0)
@@ -2942,7 +2942,7 @@ plot_hai_cai_by_facility <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -2950,13 +2950,13 @@ plot_hai_cai_by_facility <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   ctr_sym <- rlang::sym(center_col)
   adm_sym <- rlang::sym(admission_col)
   cul_sym <- rlang::sym(culture_col)
 
-  # ── 3. classify HAI / CAI — one row per patient × centre ─────────────────
+  # -- 3. classify HAI / CAI -- one row per patient x centre -----------------
   classified <- data %>%
     dplyr::filter(!is.na(!!adm_sym), !is.na(!!cul_sym)) %>%
     dplyr::group_by(!!pt_sym, !!ctr_sym) %>%
@@ -2973,7 +2973,7 @@ plot_hai_cai_by_facility <- function(data,
       )
     )
 
-  # ── 4. count unique patients per centre × infection type ─────────────────
+  # -- 4. count unique patients per centre x infection type -----------------
   plot_data <- classified %>%
     dplyr::count(!!ctr_sym, infection_type_derived, name = "n_patients") %>%
     dplyr::group_by(!!ctr_sym) %>%
@@ -2987,7 +2987,7 @@ plot_hai_cai_by_facility <- function(data,
   n_labels <- plot_data %>%
     dplyr::distinct(!!ctr_sym, total)
 
-  # ── 5. resolve colours ────────────────────────────────────────────────────
+  # -- 5. resolve colours ----------------------------------------------------
   if (is.null(colours)) {
     colours <- stats::setNames(
       c("#2ECC71", "#E74C3C"),
@@ -2995,7 +2995,7 @@ plot_hai_cai_by_facility <- function(data,
     )
   }
 
-  # ── 6. build plot ─────────────────────────────────────────────────────────
+  # -- 6. build plot ---------------------------------------------------------
   auto_title <- title %||% sprintf(
     "HAI vs CAI by Facility (threshold \u2265 %d h from admission)",
     hai_threshold_hours
@@ -3058,14 +3058,14 @@ plot_hai_cai_by_facility <- function(data,
 #'
 #' \strong{Normalisation:} a location value is classified as:
 #' \itemize{
-#'   \item \strong{ICU} — if the lower-cased string contains
+#'   \item \strong{ICU} -- if the lower-cased string contains
 #'     \code{icu_pattern} (default \code{"icu"})
-#'   \item \strong{Ward} — else if it contains \code{ward_pattern}
+#'   \item \strong{Ward} -- else if it contains \code{ward_pattern}
 #'     (default \code{"ward"})
-#'   \item \strong{Other} — everything else
+#'   \item \strong{Other} -- everything else
 #' }
 #'
-#' \strong{Deduplication:} \code{distinct(patient, centre, location type)} —
+#' \strong{Deduplication:} \code{distinct(patient, centre, location type)} --
 #' each unique patient-centre-location combination is counted once.
 #'
 #' @param data           Data frame. Long-format AMR dataset.
@@ -3116,7 +3116,7 @@ plot_location_by_facility <- function(data,
                                       syndrome_col  = NULL,
                                       syndrome_name = NULL) {
 
-  # ── 1. validate columns ───────────────────────────────────────────────────
+  # -- 1. validate columns ---------------------------------------------------
   required_cols <- c(patient_col, location_col, center_col)
   missing_cols  <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0)
@@ -3128,7 +3128,7 @@ plot_location_by_facility <- function(data,
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────
+  # -- syndrome pre-filter ---------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -3136,12 +3136,12 @@ plot_location_by_facility <- function(data,
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── 2. tidy-eval symbols ──────────────────────────────────────────────────
+  # -- 2. tidy-eval symbols --------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   loc_sym <- rlang::sym(location_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── 3. normalise location → ICU / Ward / Other ───────────────────────────
+  # -- 3. normalise location -> ICU / Ward / Other ---------------------------
   clean <- data %>%
     dplyr::filter(!is.na(!!loc_sym)) %>%
     dplyr::mutate(
@@ -3154,12 +3154,12 @@ plot_location_by_facility <- function(data,
                              levels = c(icu_label, ward_label, other_label))
     )
 
-  # ── 4. deduplicate: one row per patient × centre × location type ──────────
+  # -- 4. deduplicate: one row per patient x centre x location type ----------
   plot_data <- clean %>%
     dplyr::distinct(!!pt_sym, !!ctr_sym, location_type) %>%
     dplyr::count(!!ctr_sym, location_type, name = "n_patients")
 
-  # ── 5. resolve colours ────────────────────────────────────────────────────
+  # -- 5. resolve colours ----------------------------------------------------
   if (is.null(colours)) {
     colours <- stats::setNames(
       c("#E91E63", "#4CAF50", "#9E9E9E"),
@@ -3167,7 +3167,7 @@ plot_location_by_facility <- function(data,
     )
   }
 
-  # ── 6. build plot ─────────────────────────────────────────────────────────
+  # -- 6. build plot ---------------------------------------------------------
   auto_title <- title %||% "Patient Distribution by Location Type across Facilities"
 
   p <- ggplot2::ggplot(
@@ -3219,7 +3219,7 @@ plot_location_by_facility <- function(data,
 #'
 #' LOS is computed as
 #' \code{difftime(discharge_col, admission_col, units = "days")}.
-#' One row per unique patient × centre × admission_date × discharge_date is
+#' One row per unique patient x centre x admission_date x discharge_date is
 #' retained before plotting. Rows with \code{LOS < min_los} or
 #' \code{LOS > max_los} are dropped.
 #'
@@ -3248,7 +3248,7 @@ plot_location_by_facility <- function(data,
 #' @param scale Numeric. \code{scale} argument passed to
 #'   \code{ggridges::geom_density_ridges()}. Controls overlap between ridges.
 #'   Default \code{1.2}.
-#' @param alpha Numeric. Fill transparency (0–1). Default \code{0.7}.
+#' @param alpha Numeric. Fill transparency (0-1). Default \code{0.7}.
 #' @param base_size Numeric. Base font size. Default \code{14}.
 #' @param title Character or \code{NULL}. Plot title. Auto-generated if
 #'   \code{NULL}.
@@ -3281,12 +3281,12 @@ plot_los_ridge <- function(
     syndrome_name     = NULL
 ) {
 
-  # ── step 0: validate arguments ───────────────────────────────────────────────
+  # -- step 0: validate arguments -----------------------------------------------
   mode <- match.arg(mode)
   if (mode == "single" && is.null(center))
     stop("'center' must be provided when mode = 'single'.")
 
-  # ── step 1: column validation ────────────────────────────────────────────────
+  # -- step 1: column validation ------------------------------------------------
   required_cols <- c(patient_col, center_col, admission_col, discharge_col)
   if (!is.null(filter_outcome)) required_cols <- c(required_cols, outcome_col)
   missing_cols <- required_cols[!required_cols %in% names(data)]
@@ -3299,7 +3299,7 @@ plot_los_ridge <- function(
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────────
+  # -- syndrome pre-filter -------------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -3307,13 +3307,13 @@ plot_los_ridge <- function(
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── step 2: tidy-eval symbols ─────────────────────────────────────────────────
+  # -- step 2: tidy-eval symbols -------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   ctr_sym <- rlang::sym(center_col)
   adm_sym <- rlang::sym(admission_col)
   dis_sym <- rlang::sym(discharge_col)
 
-  # ── step 3: optional outcome filter ──────────────────────────────────────────
+  # -- step 3: optional outcome filter ------------------------------------------
   if (!is.null(filter_outcome)) {
     out_sym <- rlang::sym(outcome_col)
     data <- data %>%
@@ -3322,7 +3322,7 @@ plot_los_ridge <- function(
       stop(sprintf("No rows found where %s == '%s'.", outcome_col, filter_outcome))
   }
 
-  # ── step 4: compute LOS ───────────────────────────────────────────────────────
+  # -- step 4: compute LOS -------------------------------------------------------
   clean <- data %>%
     dplyr::filter(!is.na(!!adm_sym), !is.na(!!dis_sym)) %>%
     dplyr::distinct(!!pt_sym, !!ctr_sym, !!adm_sym, !!dis_sym) %>%
@@ -3334,7 +3334,7 @@ plot_los_ridge <- function(
   if (nrow(clean) == 0)
     stop("No valid LOS values remain after filtering.")
 
-  # ── step 5: mode-specific prep ────────────────────────────────────────────────
+  # -- step 5: mode-specific prep ------------------------------------------------
   x_breaks <- c(1, 7, 14, 30, 60, 90, 180, 365)
   x_labels <- c("1", "7", "14", "30", "60", "90", "180", "365")
 
@@ -3408,7 +3408,7 @@ plot_los_ridge <- function(
       stop(sprintf("No data found for centre '%s'.", center))
 
     auto_title <- title %||%
-      sprintf("Length of Stay Distribution — %s (n = %s patients)",
+      sprintf("Length of Stay Distribution -- %s (n = %s patients)",
               center,
               scales::comma(dplyr::n_distinct(clean_single[[patient_col]])))
 
@@ -3459,7 +3459,7 @@ plot_los_ridge <- function(
 #' stacked ridge plot (\code{mode = "all"}) or a single-centre density curve
 #' (\code{mode = "single"}).
 #'
-#' One row per unique patient × centre is retained before plotting.
+#' One row per unique patient x centre is retained before plotting.
 #' Rows with age outside \code{[min_age, max_age]} are dropped.
 #'
 #' @param data A data frame.
@@ -3478,7 +3478,7 @@ plot_los_ridge <- function(
 #' @param scale Numeric. \code{scale} argument passed to
 #'   \code{ggridges::geom_density_ridges()}. Controls overlap between ridges.
 #'   Default \code{1.2}.
-#' @param alpha Numeric. Fill transparency (0–1). Default \code{0.7}.
+#' @param alpha Numeric. Fill transparency (0-1). Default \code{0.7}.
 #' @param base_size Numeric. Base font size. Default \code{14}.
 #' @param title Character or \code{NULL}. Plot title. Auto-generated if
 #'   \code{NULL}.
@@ -3508,12 +3508,12 @@ plot_age_ridge <- function(
     syndrome_name = NULL
 ) {
 
-  # ── step 0: validate arguments ───────────────────────────────────────────────
+  # -- step 0: validate arguments -----------------------------------------------
   mode <- match.arg(mode)
   if (mode == "single" && is.null(center))
     stop("'center' must be provided when mode = 'single'.")
 
-  # ── step 1: column validation ────────────────────────────────────────────────
+  # -- step 1: column validation ------------------------------------------------
   required_cols <- c(patient_col, age_col, center_col)
   missing_cols  <- required_cols[!required_cols %in% names(data)]
   if (length(missing_cols) > 0)
@@ -3525,7 +3525,7 @@ plot_age_ridge <- function(
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────────
+  # -- syndrome pre-filter -------------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -3533,12 +3533,12 @@ plot_age_ridge <- function(
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── step 2: tidy-eval symbols ─────────────────────────────────────────────────
+  # -- step 2: tidy-eval symbols -------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   age_sym <- rlang::sym(age_col)
   ctr_sym <- rlang::sym(center_col)
 
-  # ── step 3: deduplicate and filter ───────────────────────────────────────────
+  # -- step 3: deduplicate and filter -------------------------------------------
   clean <- data %>%
     dplyr::filter(!is.na(!!age_sym)) %>%
     dplyr::mutate(!!age_col := suppressWarnings(as.numeric(!!age_sym))) %>%
@@ -3549,7 +3549,7 @@ plot_age_ridge <- function(
   if (nrow(clean) == 0)
     stop("No valid age values remain after filtering.")
 
-  # ── step 4: mode-specific prep ────────────────────────────────────────────────
+  # -- step 4: mode-specific prep ------------------------------------------------
   if (mode == "all") {
 
     # order centres by median age ascending
@@ -3617,7 +3617,7 @@ plot_age_ridge <- function(
       stop(sprintf("No data found for centre '%s'.", center))
 
     auto_title <- title %||%
-      sprintf("Age Distribution — %s (n = %s patients)",
+      sprintf("Age Distribution -- %s (n = %s patients)",
               center,
               scales::comma(dplyr::n_distinct(clean_single[[patient_col]])))
 
@@ -3669,16 +3669,16 @@ plot_age_ridge <- function(
 #' (one centre) modes.
 #'
 #' LOS is computed as \code{difftime(discharge_col, admission_col, units = "days")}.
-#' One row per unique patient × centre × admission × discharge is retained.
+#' One row per unique patient x centre x admission x discharge is retained.
 #' Rows with \code{LOS < min_los} or \code{LOS > max_los} are dropped.
 #'
 #' \strong{Two ways to supply age groups:}
 #' \enumerate{
-#'   \item \strong{Pre-existing column} (default) — set \code{agebin_col} to an
+#'   \item \strong{Pre-existing column} (default) -- set \code{agebin_col} to an
 #'     existing categorical column (e.g. \code{"Age_bin"}). Bins are sorted
-#'     automatically (\code{<1}, \code{1-5}, …, \code{85+}); override order
+#'     automatically (\code{<1}, \code{1-5}, ..., \code{85+}); override order
 #'     with \code{age_levels}.
-#'   \item \strong{Custom breaks from continuous age} — set \code{age_breaks}
+#'   \item \strong{Custom breaks from continuous age} -- set \code{age_breaks}
 #'     to a numeric vector (e.g. \code{c(0, 5, 15, 30, 50, 70, Inf)}) and
 #'     \code{age_col} to the continuous age column (default \code{"age_years"}).
 #'     Bins are derived via \code{cut()} and labelled automatically.
@@ -3710,8 +3710,8 @@ plot_age_ridge <- function(
 #' @param age_levels Character vector or \code{NULL}. Custom bin order when
 #'   using \code{agebin_col}. \code{NULL} = auto-sort.
 #' @param fill_colour Character. Box fill colour. Default \code{"#2C7FB8"}.
-#' @param fill_alpha Numeric. Box fill transparency (0–1). Default \code{0.7}.
-#' @param outlier_alpha Numeric. Outlier point transparency (0–1). Default
+#' @param fill_alpha Numeric. Box fill transparency (0-1). Default \code{0.7}.
+#' @param outlier_alpha Numeric. Outlier point transparency (0-1). Default
 #'   \code{0.25}.
 #' @param box_width Numeric. Width of each box. Default \code{0.6}.
 #' @param ncol Integer. Number of facet columns (\code{mode = "faceted"} only).
@@ -3755,12 +3755,12 @@ plot_los_by_agebin <- function(
     syndrome_name  = NULL
 ) {
 
-  # ── step 0: validate arguments ───────────────────────────────────────────────
+  # -- step 0: validate arguments -----------------------------------------------
   mode <- match.arg(mode)
   if (mode == "single" && is.null(center))
     stop("'center' must be provided when mode = 'single'.")
 
-  # ── step 1: column validation ────────────────────────────────────────────────
+  # -- step 1: column validation ------------------------------------------------
   # Determine which age column to validate against
   age_source <- if (!is.null(age_breaks)) age_col else agebin_col
   required_cols <- c(patient_col, age_source, center_col, admission_col, discharge_col)
@@ -3778,7 +3778,7 @@ plot_los_by_agebin <- function(
   if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
     stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
 
-  # ── syndrome pre-filter ───────────────────────────────────────────────────────
+  # -- syndrome pre-filter -------------------------------------------------------
   if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
     data <- data[!is.na(data[[syndrome_col]]) &
                    data[[syndrome_col]] == syndrome_name, ]
@@ -3786,19 +3786,19 @@ plot_los_by_agebin <- function(
       stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
   }
 
-  # ── step 2: tidy-eval symbols ─────────────────────────────────────────────────
+  # -- step 2: tidy-eval symbols -------------------------------------------------
   pt_sym  <- rlang::sym(patient_col)
   ctr_sym <- rlang::sym(center_col)
   adm_sym <- rlang::sym(admission_col)
   dis_sym <- rlang::sym(discharge_col)
 
-  # ── step 3: derive age bins if age_breaks supplied ───────────────────────────
+  # -- step 3: derive age bins if age_breaks supplied ---------------------------
   bin_col <- ".__age_bin__"   # internal working column name
 
   if (!is.null(age_breaks)) {
     age_sym <- rlang::sym(age_col)
 
-    # auto-generate labels like "<5", "5-14", "15-29", … if not supplied
+    # auto-generate labels like "<5", "5-14", "15-29", ... if not supplied
     if (is.null(age_labels)) {
       n_breaks <- length(age_breaks)
       age_labels <- vapply(seq_len(n_breaks - 1), function(i) {
@@ -3809,7 +3809,7 @@ plot_los_by_agebin <- function(
         else if (hi == Inf)
           sprintf("%g+", lo)
         else
-          sprintf("%g\u2013%g", lo, hi - 1)   # e.g. "5–14"
+          sprintf("%g\u2013%g", lo, hi - 1)   # e.g. "5-14"
       }, character(1))
     }
 
@@ -3847,7 +3847,7 @@ plot_los_by_agebin <- function(
 
   bin_sym <- rlang::sym(bin_col)
 
-  # ── step 4: compute LOS, deduplicate, filter ─────────────────────────────────
+  # -- step 4: compute LOS, deduplicate, filter ---------------------------------
   clean <- data %>%
     dplyr::filter(!is.na(!!adm_sym), !is.na(!!dis_sym), !is.na(!!bin_sym)) %>%
     dplyr::distinct(!!pt_sym, !!ctr_sym, !!bin_sym, !!adm_sym, !!dis_sym) %>%
@@ -3860,18 +3860,18 @@ plot_los_by_agebin <- function(
   if (nrow(clean) == 0)
     stop("No valid LOS values remain after filtering.")
 
-  # ── step 5: mode filter ───────────────────────────────────────────────────────
+  # -- step 5: mode filter -------------------------------------------------------
   if (mode == "single") {
     clean <- clean %>% dplyr::filter(!!ctr_sym == center)
     if (nrow(clean) == 0)
       stop(sprintf("No data found for centre '%s'.", center))
   }
 
-  # ── step 6: y-axis breaks (include 3 to match original) ─────────────────────
+  # -- step 6: y-axis breaks (include 3 to match original) ---------------------
   y_breaks <- c(1, 3, 7, 14, 30, 60, 90, 180, 365)
   y_labels <- as.character(y_breaks)
 
-  # ── step 7: build plot ───────────────────────────────────────────────────────
+  # -- step 7: build plot -------------------------------------------------------
   n_pts <- dplyr::n_distinct(clean[[patient_col]])
 
   auto_title <- title %||% switch(
@@ -3924,6 +3924,6 @@ plot_los_by_agebin <- function(
 }
 
 
-# ── NULL coalescing operator (internal) ──────────────────────────────────────
+# -- NULL coalescing operator (internal) --------------------------------------
 # Used as: title %||% "default title"
 `%||%` <- function(x, y) if (!is.null(x)) x else y

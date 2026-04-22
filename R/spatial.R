@@ -293,7 +293,7 @@ create_choropleth_map <- function(spatial_obj,
       legend.outside = TRUE
     ) +
     tmap::tm_compass(position = c("right", "top")) +
-    tmap::tm_scale_bar(position = c("left", "bottom"))
+    tmap::tm_scalebar(position = c("left", "bottom"))
 
   return(map)
 }
