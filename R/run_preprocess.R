@@ -129,7 +129,7 @@ run_preprocess <- function(data,
     mapping_result <- prep_standardize_column_names(
       data,
       fuzzy_match = config$fuzzy_match,
-      mapping = config$custom_column_mappings
+      mapping = config$column_mappings
     )
     data <- mapping_result$data
     log$column_mapping <- mapping_result$mapping_log
@@ -271,8 +271,16 @@ run_preprocess <- function(data,
       if (verbose) message("\n[3.10] Death weights: skipped (not yet implemented)")
     }
 
-    # Step 3.10: MDR/XDR classification
-    if (all(c("organism_normalized", "antibiotic_class", "antibiotic_value") %in% names(data))) {
+    # Step 3.10: Collapse to class level (required before MDR/XDR)
+    collapse_cols <- c("event_id", "organism_normalized", "antibiotic_class", "antibiotic_value")
+    if (all(collapse_cols %in% names(data))) {
+      if (verbose) message("\n[3.10] Collapsing to antibiotic class level...")
+      data <- prep_collapse_class_level(data)
+    }
+
+    # Step 3.11: MDR/XDR classification
+    if (all(c("organism_normalized", "antibiotic_class", "antibiotic_value",
+              "class_result_event") %in% names(data))) {
       if (verbose) message("\n[3.11] Classifying MDR/XDR...")
       data <- prep_classify_mdr(data, definition = config$mdr_definition)
       data <- prep_classify_xdr(data, definition = config$xdr_definition)

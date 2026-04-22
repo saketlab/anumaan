@@ -280,30 +280,36 @@ summarize_transformations <- function(raw_data, processed_data, preprocessing_lo
 
   # Organism normalization
   if ("organism_normalized" %in% names(processed_data)) {
-    transformations$organism <- list(
-      n_unique_raw = length(unique(na.omit(raw_data[[
-        find_raw_column(raw_data, "organism_name")
-      ]]))),
-      n_unique_normalized = length(unique(na.omit(processed_data$organism_normalized))),
-      reduction_pct = 100 * (1 - length(unique(na.omit(processed_data$organism_normalized))) /
-        length(unique(na.omit(raw_data[[
-          find_raw_column(raw_data, "organism_name")
-        ]]))))
+    raw_org_col <- find_raw_column(
+      raw_data,
+      c("organism_name", "Organism", "organism", "org_name")
     )
+    if (!is.null(raw_org_col)) {
+      n_raw_org <- length(unique(na.omit(raw_data[[raw_org_col]])))
+      n_norm_org <- length(unique(na.omit(processed_data$organism_normalized)))
+      transformations$organism <- list(
+        n_unique_raw        = n_raw_org,
+        n_unique_normalized = n_norm_org,
+        reduction_pct       = 100 * (1 - n_norm_org / n_raw_org)
+      )
+    }
   }
 
   # Antibiotic normalization
   if ("antibiotic_normalized" %in% names(processed_data)) {
-    transformations$antibiotic <- list(
-      n_unique_raw = length(unique(na.omit(raw_data[[
-        find_raw_column(raw_data, "antibiotic_name")
-      ]]))),
-      n_unique_normalized = length(unique(na.omit(processed_data$antibiotic_normalized))),
-      reduction_pct = 100 * (1 - length(unique(na.omit(processed_data$antibiotic_normalized))) /
-        length(unique(na.omit(raw_data[[
-          find_raw_column(raw_data, "antibiotic_name")
-        ]]))))
+    raw_abx_col <- find_raw_column(
+      raw_data,
+      c("antibiotic_name", "Antibiotic", "antibiotic", "drug_name", "Drug")
     )
+    if (!is.null(raw_abx_col)) {
+      n_raw_abx <- length(unique(na.omit(raw_data[[raw_abx_col]])))
+      n_norm_abx <- length(unique(na.omit(processed_data$antibiotic_normalized)))
+      transformations$antibiotic <- list(
+        n_unique_raw        = n_raw_abx,
+        n_unique_normalized = n_norm_abx,
+        reduction_pct       = 100 * (1 - n_norm_abx / n_raw_abx)
+      )
+    }
   }
 
   return(transformations)
