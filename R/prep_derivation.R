@@ -11,13 +11,6 @@
 #   - prep_derive_dob_from_components
 
 
-# Package root detection (used by find_extdata_file)
-.amrburden_pkg_root <- tryCatch(
-  normalizePath(system.file(package = "anumaan")),
-  error = function(e) NULL
-)
-
-
 #' Find Package Data File
 #'
 #' Locates data files in \code{inst/extdata}. Works both when the package is
@@ -31,8 +24,12 @@ find_extdata_file <- function(filename) {
   file_path <- system.file("extdata", filename, package = "anumaan")
   if (file_path != "" && file.exists(file_path)) return(file_path)
 
-  if (!is.null(.amrburden_pkg_root)) {
-    extdata_path <- file.path(.amrburden_pkg_root, "inst", "extdata", filename)
+  pkg_root <- tryCatch(
+    normalizePath(system.file(package = "anumaan")),
+    error = function(e) NULL
+  )
+  if (!is.null(pkg_root)) {
+    extdata_path <- file.path(pkg_root, "inst", "extdata", filename)
     if (file.exists(extdata_path)) return(normalizePath(extdata_path))
   }
 

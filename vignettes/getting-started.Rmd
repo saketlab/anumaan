@@ -382,7 +382,7 @@ data <- prep_standardize_specimens(
   specimen_col = "specimen_type"
 )
 
-data <- prep_standardize_sex(data, sex_col = "gender")
+data <- prep_standardize_sex(data, col = "gender")
 
 data <- prep_standardize_final_outcome(data, col = "final_outcome")
 
@@ -431,7 +431,7 @@ ast_data <- data.frame(
   antibiotic_value = c("R", "Resistant", "S", "Sensitive",
                         "I", "Intermediate", "resistant", "1", "0", NA)
 )
-cleaned <- prep_clean_ast_values(ast_data, ast_col = "antibiotic_value")
+cleaned <- prep_clean_ast_values(ast_data, value_col = "antibiotic_value")
 cleaned
 ```
 
@@ -651,8 +651,7 @@ organism does not count as a full independent event.
 poly_data <- prep_flag_polymicrobial(
   event_data,
   patient_col  = "patient_id",
-  organism_col = "organism_name",
-  event_col    = "event_id"
+  organism_col = "organism_name"
 )
 table(poly_data$is_polymicrobial)
 ```
