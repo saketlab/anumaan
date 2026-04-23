@@ -2,14 +2,15 @@
 % Please edit documentation in R/prep_clean_and_standardize.R
 \name{get_beta_lactam_hierarchy}
 \alias{get_beta_lactam_hierarchy}
-\title{Beta-Lactam Class Hierarchy}
+\title{Get Beta-Lactam Antibiotic Hierarchy}
 \usage{
 get_beta_lactam_hierarchy()
 }
 \value{
-Character vector
+Character vector of antibiotic class names in hierarchy order.
 }
 \description{
-Ordered vector of beta-lactam classes for resistance class selection.
-Order represents clinical hierarchy (most to least important).
+Returns the beta-lactam antibiotic class hierarchy used for MDR/XDR
+classification (Magiorakos 2012 criteria), ordered from broadest
+to narrowest spectrum.
 }

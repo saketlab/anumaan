@@ -1,6 +1,6 @@
 ---
 title: "Getting Started with anumaan"
-author: "anumaan Development Team"
+author: "Nilanjana Dey, Nima Jijo, Namrata Kharat, Saket Choudhary"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -12,223 +12,962 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  eval = TRUE
+  comment  = "#>",
+  eval     = FALSE
 )
 ```
 
 # Introduction
 
-**anumaan** is an R package for preprocessing antimicrobial resistance (AMR) surveillance data. It standardizes messy hospital data into analysis-ready formats with proper normalization, classification, and quality control.
+**anumaan** is an R package for preprocessing antimicrobial resistance (AMR)
+surveillance data and performing GBD-style burden estimation. It takes messy
+hospital data and produces analysis-ready, standardized datasets — handling
+organism and antibiotic normalization, event deduplication, MDR/XDR
+classification, polymicrobial weighting, and DALY calculations.
 
 ## Key Features
 
-- Automated pipeline: process entire datasets with one function
-- Organism normalization: handles typos, abbreviations, and variants
-- Antibiotic classification: WHO AWaRe categories
-- MDR/XDR classification: WHO/CDC-compliant definitions
-- Event deduplication: creates unique infection episodes
-- Data validation: comprehensive quality checks
+- **Automated pipeline**: `run_preprocess()` runs the full sequence in one call
+- **Input validation**: column checks, key quality, date repair before every step
+- **Organism normalization**: handles typos, abbreviations, case, MRSA/CoNS flags
+- **Antibiotic classification**: WHO AWaRe categories and drug classes
+- **AST cleaning**: standardizes free-text R/S/I values, flags invalid entries
+- **MDR/XDR classification**: Magiorakos 2012 (WHO/CDC-compliant)
+- **Event deduplication**: unique infection episodes across repeat cultures
+- **Polymicrobial detection and fractional weighting**
+- **HAI / CAI classification**: derived from admission-to-culture date gap
+- **Diagnosis → ICD-10 → syndrome mapping**: text, rule-based, or embedding
+- **Contaminant flagging**: syndrome-aware contaminant lists
+- **Attrition tracking**: patient and event counts at every filter step
+- **DALY burden estimation**: YLL, YLD, attributable and associated burden
+- **Visualization**: ggplot2-based resistance, burden, and spatial plots
 
 ## Installation
 
 ```{r, eval = FALSE}
+# From GitHub
+remotes::install_github("saketlab/anumaan")
+
 # From source during development
 devtools::install()
 ```
 
 ## Load the Package
 
-```{r}
+```{r load, eval = TRUE}
 library(anumaan)
 library(dplyr)
 ```
 
 ---
 
-# Quick Start
+# Data Format
 
-## The Complete Pipeline
+anumaan expects **long format**: one row per patient–organism–antibiotic
+combination. The minimum required columns are:
 
-```{r, eval = FALSE}
-library(readxl)
-raw_data <- read_excel("your_data.xlsx")
+| Column | Description |
+|---|---|
+| `patient_id` | Unique patient identifier |
+| `organism_name` | Organism name (raw, any format) |
+| `antibiotic_name` | Antibiotic name (raw) |
+| `antibiotic_value` | Susceptibility result: R, I, or S |
+| `date_of_culture` | Date the culture was collected |
 
+Optional but used when present: `date_of_admission`, `date_of_final_outcome`,
+`DOB`, `Age`, `specimen_type`, `gender`, `final_outcome`, `infection_type`.
+
+```{r sample-data, eval = TRUE}
+sample_data <- data.frame(
+  patient_id       = c("P001", "P001", "P002", "P003", "P003"),
+  date_of_admission = as.Date(c("2024-01-10", "2024-01-10",
+                                 "2024-01-18", "2024-02-01", "2024-02-01")),
+  date_of_culture   = as.Date(c("2024-01-15", "2024-01-15",
+                                 "2024-01-20", "2024-02-03", "2024-02-03")),
+  date_of_final_outcome = as.Date(c("2024-01-25", "2024-01-25",
+                                     "2024-01-28", "2024-02-15", "2024-02-15")),
+  final_outcome    = c("Survived", "Survived", "Died",   "Survived", "Survived"),
+  specimen_type    = c("Blood",    "Blood",    "Urine",  "Blood",    "Blood"),
+  organism_name    = c("E. coli",  "E. coli",  "K. pneumoniae",
+                        "S. aureus", "S. aureus"),
+  antibiotic_name  = c("Ampicillin", "Meropenem", "Ciprofloxacin",
+                        "Oxacillin",  "Vancomycin"),
+  antibiotic_value = c("R", "S", "R", "R", "S"),
+  DOB              = as.Date(c("1960-05-01", "1960-05-01",
+                                "1975-08-15", "1990-03-20", "1990-03-20")),
+  gender           = c("Male", "Male", "Female", "Male", "Male"),
+  stringsAsFactors = FALSE
+)
+```
+
+---
+
+# The Complete Pipeline
+
+`run_preprocess()` is the single entry point that runs all phases in sequence.
+
+```{r full-pipeline}
 result <- run_preprocess(
-  data = raw_data,
-  config = amr_config(
-    hai_cutoff = 2,
-    mdr_definition = "CDC",
-    fuzzy_match = TRUE
-  ),
-  verbose = TRUE,
-  validate = TRUE,
+  data            = sample_data,
+  config          = amr_config(),
+  phases          = "all",       # "standardize", "enrich", "derive", or "all"
+  verbose         = TRUE,
+  validate        = TRUE,
   generate_report = TRUE
 )
 
-clean_data <- result$data
-summary(result)
+clean_data     <- result$data      # preprocessed data frame
+config_used    <- result$config    # amr_config() object used
+processing_log <- result$log       # per-phase transformation logs
+report         <- result$report    # preprocessing report
+metadata       <- result$metadata  # timing, row counts, phases run
 ```
 
-## What the Pipeline Does
+## Configuration
 
-**Phase 1: Standardization**
+Pass `amr_config()` to override any default:
 
-- Maps column names automatically (fuzzy match)
-- Normalizes organism and antibiotic names
-- Standardizes specimen types, sex, and outcome values
-- Parses dates and cleans R/S/I values
-
-**Phase 2: Enrichment**
-
-- Calculates age from DOB
-- Computes length of stay
-- Classifies HAI vs CAI
-- Infers missing hospital departments
-
-**Phase 3: Derivation**
-
-- Creates event IDs (infection episode deduplication)
-- Classifies MDR/XDR
-- Flags contaminants
-- Calculates polymicrobial weights
-- Maps to GBD pathogens
-
----
-
-# Sample Data Example
-
-```{r}
-sample_data <- data.frame(
-  PatientID = c(1, 1, 2, 3),
-  Age = c(65, 65, 34, 78),
-  Gender = c("M", "M", "F", "M"),
-  SampleDate = as.Date(c("2024-01-15", "2024-01-15", "2024-01-20", "2024-02-01")),
-  Specimen = c("Blood", "Blood", "Urine", "Blood"),
-  Organism = c("E. coli", "S. aureus", "E. coli", "K. pneumoniae"),
-  Antibiotic = c("Ampicillin", "Oxacillin", "Ciprofloxacin", "Meropenem"),
-  Result = c("R", "S", "S", "R")
-)
-
-result <- run_preprocess(sample_data, verbose = FALSE)
-
-head(result$data)
-```
-
----
-
-# Using Individual Functions
-
-## Organism Normalization
-
-```{r}
-data <- data.frame(
-  organism_name = c("E. coli", "ACINETOBACTER BAUMANNII", "K. pneumoniae")
-)
-
-normalized <- prep_standardize_organisms(data, organism_col = "organism_name")
-normalized[, c("organism_name", "organism_normalized")]
-```
-
-## Antibiotic Normalization
-
-```{r}
-data <- data.frame(
-  antibiotic_name = c("Ampicillin", "Meropenem", "Ciprofloxacin")
-)
-
-normalized <- prep_standardize_antibiotics(data, antibiotic_col = "antibiotic_name")
-normalized[, c("antibiotic_name", "antibiotic_normalized", "antibiotic_class")]
-```
-
-## MDR Classification
-
-```{r, eval = FALSE}
-# Requires normalized organism and antibiotic data with antibiotic_value column
-classified <- prep_classify_mdr(
-  processed_data,
-  mdr_definition = "CDC"
-)
-table(classified$mdr_status)
-```
-
-## Wide-to-Long Conversion
-
-```{r, eval = FALSE}
-# Convert wide format (one column per antibiotic) to long format
-long_data <- prep_pivot_ast_wide_to_long(
-  wide_data,
-  id_cols = c("PatientID", "Age", "Gender")
-)
-```
-
----
-
-# Configuration Options
-
-```{r}
+```{r config, eval = TRUE}
 config <- amr_config(
-  fuzzy_match = TRUE,
-  hai_cutoff = 2,
-  event_gap_days = 14,
-  mortality_window = 14,
-  age_bins = "GBD_standard",
-  mdr_definition = "CDC",
-  xdr_definition = "CDC",
-  intermediate_as_resistant = TRUE,
-  strict_validation = FALSE
+  fuzzy_match               = TRUE,          # auto-detect column names
+  hai_cutoff                = 3,             # days after admission → HAI
+  event_gap_days            = 14,            # deduplication window
+  mortality_window          = 14,            # days post-culture to attribute death
+  age_bins                  = "GBD_standard",# "pediatric", "geriatric", or custom
+  mdr_definition            = "CDC",         # "CDC", "WHO", or numeric threshold
+  xdr_definition            = "CDC",
+  intermediate_as_resistant = TRUE,          # treat I as R (except Colistin)
+  strict_validation         = FALSE          # warn vs stop on issues
 )
+print(config)
+```
+
+## Run on a Subset of Phases
+
+```{r partial-pipeline}
+# Only standardization
+result_std <- run_preprocess(sample_data, phases = "standardize")
+
+# Standardization + Enrichment (no event/MDR derivation)
+result_enr <- run_preprocess(sample_data, phases = c("standardize", "enrich"))
 ```
 
 ---
 
-# Data Validation
+# Input Validation and Schema Checks
 
-```{r, eval = FALSE}
+Run these before any join or preprocessing step to catch problems early.
+
+## Column and Key Checks
+
+```{r validation, eval = TRUE}
+# Check required columns exist and report types
+prep_check_columns(
+  sample_data,
+  required    = c("patient_id", "organism_name", "antibiotic_name", "antibiotic_value"),
+  table_label = "sample_data"
+)
+
+# Check key column quality: missing, duplicates, placeholder values
+prep_check_keys(
+  sample_data,
+  key_col     = "patient_id",
+  table_label = "sample_data"
+)
+```
+
+## Full Table Validation
+
+`prep_validate_table()` combines column checks, key checks, and date coercion
+in one call — the function used internally before every merge step.
+
+```{r validate-table, eval = TRUE}
+val <- prep_validate_table(
+  data          = sample_data,
+  required_cols = c("patient_id", "organism_name"),
+  key_col       = "patient_id",
+  date_cols     = c("date_of_admission", "date_of_culture"),
+  table_label   = "sample_data"
+)
+# val$data        — date-coerced data frame
+# val$col_report  — per-column type/missing summary
+# val$key_report  — key quality summary
+```
+
+## Missingness Report
+
+```{r missingness, eval = TRUE}
+prep_missingness_report(
+  sample_data,
+  threshold = 20,   # flag columns with > 20% missing
+  cols      = c("patient_id", "organism_name", "antibiotic_value", "DOB")
+)
+```
+
+## Required Fields and Data Quality
+
+```{r quality-checks}
 validation <- validate_required_fields(
-  raw_data,
-  required_cols = c("PatientID", "Organism", "Antibiotic", "Result"),
+  sample_data,
+  required_cols    = c("patient_id", "organism_name",
+                        "antibiotic_name", "antibiotic_value"),
   min_completeness = 0.8
 )
 validation$valid
 validation$messages
 
-quality <- validate_data_quality(result$data)
+quality <- validate_data_quality(
+  sample_data,
+  min_rows        = 1,
+  max_missing_pct = 90,
+  stop_on_failure = FALSE
+)
+```
+
+## Detect Schema Drift Across Datasets
+
+Useful when combining data from multiple sources or time periods:
+
+```{r schema-drift}
+prep_detect_schema_drift(
+  data_list        = list(centre_A = data_A, centre_B = data_B),
+  reference_centre = "centre_A"
+)
 ```
 
 ---
 
-# Partial Pipeline
+# Column Name Standardization
 
-```{r, eval = FALSE}
-# Only standardization
-result <- run_preprocess(raw_data, phases = "standardize", verbose = TRUE)
+## Automatic Mapping
 
-# Standardization + Enrichment
-result <- run_preprocess(raw_data, phases = c("standardize", "enrich"), verbose = TRUE)
+```{r col-map, eval = TRUE}
+# Renames known aliases to the package-standard names
+# e.g. "PatientID" -> "patient_id", "Organism" -> "organism_name"
+mapped <- prep_standardize_column_names(
+  sample_data,
+  fuzzy_match     = TRUE,
+  fuzzy_threshold = 0.3
+)
+# mapped$data        — renamed data frame
+# mapped$mapping_log — what was renamed and how (exact / fuzzy)
+# mapped$unmapped    — columns that couldn't be matched
+```
+
+## Manual Column Map
+
+For datasets with non-standard names that fuzzy matching misses:
+
+```{r build-col-map}
+col_map <- prep_build_column_map(
+  sample_data,
+  column_map = list(
+    patient_id    = c("PtID", "patient_number"),
+    organism_name = c("Pathogen", "bug")
+  )
+)
+data_renamed <- prep_apply_column_map(sample_data, col_map)
+```
+
+## Assert Standard Names
+
+Stops with a clear error if a required standard column is absent — useful
+as a guard at the start of analysis scripts:
+
+```{r assert-names}
+prep_assert_standard_names(
+  sample_data,
+  required_standard_names = c("patient_id", "organism_name", "antibiotic_value"),
+  strict = TRUE
+)
+```
+
+## Detect Preprocessing Capabilities
+
+Reports which preprocessing steps are possible given the columns present:
+
+```{r capabilities, eval = TRUE}
+prep_report_capabilities(sample_data)
 ```
 
 ---
 
-# Working with Results
+# Date Handling
 
-```{r}
-# Main processed data
-clean_data <- result$data
+## Parse a Single Date Column
 
-# Configuration used
-config_used <- result$config
+Handles Excel serial numbers, Unix timestamps (ms), ISO strings, DMY/MDY
+formats, and reversed YYYYDDMM patterns automatically:
 
-# Processing log
-processing_log <- result$log
+```{r parse-date, eval = TRUE}
+dates_raw <- c("2024-01-15", "45306", "15/01/2024", NA)
+prep_parse_date_column(dates_raw, col_name = "date_of_culture", table_label = "example")
 ```
 
-## Export Results
+## Coerce All Date Columns in a Data Frame
 
-```{r, eval = FALSE}
-write.csv(result$data, "processed_amr_data.csv", row.names = FALSE)
-saveRDS(result, "preprocessing_result.rds")
-export_report(result$report, "report.html", format = "html")
+```{r coerce-dates, eval = TRUE}
+data_with_dates <- prep_coerce_dates(
+  sample_data,
+  cols        = c("date_of_admission", "date_of_culture", "date_of_final_outcome"),
+  table_label = "sample_data"
+)
+```
+
+## Validate Date Logic
+
+Checks that admission <= culture <= outcome, and that DOB is before culture:
+
+```{r date-logic}
+prep_validate_date_logic(
+  sample_data,
+  admission_col = "date_of_admission",
+  culture_col   = "date_of_culture",
+  outcome_col   = "date_of_final_outcome",
+  dob_col       = "DOB"
+)
+```
+
+---
+
+# Organism Standardization
+
+## Normalize Organism Names
+
+Maps free-text organism names to a standard reference, handles typos, case,
+abbreviations (`E. coli` → `Escherichia coli`), MRSA/CoNS flags:
+
+```{r std-organisms, eval = TRUE}
+org_data <- data.frame(
+  organism_name = c("E. coli", "ACINETOBACTER BAUMANNII",
+                     "Klebsiella pnuemoniae", "MRSA", "CoNS")
+)
+normalized <- prep_standardize_organisms(org_data, organism_col = "organism_name")
+normalized[, c("organism_name", "organism_normalized")]
+```
+
+## Assign Organism Group
+
+Adds `organism_group` (e.g. "Enterobacterales", "Gram-positive cocci",
+"Fungal isolates") — required for MDR/XDR classification:
+
+```{r org-group}
+data <- prep_assign_organism_group(normalized, organism_col = "organism_normalized")
+table(data$organism_group)
+```
+
+## Extract Genus and Species
+
+```{r genus-species}
+data <- prep_extract_genus(data,   organism_col = "organism_normalized")
+data <- prep_extract_species(data, organism_col = "organism_normalized")
+# Adds: org_genus, org_species
+```
+
+## Flag Unmatched Organisms
+
+```{r unmatched-org}
+data <- prep_flag_organism_unmatched(data, organism_col = "organism_normalized")
+# Adds: organism_match_status ("matched" / "unmatched")
+table(data$organism_match_status)
+```
+
+---
+
+# Specimen, Sex, and Outcome Standardization
+
+```{r std-types, eval = TRUE}
+data <- prep_standardize_specimens(
+  sample_data,
+  specimen_col = "specimen_type"
+)
+
+data <- prep_standardize_sex(data, col = "gender")
+
+data <- prep_standardize_final_outcome(data, col = "final_outcome")
+
+data <- prep_standardize_infection_type(data, col = "infection_type")
+```
+
+---
+
+# Antibiotic Standardization
+
+## Normalize Antibiotic Names
+
+Maps to WHO standard names and adds drug class and AWaRe category:
+
+```{r std-abx, eval = TRUE}
+abx_data <- data.frame(
+  antibiotic_name = c("Ampicillin", "Meropenem", "Ciprofloxacin", "Vancomycin")
+)
+normalized_abx <- prep_standardize_antibiotics(
+  abx_data,
+  antibiotic_col = "antibiotic_name",
+  add_class      = TRUE,
+  add_aware      = TRUE
+)
+normalized_abx[, c("antibiotic_name", "antibiotic_normalized",
+                    "antibiotic_class", "aware_category")]
+```
+
+## Classify Drug Class and AWaRe Separately
+
+```{r abx-class}
+data <- prep_classify_antibiotic_class(data, antibiotic_col = "antibiotic_normalized")
+data <- prep_classify_aware(data, antibiotic_col = "antibiotic_normalized")
+```
+
+---
+
+# AST Value Cleaning
+
+## Clean Free-Text R/S/I Values
+
+Standardizes "Resistant", "res", "r", "1", "SENS", etc. to R / I / S:
+
+```{r ast-clean, eval = TRUE}
+ast_data <- data.frame(
+  antibiotic_value = c("R", "Resistant", "S", "Sensitive",
+                        "I", "Intermediate", "resistant", "1", "0", NA)
+)
+cleaned <- prep_clean_ast_values(ast_data, value_col = "antibiotic_value")
+cleaned
+```
+
+## Harmonize AST Interpretations
+
+Applies breakpoint-based harmonization (handles MIC/disk zone inputs):
+
+```{r ast-harmonize}
+data <- prep_harmonize_ast(data, ast_col = "antibiotic_value")
+```
+
+## Recode Intermediate as Resistant
+
+```{r ast-recode}
+# Per WHO/EUCAST "I = susceptible with increased exposure" — keep I, or:
+data <- prep_recode_intermediate_ast(data, col = "antibiotic_value")
+```
+
+## Flag Invalid AST Entries
+
+```{r ast-flag}
+data <- prep_flag_invalid_ast(data, col = "ast_value_harmonized")
+# Adds: ast_invalid (TRUE/FALSE)
+```
+
+## Wide-Format AST Import
+
+If your data has one column per antibiotic, pivot to long first:
+
+```{r wide-to-long}
+long_data <- prep_pivot_ast_wide_to_long(
+  wide_data,
+  id_cols         = c("patient_id", "date_of_culture", "organism_name"),
+  antibiotic_cols = NULL   # NULL = auto-detect
+)
+```
+
+---
+
+# Age and Demographics
+
+## Fill Missing Age from Date of Birth
+
+```{r fill-age, eval = TRUE}
+age_data <- data.frame(
+  DOB             = as.Date(c("1960-05-01", "1975-08-15", NA)),
+  date_of_culture = as.Date(c("2024-01-15", "2024-01-20", "2024-02-03")),
+  Age             = c(NA, NA, 45)
+)
+result_age <- prep_fill_age(
+  age_data,
+  age_col   = "Age",
+  dob_col   = "DOB",
+  date_col  = "date_of_culture",
+  overwrite = FALSE
+)
+result_age[, c("Age", "age_method", "age_confidence")]
+```
+
+## Assign Age Bins
+
+```{r age-bins, eval = TRUE}
+binned <- prep_assign_age_bins(
+  result_age,
+  age_col = "Age",
+  bins    = "GBD_standard"   # or "pediatric", "geriatric", or custom numeric vector
+)
+table(binned$Age_bin)
+```
+
+## Derive Age from DOB Components
+
+When DOB is split across day/month/year columns:
+
+```{r dob-components}
+data <- prep_derive_dob_from_components(
+  data,
+  day_col   = "birth_day",
+  month_col = "birth_month",
+  year_col  = "birth_year"
+)
+```
+
+---
+
+# Length of Stay and HAI/CAI
+
+## Derive Length of Stay
+
+```{r los, eval = TRUE}
+los_data <- prep_derive_los_from_dates(
+  sample_data,
+  admission_col = "date_of_admission",
+  outcome_col   = "date_of_final_outcome",
+  los_col       = "los_days"
+)
+los_data[, c("patient_id", "date_of_admission", "date_of_final_outcome", "los_days")]
+```
+
+## Classify HAI vs CAI
+
+```{r hai-cai, eval = TRUE}
+hc_data <- prep_derive_hai_cai(
+  sample_data,
+  admission_col = "date_of_admission",
+  culture_col   = "date_of_culture",
+  hai_cutoff    = 3   # cultures >= 3 days after admission = HAI
+)
+table(hc_data$hai_cai)
+```
+
+## Flag HAI Observations Not Clinically Coded
+
+```{r hai-flag}
+data <- prep_flag_hai_inferred(data)
+# Adds: hai_inferred (TRUE where hai_cai derived differs from coded infection_type)
+```
+
+## Derive ICU Flag
+
+```{r icu-flag}
+data <- prep_derive_icu_flag(data, department_col = "department")
+# Adds: is_icu (TRUE/FALSE)
+```
+
+---
+
+# Event Deduplication
+
+Repeat cultures of the same organism within a time window belong to the same
+infection episode. `prep_create_event_ids()` groups them into events.
+
+```{r events, eval = TRUE}
+event_data <- prep_create_event_ids(
+  sample_data,
+  patient_col  = "patient_id",
+  date_col     = "date_of_culture",
+  organism_col = "organism_name",
+  specimen_col = "specimen_type",
+  gap_days     = 14   # > 14 days between same organism/site = new event
+)
+event_data[, c("patient_id", "organism_name", "date_of_culture", "event_id")]
+```
+
+## Remove Duplicate Rows Within Events
+
+```{r dedup}
+deduped <- prep_deduplicate_events(
+  event_data,
+  event_col      = "event_id",
+  organism_col   = "organism_name",
+  antibiotic_col = "antibiotic_name"
+)
+```
+
+## Readmission Classification
+
+```{r readmission}
+data <- prep_flag_readmission(
+  data,
+  patient_col   = "patient_id",
+  admission_col = "date_of_admission",
+  gap_days      = 30
+)
+data <- prep_classify_readmission(data, readmission_col = "readmission_class")
+```
+
+---
+
+# Contaminant Detection
+
+## Syndrome-Aware Contaminant Lists
+
+```{r contaminants, eval = TRUE}
+# Retrieve the contaminant list for a syndrome
+contaminants <- prep_get_contaminant_list(
+  syndrome   = "Bloodstream infections",
+  return_all = FALSE
+)
+contaminants$names
+```
+
+## Flag Likely Contaminants
+
+```{r flag-contaminants}
+data <- prep_flag_contaminants(
+  data,
+  method = "auto"   # "auto", "device_based", "heuristic", "provided"
+)
+table(data$is_contaminant)
+```
+
+## Test Individual Organism Names
+
+```{r is-contaminant, eval = TRUE}
+prep_is_contaminant(
+  organism_name = c("Staphylococcus epidermidis", "Escherichia coli"),
+  syndrome      = "Bloodstream infections"
+)
+```
+
+## Exclude Fungal Isolates
+
+```{r filter-fungal}
+data <- prep_filter_fungal(data, organism_group_col = "organism_group")
+```
+
+---
+
+# Polymicrobial Infections
+
+Multiple organisms from the same patient-episode must be weighted so each
+organism does not count as a full independent event.
+
+```{r poly, eval = TRUE}
+# 1. Flag episodes with > 1 organism
+poly_data <- prep_flag_polymicrobial(
+  event_data,
+  patient_col  = "patient_id",
+  organism_col = "organism_name"
+)
+table(poly_data$is_polymicrobial)
+```
+
+```{r poly-weights}
+# 2. Assign fractional weight to each organism within an episode
+poly_data <- prep_compute_poly_weights(
+  poly_data,
+  episode_col = "event_id",
+  method      = "monomicrobial_proportion"
+)
+
+# 3. Expand: one row per organism with its weight
+poly_data <- prep_split_poly_episode(poly_data)
+```
+
+---
+
+# MDR / XDR Classification
+
+Classification follows Magiorakos et al. (2012) criteria. Requires
+`organism_group`, `antibiotic_class`, and `antibiotic_value`.
+
+```{r mdr}
+# Collapse to antibiotic-class level first (one row per event-class)
+class_data <- prep_collapse_class_level(
+  data,
+  event_col          = "event_id",
+  organism_col       = "organism_normalized",
+  class_col          = "antibiotic_class",
+  susceptibility_col = "antibiotic_value"
+)
+
+# Classify
+class_data <- prep_classify_mdr(class_data, definition = "CDC")
+class_data <- prep_classify_xdr(class_data, definition = "CDC")
+
+table(class_data$mdr)
+table(class_data$xdr)
+```
+
+## Reference Tables
+
+```{r mdr-tables, eval = TRUE}
+# MDR/XDR thresholds per organism group (Magiorakos 2012)
+get_magiorakos_thresholds()
+
+# Antimicrobial categories for a specific organism group
+get_antimicrobial_categories("Enterobacterales")
+
+# Beta-lactam hierarchy (broadest → narrowest spectrum)
+get_beta_lactam_hierarchy()
+```
+
+---
+
+# Resistance Profiles
+
+## Per-Isolate Resistance Profile
+
+```{r resistance-profile}
+data <- prep_create_resistance_profile(
+  data,
+  organism_col       = "organism_normalized",
+  antibiotic_col     = "antibiotic_normalized",
+  susceptibility_col = "antibiotic_value"
+)
+```
+
+## Wide AST Matrix
+
+Pivot to one row per isolate, one column per antibiotic:
+
+```{r wide-ast}
+wide_ast <- prep_create_wide_ast_matrix(
+  data,
+  event_col          = "event_id",
+  antibiotic_col     = "antibiotic_normalized",
+  susceptibility_col = "antibiotic_value"
+)
+```
+
+---
+
+# Diagnosis and Syndrome Mapping
+
+Map free-text diagnoses to ICD-10 codes and then to clinical syndromes.
+
+## Text-Based Diagnosis Mapping
+
+```{r diagnosis-text}
+# Rule-based matching (no Python required)
+data <- prep_map_diagnosis_to_icd(
+  data,
+  diagnosis_col = "diagnosis",
+  method        = "text_match"   # or "python_embedding" (requires alethia)
+)
+```
+
+## ICD-10 to Syndrome
+
+```{r icd-syndrome}
+data <- prep_map_icd_to_syndrome(
+  data,
+  icd_col       = "icd10_code",
+  hierarchy_path = NULL   # NULL uses the bundled infectious_syndrome_hierarchy.csv
+)
+```
+
+## Assign Patient-Level Syndrome
+
+```{r assign-syndrome}
+data <- prep_assign_patient_syndrome(
+  data,
+  patient_col   = "patient_id",
+  syndrome_col  = "infectious_syndrome"
+)
+```
+
+---
+
+# Outcome Cohorts and Attrition Tracking
+
+## Track Patient Counts at Every Step
+
+`prep_attrition_flow()` accumulates a table of rows, unique patients, and
+unique events at each stage of your pipeline:
+
+```{r attrition, eval = TRUE}
+# Initialize
+flow <- prep_attrition_flow(
+  flow        = NULL,
+  data        = sample_data,
+  stage_name  = "raw_input",
+  reason      = "all loaded records",
+  patient_col = "patient_id"
+)
+
+# After a filter step
+filtered_data <- sample_data[sample_data$antibiotic_value != "S", ]
+flow <- prep_attrition_flow(
+  flow        = flow,
+  data        = filtered_data,
+  stage_name  = "resistant_only",
+  reason      = "removed susceptible records",
+  patient_col = "patient_id"
+)
+flow
+```
+
+## Analytical Readiness Filters
+
+```{r filter-ready}
+# Keep only patients with at least one non-NA value in all required columns
+ready <- prep_filter_analysis_ready(
+  data,
+  required_cols = c("final_outcome", "organism_name",
+                     "antibiotic_name", "antibiotic_value")
+)
+# ready$data          — filtered data
+# ready$attrition     — attrition table
+# ready$patient_flags — per-patient completeness flags
+
+# Final gate: remove rows that are completely unusable
+data <- prep_filter_minimally_usable(data)
+
+# Full analytical readiness assertion (stops if required fields absent)
+prep_validate_analysis_ready(data)
+```
+
+## Build Outcome Cohorts
+
+```{r cohorts}
+fatal_cohort    <- prep_build_fatal_cohort(data,
+                     outcome_col = "final_outcome",
+                     fatal_value = "Died")
+
+nonfatal_cohort <- prep_build_nonfatal_cohort(data,
+                     outcome_col = "final_outcome",
+                     fatal_value = "Died")
+```
+
+---
+
+# DALY Burden Estimation
+
+After preprocessing, anumaan supports GBD-style DALY calculations:
+Years of Life Lost (YLL) + Years Lived with Disability (YLD).
+
+## Pathogen Fractions and Deaths
+
+```{r daly-deaths}
+# Total deaths by cause
+deaths <- daly_calc_deaths_by_cause(pop_data, data)
+
+# Fraction attributable to infection
+inf_fraction <- daly_calc_infection_fraction(pop_data, data)
+
+# Syndrome-specific death counts
+syndrome_deaths <- daly_calc_deaths_by_syndrome(
+  d_j      = deaths,
+  inf_frac = inf_fraction
+)
+
+# Incident cases from case-fatality ratios
+incidents <- daly_calc_incidence_from_cfr(deaths_L = syndrome_deaths)
+
+# Pathogen fraction of deaths (isolate-level)
+pfrac <- daly_calc_pathogen_fraction_fatal(data, syndrome_deaths)
+```
+
+## Years of Life Lost (YLL)
+
+```{r yll}
+# Associated YLL: all deaths in patients with this pathogen
+yll_associated <- daly_calc_yll_associated(
+  data,
+  life_expectancy_path = "GBD_2019_LE.csv"
+)
+
+# Attributable YLL: deaths caused by resistance (RR-based)
+yll_attributable <- daly_calc_yll_attributable(
+  data,
+  rr_mortality = rr_table
+)
+```
+
+## Years Lived with Disability (YLD) and PAF
+
+```{r yld}
+yld_base <- daly_calc_yld_baseline(incidence_data)
+
+paf_los  <- daly_calc_paf_los(data, rr_los = rr_los_table)
+
+yld_associated   <- daly_calc_fraction_associated_yld(yld_base, paf_los)
+yld_attributable <- daly_calc_yld_attributable(yld_base, paf_los)
+```
+
+## Hospital-Level DALY Summary
+
+```{r hospital-daly}
+hospital_daly <- compute_hospital_daly(
+  hospital_counts  = centre_counts,
+  total_deaths     = sum(deaths$total),
+  total_discharged = sum(centre_counts$discharged_h),
+  yll_base         = sum(yll_base),
+  yll_associated   = sum(yll_associated),
+  yll_attributable = sum(yll_attributable),
+  yld_base         = sum(yld_base),
+  yld_associated   = sum(yld_associated),
+  yld_attributable = sum(yld_attributable)
+)
+```
+
+---
+
+# Visualization
+
+All plot functions return a `ggplot2` object that can be further customized.
+
+## Resistance Heatmap
+
+```{r plot-heatmap}
+plot_resistance_heatmap(
+  data        = result$data,
+  isolate_col = "organism_normalized",
+  class_col   = "antibiotic_class",
+  result_col  = "antibiotic_value"
+)
+```
+
+## Bar and Grouped Bar Charts
+
+```{r plot-bar}
+plot_bar(
+  data  = result$data,
+  x     = "organism_normalized",
+  fill  = "mdr",
+  title = "MDR Status by Organism"
+)
+
+plot_grouped_bar(
+  data = result$data,
+  x    = "organism_group",
+  fill = "aware_category"
+)
+
+plot_stacked_bar(
+  data = result$data,
+  x    = "specimen_type",
+  fill = "mdr"
+)
+```
+
+## LOS Distributions
+
+```{r plot-los}
+plot_los_distributions(hospital_daly)
+```
+
+## DALY Burden Plots
+
+```{r plot-daly}
+plot_burden_comparison(hospital_daly, metric = "DALY")
+plot_daly_lollipop(hospital_daly, type = "attributable")
+plot_resistance_fraction(hospital_daly)
+plot_gbd_fig4(hospital_daly)
+```
+
+## Consistent AMR Theme
+
+```{r amr-theme}
+library(ggplot2)
+ggplot(result$data, aes(x = organism_normalized)) +
+  geom_bar() +
+  amr_theme()
 ```
 
 ---
@@ -237,44 +976,136 @@ export_report(result$report, "report.html", format = "html")
 
 ## Resistance Rates
 
-```{r}
-result$data %>%
+```{r resistance-rates, eval = TRUE}
+sample_data %>%
   filter(!is.na(antibiotic_value)) %>%
+  group_by(organism_name) %>%
   summarise(
-    total = n(),
-    resistant = sum(antibiotic_value == "R"),
-    resistance_rate = round(100 * resistant / total, 1)
+    n               = n(),
+    n_resistant     = sum(antibiotic_value == "R"),
+    resistance_rate = round(100 * n_resistant / n, 1),
+    .groups         = "drop"
+  ) %>%
+  arrange(desc(resistance_rate))
+```
+
+## MDR Prevalence by Organism
+
+```{r mdr-rates}
+result$data %>%
+  group_by(organism_normalized) %>%
+  summarise(
+    total    = n(),
+    n_mdr    = sum(mdr == "MDR", na.rm = TRUE),
+    mdr_rate = round(100 * n_mdr / total, 1),
+    .groups  = "drop"
+  ) %>%
+  arrange(desc(mdr_rate))
+```
+
+## Resistance by Specimen Type
+
+```{r resistance-by-specimen}
+result$data %>%
+  filter(!is.na(specimen_type), !is.na(antibiotic_value)) %>%
+  group_by(specimen_type) %>%
+  summarise(
+    n               = n(),
+    resistance_rate = round(100 * mean(antibiotic_value == "R"), 1),
+    .groups         = "drop"
   )
 ```
 
-## MDR Prevalence
+---
 
-```{r}
-if ("mdr_status" %in% names(result$data)) {
-  result$data %>%
-    group_by(organism_normalized) %>%
-    summarise(
-      total = n(),
-      mdr = sum(mdr_status == "MDR", na.rm = TRUE),
-      mdr_rate = round(100 * mdr / total, 1)
-    )
-}
+# Export Results
+
+```{r export, eval = FALSE}
+write.csv(result$data, "processed_amr_data.csv", row.names = FALSE)
+
+# Save full pipeline result for reproducibility
+saveRDS(result, "preprocessing_result.rds")
+
+# Reload
+result <- readRDS("preprocessing_result.rds")
 ```
 
 ---
 
 # Troubleshooting
 
-**Column not found**: The pipeline auto-detects common variants via fuzzy matching. Check column names with `names(raw_data)` and pass explicit mappings via `amr_config(column_mappings = list(...))` if needed.
+**Column not found after standardization**
 
-**Organism not normalizing**: Organisms absent from the reference database pass through unchanged. Check coverage with `table(result$data$organism_normalized)`.
+`prep_standardize_column_names()` uses fuzzy matching when `fuzzy_match = TRUE`.
+Inspect your column names and provide explicit overrides if needed:
 
-**Too many/few events**: Adjust the gap window with `amr_config(event_gap_days = 7)` (more events) or `amr_config(event_gap_days = 30)` (fewer events).
+```{r col-trouble, eval = TRUE}
+names(sample_data)
+# Then supply a manual map:
+# config <- amr_config(column_mappings = list(organism_name = "Pathogen"))
+```
+
+**Organism names not normalizing**
+
+Organisms absent from the reference pass through unchanged. Check coverage:
+
+```{r org-trouble}
+table(result$data$organism_match_status)
+# "unmatched" rows will have organism_normalized == organism_name (unchanged)
+```
+
+**Too many / too few events**
+
+Tune the deduplication window:
+
+```{r events-trouble}
+config <- amr_config(event_gap_days = 7)   # smaller → more events
+config <- amr_config(event_gap_days = 30)  # larger  → fewer events
+```
+
+**Intermediate (I) counted as resistant**
+
+```{r i-trouble}
+config <- amr_config(intermediate_as_resistant = FALSE)
+```
+
+**Date columns not parsing**
+
+Use `prep_parse_date_column()` directly to inspect how values are being
+interpreted:
+
+```{r date-trouble, eval = TRUE}
+prep_parse_date_column(
+  c("15/01/2024", "45306", "2024-01-15"),
+  col_name    = "date_of_culture",
+  table_label = "debug"
+)
+```
+
+---
+
+# Getting Help
+
+```{r help, eval = FALSE}
+?run_preprocess
+?amr_config
+?prep_standardize_organisms
+?prep_create_event_ids
+?prep_classify_mdr
+?prep_derive_hai_cai
+?prep_attrition_flow
+?prep_map_diagnosis_to_icd
+
+help(package = "anumaan")
+ls("package:anumaan")
+```
+
+Report bugs at <https://github.com/saketlab/anumaan/issues>.
 
 ---
 
 # Session Info
 
-```{r}
+```{r session, eval = TRUE}
 sessionInfo()
 ```

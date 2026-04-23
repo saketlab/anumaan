@@ -7,12 +7,13 @@
 get_antimicrobial_categories(organism_group = "Enterobacterales")
 }
 \arguments{
-\item{organism_group}{Character. Organism group name.}
+\item{organism_group}{Character. Organism group name. Default
+\code{"Enterobacterales"}.}
 }
 \value{
-Character vector of antimicrobial categories for that organism
+Character vector of antimicrobial category names.
 }
 \description{
-Returns antimicrobial categories used in Magiorakos MDR/XDR definitions.
-Categories are pathogen-specific.
+Returns the antimicrobial categories used for Magiorakos MDR/XDR
+classification for a given organism group.
 }

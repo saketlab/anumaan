@@ -2,20 +2,16 @@
 % Please edit documentation in R/prep_clean_and_standardize.R
 \name{get_magiorakos_thresholds}
 \alias{get_magiorakos_thresholds}
-\title{Get Magiorakos MDR/XDR Thresholds}
+\title{Get Magiorakos MDR/XDR Thresholds by Organism Group}
 \usage{
 get_magiorakos_thresholds()
 }
 \value{
-Data frame with MDR/XDR thresholds per organism group
+A tibble with columns: \code{organism_group}, \code{mdr_threshold},
+  \code{xdr_threshold}, \code{total_categories}.
 }
 \description{
-Returns pathogen-specific MDR/XDR classification criteria based on
-Magiorakos et al. 2012 (Clin Microbiol Infect).
-}
-\references{
-Magiorakos AP, Srinivasan A, Carey RB, et al. Multidrug-resistant,
-extensively drug-resistant and pandrug-resistant bacteria: an international
-expert proposal for interim standard definitions for acquired resistance.
-Clin Microbiol Infect. 2012;18(3):268-281.
+Returns the MDR and XDR category thresholds for each organism group as
+defined by Magiorakos et al. (2012). Used by \code{prep_classify_mdr()} and
+\code{prep_classify_xdr()}.
 }

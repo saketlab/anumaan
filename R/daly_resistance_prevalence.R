@@ -1849,3 +1849,149 @@ get_class_rr_map <- function() {
 #' @param x Character vector
 #' @return Character vector of normalized strings
 #' @keywords internal
+
+
+# ---------------------------------------------------------------------------
+# Resistance class selection (moved from prep_ast_and_syndrome.R)
+# These are analysis functions that inform DALY burden attribution — they
+# do not belong in the preprocessing layer.
+# ---------------------------------------------------------------------------
+
+#' Select Resistance Class for Burden Attribution
+#'
+#' Selects a single resistance class per event using beta-lactam hierarchy
+#' and relative risk (RR) values. Prevents double-counting in DALY burden
+#' estimation by choosing the most clinically relevant resistant class.
+#'
+#' Selection order:
+#' 1. Beta-lactam hierarchy rank (Carbapenems > 4GC > 3GC > ...)
+#' 2. RR value (higher relative risk = higher priority)
+#' 3. Alphabetical tie-breaker
+#'
+#' @param data Data frame with class-level resistance and RR columns.
+#' @param event_col Character. Event ID column. Default "event_id".
+#' @param class_col Character. Antibiotic class column. Default "antibiotic_class".
+#' @param susceptibility_col Character. Susceptibility column. Default "antibiotic_value".
+#' @param rr_col Character. RR value column. Default "rr_value".
+#'   If missing, only hierarchy is used.
+#' @param hierarchy Named numeric vector. Custom hierarchy (class name -> rank).
+#'   If NULL, uses \code{get_beta_lactam_hierarchy()}.
+#' @param filter_resistant Logical. If TRUE, only consider resistant (R) classes.
+#'   Default TRUE.
+#'
+#' @return Data frame filtered to one resistance class per event.
+#' @export
+select_resistance_class <- function(data,
+                                    event_col          = "event_id",
+                                    class_col          = "antibiotic_class",
+                                    susceptibility_col = "antibiotic_value",
+                                    rr_col             = "rr_value",
+                                    hierarchy          = NULL,
+                                    filter_resistant   = TRUE) {
+  required_cols <- c(event_col, class_col, susceptibility_col)
+  missing_cols  <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0)
+    stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
+
+  if (is.null(hierarchy)) hierarchy <- get_beta_lactam_hierarchy()
+
+  use_rr <- rr_col %in% names(data)
+  if (!use_rr)
+    message(sprintf("RR column '%s' not found. Using hierarchy only for selection.", rr_col))
+
+  n_before        <- nrow(data)
+  n_events_before <- dplyr::n_distinct(data[[event_col]])
+
+  message(sprintf("Selecting resistance classes using hierarchy%s...",
+                  ifelse(use_rr, " + RR", "")))
+
+  if (filter_resistant) {
+    data <- data %>% dplyr::filter(!!rlang::sym(susceptibility_col) == "R")
+    message(sprintf("Filtered to resistant classes: %d rows", nrow(data)))
+  }
+
+  selected <- prioritize_resistance(
+    data      = data,
+    event_col = event_col,
+    class_col = class_col,
+    rr_col    = if (use_rr) rr_col else NULL,
+    hierarchy = hierarchy
+  )
+
+  n_events_after <- dplyr::n_distinct(selected[[event_col]])
+  message(sprintf(
+    "Selected: %d rows from %d events (avg %.2f classes/event before -> 1.0 after)",
+    nrow(selected), n_events_after, n_before / n_events_before
+  ))
+
+  selection_summary <- selected %>%
+    dplyr::count(!!rlang::sym(class_col), name = "n_events") %>%
+    dplyr::arrange(dplyr::desc(n_events)) %>%
+    utils::head(10)
+  message("\nTop 10 selected classes:")
+  print(selection_summary)
+
+  return(selected)
+}
+
+
+#' Prioritize Resistance Class
+#'
+#' Internal helper for \code{select_resistance_class()}. Applies beta-lactam
+#' hierarchy + RR ranking to select one row per event.
+#'
+#' @param data Data frame.
+#' @param event_col Character. Event ID column.
+#' @param class_col Character. Class column.
+#' @param rr_col Character or NULL. RR column; if NULL uses hierarchy only.
+#' @param hierarchy Named numeric vector mapping class name to rank.
+#'
+#' @return Data frame with one row per event (highest priority class selected).
+#' @keywords internal
+prioritize_resistance <- function(data,
+                                  event_col,
+                                  class_col,
+                                  rr_col    = NULL,
+                                  hierarchy) {
+  hierarchy_df <- data.frame(
+    class          = names(hierarchy),
+    hierarchy_rank = seq_along(hierarchy),
+    stringsAsFactors = FALSE
+  )
+  names(hierarchy_df)[1] <- class_col
+
+  data     <- data %>% dplyr::left_join(hierarchy_df, by = class_col)
+  max_rank <- max(hierarchy_df$hierarchy_rank, na.rm = TRUE)
+  data     <- data %>%
+    dplyr::mutate(hierarchy_rank = dplyr::coalesce(hierarchy_rank, max_rank + 1L))
+
+  if (!is.null(rr_col) && rr_col %in% names(data)) {
+    selected <- data %>%
+      dplyr::group_by(!!rlang::sym(event_col)) %>%
+      dplyr::arrange(hierarchy_rank, dplyr::desc(!!rlang::sym(rr_col)),
+                     !!rlang::sym(class_col)) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(selection_method = "hierarchy_rr", selection_confidence = "high")
+  } else {
+    selected <- data %>%
+      dplyr::group_by(!!rlang::sym(event_col)) %>%
+      dplyr::arrange(hierarchy_rank, !!rlang::sym(class_col)) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(selection_method = "hierarchy_only", selection_confidence = "medium")
+  }
+
+  selected <- selected %>% dplyr::select(-hierarchy_rank)
+
+  multi_class_events <- data %>%
+    dplyr::group_by(!!rlang::sym(event_col)) %>%
+    dplyr::summarise(n_classes = dplyr::n(), .groups = "drop") %>%
+    dplyr::filter(n_classes > 1)
+
+  if (nrow(multi_class_events) > 0)
+    message(sprintf("Applied selection to %d events with multiple resistant classes.",
+                    nrow(multi_class_events)))
+
+  return(selected)
+}

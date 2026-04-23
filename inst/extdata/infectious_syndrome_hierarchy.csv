@@ -1,0 +1,23 @@
+rank,infectious_syndrome,contributes_to_amr_burden,footnote_marker,notes
+1,Meningitis,TRUE,,
+2,"Myelitis, meningoencephalitis, and other central nervous system infections",FALSE,*,Does not contribute to AMR burden estimate
+3,Encephalitis,FALSE,*,Does not contribute to AMR burden estimate
+4,Endocarditis,TRUE,,
+5,"Carditis, myocarditis, and pericarditis",FALSE,*,Does not contribute to AMR burden estimate
+6,Peritoneal and intra-abdominal infections,TRUE,,
+7,Lower respiratory infections,TRUE,,
+8,Other unspecified respiratory site infections,FALSE,**,Aggregate into Lower respiratory infections; not considered a standalone infectious syndrome
+9,Upper respiratory infections,FALSE,*,Does not contribute to AMR burden estimate
+10,"Infections of bones, joints, and related organs",TRUE,,
+11,"Typhoid, paratyphoid, and invasive non-typhoidal Salmonella",TRUE,,
+12,Diarrhoea,TRUE,,
+13,Hepatitis,FALSE,*,Does not contribute to AMR burden estimate
+14,Urinary tract infections and pyelonephritis,TRUE,,
+15,Genital infections,FALSE,*,Does not contribute to AMR burden estimate
+16,Infections of the skin and subcutaneous systems,TRUE,,
+17,Oral infections,FALSE,*,Does not contribute to AMR burden estimate
+18,Eye infections,FALSE,*,Does not contribute to AMR burden estimate
+19,Tuberculosis,TRUE,,
+20,Bloodstream infections,TRUE,,
+21,Other unspecified site infections,FALSE,*,Does not contribute to AMR burden estimate
+22,Other parasitic infections,FALSE,*,Does not contribute to AMR burden estimate

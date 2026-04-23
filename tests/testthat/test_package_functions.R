@@ -24,13 +24,13 @@ test_that("prep_is_contaminant identifies known contaminants", {
   expect_type(results, "logical")
 })
 
-test_that("prep_derive_age calculates age from DOB", {
+test_that("prep_fill_age calculates age from DOB", {
   test_data <- data.frame(
     DOB = as.Date("1990-01-01"),
     date_of_culture = as.Date("2020-06-15"),
     stringsAsFactors = FALSE
   )
-  result <- prep_derive_age(test_data, force = TRUE)
+  result <- prep_fill_age(test_data)
   expect_true("Age" %in% names(result))
   expect_true(result$Age > 30 && result$Age < 31)
 })
@@ -59,11 +59,15 @@ test_that("prep_extract_species extracts second word", {
   expect_equal(result$org_species, c("coli", "pneumoniae"))
 })
 
-test_that("prep_calculate_los computes length of stay", {
+test_that("prep_derive_los_from_dates computes length of stay", {
   test_data <- data.frame(
     date_of_admission = as.Date(c("2020-01-01", "2020-02-01")),
     date_of_final_outcome = as.Date(c("2020-01-10", "2020-02-05"))
   )
-  result <- prep_calculate_los(test_data)
-  expect_equal(result$Length_of_stay, c(9, 4))
+  result <- prep_derive_los_from_dates(
+    test_data,
+    admission_col = "date_of_admission",
+    outcome_col   = "date_of_final_outcome"
+  )
+  expect_equal(result$los_days, c(9, 4))
 })
