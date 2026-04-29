@@ -34,6 +34,7 @@ utils::globalVariables(c(
   "contaminant_confidence", "contaminant_method", "count",
   "Age_model", "Sex_model",
   "date_of_admission", "date_of_culture", "date_of_final_outcome",
+  "final_outcome_date", "diagnosis_time_admission",
   "days_to_culture", "death", "death_weight", "deaths", "deaths_h",
   "department_confidence", "device_insertion_date", "discharged_h",
   "drug", "drug_class", "effective_DW", "event_id", "facility",
@@ -54,6 +55,7 @@ utils::globalVariables(c(
   "n_resistant_classes", "n_susceptible_categories", "n_tested",
   "n_total", "organism_group", "organism_normalized", "pathogen",
   "patient_id", "patient_profile", "percentage",
+  "previous_hospitalisation",
   "polymicrobial_weight", "proportion",
   "ref_lower", "resistance_profile", "resistance_rank", "resistant",
   "resistant_categories", "resistant_flag", "result_clean",
@@ -76,19 +78,21 @@ utils::globalVariables(c(
   "given_entity", "alethia_prediction", "alethia_score",
   "diagnosis_text", "icd_score", "icd_rank", "icd_prediction",
   "icd_code", "icd_method",
-
+  # prep_eda_plots.R -- dplyr NSE column references
   "final_abx", "grand_total", "value_label", "percent", "label",
   "med_age", "med_los", "org_ordered", "organism_resist",
   "total_patients", "unique_patients", "unique_organisms",
   "infection_type", "location_type", "tests", "total_tests",
   "patients", "first",
-
-
   "year", "total_year",
-
-
   "center", "metric_type", "organism",
   "associated", "attributable",
   "yll_per_1000", "yld_per_1000",
   "yll_sum", "tot", "cell_lbl"
+
+  # prep_standardize_specimens.R -- temporary/derived column names
+  "temp_spec_input", "temp_spec_clean",
+  "specimen_normalized", "sample_category", "sterile_classification",
+  "sample_type", "culture_date", "admission_date", "outcome_date",
+  "unit_admission_date", "unit_duration_days", "location"
 ))

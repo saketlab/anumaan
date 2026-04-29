@@ -94,7 +94,7 @@ prep_flag_polymicrobial <- function(data,
   return(data)
 }
 
-# Deprecated alias — use prep_flag_polymicrobial()
+# Deprecated alias - use prep_flag_polymicrobial()
 #' @rdname prep_flag_polymicrobial
 #' @export
 flag_polymicrobial <- prep_flag_polymicrobial
@@ -284,7 +284,7 @@ prep_compute_poly_weights <- function(data,
   return(data)
 }
 
-# Deprecated alias — use prep_compute_poly_weights()
+# Deprecated alias - use prep_compute_poly_weights()
 #' @rdname prep_compute_poly_weights
 #' @export
 compute_polymicrobial_weight <- prep_compute_poly_weights

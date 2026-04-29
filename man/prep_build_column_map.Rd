@@ -13,7 +13,7 @@ prep_build_column_map(data, column_map = NULL, custom_map = NULL)
 Pass a dataset-specific map from your analysis layer. If NULL,
 generic alias detection is attempted.}
 
-\item{custom_map}{Named character vector. Additional raw → standard overrides
+\item{custom_map}{Named character vector. Additional raw -> standard overrides
 applied on top of \code{column_map}. Optional.}
 }
 \value{

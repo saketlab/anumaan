@@ -46,7 +46,7 @@ prep_filter_minimally_usable <- function(data,
   if (ast_col %in% names(data))
     keep <- keep & !is.na(data[[ast_col]]) & data[[ast_col]] %in% c("S", "I", "R")
 
-  result   <- data[keep, ]
+  result   <- data[keep, , drop = FALSE]
   n_after  <- nrow(result)
   n_removed <- n_before - n_after
 
@@ -109,7 +109,7 @@ prep_filter_analysis_ready <- function(data,
   if (exclude_contaminants && contaminant_col %in% names(data))
     keep <- keep & (is.na(data[[contaminant_col]]) | !data[[contaminant_col]])
 
-  result    <- data[keep, ]
+  result    <- data[keep, , drop = FALSE]
   n_after   <- nrow(result)
   n_removed <- n_before - n_after
 
@@ -135,10 +135,10 @@ prep_build_fatal_cohort <- function(data,
                                      died_value  = "Died") {
   if (!outcome_col %in% names(data)) {
     warning(sprintf("[prep_build_fatal_cohort] Column '%s' not found.", outcome_col))
-    return(data[integer(0), ])
+    return(data[integer(0), , drop = FALSE])
   }
 
-  result <- data[!is.na(data[[outcome_col]]) & data[[outcome_col]] == died_value, ]
+  result <- data[!is.na(data[[outcome_col]]) & data[[outcome_col]] == died_value, , drop = FALSE]
 
   message(sprintf("[prep_build_fatal_cohort] %d fatal records (%.1f%% of input).",
                   nrow(result), 100 * nrow(result) / max(nrow(data), 1)))
@@ -161,10 +161,10 @@ prep_build_nonfatal_cohort <- function(data,
                                         survived_value  = "Survived") {
   if (!outcome_col %in% names(data)) {
     warning(sprintf("[prep_build_nonfatal_cohort] Column '%s' not found.", outcome_col))
-    return(data[integer(0), ])
+    return(data[integer(0), , drop = FALSE])
   }
 
-  result <- data[!is.na(data[[outcome_col]]) & data[[outcome_col]] == survived_value, ]
+  result <- data[!is.na(data[[outcome_col]]) & data[[outcome_col]] == survived_value, , drop = FALSE]
 
   message(sprintf("[prep_build_nonfatal_cohort] %d non-fatal records (%.1f%% of input).",
                   nrow(result), 100 * nrow(result) / max(nrow(data), 1)))

@@ -318,8 +318,7 @@ run_preprocess <- function(data,
       data_class <- dplyr::rename(data_class, class_result_event = class_resistance)
 
       if (verbose) message("\n[3.12] Classifying MDR/XDR...")
-      data_class <- prep_classify_mdr(data_class, definition = config$mdr_definition)
-      data_class <- prep_classify_xdr(data_class, definition = config$xdr_definition)
+      data_class <- prep_classify_mdr_xdr(data_class, definition = config$mdr_definition)
 
       mdr_join_cols <- intersect(
         c("event_id", "mdr", "mdr_confidence", "mdr_method",

@@ -2,10 +2,104 @@
 # Mortality classification, MDR/XDR, resistance collapse/profile/selection,
 # and polymicrobial flagging/weighting.
 #
+# Internal MDR/XDR reference helpers (not exported):
+#   get_beta_lactam_hierarchy, get_magiorakos_thresholds,
+#   get_antimicrobial_categories
+#
 # Moved to dedicated v2 files:
 #   AST standardization    -> prep_ast.R
 #   Contaminant flagging   -> prep_contaminants.R
 #   HAI/CAI derivation     -> prep_hai_cai.R
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers: MDR/XDR reference lookup tables (Magiorakos 2012)
+# ---------------------------------------------------------------------------
+
+get_beta_lactam_hierarchy <- function() {
+  c(
+    "Carbapenems",
+    "Fourth-generation-cephalosporins",
+    "Third-generation-cephalosporins",
+    "Beta-lactam/beta-lactamase-inhibitor_anti-pseudomonal",
+    "Beta-lactam/beta-lactamase-inhibitor",
+    "Aminopenicillins",
+    "Penicillins"
+  )
+}
+
+get_magiorakos_thresholds <- function() {
+  tibble::tribble(
+    ~organism_group,           ~mdr_threshold, ~xdr_threshold, ~total_categories,
+    "Enterobacterales",         3,              "all_but_2",     9,
+    "Pseudomonas aeruginosa",   3,              "all_but_2",    10,
+    "Acinetobacter spp",        3,              "all_but_2",     9,
+    "Staphylococcus aureus",    3,              "all_but_2",     9,
+    "Enterococcus spp",         3,              "all_but_2",     7,
+    "Streptococcus pneumoniae", 3,              "all_but_2",     5
+  )
+}
+
+get_antimicrobial_categories <- function(organism_group = "Enterobacterales") {
+  categories <- list(
+    Enterobacterales = c(
+      "Aminoglycosides",
+      "Carbapenems",
+      "Cephalosporins (3rd gen)",
+      "Cephalosporins (4th gen)",
+      "Fluoroquinolones",
+      "Monobactams",
+      "Penicillins + beta-lactamase inhibitors",
+      "Polymyxins",
+      "Tigecycline"
+    ),
+    "Pseudomonas aeruginosa" = c(
+      "Aminoglycosides",
+      "Antipseudomonal carbapenems",
+      "Antipseudomonal cephalosporins",
+      "Antipseudomonal fluoroquinolones",
+      "Antipseudomonal penicillins + beta-lactamase inhibitors",
+      "Monobactams",
+      "Phosphonic acids",
+      "Polymyxins",
+      "Ceftazidime-avibactam",
+      "Ceftolozane-tazobactam"
+    ),
+    "Acinetobacter spp" = c(
+      "Aminoglycosides",
+      "Carbapenems",
+      "Cephalosporins (extended-spectrum)",
+      "Fluoroquinolones",
+      "Penicillins + beta-lactamase inhibitors",
+      "Polymyxins",
+      "Sulbactam",
+      "Tetracyclines",
+      "Tigecycline"
+    ),
+    "Staphylococcus aureus" = c(
+      "Aminoglycosides",
+      "Fluoroquinolones",
+      "Folate pathway inhibitors",
+      "Fusidic acid",
+      "Glycopeptides",
+      "Linezolid",
+      "Mupirocin",
+      "Rifampicin",
+      "Tetracyclines"
+    )
+  )
+
+  if (organism_group %in% names(categories)) {
+    return(categories[[organism_group]])
+  } else {
+    warning(sprintf(
+      "No category list for '%s', returning Enterobacterales default.",
+      organism_group
+    ))
+    return(categories$Enterobacterales)
+  }
+}
+
 
 #' Classify Infection-Related Mortality
 #'
@@ -118,42 +212,49 @@ prep_classify_mortality <- function(data,
 }
 
 
-#' Classify MDR (Multidrug Resistant)
+#' Classify MDR and XDR
 #'
-#' Classifies isolates as MDR using Magiorakos 2012 criteria.
+#' Classifies isolates as MDR (Multidrug Resistant) and XDR (Extensively Drug
+#' Resistant) in a single pass using Magiorakos 2012 criteria.
 #'
-#' @param data Data frame
-#' @param definition Character. "Magiorakos" or "WHO". Default "Magiorakos".
+#' MDR: resistant to at least one agent in three or more antimicrobial
+#' categories. XDR: susceptible to at most two antimicrobial categories.
+#'
+#' Requires \code{class_result_event} column (run
+#' \code{prep_collapse_class_level()} first, then rename \code{class_resistance}
+#' to \code{class_result_event}).
+#'
+#' @param data Data frame with class-level resistance data.
+#' @param definition Character. Classification criteria. Default "Magiorakos".
 #' @param organism_group_col Character. Organism group column for
-#'   pathogen-specific thresholds.
+#'   pathogen-specific thresholds. Default "org_group".
 #'
 #' @return Data frame with mdr, mdr_confidence, mdr_method,
-#'   n_resistant_categories columns
+#'   n_resistant_categories, resistant_categories, xdr, xdr_confidence,
+#'   and xdr_method columns added.
 #' @export
 #' @references
 #' Magiorakos AP et al. Clin Microbiol Infect. 2012;18(3):268-281.
-prep_classify_mdr <- function(data,
-                              definition = "Magiorakos",
-                              organism_group_col = "org_group") {
-  # Requires class-level resistance data
+prep_classify_mdr_xdr <- function(data,
+                                   definition = "Magiorakos",
+                                   organism_group_col = "org_group") {
   if (!"class_result_event" %in% names(data)) {
-    stop("Must run prep_collapse_class_level() before MDR classification")
+    stop("Must run prep_collapse_class_level() before MDR/XDR classification")
   }
 
-  # Get thresholds
   thresholds <- get_magiorakos_thresholds()
+  n_total    <- dplyr::n_distinct(data$event_id)
 
-  # Count resistant categories per event
+  # --- MDR ---------------------------------------------------------------
   resistant_counts <- data %>%
     dplyr::filter(class_result_event == "R") %>%
     dplyr::group_by(event_id, !!rlang::sym(organism_group_col)) %>%
     dplyr::summarise(
       n_resistant_categories = dplyr::n_distinct(antibiotic_class),
-      resistant_categories = paste(unique(antibiotic_class), collapse = "; "),
+      resistant_categories   = paste(unique(antibiotic_class), collapse = "; "),
       .groups = "drop"
     )
 
-  # Total categories tested
   total_tested <- data %>%
     dplyr::group_by(event_id) %>%
     dplyr::summarise(
@@ -161,16 +262,12 @@ prep_classify_mdr <- function(data,
       .groups = "drop"
     )
 
-  # Merge
   mdr_data <- resistant_counts %>%
     dplyr::left_join(total_tested, by = "event_id") %>%
-    dplyr::left_join(thresholds, by = stats::setNames("organism_group", organism_group_col))
-
-  # Apply MDR threshold
-  mdr_data <- mdr_data %>%
+    dplyr::left_join(thresholds, by = stats::setNames("organism_group", organism_group_col)) %>%
     dplyr::mutate(
-      mdr_threshold = dplyr::coalesce(mdr_threshold, 3), # Default to 3 if no match
-      mdr = n_resistant_categories >= mdr_threshold,
+      mdr_threshold  = dplyr::coalesce(mdr_threshold, 3L),
+      mdr            = n_resistant_categories >= mdr_threshold,
       mdr_confidence = dplyr::case_when(
         n_total_categories >= 8 ~ "high",
         n_total_categories >= 5 ~ "medium",
@@ -180,7 +277,6 @@ prep_classify_mdr <- function(data,
       mdr_method = definition
     )
 
-  # Join back to main data
   data <- data %>%
     dplyr::left_join(
       mdr_data %>% dplyr::select(
@@ -191,44 +287,11 @@ prep_classify_mdr <- function(data,
     ) %>%
     dplyr::mutate(mdr = tidyr::replace_na(mdr, FALSE))
 
-  # Summary
   n_mdr <- sum(data$mdr & data$mdr_confidence != "insufficient_data", na.rm = TRUE)
-  n_total <- dplyr::n_distinct(data$event_id)
+  message(sprintf("MDR classification (%s): %d/%d events (%.1f%%)",
+                  definition, n_mdr, n_total, 100 * n_mdr / n_total))
 
-  message(sprintf(
-    "MDR classification (%s): %d/%d events (%.1f%%)",
-    definition, n_mdr, n_total, 100 * n_mdr / n_total
-  ))
-
-  return(data)
-}
-
-
-#' Classify XDR (Extensively Drug Resistant)
-#'
-#' Classifies isolates as XDR using Magiorakos 2012 criteria.
-#'
-#' @param data Data frame
-#' @param definition Character. "Magiorakos" or "WHO". Default "Magiorakos".
-#' @param organism_group_col Character. Organism group column.
-#'
-#' @return Data frame with xdr, xdr_confidence, xdr_method columns
-#' @export
-#' @references
-#' Magiorakos AP et al. Clin Microbiol Infect. 2012;18(3):268-281.
-prep_classify_xdr <- function(data,
-                              definition = "Magiorakos",
-                              organism_group_col = "org_group") {
-  # Requires MDR to be run first
-  if (!"mdr" %in% names(data)) {
-    message("Running MDR classification first...")
-    data <- prep_classify_mdr(data, definition, organism_group_col)
-  }
-
-  # Get thresholds
-  thresholds <- get_magiorakos_thresholds()
-
-  # Count susceptible categories
+  # --- XDR ---------------------------------------------------------------
   susceptible_counts <- data %>%
     dplyr::filter(class_result_event == "S") %>%
     dplyr::group_by(event_id, !!rlang::sym(organism_group_col)) %>%
@@ -237,23 +300,20 @@ prep_classify_xdr <- function(data,
       .groups = "drop"
     )
 
-  # Get total categories per organism
   xdr_data <- data %>%
     dplyr::distinct(event_id, !!rlang::sym(organism_group_col)) %>%
     dplyr::left_join(susceptible_counts, by = c("event_id", organism_group_col)) %>%
     dplyr::left_join(thresholds, by = stats::setNames("organism_group", organism_group_col)) %>%
     dplyr::mutate(
       n_susceptible_categories = tidyr::replace_na(n_susceptible_categories, 0),
-      # XDR: susceptible to <=2 categories
-      xdr = n_susceptible_categories <= 2,
+      xdr            = n_susceptible_categories <= 2,
       xdr_confidence = dplyr::case_when(
-        !is.na(total_categories) ~ "high", # Known pathogen
+        !is.na(total_categories) ~ "high",
         TRUE ~ "medium"
       ),
       xdr_method = definition
     )
 
-  # Join back
   data <- data %>%
     dplyr::left_join(
       xdr_data %>% dplyr::select(event_id, xdr, xdr_confidence, xdr_method),
@@ -261,17 +321,13 @@ prep_classify_xdr <- function(data,
     ) %>%
     dplyr::mutate(xdr = tidyr::replace_na(xdr, FALSE))
 
-  # Summary
   n_xdr <- sum(data$xdr, na.rm = TRUE)
-  n_total <- dplyr::n_distinct(data$event_id)
-
-  message(sprintf(
-    "XDR classification (%s): %d/%d events (%.1f%%)",
-    definition, n_xdr, n_total, 100 * n_xdr / n_total
-  ))
+  message(sprintf("XDR classification (%s): %d/%d events (%.1f%%)",
+                  definition, n_xdr, n_total, 100 * n_xdr / n_total))
 
   return(data)
 }
+
 
 #' Collapse to Class Level
 #'
@@ -299,41 +355,25 @@ prep_collapse_class_level <- function(data,
                                       class_col = "antibiotic_class",
                                       susceptibility_col = "antibiotic_value",
                                       extra_cols = NULL) {
-  # ---------------------------------------------------------------------------
-  # Validate required columns
-  # ---------------------------------------------------------------------------
   required_cols <- c(event_col, organism_col, class_col, susceptibility_col)
-  missing_cols <- setdiff(required_cols, names(data))
+  missing_cols  <- setdiff(required_cols, names(data))
 
   if (length(missing_cols) > 0) {
-    stop(sprintf(
-      "Missing required columns: %s",
-      paste(missing_cols, collapse = ", ")
-    ))
+    stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
   }
 
-  # Validate optional extra columns
   if (!is.null(extra_cols)) {
     missing_extra <- setdiff(extra_cols, names(data))
     if (length(missing_extra) > 0) {
-      stop(sprintf(
-        "Missing extra columns requested: %s",
-        paste(missing_extra, collapse = ", ")
-      ))
+      stop(sprintf("Missing extra columns requested: %s", paste(missing_extra, collapse = ", ")))
     }
   }
 
-  n_before <- nrow(data)
-  message("Collapsing to antibiotic class level...")
-
-  # ---------------------------------------------------------------------------
-  # Build grouping variables dynamically
-  # ---------------------------------------------------------------------------
+  n_before   <- nrow(data)
   group_vars <- c(event_col, organism_col, class_col)
 
-  # ---------------------------------------------------------------------------
-  # Core aggregation
-  # ---------------------------------------------------------------------------
+  message("Collapsing to antibiotic class level...")
+
   collapsed <- data %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(group_vars))) %>%
     dplyr::summarise(
@@ -343,19 +383,16 @@ prep_collapse_class_level <- function(data,
         any(.data[[susceptibility_col]] == "S", na.rm = TRUE) ~ "S",
         TRUE ~ NA_character_
       ),
-      n_drugs_in_class = dplyr::n(),
-      n_resistant = sum(.data[[susceptibility_col]] == "R", na.rm = TRUE),
+      n_drugs_in_class       = dplyr::n(),
+      n_resistant            = sum(.data[[susceptibility_col]] == "R", na.rm = TRUE),
       pct_resistant_in_class = 100 * n_resistant / n_drugs_in_class,
-      drugs_tested = paste(
+      drugs_tested           = paste(
         sort(unique(.data[["antibiotic_normalized"]])),
         collapse = "; "
       ),
       .groups = "drop"
     )
 
-  # ---------------------------------------------------------------------------
-  # Attach optional extra columns (collapsed safely)
-  # ---------------------------------------------------------------------------
   if (!is.null(extra_cols)) {
     extra_summary <- data %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(group_vars))) %>%
@@ -372,26 +409,16 @@ prep_collapse_class_level <- function(data,
       dplyr::left_join(extra_summary, by = group_vars)
   }
 
-  # ---------------------------------------------------------------------------
-  # Metadata
-  # ---------------------------------------------------------------------------
   collapsed <- collapsed %>%
     dplyr::mutate(collapse_method = "class_any_R")
 
   n_after <- nrow(collapsed)
+  message(sprintf("Collapsed: %d rows -> %d class-level rows", n_before, n_after))
 
-  message(sprintf(
-    "Collapsed: %d rows -> %d class-level rows",
-    n_before, n_after
-  ))
-
-  # ---------------------------------------------------------------------------
-  # Class-level resistance summary (informational)
-  # ---------------------------------------------------------------------------
   class_summary <- collapsed %>%
     dplyr::count(.data[[class_col]], class_resistance) %>%
     tidyr::pivot_wider(
-      names_from = class_resistance,
+      names_from  = class_resistance,
       values_from = n,
       values_fill = 0
     )
@@ -445,9 +472,8 @@ prep_create_resistance_profile <- function(data,
                                            susceptibility_col = "antibiotic_value",
                                            format = "resistant_list",
                                            class_col = "antibiotic_class") {
-  # Validate columns
   required_cols <- c(event_col, antibiotic_col, susceptibility_col)
-  missing_cols <- setdiff(required_cols, names(data))
+  missing_cols  <- setdiff(required_cols, names(data))
 
   if (length(missing_cols) > 0) {
     stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
@@ -457,7 +483,6 @@ prep_create_resistance_profile <- function(data,
     stop(sprintf("Column '%s' required for format = 'class_summary'", class_col))
   }
 
-  # Validate format
   valid_formats <- c("resistant_list", "full_pattern", "class_summary")
   if (!format %in% valid_formats) {
     stop(sprintf("format must be one of: %s", paste(valid_formats, collapse = ", ")))
@@ -465,72 +490,61 @@ prep_create_resistance_profile <- function(data,
 
   message(sprintf("Creating resistance profiles (format: %s)...", format))
 
-  # Format A: List resistant drugs only
   if (format == "resistant_list") {
     profiles <- data %>%
       dplyr::filter(!!rlang::sym(susceptibility_col) == "R") %>%
       dplyr::group_by(!!rlang::sym(event_col)) %>%
       dplyr::summarise(
         resistance_profile = paste(sort(unique(!!rlang::sym(antibiotic_col))), collapse = "; "),
-        n_resistant = dplyr::n_distinct(!!rlang::sym(antibiotic_col)),
+        n_resistant        = dplyr::n_distinct(!!rlang::sym(antibiotic_col)),
         .groups = "drop"
       )
 
-    # Add profile to original data
     data <- data %>%
       dplyr::left_join(profiles, by = event_col) %>%
       dplyr::mutate(
         resistance_profile = dplyr::coalesce(resistance_profile, "None"),
-        n_resistant = dplyr::coalesce(n_resistant, 0L),
-        profile_format = "resistant_list"
+        n_resistant        = dplyr::coalesce(n_resistant, 0L),
+        profile_format     = "resistant_list"
       )
-  }
 
-  # Format B: Full S/R pattern
-  else if (format == "full_pattern") {
+  } else if (format == "full_pattern") {
     profiles <- data %>%
       dplyr::group_by(!!rlang::sym(event_col)) %>%
       dplyr::arrange(!!rlang::sym(antibiotic_col)) %>%
       dplyr::summarise(
         resistance_profile = paste(
-          sprintf(
-            "%s:%s",
-            !!rlang::sym(antibiotic_col),
-            !!rlang::sym(susceptibility_col)
-          ),
+          sprintf("%s:%s", !!rlang::sym(antibiotic_col), !!rlang::sym(susceptibility_col)),
           collapse = "; "
         ),
         n_resistant = sum(!!rlang::sym(susceptibility_col) == "R", na.rm = TRUE),
-        n_tested = dplyr::n(),
+        n_tested    = dplyr::n(),
         .groups = "drop"
       )
 
     data <- data %>%
       dplyr::left_join(profiles, by = event_col) %>%
       dplyr::mutate(profile_format = "full_pattern")
-  }
 
-  # Format C: Resistant classes summary
-  else if (format == "class_summary") {
+  } else if (format == "class_summary") {
     profiles <- data %>%
       dplyr::filter(!!rlang::sym(susceptibility_col) == "R") %>%
       dplyr::group_by(!!rlang::sym(event_col)) %>%
       dplyr::summarise(
-        resistance_profile = paste(sort(unique(!!rlang::sym(class_col))), collapse = "; "),
-        n_resistant_classes = dplyr::n_distinct(!!rlang::sym(class_col)),
+        resistance_profile   = paste(sort(unique(!!rlang::sym(class_col))), collapse = "; "),
+        n_resistant_classes  = dplyr::n_distinct(!!rlang::sym(class_col)),
         .groups = "drop"
       )
 
     data <- data %>%
       dplyr::left_join(profiles, by = event_col) %>%
       dplyr::mutate(
-        resistance_profile = dplyr::coalesce(resistance_profile, "None"),
+        resistance_profile  = dplyr::coalesce(resistance_profile, "None"),
         n_resistant_classes = dplyr::coalesce(n_resistant_classes, 0L),
-        profile_format = "class_summary"
+        profile_format      = "class_summary"
       )
   }
 
-  # Summary of common profiles
   profile_freq <- data %>%
     dplyr::filter(!duplicated(!!rlang::sym(event_col))) %>%
     dplyr::count(resistance_profile, sort = TRUE) %>%

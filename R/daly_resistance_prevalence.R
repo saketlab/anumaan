@@ -1853,7 +1853,7 @@ get_class_rr_map <- function() {
 
 # ---------------------------------------------------------------------------
 # Resistance class selection (moved from prep_ast_and_syndrome.R)
-# These are analysis functions that inform DALY burden attribution — they
+# These are analysis functions that inform DALY burden attribution - they
 # do not belong in the preprocessing layer.
 # ---------------------------------------------------------------------------
 

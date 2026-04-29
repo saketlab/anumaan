@@ -1,11 +1,11 @@
 # prep_types.R
-# Layer 3b: Type coercion — sex, outcome, infection type
+# Layer 3b: Type coercion - sex, outcome, infection type
 #
 # Functions:
 #   - prep_standardize_sex
 #   - prep_standardize_final_outcome  (canonical outcome standardizer)
 #   - prep_standardize_infection_type
-#   - prep_standardize_outcome        (deprecated wrapper → prep_standardize_final_outcome)
+#   - prep_standardize_outcome        (deprecated wrapper -> prep_standardize_final_outcome)
 
 
 #' Standardize Sex Values

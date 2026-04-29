@@ -31,9 +31,9 @@ Data frame with \code{ast_value_harmonized} and
 \description{
 Wrapper that applies the full AST cleaning pipeline in sequence:
 \enumerate{
-  \item \code{prep_clean_ast_values()} — extract clean S/I/R from raw strings
+  \item \code{prep_clean_ast_values()} - extract clean S/I/R from raw strings
     (handles exact matches, regex patterns, and keyword scanning in one pass)
-  \item \code{prep_recode_intermediate_ast()} — resolve I values
+  \item \code{prep_recode_intermediate_ast()} - resolve I values
 }
 Retains the original \code{ast_col} column as \code{ast_value_raw} and adds
 \code{ast_value_harmonized} and \code{intermediate_recoded}.

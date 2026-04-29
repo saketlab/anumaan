@@ -1,16 +1,17 @@
 # prep_ast.R
-# Layer 4d: AST value harmonization
+# AST data reshaping, value harmonization, and quality control.
 #
 # Functions:
-#   - prep_clean_ast_values       (canonical: extracts S/I/R from any raw string)
+#   - prep_pivot_ast_wide_to_long  (wide -> long reshape)
+#   - prep_create_wide_ast_matrix  (long -> wide reshape)
+#   - prep_clean_ast_values        (extracts S/I/R from any raw string)
 #   - prep_recode_intermediate_ast
-#   - prep_harmonize_ast          (pipeline wrapper: clean → recode)
+#   - prep_harmonize_ast           (pipeline wrapper: clean -> recode)
 #   - prep_check_organism_ast_consistency
 #   - prep_flag_invalid_ast
-#   - prep_detect_duplicate_ast
-#   - prep_resolve_duplicate_ast
+#   - prep_deduplicate_ast        (mode="detect" -> flag + QC summary; mode="remove" -> flag + resolve)
 #
-# Note: prep_standardize_ast_values removed — exact-match subset of prep_clean_ast_values.
+# Note: prep_standardize_ast_values removed - exact-match subset of prep_clean_ast_values.
 
 
 #' Clean Antibiotic Susceptibility Values
@@ -153,9 +154,9 @@ prep_recode_intermediate_ast <- function(data,
 #'
 #' Wrapper that applies the full AST cleaning pipeline in sequence:
 #' \enumerate{
-#'   \item \code{prep_clean_ast_values()} — extract clean S/I/R from raw strings
+#'   \item \code{prep_clean_ast_values()} - extract clean S/I/R from raw strings
 #'     (handles exact matches, regex patterns, and keyword scanning in one pass)
-#'   \item \code{prep_recode_intermediate_ast()} — resolve I values
+#'   \item \code{prep_recode_intermediate_ast()} - resolve I values
 #' }
 #' Retains the original \code{ast_col} column as \code{ast_value_raw} and adds
 #' \code{ast_value_harmonized} and \code{intermediate_recoded}.
@@ -226,7 +227,7 @@ prep_harmonize_ast <- function(data,
 }
 
 
-#' Check Organism–AST Consistency
+#' Check Organism-AST Consistency
 #'
 #' Flags impossible/implausible AST results where a drug is inappropriate
 #' for the organism type (e.g., a Gram-positive organism tested against a
@@ -264,32 +265,48 @@ prep_check_organism_ast_consistency <- function(data,
   }
 
   ast_ref <- readr::read_csv(ref_path, show_col_types = FALSE)
-
-  # Expected columns: organism_group, antibiotic_name, expected (TRUE/FALSE or "yes"/"no")
   required_cols <- c("organism_group", "antibiotic_name")
+
+  # The bundled CSV is a semi-structured report with a title row and grouped
+  # organism names; normalize it into a simple expected-combination table.
   if (!all(required_cols %in% names(ast_ref))) {
-    warning(sprintf("Organism_AST_drugs.csv must have columns: %s. Skipping.",
-                    paste(required_cols, collapse = ", ")))
-    data$is_ast_inconsistent <- NA
-    return(data)
+    raw_ref <- readr::read_csv(ref_path, skip = 1, show_col_types = FALSE)
+    names(raw_ref) <- gsub("[^a-z0-9]+", "_", tolower(names(raw_ref)))
+    group_col <- intersect(names(raw_ref), c("organism_or_organism_group", "organism_group"))
+    agents_col <- intersect(names(raw_ref), c("antimicrobial_agents", "antibiotic_name"))
+
+    if (length(group_col) == 1L && length(agents_col) == 1L) {
+      ast_ref <- raw_ref[, c(group_col, agents_col), drop = FALSE]
+      names(ast_ref) <- required_cols
+      ast_ref$organism_group <- trimws(as.character(ast_ref$organism_group))
+      ast_ref$organism_group[ast_ref$organism_group == ""] <- NA_character_
+      ast_ref$organism_group <- tidyr::fill(ast_ref, organism_group)$organism_group
+      ast_ref <- tidyr::separate_longer_delim(
+        ast_ref,
+        cols = "antibiotic_name",
+        delim = ","
+      )
+      ast_ref$antibiotic_name <- tolower(trimws(ast_ref$antibiotic_name))
+      ast_ref$organism_group <- tolower(trimws(ast_ref$organism_group))
+      ast_ref <- ast_ref[!is.na(ast_ref$organism_group) & !is.na(ast_ref$antibiotic_name) & nzchar(ast_ref$antibiotic_name), , drop = FALSE]
+      ast_ref$expected <- TRUE
+    } else {
+      warning(sprintf("Organism_AST_drugs.csv must have columns: %s. Skipping.",
+                      paste(required_cols, collapse = ", ")))
+      data$is_ast_inconsistent <- NA
+      return(data)
+    }
   }
 
-  # Build exclusion table: organism_group + antibiotic combos that are NOT expected
-  excluded <- ast_ref[!isTRUE(ast_ref$expected) & !ast_ref$expected %in% c("yes", "TRUE", TRUE), ]
-
   n_flagged <- 0L
-  if ("organism_group" %in% names(data) && nrow(excluded) > 0) {
-    org_lower <- tolower(trimws(data$organism_group))
-    abx_lower <- tolower(trimws(data[[antibiotic_col]]))
-
-    for (i in seq_len(nrow(excluded))) {
-      grp_pat <- tolower(trimws(excluded$organism_group[i]))
-      abx_pat <- tolower(trimws(excluded$antibiotic_name[i]))
-      flag    <- !is.na(org_lower) & !is.na(abx_lower) &
-        org_lower == grp_pat & abx_lower == abx_pat
-      data$is_ast_inconsistent[flag] <- TRUE
-      n_flagged <- n_flagged + sum(flag, na.rm = TRUE)
-    }
+  if ("organism_group" %in% names(data) && nrow(ast_ref) > 0) {
+    org_lower <- tolower(trimws(as.character(data$organism_group)))
+    abx_lower <- tolower(trimws(as.character(data[[antibiotic_col]])))
+    expected_keys <- unique(paste(ast_ref$organism_group, ast_ref$antibiotic_name, sep = "||"))
+    row_keys <- paste(org_lower, abx_lower, sep = "||")
+    can_check <- !is.na(org_lower) & nzchar(org_lower) & !is.na(abx_lower) & nzchar(abx_lower)
+    data$is_ast_inconsistent[can_check] <- !row_keys[can_check] %in% expected_keys
+    n_flagged <- sum(data$is_ast_inconsistent, na.rm = TRUE)
   }
 
   message(sprintf("[prep_check_organism_ast_consistency] %d implausible organism-AST pairs flagged.",
@@ -331,120 +348,96 @@ prep_flag_invalid_ast <- function(data, col = "ast_value_harmonized") {
 }
 
 
-#' Detect Duplicate AST Results
+#' Handle Duplicate AST Results
 #'
-#' Identifies rows where the same patient, organism, antibiotic, and date
-#' have conflicting AST results (e.g., one row shows R and another shows S).
+#' Detects and optionally resolves conflicting AST records for the same
+#' patient + organism + antibiotic + date combination.
 #'
-#' @param data Data frame with AST data in long format.
-#' @param patient_col Character. Patient ID column. Default "patient_id".
-#' @param organism_col Character. Organism column. Default "organism_normalized".
-#' @param antibiotic_col Character. Antibiotic column. Default "antibiotic_normalized".
-#' @param date_col Character. Culture date column. Default "culture_date".
-#' @param ast_col Character. Harmonized AST value column.
-#'   Default "ast_value_harmonized".
-#'
-#' @return A data frame of conflict records (with a \code{conflict_group} column),
-#'   or an empty data frame if no conflicts exist.
-#' @export
-prep_detect_duplicate_ast <- function(data,
-                                       patient_col    = "patient_id",
-                                       organism_col   = "organism_normalized",
-                                       antibiotic_col = "antibiotic_normalized",
-                                       date_col       = "culture_date",
-                                       ast_col        = "ast_value_harmonized") {
-  key_cols <- c(patient_col, organism_col, antibiotic_col, date_col, ast_col)
-  missing  <- setdiff(key_cols, names(data))
-  if (length(missing) > 0) {
-    warning(sprintf("[prep_detect_duplicate_ast] Column(s) not found: %s.",
-                    paste(missing, collapse = ", ")))
-    return(data.frame())
-  }
-
-  group_cols <- c(patient_col, organism_col, antibiotic_col, date_col)
-
-  conflict_groups <- data %>%
-    dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) %>%
-    dplyr::summarise(
-      n_ast_values = dplyr::n_distinct(.data[[ast_col]], na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    dplyr::filter(.data$n_ast_values > 1)
-
-  if (nrow(conflict_groups) == 0) {
-    message("[prep_detect_duplicate_ast] No duplicate AST conflicts detected.")
-    return(data.frame())
-  }
-
-  conflicts <- dplyr::inner_join(data, conflict_groups, by = group_cols) %>%
-    dplyr::arrange(dplyr::across(dplyr::all_of(group_cols)))
-
-  conflicts$conflict_group <- as.integer(dplyr::group_indices(
-    conflicts, dplyr::across(dplyr::all_of(group_cols))
-  ))
-
-  message(sprintf("[prep_detect_duplicate_ast] %d conflict group(s) found (%d rows).",
-                  nrow(conflict_groups), nrow(conflicts)))
-  return(conflicts)
-}
-
-
-#' Resolve Duplicate AST Results
-#'
-#' Resolves conflicting AST records for the same patient + organism +
-#' antibiotic + date combination.
-#'
-#' Available strategies:
 #' \describe{
-#'   \item{resistant_wins}{Keep the R result; for R vs S, R takes precedence.}
-#'   \item{susceptible_wins}{Keep the S result.}
-#'   \item{first}{Keep the first row in the data for each conflict group.}
+#'   \item{\code{"detect"}}{Flags conflicting rows with \code{is_ast_duplicate = TRUE}
+#'     and prints a QC summary of all conflict groups. Returns the full data frame
+#'     with the flag column so you can inspect or filter before deciding how to resolve.}
+#'   \item{\code{"remove"}}{Runs the detect step first (flag + QC summary), then
+#'     applies \code{strategy} to keep one row per key combination and drops the
+#'     flag column from the returned data.}
 #' }
 #'
 #' @param data Data frame with AST data in long format.
-#' @param strategy Character. One of \code{"resistant_wins"} (default),
-#'   \code{"susceptible_wins"}, or \code{"first"}.
-#' @param patient_col Character. Patient ID column. Default "patient_id".
-#' @param organism_col Character. Organism column. Default "organism_normalized".
-#' @param antibiotic_col Character. Antibiotic column. Default "antibiotic_normalized".
-#' @param date_col Character. Culture date column. Default "culture_date".
-#' @param ast_col Character. AST value column. Default "ast_value_harmonized".
+#' @param mode Character. \code{"detect"} (flag only) or \code{"remove"} (flag then resolve).
+#'   Default \code{"detect"}.
+#' @param strategy Character. Resolution strategy used only when \code{mode = "remove"}.
+#'   One of \code{"resistant_wins"} (default), \code{"susceptible_wins"}, or \code{"first"}.
+#' @param patient_col Character. Patient ID column. Default \code{"patient_id"}.
+#' @param organism_col Character. Organism column. Default \code{"organism_normalized"}.
+#' @param antibiotic_col Character. Antibiotic column. Default \code{"antibiotic_normalized"}.
+#' @param date_col Character. Culture date column. Default \code{"culture_date"}.
+#' @param ast_col Character. Harmonized AST value column. Default \code{"ast_value_harmonized"}.
 #'
-#' @return Data frame with conflicts resolved (one row per unique key combination).
+#' @return
+#' \itemize{
+#'   \item \code{mode = "detect"}: original data with \code{is_ast_duplicate} logical column added.
+#'   \item \code{mode = "remove"}: data with conflicts resolved (one row per key) and no flag column.
+#' }
 #' @export
-prep_resolve_duplicate_ast <- function(data,
-                                        strategy       = "resistant_wins",
-                                        patient_col    = "patient_id",
-                                        organism_col   = "organism_normalized",
-                                        antibiotic_col = "antibiotic_normalized",
-                                        date_col       = "culture_date",
-                                        ast_col        = "ast_value_harmonized") {
-  strategy <- match.arg(strategy, c("resistant_wins", "susceptible_wins", "first"))
+prep_deduplicate_ast <- function(data,
+                                  mode           = c("detect", "remove"),
+                                  strategy       = c("resistant_wins", "susceptible_wins", "first"),
+                                  patient_col    = "patient_id",
+                                  organism_col   = "organism_normalized",
+                                  antibiotic_col = "antibiotic_normalized",
+                                  date_col       = "culture_date",
+                                  ast_col        = "ast_value_harmonized") {
+  mode     <- match.arg(mode)
+  strategy <- match.arg(strategy)
 
-  key_cols    <- c(patient_col, organism_col, antibiotic_col, date_col)
-  all_needed  <- c(key_cols, ast_col)
-  missing     <- setdiff(all_needed, names(data))
+  key_cols   <- c(patient_col, organism_col, antibiotic_col, date_col)
+  all_needed <- c(key_cols, ast_col)
+  missing    <- setdiff(all_needed, names(data))
   if (length(missing) > 0) {
-    warning(sprintf("[prep_resolve_duplicate_ast] Column(s) not found: %s. Returning data unchanged.",
+    warning(sprintf("[prep_deduplicate_ast] Column(s) not found: %s. Returning data unchanged.",
                     paste(missing, collapse = ", ")))
     return(data)
   }
 
+  # --- Step 1: detect conflicts and flag rows ---
+  conflict_summary <- data %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
+    dplyr::summarise(
+      n_ast_values       = dplyr::n_distinct(.data[[ast_col]], na.rm = TRUE),
+      conflicting_values = paste(sort(unique(.data[[ast_col]])), collapse = " vs "),
+      n_rows             = dplyr::n(),
+      .groups = "drop"
+    ) %>%
+    dplyr::filter(.data$n_ast_values > 1)
+
+  data <- dplyr::left_join(
+    data,
+    conflict_summary %>% dplyr::select(dplyr::all_of(key_cols), n_ast_values),
+    by = key_cols
+  ) %>%
+    dplyr::mutate(is_ast_duplicate = !is.na(.data$n_ast_values)) %>%
+    dplyr::select(-n_ast_values)
+
+  n_groups <- nrow(conflict_summary)
+  n_flagged <- sum(data$is_ast_duplicate, na.rm = TRUE)
+
+  if (n_groups == 0) {
+    message("[prep_deduplicate_ast] No duplicate AST conflicts detected.")
+  } else {
+    message(sprintf("[prep_deduplicate_ast] %d conflict group(s) found, %d rows flagged.",
+                    n_groups, n_flagged))
+    message("\nConflict summary (top 10):")
+    print(utils::head(conflict_summary[, c(key_cols, "conflicting_values", "n_rows")], 10))
+  }
+
+  if (mode == "detect") return(data)
+
+  # --- Step 2 (remove only): resolve conflicts via strategy ---
   n_before <- nrow(data)
 
-  if (strategy == "resistant_wins") {
-    priority <- c("R" = 1L, "I" = 2L, "S" = 3L)
-    data$.ast_priority <- priority[data[[ast_col]]]
-    data$.ast_priority[is.na(data$.ast_priority)] <- 99L
-
-    data <- data %>%
-      dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
-      dplyr::slice_min(order_by = .data$.ast_priority, n = 1, with_ties = FALSE) %>%
-      dplyr::ungroup()
-    data$.ast_priority <- NULL
-
-  } else if (strategy == "susceptible_wins") {
-    priority <- c("S" = 1L, "I" = 2L, "R" = 3L)
+  if (strategy %in% c("resistant_wins", "susceptible_wins")) {
+    priority <- if (strategy == "resistant_wins") c("R" = 1L, "I" = 2L, "S" = 3L)
+                else                              c("S" = 1L, "I" = 2L, "R" = 3L)
     data$.ast_priority <- priority[data[[ast_col]]]
     data$.ast_priority[is.na(data$.ast_priority)] <- 99L
 
@@ -455,17 +448,213 @@ prep_resolve_duplicate_ast <- function(data,
     data$.ast_priority <- NULL
 
   } else {
-    # first: keep first row per key
     data <- data %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
       dplyr::slice(1) %>%
       dplyr::ungroup()
   }
 
-  n_after   <- nrow(data)
-  n_removed <- n_before - n_after
-  message(sprintf("[prep_resolve_duplicate_ast] Strategy '%s': removed %d duplicate row(s).",
-                  strategy, n_removed))
+  data$is_ast_duplicate <- NULL
 
+  message(sprintf("[prep_deduplicate_ast] Strategy '%s': removed %d duplicate row(s).",
+                  strategy, n_before - nrow(data)))
   return(data)
+}
+
+
+# ---------------------------------------------------------------------------
+# Reshape helpers
+# ---------------------------------------------------------------------------
+
+#' Convert Wide Format to Long Format
+#'
+#' Converts wide format data (where each antibiotic is a column) to long format
+#' (one row per organism-antibiotic combination). This is the first step before
+#' normalization and analysis.
+#'
+#' @param data Data frame in wide format (antibiotics as columns)
+#' @param antibiotic_cols Character vector. Names of antibiotic columns to pivot.
+#'   If NULL, will auto-detect based on pattern. Default NULL.
+#' @param pattern Character. Regex pattern to identify antibiotic columns if
+#'   antibiotic_cols not provided. Default NULL (no auto-detection).
+#' @param id_cols Character vector. Columns to keep as identifiers (not pivoted).
+#'   Default c("patient_id", "event_id", "organism_name", "date_of_culture").
+#' @param antibiotic_name_col Character. Name for the new column containing
+#'   antibiotic names. Default "antibiotic_name".
+#' @param antibiotic_value_col Character. Name for the new column containing
+#'   susceptibility results. Default "antibiotic_value".
+#' @param remove_missing Logical. Remove rows where antibiotic_value is NA, empty,
+#'   or "-". Default TRUE.
+#' @param create_event_id Logical. Create event_id column if it doesn't exist
+#'   (uses row numbers). Default FALSE.
+#'
+#' @return Data frame in long format
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Specify antibiotic columns explicitly
+#' long_data <- prep_pivot_ast_wide_to_long(
+#'   data = raw_data,
+#'   antibiotic_cols = c("AMIKACIN", "GENTAMICIN", "CIPROFLOXACIN")
+#' )
+#'
+#' # Auto-detect columns by pattern (columns 12-53)
+#' long_data <- prep_pivot_ast_wide_to_long(
+#'   data = raw_data,
+#'   antibiotic_cols = names(raw_data)[12:53]
+#' )
+#'
+#' # Auto-detect uppercase antibiotic names
+#' long_data <- prep_pivot_ast_wide_to_long(
+#'   data = raw_data,
+#'   pattern = "^[A-Z]+$"
+#' )
+#' }
+prep_pivot_ast_wide_to_long <- function(data,
+                                        antibiotic_cols      = NULL,
+                                        pattern              = NULL,
+                                        id_cols              = c("patient_id", "event_id",
+                                                                 "organism_name", "date_of_culture"),
+                                        antibiotic_name_col  = "antibiotic_name",
+                                        antibiotic_value_col = "antibiotic_value",
+                                        remove_missing       = TRUE,
+                                        create_event_id      = FALSE) {
+  n_before <- nrow(data)
+
+  if (create_event_id && !"event_id" %in% names(data)) {
+    message("Creating event_id column from row numbers...")
+    data$event_id <- seq_len(nrow(data))
+  }
+
+  if (is.null(antibiotic_cols)) {
+    if (!is.null(pattern)) {
+      antibiotic_cols <- names(data)[grepl(pattern, names(data))]
+      message(sprintf("Auto-detected %d antibiotic columns using pattern '%s'",
+                      length(antibiotic_cols), pattern))
+    } else {
+      stop("Either antibiotic_cols or pattern must be provided")
+    }
+  }
+
+  if (length(antibiotic_cols) == 0)
+    stop("No antibiotic columns found")
+
+  id_cols <- intersect(id_cols, names(data))
+
+  missing_cols <- setdiff(antibiotic_cols, names(data))
+  if (length(missing_cols) > 0) {
+    warning(sprintf("Some antibiotic columns not found: %s",
+                    paste(missing_cols, collapse = ", ")))
+    antibiotic_cols <- intersect(antibiotic_cols, names(data))
+  }
+
+  message(sprintf("Pivoting %d antibiotic columns to long format...", length(antibiotic_cols)))
+
+  long_data <- data %>%
+    tidyr::pivot_longer(
+      cols      = dplyr::all_of(antibiotic_cols),
+      names_to  = antibiotic_name_col,
+      values_to = antibiotic_value_col
+    )
+
+  message(sprintf("Pivoted: %d rows -> %d rows (wide -> long)", n_before, nrow(long_data)))
+
+  if (remove_missing) {
+    n_before_filter <- nrow(long_data)
+    long_data <- long_data %>%
+      dplyr::filter(
+        !is.na(!!rlang::sym(antibiotic_value_col)),
+        !!rlang::sym(antibiotic_value_col) != "",
+        !!rlang::sym(antibiotic_value_col) != "-"
+      )
+    n_removed <- n_before_filter - nrow(long_data)
+    if (n_removed > 0)
+      message(sprintf("Removed %d rows with missing/empty values", n_removed))
+  }
+
+  n_unique_abx    <- dplyr::n_distinct(long_data[[antibiotic_name_col]])
+  n_unique_events <- dplyr::n_distinct(long_data[["event_id"]], na.rm = TRUE)
+  message(sprintf("Final long format: %d rows x %d columns (%d antibiotics, %d events)",
+                  nrow(long_data), ncol(long_data), n_unique_abx, n_unique_events))
+
+  return(long_data)
+}
+
+
+#' Create Wide Format AST Matrix
+#'
+#' Converts long format (one row per organism-antibiotic) to wide format
+#' (one row per event with antibiotic columns). Useful for analysis and
+#' machine learning applications.
+#'
+#' @param data Data frame in long format
+#' @param event_col Character. Event ID column. Default "event_id".
+#' @param antibiotic_col Character. Antibiotic/class column to pivot.
+#'   Default "antibiotic_normalized".
+#' @param susceptibility_col Character. Susceptibility column. Default "antibiotic_value".
+#' @param prefix Character. Prefix for pivoted columns. Default "abx_".
+#' @param keep_cols Character vector. Additional columns to keep from original data.
+#'   Default c("patient_id", "organism_normalized", "date_of_culture").
+#'
+#' @return Wide format data frame (one row per event)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Basic wide format
+#' wide_data <- prep_create_wide_ast_matrix(data)
+#'
+#' # Class-level wide format
+#' wide_data <- prep_create_wide_ast_matrix(
+#'   data,
+#'   antibiotic_col = "antibiotic_class",
+#'   prefix = "class_"
+#' )
+#' }
+prep_create_wide_ast_matrix <- function(data,
+                                        event_col          = "event_id",
+                                        antibiotic_col     = "antibiotic_normalized",
+                                        susceptibility_col = "antibiotic_value",
+                                        prefix             = "abx_",
+                                        keep_cols          = c("patient_id", "organism_normalized",
+                                                               "date_of_culture")) {
+  if (!event_col %in% names(data))
+    stop(sprintf("Column '%s' not found", event_col))
+  if (!antibiotic_col %in% names(data))
+    stop(sprintf("Column '%s' not found", antibiotic_col))
+  if (!susceptibility_col %in% names(data))
+    stop(sprintf("Column '%s' not found", susceptibility_col))
+
+  keep_cols <- unique(c(event_col, intersect(keep_cols, names(data))))
+  n_events_before <- dplyr::n_distinct(data[[event_col]])
+
+  message(sprintf("Creating wide format: pivoting '%s' column...", antibiotic_col))
+
+  wide_data <- data %>%
+    dplyr::select(dplyr::all_of(keep_cols),
+                  !!rlang::sym(antibiotic_col),
+                  !!rlang::sym(susceptibility_col)) %>%
+    dplyr::group_by(!!rlang::sym(event_col), !!rlang::sym(antibiotic_col)) %>%
+    dplyr::slice(1) %>%
+    dplyr::ungroup() %>%
+    tidyr::pivot_wider(
+      id_cols     = dplyr::all_of(keep_cols),
+      names_from  = !!rlang::sym(antibiotic_col),
+      values_from = !!rlang::sym(susceptibility_col),
+      names_prefix = prefix
+    )
+
+  names(wide_data) <- gsub("[^A-Za-z0-9_]", "_", names(wide_data))
+  names(wide_data) <- gsub("_{2,}", "_", names(wide_data))
+
+  n_antibiotics <- ncol(wide_data) - length(keep_cols)
+  message(sprintf("Created wide format: %d events x %d antibiotics",
+                  nrow(wide_data), n_antibiotics))
+
+  if (nrow(wide_data) != n_events_before)
+    warning(sprintf("[!] Row count mismatch: %d events in input, %d rows in wide format",
+                    n_events_before, nrow(wide_data)))
+
+  return(wide_data)
 }
