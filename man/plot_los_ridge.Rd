@@ -64,7 +64,7 @@ are removed (prevents \code{log(0)} issues). Default \code{1}.}
 \code{ggridges::geom_density_ridges()}. Controls overlap between ridges.
 Default \code{1.2}.}
 
-\item{alpha}{Numeric. Fill transparency (0–1). Default \code{0.7}.}
+\item{alpha}{Numeric. Fill transparency (0-1). Default \code{0.7}.}
 
 \item{base_size}{Numeric. Base font size. Default \code{14}.}
 
@@ -88,7 +88,7 @@ curve (\code{mode = "single"}).
 \details{
 LOS is computed as
 \code{difftime(discharge_col, admission_col, units = "days")}.
-One row per unique patient × centre × admission_date × discharge_date is
+One row per unique patient x centre x admission_date x discharge_date is
 retained before plotting. Rows with \code{LOS < min_los} or
 \code{LOS > max_los} are dropped.
 }

@@ -75,7 +75,7 @@ Default \code{"Discharged"}.}
 \code{death_label} and \code{discharged_label}.
 Default \code{c("Death" = "#E74C3C", "Discharged" = "#2ECC71")}.}
 
-\item{bar_width}{Numeric. Width of each individual bar (0–1).
+\item{bar_width}{Numeric. Width of each individual bar (0-1).
 Default \code{0.65}.}
 
 \item{ncol}{Integer. Facet columns
@@ -100,7 +100,7 @@ A \code{ggplot} object.
 \description{
 Produces a side-by-side (dodged) bar chart comparing Death and Discharged
 patient counts for the top \code{n} organisms. LAMA and Referred are
-excluded — only the two definitive outcomes are shown.
+excluded -- only the two definitive outcomes are shown.
 }
 \details{
 Each bar is labelled with the count and the percentage that outcome
@@ -110,8 +110,8 @@ represents out of all Death + Discharged patients for that organism
 immediately readable without a separate calculation.
 
 \strong{Deduplication:} uses
-\code{distinct(centre, patient, organism, outcome)} — one record per
-patient per organism per outcome — consistent with the original EDA script.
+\code{distinct(centre, patient, organism, outcome)} -- one record per
+patient per organism per outcome -- consistent with the original EDA script.
 
 \strong{Top N organisms} are ranked by total unique patients with a known
 outcome (Death or Discharged). For \code{mode = "faceted"} the ranking is
@@ -119,8 +119,8 @@ done independently per centre; for \code{"overall"} it is done globally.
 
 Supports three display modes:
 \itemize{
-  \item \strong{"faceted"} (default) — one panel per centre.
-  \item \strong{"overall"} — all centres pooled into one chart.
-  \item \strong{"single"} — one specific centre.
+  \item \strong{"faceted"} (default) -- one panel per centre.
+  \item \strong{"overall"} -- all centres pooled into one chart.
+  \item \strong{"single"} -- one specific centre.
 }
 }

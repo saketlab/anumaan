@@ -87,11 +87,11 @@ patient tested against the same antibiotic twice is counted once.
 
 Supports three display modes:
 \itemize{
-  \item \strong{"faceted"} — top \emph{n} antibiotics per centre
+  \item \strong{"faceted"} -- top \emph{n} antibiotics per centre
     independently, one panel per centre.
-  \item \strong{"overall"} — all centres pooled; top \emph{n} antibiotics
+  \item \strong{"overall"} -- all centres pooled; top \emph{n} antibiotics
     globally.
-  \item \strong{"single"} — one specific centre; pass the centre name via
+  \item \strong{"single"} -- one specific centre; pass the centre name via
     \code{center}.
 }
 }

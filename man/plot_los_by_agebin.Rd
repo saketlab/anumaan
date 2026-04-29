@@ -72,9 +72,9 @@ using \code{agebin_col}. \code{NULL} = auto-sort.}
 
 \item{fill_colour}{Character. Box fill colour. Default \code{"#2C7FB8"}.}
 
-\item{fill_alpha}{Numeric. Box fill transparency (0–1). Default \code{0.7}.}
+\item{fill_alpha}{Numeric. Box fill transparency (0-1). Default \code{0.7}.}
 
-\item{outlier_alpha}{Numeric. Outlier point transparency (0–1). Default
+\item{outlier_alpha}{Numeric. Outlier point transparency (0-1). Default
 \code{0.25}.}
 
 \item{box_width}{Numeric. Width of each box. Default \code{0.6}.}
@@ -106,16 +106,16 @@ centre), \code{"overall"} (all centres pooled), and \code{"single"}
 }
 \details{
 LOS is computed as \code{difftime(discharge_col, admission_col, units = "days")}.
-One row per unique patient × centre × admission × discharge is retained.
+One row per unique patient x centre x admission x discharge is retained.
 Rows with \code{LOS < min_los} or \code{LOS > max_los} are dropped.
 
 \strong{Two ways to supply age groups:}
 \enumerate{
-  \item \strong{Pre-existing column} (default) — set \code{agebin_col} to an
+  \item \strong{Pre-existing column} (default) -- set \code{agebin_col} to an
     existing categorical column (e.g. \code{"Age_bin"}). Bins are sorted
-    automatically (\code{<1}, \code{1-5}, …, \code{85+}); override order
+    automatically (\code{<1}, \code{1-5}, ..., \code{85+}); override order
     with \code{age_levels}.
-  \item \strong{Custom breaks from continuous age} — set \code{age_breaks}
+  \item \strong{Custom breaks from continuous age} -- set \code{age_breaks}
     to a numeric vector (e.g. \code{c(0, 5, 15, 30, 50, 70, Inf)}) and
     \code{age_col} to the continuous age column (default \code{"age_years"}).
     Bins are derived via \code{cut()} and labelled automatically.

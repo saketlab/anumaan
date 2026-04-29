@@ -65,7 +65,7 @@ on the x-axis; the two bars per hospital are coloured by infection type.
 Count labels are printed above each bar.
 }
 \details{
-\strong{Deduplication:} \code{distinct(patient, centre, infection type)} —
+\strong{Deduplication:} \code{distinct(patient, centre, infection type)} --
 each unique patient-centre-infection type combination is counted once. A
 patient who has both mono and polymicrobial episodes at the same centre
 contributes to both bars, matching the original EDA script.

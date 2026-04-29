@@ -49,7 +49,7 @@ Default \code{"age_years"}.}
 \code{ggridges::geom_density_ridges()}. Controls overlap between ridges.
 Default \code{1.2}.}
 
-\item{alpha}{Numeric. Fill transparency (0–1). Default \code{0.7}.}
+\item{alpha}{Numeric. Fill transparency (0-1). Default \code{0.7}.}
 
 \item{base_size}{Numeric. Base font size. Default \code{14}.}
 
@@ -71,6 +71,6 @@ stacked ridge plot (\code{mode = "all"}) or a single-centre density curve
 (\code{mode = "single"}).
 }
 \details{
-One row per unique patient × centre is retained before plotting.
+One row per unique patient x centre is retained before plotting.
 Rows with age outside \code{[min_age, max_age]} are dropped.
 }

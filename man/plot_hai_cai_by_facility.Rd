@@ -69,11 +69,11 @@ percentage labels inside each segment, and an \code{n=} total label
 above.
 }
 \details{
-\strong{Classification rule:} for each patient × centre, the earliest
+\strong{Classification rule:} for each patient x centre, the earliest
 culture date is used. If the time from admission to that culture is
 \eqn{\geq} \code{hai_threshold_hours} (default 48 h), the patient is
 classified as HAI; otherwise CAI. The existing \code{type_of_infection}
-column in the dataset is \emph{ignored} — classification is derived
+column in the dataset is \emph{ignored} -- classification is derived
 entirely from dates.
 
 \strong{Deduplication:} one classification per patient per centre

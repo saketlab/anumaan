@@ -16,7 +16,7 @@ prep_create_event_ids(
 )
 }
 \arguments{
-\item{data}{Data frame (long format — one row per antibiotic test).}
+\item{data}{Data frame (long format -- one row per antibiotic test).}
 
 \item{patient_col}{Patient ID column. Default "patient_id".}
 

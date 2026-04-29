@@ -51,7 +51,7 @@ Default \code{TRUE}.}
 age bin labels. If \code{NULL} (default), bins are sorted automatically
 (\code{<1} first, numeric ranges in order, open-ended bins last).}
 
-\item{palette}{Named character vector. Outcome → fill colour mapping.
+\item{palette}{Named character vector. Outcome -> fill colour mapping.
 Unmatched outcomes receive grey. Default uses red/green/grey/blue preset.}
 
 \item{ncol}{Integer. Facet columns (\code{mode = "faceted"} only).
@@ -80,7 +80,7 @@ Each bar represents one age bin and sums to 100\%. An \code{n=} label above
 each bar shows the total patients in that age group.
 }
 \details{
-\strong{Deduplication:} one record per patient per centre — first recorded
+\strong{Deduplication:} one record per patient per centre -- first recorded
 outcome and age bin per patient per centre. Each patient contributes exactly
 one bar segment per centre.
 
@@ -90,8 +90,8 @@ one bar segment per centre.
 
 Supports three display modes:
 \itemize{
-  \item \strong{"faceted"} (default) — one panel per centre.
-  \item \strong{"overall"} — all centres pooled; one chart.
-  \item \strong{"single"} — one specific centre.
+  \item \strong{"faceted"} (default) -- one panel per centre.
+  \item \strong{"overall"} -- all centres pooled; one chart.
+  \item \strong{"single"} -- one specific centre.
 }
 }

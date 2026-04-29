@@ -69,12 +69,12 @@ A \code{ggplot} object. Print it or pass to \code{ggsave()}.
 Produces a horizontal bar chart of the top \code{n} organisms ranked by
 unique patient count. Supports three display modes:
 \itemize{
-  \item \strong{"faceted"} — one panel per centre, top \emph{n} organisms
+  \item \strong{"faceted"} -- one panel per centre, top \emph{n} organisms
     within each centre independently. Facet strips show patient and organism
     counts for that centre.
-  \item \strong{"overall"} — all centres pooled; single chart of the top
+  \item \strong{"overall"} -- all centres pooled; single chart of the top
     \emph{n} organisms across the entire dataset.
-  \item \strong{"single"} — one specific centre; pass the centre name via
+  \item \strong{"single"} -- one specific centre; pass the centre name via
     \code{center}.
 }
 }

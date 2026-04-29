@@ -2,9 +2,8 @@
 # Reusable EDA plotting functions for AMR stewardship datasets
 
 
-# ============================================================================
 # THEME & PALETTE HELPERS
-# ============================================================================
+
 
 #' EDA ggplot2 Theme
 #'
@@ -32,9 +31,9 @@ eda_theme <- function(base_size = 14, legend_position = "top") {
 }
 
 
-# ============================================================================
+
 # TOP PATHOGENS
-# ============================================================================
+
 
 #' Plot Top Pathogens by Unique Patients
 #'
@@ -327,9 +326,9 @@ plot_top_organisms <- function(data,
 }
 
 
-# ============================================================================
+
 # ANTIBIOTIC SUSCEPTIBILITY PATTERN
-# ============================================================================
+
 
 #' Plot Antibiotic Susceptibility Pattern (Stacked R/S Bars)
 #'
@@ -663,9 +662,9 @@ plot_abx_susceptibility <- function(data,
 }
 
 
-# ============================================================================
+
 # ANTIBIOTIC RESISTANCE HEATMAP
-# ============================================================================
+
 
 #' Plot Antibiotic Resistance Heatmap
 #'
@@ -935,9 +934,9 @@ plot_abx_heatmap <- function(data,
 }
 
 
-# ============================================================================
+
 # FINAL OUTCOME DISTRIBUTION
-# ============================================================================
+
 
 #' Plot Distribution of Final Outcomes
 #'
@@ -1243,9 +1242,9 @@ plot_outcome_distribution <- function(data,
 }
 
 
-# ============================================================================
+
 # FINAL OUTCOME PROPORTIONS BY RESISTANCE STATUS
-# ============================================================================
+
 
 #' Plot Final Outcome Proportions for Resistant or Susceptible Patients
 #'
@@ -1619,9 +1618,9 @@ plot_outcome_by_organism <- function(data,
 }
 
 
-# ============================================================================
+
 # DEATH VS DISCHARGED -- SIDE-BY-SIDE BAR CHART
-# ============================================================================
+
 
 #' Plot Death vs Discharged Counts for Top Pathogens
 #'
@@ -2023,9 +2022,9 @@ plot_death_discharged <- function(data,
 }
 
 
-# ============================================================================
+
 # ANTIBIOTIC RESISTANCE DISTRIBUTION ACROSS SAMPLE TYPES
-# ============================================================================
+
 
 #' Plot Distribution of Antibiotic Resistance Across Sample Types
 #'
@@ -2361,9 +2360,9 @@ plot_resistance_by_sample <- function(data,
 }
 
 
-# ============================================================================
+
 # FINAL OUTCOME BY AGE BIN
-# ============================================================================
+
 
 #' Plot Final Outcome Proportions by Age Bin
 #'
@@ -2520,16 +2519,16 @@ plot_outcome_by_agebin <- function(data,
     clean <- clean %>%
       dplyr::group_by(!!pt_sym) %>%
       dplyr::summarise(
-        !!agebin_col  := first(!!age_sym),
-        !!outcome_col := first(!!out_sym),
+        !!agebin_col  := dplyr::first(!!age_sym),
+        !!outcome_col := dplyr::first(!!out_sym),
         .groups = "drop"
       )
   } else {
     clean <- clean %>%
       dplyr::group_by(!!ctr_sym, !!pt_sym) %>%
       dplyr::summarise(
-        !!agebin_col  := first(!!age_sym),
-        !!outcome_col := first(!!out_sym),
+        !!agebin_col  := dplyr::first(!!age_sym),
+        !!outcome_col := dplyr::first(!!out_sym),
         .groups = "drop"
       )
     age_sym <- rlang::sym(agebin_col)
@@ -2717,9 +2716,9 @@ plot_outcome_by_agebin <- function(data,
 }
 
 
-# ============================================================================
+
 # MONO VS POLYMICROBIAL BY FACILITY
-# ============================================================================
+
 
 #' Plot Mono vs Polymicrobial Infections by Facility
 #'
@@ -2867,9 +2866,9 @@ plot_mono_poly_by_facility <- function(data,
 }
 
 
-# ============================================================================
+
 # HAI vs CAI BY FACILITY
-# ============================================================================
+
 
 #' Plot HAI vs CAI Infection Distribution by Facility
 #'
@@ -3044,9 +3043,9 @@ plot_hai_cai_by_facility <- function(data,
 }
 
 
-# ============================================================================
+
 # PATIENT DISTRIBUTION BY LOCATION TYPE ACROSS FACILITIES
-# ============================================================================
+
 
 #' Plot Patient Distribution by Location Type Across Facilities
 #'
@@ -3207,9 +3206,9 @@ plot_location_by_facility <- function(data,
 }
 
 
-# ============================================================================
+
 # LOS RIDGE PLOT
-# ============================================================================
+
 
 #' Ridge / Density Plot of Length of Stay (LOS)
 #'
@@ -3356,7 +3355,7 @@ plot_los_ridge <- function(
     if (is.null(colours)) {
       colours <- stats::setNames(
         grDevices::colorRampPalette(
-          RColorBrewer::brewer.pal(min(n_centers, 8), "Set2")
+          RColorBrewer::brewer.pal(max(min(n_centers, 8), 3), "Set2")
         )(n_centers),
         center_order
       )
@@ -3449,9 +3448,9 @@ plot_los_ridge <- function(
 }
 
 
-# ============================================================================
+
 # AGE RIDGE PLOT
-# ============================================================================
+
 
 #' Ridge / Density Plot of Patient Age
 #'
@@ -3566,7 +3565,7 @@ plot_age_ridge <- function(
     if (is.null(colours)) {
       colours <- stats::setNames(
         grDevices::colorRampPalette(
-          RColorBrewer::brewer.pal(min(n_centers, 8), "Set2")
+          RColorBrewer::brewer.pal(max(min(n_centers, 8), 3), "Set2")
         )(n_centers),
         center_order
       )
@@ -3657,9 +3656,9 @@ plot_age_ridge <- function(
 }
 
 
-# ============================================================================
+
 # LOS BY AGE GROUP BOXPLOT
-# ============================================================================
+
 
 #' Boxplot of Length of Stay by Age Group
 #'
@@ -3917,6 +3916,290 @@ plot_los_by_agebin <- function(
       stats::as.formula(paste("~", center_col)),
       ncol   = ncol,
       scales = "fixed"
+    )
+  }
+
+  return(p)
+}
+
+
+
+# FINAL OUTCOME BY YEAR
+
+
+#' Plot Distribution of Final Outcomes by Year
+#'
+#' Produces a stacked bar chart where the x-axis shows the year derived from
+#' \code{date_col}, the y-axis shows the number of unique patients, and bars
+#' are filled by final outcome category. Each bar segment is labelled with
+#' count and percentage; a total \code{n=} label sits above each bar.
+#'
+#' One outcome is taken per patient per centre (the first recorded value) to
+#' avoid double-counting long-format rows.
+#'
+#' Supports three display modes:
+#' \itemize{
+#'   \item \strong{"faceted"} (default) -- one panel per centre.
+#'   \item \strong{"overall"} -- all centres pooled into a single chart.
+#'   \item \strong{"single"} -- one specific centre; pass its name via
+#'     \code{center}.
+#' }
+#'
+#' @param data           Data frame. Long-format AMR dataset.
+#' @param mode           Character. One of \code{"faceted"}, \code{"overall"},
+#'   or \code{"single"}. Default \code{"faceted"}.
+#' @param center         Character. Required when \code{mode = "single"}.
+#'   Exact centre name.
+#' @param patient_col    Character. Patient ID column.
+#'   Default \code{"PatientInformation_id"}.
+#' @param outcome_col    Character. Final outcome column.
+#'   Default \code{"final_outcome"}.
+#' @param date_col       Character. Date column used to extract the year
+#'   (must be a \code{Date} or \code{POSIXct} column).
+#'   Default \code{"final_outcome_date"}.
+#' @param center_col     Character. Centre/facility column.
+#'   Default \code{"center_name"}.
+#' @param merge_referred Logical. Recode
+#'   \code{"Transferred to other hospital"} to \code{"Referred"}.
+#'   Default \code{TRUE}.
+#' @param palette        Named character vector mapping outcome values to
+#'   colours. Unmatched outcomes get a default ggplot colour.
+#' @param ncol           Integer. Facet columns (\code{mode = "faceted"} only).
+#'   Default 2.
+#' @param base_size      Numeric. Base font size. Default 14.
+#' @param title          Character. Custom plot title. Auto-generated if
+#'   \code{NULL}. Default \code{NULL}.
+#' @param syndrome_col   Character or \code{NULL}. Syndrome filter column.
+#'   Default \code{NULL}.
+#' @param syndrome_name  Character or \code{NULL}. Syndrome value to retain.
+#'   Requires \code{syndrome_col}. Default \code{NULL}.
+#'
+#' @return A \code{ggplot} object.
+#' @export
+#'
+plot_outcome_by_year <- function(data,
+                                 mode           = c("faceted", "overall", "single"),
+                                 center         = NULL,
+                                 patient_col    = "PatientInformation_id",
+                                 outcome_col    = "final_outcome",
+                                 date_col       = "final_outcome_date",
+                                 center_col     = "center_name",
+                                 merge_referred = TRUE,
+                                 palette        = c(
+                                   "Death"                         = "#E74C3C",
+                                   "Died"                          = "#E74C3C",
+                                   "Discharged"                    = "#2ECC71",
+                                   "LAMA"                          = "#95A5A6",
+                                   "Referred"                      = "#3498DB",
+                                   "Transferred to other hospital" = "#3498DB"
+                                 ),
+                                 ncol           = 2,
+                                 base_size      = 14,
+                                 title          = NULL,
+                                 syndrome_col   = NULL,
+                                 syndrome_name  = NULL) {
+
+  # -- 0. match mode -----------------------------------------------------------
+  mode <- match.arg(mode)
+
+  # -- 1. validate columns -----------------------------------------------------
+  required_cols <- c(patient_col, outcome_col, date_col)
+  if (mode != "overall") required_cols <- c(required_cols, center_col)
+
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0)
+    stop(sprintf("Column(s) not found in data: %s",
+                 paste(missing_cols, collapse = ", ")))
+
+  if (mode == "single") {
+    if (is.null(center))
+      stop("'center' must be provided when mode = 'single'.")
+    available <- unique(data[[center_col]])
+    if (!center %in% available)
+      stop(sprintf("'%s' not found in column '%s'. Available values: %s",
+                   center, center_col,
+                   paste(sort(available), collapse = ", ")))
+  }
+
+  if (!is.null(syndrome_name) && is.null(syndrome_col))
+    stop("'syndrome_col' must be provided when 'syndrome_name' is set.")
+  if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
+    stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
+
+  # -- syndrome pre-filter -----------------------------------------------------
+  if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
+    data <- data[!is.na(data[[syndrome_col]]) &
+                   data[[syndrome_col]] == syndrome_name, ]
+    if (nrow(data) == 0)
+      stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
+  }
+
+  # -- 2. tidy-eval symbols ----------------------------------------------------
+  pt_sym  <- rlang::sym(patient_col)
+  out_sym <- rlang::sym(outcome_col)
+  dt_sym  <- rlang::sym(date_col)
+  ctr_sym <- rlang::sym(center_col)
+
+  # -- 3. clean: drop missing outcome or date ----------------------------------
+  clean <- data %>%
+    dplyr::filter(
+      !is.na(!!out_sym), trimws(as.character(!!out_sym)) != "",
+      !is.na(!!dt_sym)
+    )
+
+  # -- 4. optionally recode referred -------------------------------------------
+  if (merge_referred) {
+    clean <- clean %>%
+      dplyr::mutate(
+        !!outcome_col := dplyr::case_when(
+          !!out_sym == "Transferred to other hospital" ~ "Referred",
+          TRUE ~ as.character(!!out_sym)
+        )
+      )
+    out_sym <- rlang::sym(outcome_col)
+  }
+
+  # -- 5. optional: filter to single centre ------------------------------------
+  if (mode == "single")
+    clean <- clean %>% dplyr::filter(!!ctr_sym == center)
+
+  # -- 6. deduplicate: one outcome + date per patient (per centre) -------------
+  if (mode == "overall") {
+    deduped <- clean %>%
+      dplyr::group_by(!!pt_sym) %>%
+      dplyr::summarise(
+        !!outcome_col := dplyr::first(!!out_sym),
+        !!date_col    := dplyr::first(!!dt_sym),
+        .groups = "drop"
+      )
+  } else {
+    deduped <- clean %>%
+      dplyr::group_by(!!ctr_sym, !!pt_sym) %>%
+      dplyr::summarise(
+        !!outcome_col := dplyr::first(!!out_sym),
+        !!date_col    := dplyr::first(!!dt_sym),
+        .groups = "drop"
+      )
+  }
+
+  # -- 7. extract year ---------------------------------------------------------
+  deduped <- deduped %>%
+    dplyr::mutate(year = as.integer(format(!!dt_sym, "%Y"))) %>%
+    dplyr::filter(!is.na(year))
+
+  # -- 8. summarise: counts per year x outcome (x centre) ---------------------
+  if (mode == "overall") {
+    summary_yr <- deduped %>%
+      dplyr::group_by(year, !!out_sym) %>%
+      dplyr::summarise(unique_patients = dplyr::n(), .groups = "drop") %>%
+      dplyr::group_by(year) %>%
+      dplyr::mutate(
+        total_year = sum(unique_patients),
+        label      = paste0(unique_patients, " (",
+                            round(100 * unique_patients / total_year, 1), "%)")
+      ) %>%
+      dplyr::ungroup()
+
+    year_n <- summary_yr %>%
+      dplyr::distinct(year, total_year)
+
+  } else {
+    summary_yr <- deduped %>%
+      dplyr::group_by(!!ctr_sym, year, !!out_sym) %>%
+      dplyr::summarise(unique_patients = dplyr::n(), .groups = "drop") %>%
+      dplyr::group_by(!!ctr_sym, year) %>%
+      dplyr::mutate(
+        total_year = sum(unique_patients),
+        label      = paste0(unique_patients, " (",
+                            round(100 * unique_patients / total_year, 1), "%)")
+      ) %>%
+      dplyr::ungroup()
+
+    year_n <- summary_yr %>%
+      dplyr::distinct(!!ctr_sym, year, total_year)
+  }
+
+  # -- 9. build plot -----------------------------------------------------------
+  if (mode == "overall") {
+    auto_title <- title %||%
+      "Distribution of Final Outcomes by Year \u2014 All Centres Pooled"
+
+    p <- ggplot2::ggplot(
+      summary_yr,
+      ggplot2::aes(x = factor(year), y = unique_patients, fill = !!out_sym)
+    ) +
+      ggplot2::geom_col(color = "black", width = 0.75) +
+      ggplot2::geom_text(
+        ggplot2::aes(label = label),
+        position = ggplot2::position_stack(vjust = 0.5),
+        size = 3.4, fontface = "bold", color = "white"
+      ) +
+      ggplot2::geom_text(
+        data = year_n,
+        ggplot2::aes(x = factor(year), y = total_year,
+                     label = paste0("n=", total_year)),
+        inherit.aes = FALSE,
+        vjust = -0.4, size = 3.8, fontface = "bold"
+      ) +
+      ggplot2::scale_y_continuous(
+        expand = ggplot2::expansion(mult = c(0, 0.12))
+      ) +
+      ggplot2::scale_fill_manual(values = palette, na.value = "grey70") +
+      ggplot2::labs(
+        x     = "Year",
+        y     = "Number of Admissions",
+        fill  = "Final Outcome",
+        title = auto_title
+      ) +
+      eda_theme(base_size = base_size, legend_position = "top")
+
+    return(p)
+  }
+
+  # faceted / single share the same base plot
+  if (mode == "single") {
+    auto_title <- title %||% sprintf(
+      "Distribution of Final Outcomes by Year \u2014 %s", center
+    )
+  } else {
+    auto_title <- title %||%
+      "Distribution of Final Outcomes by Year \u2014 All Centres"
+  }
+
+  p <- ggplot2::ggplot(
+    summary_yr,
+    ggplot2::aes(x = factor(year), y = unique_patients, fill = !!out_sym)
+  ) +
+    ggplot2::geom_col(color = "black", width = 0.75) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = label),
+      position = ggplot2::position_stack(vjust = 0.5),
+      size = 3.4, fontface = "bold", color = "white"
+    ) +
+    ggplot2::geom_text(
+      data = year_n,
+      ggplot2::aes(x = factor(year), y = total_year,
+                   label = paste0("n=", total_year)),
+      inherit.aes = FALSE,
+      vjust = -0.4, size = 3.8, fontface = "bold"
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.12))
+    ) +
+    ggplot2::scale_fill_manual(values = palette, na.value = "grey70") +
+    ggplot2::labs(
+      x     = "Year",
+      y     = "Number of Admissions",
+      fill  = "Final Outcome",
+      title = auto_title
+    ) +
+    eda_theme(base_size = base_size, legend_position = "top")
+
+  if (mode == "faceted") {
+    p <- p + ggplot2::facet_wrap(
+      stats::as.formula(paste("~", center_col)),
+      ncol   = ncol,
+      scales = "free_y"
     )
   }
 
