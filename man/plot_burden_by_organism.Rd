@@ -40,13 +40,13 @@ and \code{"pathogen"} for YLD (matching \code{daly_calc_yld_*} defaults).}
 
 \item{assoc_col}{Character or \code{NULL}. Column for the associated
 burden value. If \code{NULL} (default), auto-set to
-\code{"YLL_associated_k"} (YLL) or \code{"YLD_associated"} (YLD) \u2014
+\code{"YLL_associated_k"} (YLL) or \code{"YLD_associated"} (YLD) --
 matching the output column names of \code{compute_yll_associated()} and
 \code{compute_yld_associated()} respectively.}
 
 \item{attr_col}{Character or \code{NULL}. Column for the attributable
 burden value. If \code{NULL} (default), auto-set to
-\code{"YLL_attributable_k"} (YLL) or \code{"YLD_attributable"} (YLD) \u2014
+\code{"YLL_attributable_k"} (YLL) or \code{"YLD_attributable"} (YLD) --
 matching the output column names of \code{compute_yll_attributable()} and
 \code{compute_yld_attributable()} respectively.}
 

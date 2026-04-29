@@ -22,7 +22,7 @@ plot_burden_by_hospital(
 }
 \arguments{
 \item{data}{Data frame. One row per hospital (or one row per
-hospital \u00d7 syndrome). Must contain the columns named by
+hospital x syndrome). Must contain the columns named by
 \code{center_col}, \code{assoc_col}, and \code{attr_col}.}
 
 \item{metric}{Character. \code{"YLL"} or \code{"YLD"}. Controls

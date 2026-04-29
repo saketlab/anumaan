@@ -78,7 +78,7 @@ compute_hospital_daly <- function(hospital_counts,
 #' the plot to one syndrome before pivoting.
 #'
 #' @param data         Data frame. One row per hospital (or one row per
-#'   hospital \u00d7 syndrome). Must contain the columns named by
+#'   hospital x syndrome). Must contain the columns named by
 #'   \code{center_col}, \code{assoc_col}, and \code{attr_col}.
 #' @param metric       Character. \code{"YLL"} or \code{"YLD"}. Controls
 #'   which default column names and axis labels are used. Ignored when
@@ -294,12 +294,12 @@ plot_burden_by_hospital <- function(data,
 #'   and \code{"pathogen"} for YLD (matching \code{daly_calc_yld_*} defaults).
 #' @param assoc_col    Character or \code{NULL}. Column for the associated
 #'   burden value. If \code{NULL} (default), auto-set to
-#'   \code{"YLL_associated_k"} (YLL) or \code{"YLD_associated"} (YLD) \u2014
+#'   \code{"YLL_associated_k"} (YLL) or \code{"YLD_associated"} (YLD) --
 #'   matching the output column names of \code{compute_yll_associated()} and
 #'   \code{compute_yld_associated()} respectively.
 #' @param attr_col     Character or \code{NULL}. Column for the attributable
 #'   burden value. If \code{NULL} (default), auto-set to
-#'   \code{"YLL_attributable_k"} (YLL) or \code{"YLD_attributable"} (YLD) \u2014
+#'   \code{"YLL_attributable_k"} (YLL) or \code{"YLD_attributable"} (YLD) --
 #'   matching the output column names of \code{compute_yll_attributable()} and
 #'   \code{compute_yld_attributable()} respectively.
 #' @param n_admissions Numeric or \code{NULL}. When supplied, the associated
@@ -694,7 +694,7 @@ plot_yll_heatmap <- function(data,
 #' admissions.
 #'
 #' The input \code{data} should contain one row per pathogen with
-#' \code{YLD_associated} and \code{YLD_attributable} columns \u2014 typically
+#' \code{YLD_associated} and \code{YLD_attributable} columns -- typically
 #' the output of \code{daly_calc_yld_attributable()} (which augments the
 #' data frame with both columns). If an organism-group column has been
 #' pre-joined (e.g. \code{org_group}), supply its name via \code{group_col}

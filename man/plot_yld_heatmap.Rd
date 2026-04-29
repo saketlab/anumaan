@@ -79,7 +79,7 @@ admissions.
 }
 \details{
 The input \code{data} should contain one row per pathogen with
-\code{YLD_associated} and \code{YLD_attributable} columns \u2014 typically
+\code{YLD_associated} and \code{YLD_attributable} columns -- typically
 the output of \code{daly_calc_yld_attributable()} (which augments the
 data frame with both columns). If an organism-group column has been
 pre-joined (e.g. \code{org_group}), supply its name via \code{group_col}
