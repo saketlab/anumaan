@@ -56,7 +56,7 @@ Default \code{"center_name"}.}
 \item{show_values}{Logical. Print proportion values inside tiles.
 Default \code{TRUE}.}
 
-\item{midpoint}{Numeric. Midpoint of the colour gradient (0–1).
+\item{midpoint}{Numeric. Midpoint of the colour gradient (0-1).
 Default \code{0.5}.}
 
 \item{low_colour}{Character. Colour for proportion = 0 (fully
@@ -87,17 +87,17 @@ A \code{ggplot} object.
 \description{
 Produces a ggplot2 tile heatmap where:
 \itemize{
-  \item \strong{x-axis} — antibiotics (ordered by total patients tested,
+  \item \strong{x-axis} -- antibiotics (ordered by total patients tested,
     most tested on the left)
-  \item \strong{y-axis} — centres
-  \item \strong{fill colour} — proportion of patients who were Resistant
+  \item \strong{y-axis} -- centres
+  \item \strong{fill colour} -- proportion of patients who were Resistant
     for that antibiotic at that centre (0 = fully susceptible, 1 = fully
     resistant)
 }
 }
 \details{
 Only R and S results are used. The same \strong{worst-phenotype rule}
-as \code{plot_abx_susceptibility()} is applied: per patient × organism ×
+as \code{plot_abx_susceptibility()} is applied: per patient x organism x
 antibiotic, any single R marks the episode as R.
 
 Cells with no data (antibiotic not tested at that centre) are shown in
@@ -105,8 +105,8 @@ light grey.
 
 Supports two display modes:
 \itemize{
-  \item \strong{"all"} (default) — all centres on the y-axis.
-  \item \strong{"single"} — filter to one centre before plotting (produces
+  \item \strong{"all"} (default) -- all centres on the y-axis.
+  \item \strong{"single"} -- filter to one centre before plotting (produces
     a single-row heatmap useful for per-centre reports).
 }
 }

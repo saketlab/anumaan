@@ -33,11 +33,11 @@ Data frame with \code{readmission_class} column added.
 For each patient, classifies admissions into:
 \describe{
   \item{index}{First admission for this patient.}
-  \item{linked_readmission}{Readmission within \code{gap_linked_days} — treated
+  \item{linked_readmission}{Readmission within \code{gap_linked_days} -- treated
     as the same episode. Excluded from HAI incidence counts.}
   \item{new_readmission}{Readmission between \code{gap_linked_days} and
     \code{gap_new_days}.}
-  \item{late_readmission}{Readmission after \code{gap_new_days} — fully new
+  \item{late_readmission}{Readmission after \code{gap_new_days} -- fully new
     event.}
 }
 }

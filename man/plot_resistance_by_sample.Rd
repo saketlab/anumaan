@@ -83,25 +83,25 @@ and S percentages.
 }
 \details{
 \strong{Deduplication (worst-phenotype):} before counting, rows are
-collapsed by patient × centre × sample type × organism × antibiotic. If
+collapsed by patient x centre x sample type x organism x antibiotic. If
 the same antibiotic appears more than once for a patient-organism-sample
 combination (data entry error or repeat test), any single R result marks
 the episode as R. This prevents duplicate rows from inflating counts.
 
-\strong{Counting unit:} deduplicated AST test results — one record per
-patient × organism × antibiotic × sample type combination.
+\strong{Counting unit:} deduplicated AST test results -- one record per
+patient x organism x antibiotic x sample type combination.
 
 \strong{Top N ranking:} sample types are ranked by total deduplicated
 test count, so the most-tested specimen types appear first.
 
-\strong{Default sample column:} \code{"sample_type"} — the raw column.
+\strong{Default sample column:} \code{"sample_type"} -- the raw column.
 Switch to \code{"specimen_normalized"} for standardised values.
 
 Supports three display modes:
 \itemize{
-  \item \strong{"faceted"} (default) — top \emph{n} sample types per
+  \item \strong{"faceted"} (default) -- top \emph{n} sample types per
     centre independently, one panel per centre.
-  \item \strong{"overall"} — all centres pooled; top \emph{n} globally.
-  \item \strong{"single"} — one specific centre.
+  \item \strong{"overall"} -- all centres pooled; top \emph{n} globally.
+  \item \strong{"single"} -- one specific centre.
 }
 }

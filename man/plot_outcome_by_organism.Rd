@@ -94,13 +94,13 @@ result.
 \details{
 Each bar represents one organism. The fill shows outcome proportions.
 A \code{n=} label is printed above each bar showing the total number of
-unique patients in that organism × resistance group.
+unique patients in that organism x resistance group.
 
 \strong{Resistance grouping:} \code{resistance_filter = "R"} shows patients
 who had \emph{at least one} R result for the given organism. \code{"S"} shows
 patients with only S results. Because these groups overlap (a patient
 resistant to one antibiotic may be susceptible to another), calling the
-function twice — once for "R" and once for "S" — gives the most complete
+function twice -- once for "R" and once for "S" -- gives the most complete
 picture.
 
 \strong{Top N organisms} are ranked by total unique patients per centre
@@ -109,8 +109,8 @@ split so the same organisms appear in both R and S plots.
 
 Supports three display modes:
 \itemize{
-  \item \strong{"faceted"} (default) — one panel per centre.
-  \item \strong{"overall"} — all centres pooled.
-  \item \strong{"single"} — one specific centre.
+  \item \strong{"faceted"} (default) -- one panel per centre.
+  \item \strong{"overall"} -- all centres pooled.
+  \item \strong{"single"} -- one specific centre.
 }
 }

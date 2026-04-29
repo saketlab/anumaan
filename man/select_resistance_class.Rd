@@ -2,7 +2,7 @@
 % Please edit documentation in R/daly_resistance_prevalence.R
 \name{select_resistance_class}
 \alias{select_resistance_class}
-\title{Select Resistance Class for Burden Attribution}
+\title{Normalize String for Joining}
 \usage{
 select_resistance_class(
   data,
@@ -31,12 +31,70 @@ If NULL, uses \code{get_beta_lactam_hierarchy()}.}
 
 \item{filter_resistant}{Logical. If TRUE, only consider resistant (R) classes.
 Default TRUE.}
+
+\item{x}{Character vector}
 }
 \value{
+Character vector of normalized strings
+
 Data frame filtered to one resistance class per event.
 }
 \description{
-Selects a single resistance class per event using beta-lactam hierarchy
-and relative risk (RR) values.
+Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
 }
+\keyword{(Carbapenems}
+\keyword{(RR)}
+\keyword{(higher}
+\keyword{...)}
+\keyword{1.}
+\keyword{2.}
+\keyword{3.}
+\keyword{3GC}
+\keyword{4GC}
+\keyword{=}
+\keyword{>}
+\keyword{Alphabetical}
+\keyword{Attribution}
+\keyword{Beta-lactam}
+\keyword{Burden}
+\keyword{Class}
+\keyword{DALY}
+\keyword{Prevents}
+\keyword{RR}
+\keyword{Resistance}
+\keyword{Select}
+\keyword{Selection}
+\keyword{Selects}
+\keyword{a}
+\keyword{and}
+\keyword{beta-lactam}
+\keyword{burden}
+\keyword{by}
+\keyword{choosing}
+\keyword{class}
+\keyword{class.}
+\keyword{clinically}
+\keyword{double-counting}
+\keyword{estimation}
+\keyword{event}
+\keyword{for}
+\keyword{hierarchy}
+\keyword{higher}
+\keyword{in}
 \keyword{internal}
+\keyword{most}
+\keyword{order:}
+\keyword{per}
+\keyword{priority)}
+\keyword{rank}
+\keyword{relative}
+\keyword{relevant}
+\keyword{resistance}
+\keyword{resistant}
+\keyword{risk}
+\keyword{single}
+\keyword{the}
+\keyword{tie-breaker}
+\keyword{using}
+\keyword{value}
+\keyword{values.}

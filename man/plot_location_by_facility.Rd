@@ -80,13 +80,13 @@ to \code{"ICU"}.
 \details{
 \strong{Normalisation:} a location value is classified as:
 \itemize{
-  \item \strong{ICU} — if the lower-cased string contains
+  \item \strong{ICU} -- if the lower-cased string contains
     \code{icu_pattern} (default \code{"icu"})
-  \item \strong{Ward} — else if it contains \code{ward_pattern}
+  \item \strong{Ward} -- else if it contains \code{ward_pattern}
     (default \code{"ward"})
-  \item \strong{Other} — everything else
+  \item \strong{Other} -- everything else
 }
 
-\strong{Deduplication:} \code{distinct(patient, centre, location type)} —
+\strong{Deduplication:} \code{distinct(patient, centre, location type)} --
 each unique patient-centre-location combination is counted once.
 }
