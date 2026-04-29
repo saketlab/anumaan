@@ -78,31 +78,21 @@ utils::globalVariables(c(
   "given_entity", "alethia_prediction", "alethia_score",
   "diagnosis_text", "icd_score", "icd_rank", "icd_prediction",
   "icd_code", "icd_method",
-<<<<<<< Updated upstream
-
-=======
   # prep_eda_plots.R -- dplyr NSE column references
->>>>>>> Stashed changes
   "final_abx", "grand_total", "value_label", "percent", "label",
   "med_age", "med_los", "org_ordered", "organism_resist",
   "total_patients", "unique_patients", "unique_organisms",
   "infection_type", "location_type", "tests", "total_tests",
   "patients", "first",
-<<<<<<< Updated upstream
-
-
   "year", "total_year",
-
-
   "center", "metric_type", "organism",
   "associated", "attributable",
   "yll_per_1000", "yld_per_1000",
   "yll_sum", "tot", "cell_lbl"
-=======
+
   # prep_standardize_specimens.R -- temporary/derived column names
   "temp_spec_input", "temp_spec_clean",
   "specimen_normalized", "sample_category", "sterile_classification",
   "sample_type", "culture_date", "admission_date", "outcome_date",
   "unit_admission_date", "unit_duration_days", "location"
->>>>>>> Stashed changes
 ))

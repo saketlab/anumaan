@@ -1,11 +1,7 @@
 Package: anumaan
 Type: Package
 Title: Antimicrobial Resistance Surveillance Preprocessing and Burden Estimation
-<<<<<<< Updated upstream
-Version: 0.1.0.9005
-=======
 Version: 0.1.0.9006
->>>>>>> Stashed changes
 Authors@R: c(
     person(
       "Nilanjana", "Dey",
