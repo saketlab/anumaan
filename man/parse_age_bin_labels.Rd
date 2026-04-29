@@ -6,7 +6,15 @@
 \usage{
 parse_age_bin_labels(labels)
 }
+\arguments{
+\item{labels}{Character vector of age-bin labels, such as \code{"<1"},
+\code{"1-5"}, or \code{"85+"}.}
+}
+\value{
+A list with \code{breaks} (numeric breakpoints) and \code{labels}
+  (original labels).
+}
 \description{
-Parse Age Bin Labels to Breaks
+Parses age-bin labels into numeric breakpoints for interval binning.
 }
 \keyword{internal}

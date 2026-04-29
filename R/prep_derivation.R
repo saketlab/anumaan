@@ -1,5 +1,5 @@
 # prep_derivation.R
-# Layer 5: Derivation — age, LOS, department, and helper functions
+# Layer 5: Derivation - age, LOS, department, and helper functions
 #
 # Functions:
 #   - find_extdata_file (internal helper)
@@ -52,7 +52,11 @@ find_extdata_file <- function(filename) {
 #' Returns predefined age bin label sets for use with \code{prep_assign_age_bins()}.
 #'
 #' @param type Character. One of \code{"GBD_standard"} (5-year bins),
-#'   \code{"pediatric"}, or \code{"geriatric"}.
+#'   \code{"pediatric"}, \code{"geriatric"}, or \code{"neonatal"}.
+#'   The \code{"neonatal"} preset uses fractional-year labels corresponding to:
+#'   \code{<0.02} (0-7 days), \code{0.02-0.08} (7-28 days),
+#'   \code{0.08-0.25} (28-90 days), \code{0.25-1} (3 months-1 year),
+#'   then standard pediatric bands through adulthood.
 #'
 #' @return Character vector of age bin labels.
 #' @export
@@ -70,7 +74,11 @@ get_age_bins <- function(type = "GBD_standard") {
       "0-50", "50-60", "60-65", "65-70", "70-75", "75-80",
       "80-85", "85-90", "90+"
     ),
-    stop("Unknown age bin type. Use 'GBD_standard', 'pediatric', or 'geriatric'")
+    neonatal = c(
+      "<0.02", "0.02-0.08", "0.08-0.25", "0.25-1",
+      "1-5", "5-10", "10-15", "15-18", "18+"
+    ),
+    stop("Unknown age bin type. Use 'GBD_standard', 'pediatric', 'geriatric', or 'neonatal'")
   )
 }
 
@@ -78,17 +86,145 @@ get_age_bins <- function(type = "GBD_standard") {
 #' Assign Age Bins
 #'
 #' Categorizes age into bins for stratification using GBD standard or custom
-#' break points.
+#' break points. Supports ages stored as a single column in years, months, or
+#' days, as well as compound datasets where years, months, and days are in
+#' separate columns (e.g. neonatal records).
+#'
+#' When \code{age_months_col} or \code{age_days_col} are supplied they are
+#' treated as the fractional remainder on top of \code{age_col} (e.g.
+#' age_years = 0, age_months = 3, age_days = 5 -> 0.27 years). Missing values
+#' in the component columns are treated as zero so that a partially-recorded
+#' age is still binnable.
 #'
 #' @param data Data frame with an age column.
-#' @param age_col Character. Age column. Default "Age".
-#' @param bins Character or numeric vector. "GBD_standard", "pediatric",
-#'   "geriatric", or custom numeric breaks. Default "GBD_standard".
+#' @param age_col Character. Primary age column. Default \code{"Age"}.
+#' @param bins Character or character vector. Preset name (\code{"GBD_standard"},
+#'   \code{"pediatric"}, \code{"geriatric"}, \code{"neonatal"}) or a custom
+#'   vector of bin labels. Default \code{"GBD_standard"}.
+#' @param age_unit Character. Unit of \code{age_col}: \code{"years"} (default),
+#'   \code{"months"}, or \code{"days"}. The value is converted to decimal years
+#'   before binning.
+#' @param age_months_col Character or NULL. Optional column holding the months
+#'   component of age (0-11). Added to \code{age_col} after unit conversion.
+#' @param age_days_col Character or NULL. Optional column holding the days
+#'   component of age (0-30). Added to \code{age_col} after unit conversion.
+#' @param negative_age_strategy Character. How to handle negative ages in
+#'   \code{age_col}. \code{"fallback"} (default) tries alternate columns /
+#'   DOB logic and falls back to 0 years when unresolved; \code{"na"} sets
+#'   negative ages to \code{NA}.
+#' @param fallback_years_col Character or NULL. Optional years column used when
+#'   \code{age_col} is negative. Default \code{"year"}.
+#' @param fallback_months_col Character or NULL. Optional months column used
+#'   when \code{age_col} is negative. Default \code{"months"}.
+#' @param fallback_days_col Character or NULL. Optional days column used when
+#'   \code{age_col} is negative. Default \code{"age_days"}.
+#' @param fallback_dob_col Character or NULL. Optional DOB column used with
+#'   \code{fallback_admission_col} to derive age when \code{age_col} is
+#'   negative. Default \code{"dob"}.
+#' @param fallback_admission_col Character or NULL. Optional admission/reference
+#'   date column used with \code{fallback_dob_col}. Default
+#'   \code{"admission_date"}.
 #'
 #' @return Data frame with \code{Age_bin} factor column added.
 #' @export
-prep_assign_age_bins <- function(data, age_col = "Age", bins = "GBD_standard") {
+prep_assign_age_bins <- function(data,
+                                  age_col        = "Age",
+                                  bins           = "GBD_standard",
+                                  age_unit       = "years",
+                                  age_months_col = NULL,
+                                  age_days_col   = NULL,
+                                  negative_age_strategy = c("fallback", "na"),
+                                  fallback_years_col = "year",
+                                  fallback_months_col = "months",
+                                  fallback_days_col = "age_days",
+                                  fallback_dob_col = "dob",
+                                  fallback_admission_col = "admission_date") {
   if (!age_col %in% names(data)) stop(sprintf("Age column '%s' not found", age_col))
+
+  age_unit <- match.arg(age_unit, c("years", "months", "days"))
+  negative_age_strategy <- match.arg(negative_age_strategy)
+
+  # Convert primary column to decimal years
+  age_years <- switch(age_unit,
+    years  = as.numeric(data[[age_col]]),
+    months = as.numeric(data[[age_col]]) / 12,
+    days   = as.numeric(data[[age_col]]) / 365.25
+  )
+
+  # Add months component if provided (treat NA as 0)
+  if (!is.null(age_months_col)) {
+    if (!age_months_col %in% names(data))
+      stop(sprintf("age_months_col '%s' not found in data", age_months_col))
+    m <- as.numeric(data[[age_months_col]])
+    m[is.na(m)] <- 0
+    age_years <- age_years + m / 12
+  }
+
+  # Add days component if provided (treat NA as 0)
+  if (!is.null(age_days_col)) {
+    if (!age_days_col %in% names(data))
+      stop(sprintf("age_days_col '%s' not found in data", age_days_col))
+    d <- as.numeric(data[[age_days_col]])
+    d[is.na(d)] <- 0
+    age_years <- age_years + d / 365.25
+  }
+
+  # Optional recovery for negative ages to avoid data loss in noisy datasets.
+  neg_idx <- which(!is.na(age_years) & age_years < 0)
+  if (length(neg_idx) > 0L) {
+    if (negative_age_strategy == "na") {
+      age_years[neg_idx] <- NA_real_
+    } else {
+      has_col <- function(col) !is.null(col) && col %in% names(data)
+
+      years_vec <- if (has_col(fallback_years_col)) as.numeric(data[[fallback_years_col]]) else rep(NA_real_, nrow(data))
+      months_vec <- if (has_col(fallback_months_col)) as.numeric(data[[fallback_months_col]]) else rep(NA_real_, nrow(data))
+      days_vec <- if (has_col(fallback_days_col)) as.numeric(data[[fallback_days_col]]) else rep(NA_real_, nrow(data))
+
+      dob_vec <- if (has_col(fallback_dob_col)) suppressWarnings(as.Date(data[[fallback_dob_col]])) else rep(as.Date(NA), nrow(data))
+      adm_vec <- if (has_col(fallback_admission_col)) suppressWarnings(as.Date(data[[fallback_admission_col]])) else rep(as.Date(NA), nrow(data))
+
+      recovered <- 0L
+      for (i in neg_idx) {
+        replacement <- NA_real_
+
+        # Priority 1: explicit years/months/days columns.
+        if (!is.na(years_vec[i]) && years_vec[i] >= 0) {
+          replacement <- years_vec[i]
+          if (!is.na(months_vec[i]) && months_vec[i] > 0) replacement <- replacement + months_vec[i] / 12
+          if (!is.na(days_vec[i]) && days_vec[i] > 0) replacement <- replacement + days_vec[i] / 365.25
+        } else if (!is.na(months_vec[i]) && months_vec[i] > 0) {
+          replacement <- months_vec[i] / 12
+          if (!is.na(days_vec[i]) && days_vec[i] > 0) replacement <- replacement + days_vec[i] / 365.25
+        } else if (!is.na(days_vec[i]) && days_vec[i] > 0) {
+          replacement <- days_vec[i] / 365.25
+        } else if (!is.na(years_vec[i]) && years_vec[i] == 0 &&
+                   (is.na(months_vec[i]) || months_vec[i] == 0) &&
+                   (is.na(days_vec[i]) || days_vec[i] == 0)) {
+          replacement <- 0
+        }
+
+        # Priority 2: derive from DOB and admission/reference date.
+        if (is.na(replacement) && !is.na(dob_vec[i]) && !is.na(adm_vec[i])) {
+          candidate <- as.numeric(difftime(adm_vec[i], dob_vec[i], units = "days")) / 365.25
+          if (!is.na(candidate) && candidate >= 0) replacement <- candidate
+        }
+
+        # Priority 3: final fallback to 0 years (bin into youngest group).
+        if (is.na(replacement)) replacement <- 0
+
+        if (!is.na(replacement)) {
+          age_years[i] <- replacement
+          recovered <- recovered + 1L
+        }
+      }
+
+      message(sprintf(
+        "Recovered %d/%d negative age value(s) using fallback strategy.",
+        recovered, length(neg_idx)
+      ))
+    }
+  }
 
   if (is.character(bins) && length(bins) == 1) {
     bin_labels <- get_age_bins(bins)
@@ -99,15 +235,15 @@ prep_assign_age_bins <- function(data, age_col = "Age", bins = "GBD_standard") {
   breaks <- parse_age_bin_labels(bin_labels)
 
   data$Age_bin <- cut(
-    data[[age_col]],
-    breaks        = breaks$breaks,
-    labels        = breaks$labels,
-    right         = FALSE,
+    age_years,
+    breaks         = breaks$breaks,
+    labels         = breaks$labels,
+    right          = FALSE,
     include.lowest = TRUE
   )
 
   n_binned   <- sum(!is.na(data$Age_bin))
-  n_unbinned <- sum(is.na(data$Age_bin) & !is.na(data[[age_col]]))
+  n_unbinned <- sum(is.na(data$Age_bin) & !is.na(age_years))
   message(sprintf("Assigned age bins: %d binned, %d unbinned", n_binned, n_unbinned))
   return(data)
 }
@@ -372,14 +508,24 @@ prep_derive_los_from_dates <- function(data,
   message(sprintf("[prep_derive_los_from_dates] %d filled; %d remain missing.",
                   n_filled, sum(is.na(data[[los_col]]))))
 
+  los_non_missing <- dplyr::filter(data, !is.na(!!rlang::sym(los_col)))
   message("\nLOS summary:")
-  print(dplyr::summarise(
-    dplyr::filter(data, !is.na(!!rlang::sym(los_col))),
-    mean_los   = mean(!!rlang::sym(los_col),   na.rm = TRUE),
-    median_los = median(!!rlang::sym(los_col), na.rm = TRUE),
-    min_los    = min(!!rlang::sym(los_col),    na.rm = TRUE),
-    max_los    = max(!!rlang::sym(los_col),    na.rm = TRUE)
-  ))
+  if (nrow(los_non_missing) == 0L) {
+    print(data.frame(
+      mean_los = NA_real_,
+      median_los = NA_real_,
+      min_los = NA_real_,
+      max_los = NA_real_
+    ))
+  } else {
+    print(dplyr::summarise(
+      los_non_missing,
+      mean_los   = mean(!!rlang::sym(los_col),   na.rm = TRUE),
+      median_los = median(!!rlang::sym(los_col), na.rm = TRUE),
+      min_los    = min(!!rlang::sym(los_col),    na.rm = TRUE),
+      max_los    = max(!!rlang::sym(los_col),    na.rm = TRUE)
+    ))
+  }
 
   return(data)
 }

@@ -3,15 +3,15 @@
 # Purpose: map raw dataset columns into the minimum standard AMR schema.
 #
 # Canonical staged API:
-#   prep_build_column_map()  → build/validate the rename map
-#   prep_apply_column_map()  → apply the rename
-#   prep_assert_standard_names() → confirm required columns exist
+#   prep_build_column_map()  -> build/validate the rename map
+#   prep_apply_column_map()  -> apply the rename
+#   prep_assert_standard_names() -> confirm required columns exist
 #
 # Convenience wrapper (calls staged API internally):
-#   prep_standardize_column_names()  → one-step rename with optional fuzzy match
+#   prep_standardize_column_names()  -> one-step rename with optional fuzzy match
 #
 # Other functions:
-#   default_column_mappings   — generic alias list
+#   default_column_mappings   - generic alias list
 #   detect_preprocessing_capabilities
 #   prep_report_capabilities
 #   prep_clean_optional_columns  (moved from prep_clean_and_standardize.R)
@@ -116,11 +116,11 @@ default_column_mappings <- list(
 #'
 #' For more control (e.g. dataset-specific maps, post-rename assertions) use
 #' the staged API directly:
-#' \code{prep_build_column_map()} → \code{prep_apply_column_map()} →
+#' \code{prep_build_column_map()} -> \code{prep_apply_column_map()} ->
 #' \code{prep_assert_standard_names()}.
 #'
 #' @param data A data frame with raw column names.
-#' @param mapping Named list of standard_name → aliases vectors. Default uses
+#' @param mapping Named list of standard_name -> aliases vectors. Default uses
 #'   \code{default_column_mappings}.
 #' @param fuzzy_match Logical. Enable fuzzy matching for unresolved standards.
 #'   Default TRUE.
@@ -204,7 +204,7 @@ prep_standardize_column_names <- function(data,
 #' @param column_map Named character vector: standard_name = raw_name.
 #'   Pass a dataset-specific map from your analysis layer. If NULL,
 #'   generic alias detection is attempted.
-#' @param custom_map Named character vector. Additional raw → standard overrides
+#' @param custom_map Named character vector. Additional raw -> standard overrides
 #'   applied on top of \code{column_map}. Optional.
 #'
 #' @return Named character vector with only mappings whose raw names exist in data.
@@ -254,7 +254,7 @@ prep_apply_column_map <- function(data, column_map) {
   if (is.null(column_map) || length(column_map) == 0L)
     return(data)
 
-  # Invert: raw_name → standard_name
+  # Invert: raw_name -> standard_name
   inverted <- stats::setNames(names(column_map), column_map)
 
   # Only rename columns that exist in data

@@ -15,7 +15,7 @@ prep_standardize_column_names(
 \arguments{
 \item{data}{A data frame with raw column names.}
 
-\item{mapping}{Named list of standard_name → aliases vectors. Default uses
+\item{mapping}{Named list of standard_name -> aliases vectors. Default uses
 \code{default_column_mappings}.}
 
 \item{fuzzy_match}{Logical. Enable fuzzy matching for unresolved standards.
@@ -37,6 +37,6 @@ applies the rename in one call.
 \details{
 For more control (e.g. dataset-specific maps, post-rename assertions) use
 the staged API directly:
-\code{prep_build_column_map()} → \code{prep_apply_column_map()} →
+\code{prep_build_column_map()} -> \code{prep_apply_column_map()} ->
 \code{prep_assert_standard_names()}.
 }

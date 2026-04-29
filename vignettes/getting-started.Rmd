@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 
 **anumaan** is an R package for preprocessing antimicrobial resistance (AMR)
 surveillance data and performing GBD-style burden estimation. It takes messy
-hospital data and produces analysis-ready, standardized datasets — handling
+hospital data and produces analysis-ready, standardized datasets - handling
 organism and antibiotic normalization, event deduplication, MDR/XDR
 classification, polymicrobial weighting, and DALY calculations.
 
@@ -36,7 +36,7 @@ classification, polymicrobial weighting, and DALY calculations.
 - **Event deduplication**: unique infection episodes across repeat cultures
 - **Polymicrobial detection and fractional weighting**
 - **HAI / CAI classification**: derived from admission-to-culture date gap
-- **Diagnosis → ICD-10 → syndrome mapping**: text, rule-based, or embedding
+- **Diagnosis -> ICD-10 -> syndrome mapping**: text, rule-based, or embedding
 - **Contaminant flagging**: syndrome-aware contaminant lists
 - **Attrition tracking**: patient and event counts at every filter step
 - **DALY burden estimation**: YLL, YLD, attributable and associated burden
@@ -63,7 +63,7 @@ library(dplyr)
 
 # Data Format
 
-anumaan expects **long format**: one row per patient–organism–antibiotic
+anumaan expects **long format**: one row per patient-organism-antibiotic
 combination. The minimum required columns are:
 
 | Column | Description |
@@ -130,7 +130,7 @@ Pass `amr_config()` to override any default:
 ```{r config, eval = TRUE}
 config <- amr_config(
   fuzzy_match               = TRUE,          # auto-detect column names
-  hai_cutoff                = 3,             # days after admission → HAI
+  hai_cutoff                = 3,             # days after admission -> HAI
   event_gap_days            = 14,            # deduplication window
   mortality_window          = 14,            # days post-culture to attribute death
   age_bins                  = "GBD_standard",# "pediatric", "geriatric", or custom
@@ -179,7 +179,7 @@ prep_check_keys(
 ## Full Table Validation
 
 `prep_validate_table()` combines column checks, key checks, and date coercion
-in one call — the function used internally before every merge step.
+in one call - the function used internally before every merge step.
 
 ```{r validate-table, eval = TRUE}
 val <- prep_validate_table(
@@ -189,9 +189,9 @@ val <- prep_validate_table(
   date_cols     = c("date_of_admission", "date_of_culture"),
   table_label   = "sample_data"
 )
-# val$data        — date-coerced data frame
-# val$col_report  — per-column type/missing summary
-# val$key_report  — key quality summary
+# val$data        - date-coerced data frame
+# val$col_report  - per-column type/missing summary
+# val$key_report  - key quality summary
 ```
 
 ## Missingness Report
@@ -249,9 +249,9 @@ mapped <- prep_standardize_column_names(
   fuzzy_match     = TRUE,
   fuzzy_threshold = 0.3
 )
-# mapped$data        — renamed data frame
-# mapped$mapping_log — what was renamed and how (exact / fuzzy)
-# mapped$unmapped    — columns that couldn't be matched
+# mapped$data        - renamed data frame
+# mapped$mapping_log - what was renamed and how (exact / fuzzy)
+# mapped$unmapped    - columns that couldn't be matched
 ```
 
 ## Manual Column Map
@@ -271,7 +271,7 @@ data_renamed <- prep_apply_column_map(sample_data, col_map)
 
 ## Assert Standard Names
 
-Stops with a clear error if a required standard column is absent — useful
+Stops with a clear error if a required standard column is absent - useful
 as a guard at the start of analysis scripts:
 
 ```{r assert-names}
@@ -335,7 +335,7 @@ prep_validate_date_logic(
 ## Normalize Organism Names
 
 Maps free-text organism names to a standard reference, handles typos, case,
-abbreviations (`E. coli` → `Escherichia coli`), MRSA/CoNS flags:
+abbreviations (`E. coli` -> `Escherichia coli`), MRSA/CoNS flags:
 
 ```{r std-organisms, eval = TRUE}
 org_data <- data.frame(
@@ -349,7 +349,7 @@ normalized[, c("organism_name", "organism_normalized")]
 ## Assign Organism Group
 
 Adds `organism_group` (e.g. "Enterobacterales", "Gram-positive cocci",
-"Fungal isolates") — required for MDR/XDR classification:
+"Fungal isolates") - required for MDR/XDR classification:
 
 ```{r org-group}
 data <- prep_assign_organism_group(normalized, organism_col = "organism_normalized")
@@ -387,6 +387,18 @@ data <- prep_standardize_sex(data, col = "gender")
 data <- prep_standardize_final_outcome(data, col = "final_outcome")
 
 data <- prep_standardize_infection_type(data, col = "infection_type")
+```
+
+Typos and shorthand in specimen names are handled with rule-based cleaning and
+fuzzy matching against the specimen reference table:
+
+```{r std-specimen-typos, eval = TRUE}
+spec_typo <- data.frame(
+  specimen_type = c("blood culure", "urne c/s", "csff"),
+  stringsAsFactors = FALSE
+)
+spec_out <- prep_standardize_specimens(spec_typo, specimen_col = "specimen_type")
+spec_out[, c("specimen_type", "specimen_normalized")]
 ```
 
 ---
@@ -446,7 +458,7 @@ data <- prep_harmonize_ast(data, ast_col = "antibiotic_value")
 ## Recode Intermediate as Resistant
 
 ```{r ast-recode}
-# Per WHO/EUCAST "I = susceptible with increased exposure" — keep I, or:
+# Per WHO/EUCAST "I = susceptible with increased exposure" - keep I, or:
 data <- prep_recode_intermediate_ast(data, col = "antibiotic_value")
 ```
 
@@ -702,7 +714,7 @@ get_magiorakos_thresholds()
 # Antimicrobial categories for a specific organism group
 get_antimicrobial_categories("Enterobacterales")
 
-# Beta-lactam hierarchy (broadest → narrowest spectrum)
+# Beta-lactam hierarchy (broadest -> narrowest spectrum)
 get_beta_lactam_hierarchy()
 ```
 
@@ -811,9 +823,9 @@ ready <- prep_filter_analysis_ready(
   required_cols = c("final_outcome", "organism_name",
                      "antibiotic_name", "antibiotic_value")
 )
-# ready$data          — filtered data
-# ready$attrition     — attrition table
-# ready$patient_flags — per-patient completeness flags
+# ready$data          - filtered data
+# ready$attrition     - attrition table
+# ready$patient_flags - per-patient completeness flags
 
 # Final gate: remove rows that are completely unusable
 data <- prep_filter_minimally_usable(data)
@@ -1059,8 +1071,8 @@ table(result$data$organism_match_status)
 Tune the deduplication window:
 
 ```{r events-trouble}
-config <- amr_config(event_gap_days = 7)   # smaller → more events
-config <- amr_config(event_gap_days = 30)  # larger  → fewer events
+config <- amr_config(event_gap_days = 7)   # smaller -> more events
+config <- amr_config(event_gap_days = 30)  # larger  -> fewer events
 ```
 
 **Intermediate (I) counted as resistant**

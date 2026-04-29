@@ -4,20 +4,24 @@
 \alias{round_to_sum}
 \title{Largest-Remainder Rounding}
 \usage{
-round_to_sum(x, target = round(sum(x)))
+round_to_sum(x, target = round(sum(x, na.rm = TRUE)))
 }
 \arguments{
 \item{x}{Numeric vector to round.}
 
-\item{target}{Integer target sum. Default is \code{round(sum(x))}.}
+\item{target}{Integer target sum. Default is
+\code{round(sum(x, na.rm = TRUE))}.}
 }
 \value{
 Integer vector of the same length as \code{x} whose sum equals
-  \code{target}.
+  \code{target} across non-missing entries; missing values are preserved as
+  \code{NA}.
 }
 \description{
 Rounds a numeric vector so that the individual rounded values sum exactly to
-a target total.  Uses the largest-remainder method (Hamilton method).
+a target total. Uses the largest-remainder method (Hamilton method).
+Input is coerced with \code{as.numeric()}; non-numeric values become
+\code{NA}.
 }
 \examples{
 round_to_sum(c(3.3, 3.3, 3.4), target = 10)

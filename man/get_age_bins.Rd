@@ -8,7 +8,11 @@ get_age_bins(type = "GBD_standard")
 }
 \arguments{
 \item{type}{Character. One of \code{"GBD_standard"} (5-year bins),
-\code{"pediatric"}, or \code{"geriatric"}.}
+\code{"pediatric"}, \code{"geriatric"}, or \code{"neonatal"}.
+The \code{"neonatal"} preset uses fractional-year labels corresponding to:
+\code{<0.02} (0-7 days), \code{0.02-0.08} (7-28 days),
+\code{0.08-0.25} (28-90 days), \code{0.25-1} (3 months-1 year),
+then standard pediatric bands through adulthood.}
 }
 \value{
 Character vector of age bin labels.

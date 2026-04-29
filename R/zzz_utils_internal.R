@@ -2,43 +2,47 @@
 # Internal utility helpers (not exported)
 
 #' Parse Age Bin Labels to Breaks
+#'
+#' Parses age-bin labels into numeric breakpoints for interval binning.
+#'
+#' @param labels Character vector of age-bin labels, such as \code{"<1"},
+#'   \code{"1-5"}, or \code{"85+"}.
+#'
+#' @return A list with \code{breaks} (numeric breakpoints) and \code{labels}
+#'   (original labels).
+#'
 #' @keywords internal
 parse_age_bin_labels <- function(labels) {
-  breaks <- numeric(length(labels) + 1)
-  clean_labels <- character(length(labels))
+  clean_labels <- as.character(labels)
+  breaks <- numeric(0)
 
-  for (i in seq_along(labels)) {
-    label <- labels[i]
+  for (i in seq_along(clean_labels)) {
+    label <- clean_labels[i]
 
-    if (grepl("\\+$", label)) {
-      # Handle "85+" format
-      lower <- as.numeric(gsub("\\+", "", label))
-      breaks[i] <- lower
-      breaks[i + 1] <- Inf
-      clean_labels[i] <- label
-    } else if (grepl("^<", label)) {
-      # Handle "<1" format -- lower = -Inf to capture ages like -1
-      upper <- as.numeric(gsub("^<", "", label))
-      breaks[i] <- -Inf
-      breaks[i + 1] <- upper
-      clean_labels[i] <- label
-    } else if (grepl("-", label)) {
-      # Handle "1-5" format
-      parts <- strsplit(label, "-")[[1]]
+    if (is.na(label) || !nzchar(trimws(label))) {
+      stop(sprintf("Cannot parse age bin label: %s", label))
+    }
+
+    if (grepl("^<\\s*[0-9.]+\\s*$", label)) {
+      # Handle "<1" format.
+      upper <- as.numeric(gsub("^<\\s*", "", label))
+      breaks <- c(breaks, -Inf, upper)
+    } else if (grepl("^\\s*[0-9.]+\\s*-\\s*[0-9.]+\\s*$", label)) {
+      # Handle "1-5" format.
+      parts <- strsplit(gsub("\\s+", "", label), "-", fixed = TRUE)[[1]]
       lower <- as.numeric(parts[1])
       upper <- as.numeric(parts[2])
-      breaks[i] <- lower
-      breaks[i + 1] <- upper
-      clean_labels[i] <- label
+      breaks <- c(breaks, lower, upper)
+    } else if (grepl("^\\s*[0-9.]+\\s*\\+\\s*$", label)) {
+      # Handle "85+" format.
+      lower <- as.numeric(gsub("\\+\\s*$", "", gsub("\\s+", "", label)))
+      breaks <- c(breaks, lower, Inf)
     } else {
       stop(sprintf("Cannot parse age bin label: %s", label))
     }
   }
 
-  # Remove duplicate breaks
-  breaks <- unique(breaks)
-
-  return(list(breaks = breaks, labels = clean_labels))
+  list(breaks = unique(breaks), labels = clean_labels)
 }
 # utils.R
 # Small utility functions used across modules
@@ -46,23 +50,56 @@ parse_age_bin_labels <- function(labels) {
 #' Largest-Remainder Rounding
 #'
 #' Rounds a numeric vector so that the individual rounded values sum exactly to
-#' a target total.  Uses the largest-remainder method (Hamilton method).
+#' a target total. Uses the largest-remainder method (Hamilton method).
+#' Input is coerced with \code{as.numeric()}; non-numeric values become
+#' \code{NA}.
 #'
 #' @param x Numeric vector to round.
-#' @param target Integer target sum. Default is \code{round(sum(x))}.
+#' @param target Integer target sum. Default is
+#'   \code{round(sum(x, na.rm = TRUE))}.
 #'
 #' @return Integer vector of the same length as \code{x} whose sum equals
-#'   \code{target}.
+#'   \code{target} across non-missing entries; missing values are preserved as
+#'   \code{NA}.
 #' @export
 #'
 #' @examples
 #' round_to_sum(c(3.3, 3.3, 3.4), target = 10)
-round_to_sum <- function(x, target = round(sum(x))) {
-  floors <- floor(x)
-  remainder <- target - sum(floors)
-  ranks <- order(x - floors, decreasing = TRUE)
-  floors[ranks[seq_len(remainder)]] <- floors[ranks[seq_len(remainder)]] + 1L
-  floors
+round_to_sum <- function(x, target = round(sum(x, na.rm = TRUE))) {
+  x_num <- suppressWarnings(as.numeric(x))
+  out <- rep(NA_integer_, length(x_num))
+  idx <- which(!is.na(x_num))
+
+  if (!length(idx)) {
+    return(out)
+  }
+
+  floors <- floor(x_num[idx])
+  fracs <- x_num[idx] - floors
+  n <- length(floors)
+  remainder <- as.integer(round(target - sum(floors)))
+
+  if (remainder > 0L) {
+    full <- remainder %/% n
+    extra <- remainder %% n
+    floors <- floors + full
+    if (extra > 0L) {
+      ranks <- order(fracs, decreasing = TRUE)
+      floors[ranks[seq_len(extra)]] <- floors[ranks[seq_len(extra)]] + 1L
+    }
+  } else if (remainder < 0L) {
+    take <- -remainder
+    full <- take %/% n
+    extra <- take %% n
+    floors <- floors - full
+    if (extra > 0L) {
+      ranks <- order(fracs, decreasing = FALSE)
+      floors[ranks[seq_len(extra)]] <- floors[ranks[seq_len(extra)]] - 1L
+    }
+  }
+
+  out[idx] <- as.integer(floors)
+  out
 }
 
 
