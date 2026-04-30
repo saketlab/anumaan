@@ -40,3 +40,9 @@ Selects a single resistance class per event using beta-lactam hierarchy
 and relative risk (RR) values. Prevents double-counting in DALY burden
 estimation by choosing the most clinically relevant resistant class.
 }
+\details{
+Selection order:
+1. Beta-lactam hierarchy rank (Carbapenems > 4GC > 3GC > ...)
+2. RR value (higher relative risk = higher priority)
+3. Alphabetical tie-breaker
+}
