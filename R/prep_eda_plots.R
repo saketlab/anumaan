@@ -17,13 +17,7 @@
 #' @return A ggplot2 theme object.
 #'
 eda_theme <- function(base_size = 14, legend_position = "top") {
-  base_theme <- if (requireNamespace("ggpubr", quietly = TRUE)) {
-    ggpubr::theme_pubr(base_size = base_size)
-  } else {
-    ggplot2::theme_minimal(base_size = base_size)
-  }
-
-  base_theme +
+  ggpubr::theme_pubr(base_size = base_size) +
     ggplot2::theme(
       strip.text       = ggplot2::element_text(face = "bold"),
       strip.background = ggplot2::element_rect(fill = "grey92", color = "black",
@@ -4208,6 +4202,260 @@ plot_outcome_by_year <- function(data,
       scales = "free_y"
     )
   }
+
+  return(p)
+}
+
+
+# UNIQUE PATIENTS BY HOSPITAL
+
+
+#' Plot Unique Patient Count by Hospital
+#'
+#' Produces a column chart showing the number of unique patients per hospital.
+#' Bars are sorted in descending order (highest count on the left) and each
+#' bar is labelled with its count.
+#'
+#' @param data        Data frame. Must contain the columns named by
+#'   \code{patient_col} and \code{center_col}.
+#' @param patient_col Character. Column containing patient identifiers.
+#'   Default \code{"PatientInformation_id"}.
+#' @param center_col  Character. Column containing hospital / centre names.
+#'   Default \code{"center_name"}.
+#' @param colour      Character. Fill colour for the bars. Default
+#'   \code{"#4393C3"}.
+#' @param bar_width   Numeric. Width of bars (0-1). Default \code{0.68}.
+#' @param base_size   Numeric. Base font size. Default \code{14}.
+#' @param title       Character. Custom plot title. Auto-generated if
+#'   \code{NULL}.
+#' @param syndrome_col  Character or \code{NULL}. Syndrome filter column.
+#'   Default \code{NULL}.
+#' @param syndrome_name Character or \code{NULL}. Syndrome value to retain.
+#'   Requires \code{syndrome_col}. Default \code{NULL}.
+#'
+#' @return A \code{ggplot} object.
+#' @export
+plot_patients_by_hospital <- function(data,
+                                      patient_col   = "PatientInformation_id",
+                                      center_col    = "center_name",
+                                      colour        = "#4393C3",
+                                      bar_width     = 0.68,
+                                      base_size     = 14,
+                                      title         = NULL,
+                                      syndrome_col  = NULL,
+                                      syndrome_name = NULL) {
+
+  # -- 1. validate columns -----------------------------------------------------
+  required_cols <- c(patient_col, center_col)
+  missing_cols  <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0)
+    stop(sprintf("Column(s) not found in data: %s",
+                 paste(missing_cols, collapse = ", ")))
+
+  if (!is.null(syndrome_name) && is.null(syndrome_col))
+    stop("'syndrome_col' must be provided when 'syndrome_name' is set.")
+  if (!is.null(syndrome_col) && !syndrome_col %in% names(data))
+    stop(sprintf("syndrome_col '%s' not found in data.", syndrome_col))
+
+  # -- syndrome pre-filter -----------------------------------------------------
+  if (!is.null(syndrome_col) && !is.null(syndrome_name)) {
+    data <- data[!is.na(data[[syndrome_col]]) &
+                   data[[syndrome_col]] == syndrome_name, ]
+    if (nrow(data) == 0)
+      stop(sprintf("No rows found where %s == '%s'.", syndrome_col, syndrome_name))
+  }
+
+  # -- 2. tidy-eval symbols ----------------------------------------------------
+  pt_sym  <- rlang::sym(patient_col)
+  ctr_sym <- rlang::sym(center_col)
+
+  # -- 3. count unique patients per hospital -----------------------------------
+  plot_df <- data %>%
+    dplyr::distinct(!!ctr_sym, !!pt_sym) %>%
+    dplyr::count(!!ctr_sym, name = "unique_patients")
+
+  ordered_levels <- plot_df %>%
+    dplyr::arrange(dplyr::desc(unique_patients)) %>%
+    dplyr::pull(!!ctr_sym)
+
+  plot_df <- plot_df %>%
+    dplyr::mutate(!!center_col := factor(!!ctr_sym, levels = ordered_levels))
+
+  # -- 4. build plot -----------------------------------------------------------
+  auto_title <- title %||% "Unique Patients by Hospital"
+
+  p <- ggplot2::ggplot(
+    plot_df,
+    ggplot2::aes(x = !!ctr_sym, y = unique_patients)
+  ) +
+    ggplot2::geom_col(
+      fill  = colour,
+      width = bar_width,
+      alpha = 0.88
+    ) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = unique_patients),
+      vjust    = -0.45,
+      size     = 3.4,
+      fontface = "bold"
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.15))
+    ) +
+    ggplot2::labs(
+      x     = "Hospital",
+      y     = "Number of Unique Patients",
+      title = auto_title
+    ) +
+    eda_theme(base_size = base_size) +
+    ggplot2::theme(
+      axis.text.x        = ggplot2::element_text(angle = 30, hjust = 1,
+                                                  face = "bold"),
+      panel.grid.major.x = ggplot2::element_blank()
+    )
+
+  return(p)
+}
+
+
+# SYNDROME DISTRIBUTION
+
+
+#' Plot Syndrome Distribution
+#'
+#' Produces a column chart showing the number of unique patients per
+#' infectious syndrome. Supports three modes: pooled across all centres
+#' (\code{"overall"}), faceted by centre (\code{"faceted"}), or a single
+#' specified centre (\code{"single"}).
+#'
+#' @param data           Data frame. Must contain the columns named by
+#'   \code{patient_col} and \code{syndrome_col}. In \code{"faceted"} and
+#'   \code{"single"} modes, \code{center_col} is also required.
+#' @param mode           Character. One of \code{"overall"} (default),
+#'   \code{"faceted"}, or \code{"single"}.
+#' @param center         Character or \code{NULL}. Centre name to display
+#'   when \code{mode = "single"}. Ignored otherwise.
+#' @param patient_col    Character. Column containing patient identifiers.
+#'   Default \code{"PatientInformation_id"}.
+#' @param syndrome_col   Character. Column containing infectious syndrome
+#'   labels. Default \code{"infectious_syndrome"}.
+#' @param center_col     Character. Column containing hospital / centre names.
+#'   Default \code{"center_name"}.
+#' @param colour         Character. Fill colour for the bars. Default
+#'   \code{"#4393C3"}.
+#' @param ncol           Integer. Number of columns in faceted layout.
+#'   Default \code{2}.
+#' @param base_size      Numeric. Base font size. Default \code{14}.
+#' @param title          Character. Custom plot title. Auto-generated if
+#'   \code{NULL}.
+#'
+#' @return A \code{ggplot} object.
+#' @export
+plot_syndrome_distribution <- function(data,
+                                       mode        = c("overall", "faceted", "single"),
+                                       center      = NULL,
+                                       patient_col = "PatientInformation_id",
+                                       syndrome_col = "infectious_syndrome",
+                                       center_col  = "center_name",
+                                       colour      = "#4393C3",
+                                       ncol        = 2,
+                                       base_size   = 14,
+                                       title       = NULL) {
+
+  # -- 0. match mode -----------------------------------------------------------
+  mode <- match.arg(mode)
+
+  # -- 1. validate columns -----------------------------------------------------
+  required_cols <- c(patient_col, syndrome_col)
+  if (mode != "overall") required_cols <- c(required_cols, center_col)
+
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0)
+    stop(sprintf("Column(s) not found in data: %s",
+                 paste(missing_cols, collapse = ", ")))
+
+  if (mode == "single") {
+    if (is.null(center))
+      stop("'center' must be provided when mode = 'single'.")
+    available <- unique(data[[center_col]])
+    if (!center %in% available)
+      stop(sprintf("'%s' not found in column '%s'. Available values: %s",
+                   center, center_col,
+                   paste(sort(available), collapse = ", ")))
+  }
+
+  # -- 2. tidy-eval symbols ----------------------------------------------------
+  pt_sym  <- rlang::sym(patient_col)
+  syn_sym <- rlang::sym(syndrome_col)
+  ctr_sym <- rlang::sym(center_col)
+
+  # -- 3. drop missing syndromes -----------------------------------------------
+  clean <- data %>%
+    dplyr::filter(!is.na(!!syn_sym),
+                  trimws(as.character(!!syn_sym)) != "")
+
+  # -- 4. filter to one centre if single ---------------------------------------
+  if (mode == "single")
+    clean <- clean %>% dplyr::filter(!!ctr_sym == center)
+
+  # -- 5. deduplicate and count ------------------------------------------------
+  if (mode == "overall") {
+    plot_df <- clean %>%
+      dplyr::distinct(!!pt_sym, !!syn_sym) %>%
+      dplyr::count(!!syn_sym, name = "n") %>%
+      dplyr::mutate(!!syndrome_col := stats::reorder(!!syn_sym, n))
+  } else {
+    plot_df <- clean %>%
+      dplyr::distinct(!!ctr_sym, !!pt_sym, !!syn_sym) %>%
+      dplyr::count(!!ctr_sym, !!syn_sym, name = "n") %>%
+      dplyr::group_by(!!ctr_sym) %>%
+      dplyr::mutate(!!syndrome_col := stats::reorder(!!syn_sym, n)) %>%
+      dplyr::ungroup()
+  }
+
+  # -- 6. build plot -----------------------------------------------------------
+  auto_title <- title %||% switch(
+    mode,
+    overall = "Syndrome Distribution -- All Centres Pooled",
+    faceted = "Syndrome Distribution by Facility",
+    single  = sprintf("Syndrome Distribution -- %s", center)
+  )
+
+  p <- ggplot2::ggplot(
+    plot_df,
+    ggplot2::aes(x = !!syn_sym, y = n)
+  ) +
+    ggplot2::geom_col(
+      fill  = colour,
+      width = 0.68,
+      alpha = 0.88
+    ) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = n),
+      vjust    = -0.45,
+      size     = 3.4,
+      fontface = "bold"
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.15))
+    ) +
+    ggplot2::labs(
+      x     = "Syndrome",
+      y     = "Number of Patients",
+      title = auto_title
+    ) +
+    eda_theme(base_size = base_size) +
+    ggplot2::theme(
+      axis.text.x        = ggplot2::element_text(angle = 30, hjust = 1),
+      panel.grid.major.x = ggplot2::element_blank()
+    )
+
+  if (mode == "faceted")
+    p <- p + ggplot2::facet_wrap(
+      stats::as.formula(paste("~", center_col)),
+      ncol   = ncol,
+      scales = "free_y"
+    )
 
   return(p)
 }

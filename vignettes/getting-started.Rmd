@@ -79,24 +79,51 @@ Optional but used when present: `date_of_admission`, `date_of_final_outcome`,
 
 ```{r sample-data, eval = TRUE}
 sample_data <- data.frame(
-  patient_id       = c("P001", "P001", "P002", "P003", "P003"),
-  date_of_admission = as.Date(c("2024-01-10", "2024-01-10",
-                                 "2024-01-18", "2024-02-01", "2024-02-01")),
-  date_of_culture   = as.Date(c("2024-01-15", "2024-01-15",
-                                 "2024-01-20", "2024-02-03", "2024-02-03")),
-  date_of_final_outcome = as.Date(c("2024-01-25", "2024-01-25",
-                                     "2024-01-28", "2024-02-15", "2024-02-15")),
-  final_outcome    = c("Survived", "Survived", "Died",   "Survived", "Survived"),
-  specimen_type    = c("Blood",    "Blood",    "Urine",  "Blood",    "Blood"),
-  organism_name    = c("E. coli",  "E. coli",  "K. pneumoniae",
-                        "S. aureus", "S. aureus"),
-  antibiotic_name  = c("Ampicillin", "Meropenem", "Ciprofloxacin",
-                        "Oxacillin",  "Vancomycin"),
-  antibiotic_value = c("R", "S", "R", "R", "S"),
-  DOB              = as.Date(c("1960-05-01", "1960-05-01",
-                                "1975-08-15", "1990-03-20", "1990-03-20")),
-  gender           = c("Male", "Male", "Female", "Male", "Male"),
-  stringsAsFactors = FALSE
+  patient_id            = c("P001","P001","P002","P003","P003",
+                             "P004","P004","P005","P006","P006"),
+  date_of_admission     = as.Date(c("2024-01-10","2024-01-10","2024-01-18",
+                                    "2024-02-01","2024-02-01","2024-02-10",
+                                    "2024-02-10","2024-03-05","2024-03-15",
+                                    "2024-03-15")),
+  date_of_culture       = as.Date(c("2024-01-15","2024-01-15","2024-01-20",
+                                    "2024-02-03","2024-02-03","2024-02-14",
+                                    "2024-02-14","2024-03-07","2024-03-17",
+                                    "2024-03-17")),
+  date_of_final_outcome = as.Date(c("2024-01-25","2024-01-25","2024-01-28",
+                                    "2024-02-15","2024-02-15","2024-02-22",
+                                    "2024-02-22","2024-03-18","2024-03-28",
+                                    "2024-03-28")),
+  final_outcome         = c("Survived","Survived","Died","Survived","Survived",
+                             "Died","Died","Survived","Survived","Survived"),
+  specimen_type         = c("Blood","Blood","Urine","Blood","Blood",
+                             "Urine","Urine","Blood","Blood","Blood"),
+  organism_name         = c("E. coli","E. coli","K. pneumoniae","S. aureus",
+                             "S. aureus","E. coli","K. pneumoniae",
+                             "A. baumannii","K. pneumoniae","K. pneumoniae"),
+  antibiotic_name       = c("Ampicillin","Meropenem","Ciprofloxacin","Oxacillin",
+                             "Vancomycin","Ampicillin","Ciprofloxacin","Meropenem",
+                             "Ceftriaxone","Meropenem"),
+  antibiotic_value      = c("R","S","R","R","S","R","R","R","R","S"),
+  DOB                   = as.Date(c("1960-05-01","1960-05-01","1975-08-15",
+                                    "1990-03-20","1990-03-20","2000-11-05",
+                                    "2000-11-05","1955-02-28","1968-07-12",
+                                    "1968-07-12")),
+  gender                = c("Male","Male","Female","Male","Male",
+                             "Female","Female","Male","Female","Female"),
+  center_name           = c("Centre A","Centre A","Centre A",
+                             "Centre B","Centre B","Centre B","Centre B",
+                             "Centre C","Centre C","Centre C"),
+  age_years             = c(63,63,48,33,33,23,23,69,55,55),
+  Age_bin               = factor(
+                            c("45-64","45-64","45-64","18-44","18-44",
+                              "18-44","18-44","65+","45-64","45-64"),
+                            levels = c("<5","18-44","45-64","65+")),
+  is_polymicrobial      = c(FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE,FALSE,FALSE),
+  location              = c("ICU","ICU","Ward","ICU","ICU",
+                             "Ward","Ward","ICU","Ward","Ward"),
+  infectious_syndrome   = c("BSI","BSI","UTI","BSI","BSI",
+                             "UTI","UTI","BSI","BSI","BSI"),
+  stringsAsFactors      = FALSE
 )
 ```
 
@@ -967,10 +994,19 @@ plot_los_distributions(hospital_daly)
 ## DALY Burden Plots
 
 ```{r plot-daly}
-plot_burden_comparison(hospital_daly, metric = "DALY")
-plot_daly_lollipop(hospital_daly, type = "attributable")
-plot_resistance_fraction(hospital_daly)
-plot_gbd_fig4(hospital_daly)
+# Hospital-level YLL/YLD bars (output of compute_hospital_daly())
+plot_burden_by_hospital(hospital_daly, metric = "YLL")
+plot_burden_by_hospital(hospital_daly, metric = "YLD")
+
+# Top organisms by YLL/YLD burden
+plot_burden_by_organism(organism_yll, metric = "YLL", n = 8)
+
+# YLL heatmap: resistance class x pathogen group
+plot_yll_heatmap(yll_class_data, value_col = "YLL_class",
+                 type = "attributable", n_admissions = 500)
+
+# YLD heatmap: associated vs attributable by organism
+plot_yld_heatmap(yld_data, n_admissions = 500)
 ```
 
 ## Consistent AMR Theme
@@ -981,6 +1017,117 @@ ggplot(result$data, aes(x = organism_normalized)) +
   geom_bar() +
   amr_theme()
 ```
+
+---
+
+# EDA Plots
+
+The `plot_*` functions produce ready-made exploratory charts. The examples
+below use the same `sample_data` defined earlier. Where function defaults
+differ from `sample_data` column names, explicit overrides are shown.
+
+## Enrolment
+
+```{r eda-enrolment}
+# Unique patients per hospital, sorted by count
+plot_patients_by_hospital(sample_data, patient_col = "patient_id")
+
+# Syndrome distribution -- overall, faceted, or single centre
+plot_syndrome_distribution(sample_data, mode = "overall",
+                           patient_col = "patient_id")
+plot_syndrome_distribution(sample_data, mode = "faceted",
+                           patient_col = "patient_id", ncol = 2)
+plot_syndrome_distribution(sample_data, mode = "single",
+                           patient_col = "patient_id", center = "Centre A")
+```
+
+## Organisms and Resistance
+
+```{r eda-organisms}
+# Top organisms by unique patient count
+plot_top_organisms(sample_data, mode = "overall", n = 10,
+                   patient_col = "patient_id")
+plot_top_organisms(sample_data, mode = "faceted", n = 5,
+                   patient_col = "patient_id")
+
+# Resistance rate per antibiotic (stacked R/I/S)
+plot_abx_susceptibility(sample_data, mode = "overall",
+                        patient_col = "patient_id")
+
+# Resistance by specimen type
+plot_resistance_by_sample(sample_data, mode = "overall",
+                          patient_col = "patient_id",
+                          sample_col  = "specimen_type")
+
+# Pathogen x antibiotic resistance heatmap
+plot_abx_heatmap(sample_data, mode = "all", patient_col = "patient_id")
+```
+
+## Outcomes
+
+```{r eda-outcomes}
+# Outcome distribution -- pooled and faceted
+plot_outcome_distribution(sample_data, mode = "overall",
+                          patient_col = "patient_id")
+plot_outcome_distribution(sample_data, mode = "faceted",
+                          patient_col = "patient_id", ncol = 2)
+
+# Death vs Discharged split (sample_data uses "Died"/"Survived")
+plot_death_discharged(sample_data, mode = "overall",
+                      patient_col       = "patient_id",
+                      death_label       = "Died",
+                      discharged_label  = "Survived")
+
+# Outcomes within each organism
+plot_outcome_by_organism(sample_data, mode = "overall",
+                         patient_col = "patient_id")
+
+# Outcomes by GBD age bin
+plot_outcome_by_agebin(sample_data, mode = "overall",
+                       patient_col = "patient_id")
+
+# Outcome trends by year
+plot_outcome_by_year(sample_data, mode = "overall",
+                     patient_col = "patient_id",
+                     date_col    = "date_of_final_outcome")
+```
+
+## Infection Type and Location
+
+```{r eda-infection-type}
+# HAI vs CAI per centre (derived from admission-to-culture gap)
+plot_hai_cai_by_facility(sample_data,
+                         patient_col   = "patient_id",
+                         admission_col = "date_of_admission",
+                         culture_col   = "date_of_culture")
+
+# Mono vs polymicrobial infections per centre
+plot_mono_poly_by_facility(sample_data, patient_col = "patient_id")
+
+# ICU / Ward / Other breakdown per centre
+plot_location_by_facility(sample_data, patient_col = "patient_id")
+```
+
+## Length of Stay and Age
+
+```{r eda-los}
+# LOS distribution ridge plot (plot_los_ridge defaults patient_col = "patient_id")
+plot_los_ridge(sample_data, mode = "all",
+               admission_col = "date_of_admission",
+               discharge_col = "date_of_final_outcome")
+
+# Age distribution ridge plot
+plot_age_ridge(sample_data, mode = "all", patient_col = "patient_id")
+
+# Median LOS by age group
+plot_los_by_agebin(sample_data, mode = "overall",
+                   patient_col   = "patient_id",
+                   admission_col = "date_of_admission",
+                   discharge_col = "date_of_final_outcome")
+```
+
+All functions return a `ggplot2` object and accept `base_size`, `title`, and
+`subtitle` arguments for quick customisation.
 
 ---
 

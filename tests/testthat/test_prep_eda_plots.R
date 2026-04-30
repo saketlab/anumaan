@@ -33,6 +33,8 @@ make_amr_data <- function() {
                                "ICU", "Ward", "Other", "ICU"),
     patient_id            = c("P1", "P1", "P2", "P2", "P3", "P4", "P5", "P6"),
     age_years             = c(3, 30, 55, 70, 2, 25, 50, 68),
+    infectious_syndrome   = c("BSI", "BSI", "UTI", "UTI",
+                              "BSI", "UTI", "BSI", "UTI"),
     stringsAsFactors      = FALSE
   )
 }
@@ -123,4 +125,21 @@ test_that("plot_outcome_by_year returns ggplot and errors on missing column", {
   expect_s3_class(plot_outcome_by_year(make_amr_data(), mode = "overall"), "ggplot")
   bad <- make_amr_data(); bad$final_outcome_date <- NULL
   expect_error(plot_outcome_by_year(bad), "Column\\(s\\) not found")
+})
+
+test_that("plot_patients_by_hospital returns ggplot and errors on missing column", {
+  expect_s3_class(plot_patients_by_hospital(make_amr_data()), "ggplot")
+  bad <- make_amr_data(); bad$center_name <- NULL
+  expect_error(plot_patients_by_hospital(bad), "Column\\(s\\) not found")
+})
+
+test_that("plot_syndrome_distribution returns ggplot for all modes and errors correctly", {
+  expect_s3_class(plot_syndrome_distribution(make_amr_data(), mode = "overall"), "ggplot")
+  expect_s3_class(plot_syndrome_distribution(make_amr_data(), mode = "faceted"), "ggplot")
+  expect_s3_class(plot_syndrome_distribution(make_amr_data(), mode = "single",
+                                             center = "Centre A"), "ggplot")
+  expect_error(plot_syndrome_distribution(make_amr_data(), mode = "single"),
+               "'center' must be provided")
+  bad <- make_amr_data(); bad$infectious_syndrome <- NULL
+  expect_error(plot_syndrome_distribution(bad), "Column\\(s\\) not found")
 })
