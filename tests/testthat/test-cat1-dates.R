@@ -11,8 +11,8 @@ test_that("prep_parse_date_column: valid behavior", {
 
 test_that("prep_parse_date_column: edge cases", {
   out <- prep_parse_date_column(c("20201301", "2020/01/05", "01-31-2020"), col_name = "d", table_label = "t")
-  # Numeric-like YYYYDDMM currently remains unparsed (NA) in this implementation.
-  expect_true(is.na(out[1]))
+  # YYYYDDMM values are decoded via the swap fallback.
+  expect_equal(out[1], as.Date("2020-01-13"))
   expect_equal(out[2], as.Date("2020-01-05"))
   expect_equal(out[3], as.Date("2020-01-31"))
 })

@@ -17,7 +17,13 @@
 #' @return A ggplot2 theme object.
 #'
 eda_theme <- function(base_size = 14, legend_position = "top") {
-  ggpubr::theme_pubr(base_size = base_size) +
+  base_theme <- if (requireNamespace("ggpubr", quietly = TRUE)) {
+    ggpubr::theme_pubr(base_size = base_size)
+  } else {
+    ggplot2::theme_minimal(base_size = base_size)
+  }
+
+  base_theme +
     ggplot2::theme(
       strip.text       = ggplot2::element_text(face = "bold"),
       strip.background = ggplot2::element_rect(fill = "grey92", color = "black",

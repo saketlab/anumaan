@@ -116,6 +116,10 @@ prep_check_columns <- function(data,
 #' @param table_label Character. Label used in messages.
 #' @param warn_missing_pct Numeric. Warn when proportion of missing keys exceeds
 #'   this threshold (0-100). Default 5.
+#' @param admission_col Character. Admission date column used for the optional
+#'   paired missingness check. Default "date_of_admission".
+#' @param culture_col Character. Culture date column used for the optional
+#'   paired missingness check. Default "date_of_culture".
 #'
 #' @return Invisibly returns a one-row summary tibble.
 #' @export

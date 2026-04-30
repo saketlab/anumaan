@@ -4,7 +4,14 @@
 \alias{prep_check_keys}
 \title{Check join key quality}
 \usage{
-prep_check_keys(data, key_col, table_label = "table", warn_missing_pct = 5)
+prep_check_keys(
+  data,
+  key_col,
+  table_label = "table",
+  warn_missing_pct = 5,
+  admission_col = "date_of_admission",
+  culture_col = "date_of_culture"
+)
 }
 \arguments{
 \item{data}{Data frame.}
@@ -15,6 +22,12 @@ prep_check_keys(data, key_col, table_label = "table", warn_missing_pct = 5)
 
 \item{warn_missing_pct}{Numeric. Warn when proportion of missing keys exceeds
 this threshold (0-100). Default 5.}
+
+\item{admission_col}{Character. Admission date column used for the optional
+paired missingness check. Default "date_of_admission".}
+
+\item{culture_col}{Character. Culture date column used for the optional
+paired missingness check. Default "date_of_culture".}
 }
 \value{
 Invisibly returns a one-row summary tibble.

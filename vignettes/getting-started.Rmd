@@ -709,13 +709,13 @@ table(class_data$xdr)
 
 ```{r mdr-tables, eval = TRUE}
 # MDR/XDR thresholds per organism group (Magiorakos 2012)
-get_magiorakos_thresholds()
+anumaan:::get_magiorakos_thresholds()
 
 # Antimicrobial categories for a specific organism group
-get_antimicrobial_categories("Enterobacterales")
+anumaan:::get_antimicrobial_categories("Enterobacterales")
 
 # Beta-lactam hierarchy (broadest -> narrowest spectrum)
-get_beta_lactam_hierarchy()
+anumaan:::get_beta_lactam_hierarchy()
 ```
 
 ---

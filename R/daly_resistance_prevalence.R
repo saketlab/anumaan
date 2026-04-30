@@ -1842,13 +1842,9 @@ get_class_rr_map <- function() {
 }
 
 
-#' Normalize String for Joining
-#'
-#' Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
-#'
-#' @param x Character vector
-#' @return Character vector of normalized strings
-#' @keywords internal
+# Normalize String for Joining
+#
+# Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
 
 
 # ---------------------------------------------------------------------------

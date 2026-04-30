@@ -13,6 +13,7 @@
 ^Meta$
 ^\.DS_Store$
 ^\.Rhistory$
+^\.codex$
 ^output_data$
 ^output_plots$
 ^spatial_data$

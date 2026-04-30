@@ -72,7 +72,7 @@ utils::globalVariables(c(
   # Temporary dplyr/mutate columns not yet in the list above
   ".gap_days", ".prev_adm", ".present", ".syndrome_rank", ".norm_syn",
   "syndrome_selected", "poly_weight",
-  "n_centres_present", "column",
+  "n_centres_present", "column", "n_ast_values",
 
   # Columns created in prep_map_diagnosis_to_icd / alethia integration
   "given_entity", "alethia_prediction", "alethia_score",
