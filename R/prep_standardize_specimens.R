@@ -10,7 +10,8 @@
 #' Normalize Specimen/Sample Type
 #'
 #' Normalizes specimen/sample type names and adds sample_category and
-#' sterile_classification from the reference CSV file.
+#' sterile_classification from the reference CSV file. Includes rule-based text
+#' cleaning and fuzzy matching for common shorthand and minor misspellings.
 #'
 #' @param data Data frame with specimen column.
 #' @param specimen_col Character. Specimen column name. Default "specimen_type".

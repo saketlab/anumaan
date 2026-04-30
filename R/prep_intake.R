@@ -116,44 +116,78 @@ prep_check_columns <- function(data,
 #' @param table_label Character. Label used in messages.
 #' @param warn_missing_pct Numeric. Warn when proportion of missing keys exceeds
 #'   this threshold (0-100). Default 5.
+#' @param admission_col Character. Admission date column used for the optional
+#'   paired missingness check. Default "date_of_admission".
+#' @param culture_col Character. Culture date column used for the optional
+#'   paired missingness check. Default "date_of_culture".
 #'
 #' @return Invisibly returns a one-row summary tibble.
 #' @export
 prep_check_keys <- function(data,
                             key_col,
                             table_label = "table",
-                            warn_missing_pct = 5) {
+                            warn_missing_pct = 5,
+                            admission_col = "date_of_admission",
+                            culture_col = "date_of_culture") {
   if (!key_col %in% names(data)) {
     warning(sprintf("[%s] Key column '%s' not found.", table_label, key_col))
     return(invisible(NULL))
   }
 
-  raw         <- as.character(data[[key_col]])
+  raw          <- as.character(data[[key_col]])
   placeholders <- c("", "NULL", "null", "NA", "N/A", "None", "none", "nan", "NaN")
-  is_missing  <- is.na(raw) | trimws(raw) %in% placeholders
-  n_total     <- length(raw)
-  n_missing   <- sum(is_missing)
-  pct_missing <- round(100 * n_missing / max(n_total, 1), 1)
-  n_distinct  <- length(unique(raw[!is_missing]))
-  n_dup       <- sum(duplicated(raw[!is_missing]))
+  is_missing   <- is.na(raw) | trimws(raw) %in% placeholders
+  n_total      <- length(raw)
+  n_missing    <- sum(is_missing)
+  pct_missing  <- round(100 * n_missing / max(n_total, 1), 1)
+  n_distinct   <- length(unique(raw[!is_missing]))
+  n_dup        <- sum(duplicated(raw[!is_missing]))
+  date_pair_checked <- admission_col %in% names(data) && culture_col %in% names(data)
+  n_missing_both_dates <- NA_integer_
+  pct_missing_both_dates <- NA_real_
 
   if (pct_missing > warn_missing_pct)
     warning(sprintf("[%s] Key '%s': %.1f%% missing/placeholder (%d of %d rows).",
                     table_label, key_col, pct_missing, n_missing, n_total))
 
+  if (date_pair_checked) {
+    admission_raw <- as.character(data[[admission_col]])
+    culture_raw <- as.character(data[[culture_col]])
+    admission_missing <- is.na(admission_raw) | trimws(admission_raw) %in% placeholders
+    culture_missing <- is.na(culture_raw) | trimws(culture_raw) %in% placeholders
+    both_missing <- admission_missing & culture_missing
+    n_missing_both_dates <- sum(both_missing)
+    pct_missing_both_dates <- round(100 * n_missing_both_dates / max(n_total, 1), 1)
+
+    if (n_missing_both_dates > 0L) {
+      warning(sprintf(
+        "[%s] %d row(s) have both '%s' and '%s' missing.",
+        table_label, n_missing_both_dates, admission_col, culture_col
+      ))
+    }
+  }
+
   message(sprintf(
-    "[%s] Key '%s': %d rows | %d missing (%.1f%%) | %d distinct | %d duplicated",
-    table_label, key_col, n_total, n_missing, pct_missing, n_distinct, n_dup
+    "[%s] Key '%s': %d rows | %d missing (%.1f%%) | %d distinct | %d duplicated | %s",
+    table_label, key_col, n_total, n_missing, pct_missing, n_distinct, n_dup,
+    if (isTRUE(date_pair_checked)) {
+      sprintf("%d rows missing both %s and %s", n_missing_both_dates, admission_col, culture_col)
+    } else {
+      "admission/culture date pair not checked"
+    }
   ))
 
   invisible(data.frame(
-    table        = table_label,
-    key_col      = key_col,
-    n_total      = n_total,
-    n_missing    = n_missing,
-    pct_missing  = pct_missing,
-    n_distinct   = n_distinct,
-    n_duplicated = n_dup,
+    table                  = table_label,
+    key_col                = key_col,
+    n_total                = n_total,
+    n_missing              = n_missing,
+    pct_missing            = pct_missing,
+    n_distinct             = n_distinct,
+    n_duplicated           = n_dup,
+    date_pair_checked      = date_pair_checked,
+    n_missing_both_dates   = n_missing_both_dates,
+    pct_missing_both_dates = pct_missing_both_dates,
     stringsAsFactors = FALSE
   ))
 }
@@ -423,6 +457,17 @@ prep_log_source <- function(data,
 #' @return Tibble: col_name | class | n_distinct | pct_missing | has_any_value
 #' @export
 prep_inventory_columns <- function(data) {
+  if (is.null(data) || !is.data.frame(data)) {
+    return(tibble::tibble(
+      col_name = character(),
+      class = character(),
+      n_distinct = numeric(),
+      n_missing = numeric(),
+      pct_missing = numeric(),
+      has_any_value = logical()
+    ))
+  }
+
   n <- nrow(data)
   tibble::tibble(
     col_name      = names(data),

@@ -1842,18 +1842,14 @@ get_class_rr_map <- function() {
 }
 
 
-#' Normalize String for Joining
-#'
-#' Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
-#'
-#' @param x Character vector
-#' @return Character vector of normalized strings
-#' @keywords internal
+# Normalize String for Joining
+#
+# Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
 
 
 # ---------------------------------------------------------------------------
 # Resistance class selection (moved from prep_ast_and_syndrome.R)
-# These are analysis functions that inform DALY burden attribution — they
+# These are analysis functions that inform DALY burden attribution - they
 # do not belong in the preprocessing layer.
 # ---------------------------------------------------------------------------
 

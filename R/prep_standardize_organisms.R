@@ -90,6 +90,9 @@ prep_standardize_organisms <- function(data,
 
   # Normalize sp/spp
   data$temp_org_input <- prep_normalize_sp_variants(data$temp_org_input)
+  # Collapse culture-negative statements to missing organism.
+  no_growth_pat <- "^(no\\s*growth(\\s*in\\s*culture)?\\.?|culture\\s*negative\\.?|sterile\\s*culture\\.?|nil\\s*growth\\.?)$"
+  data$temp_org_input[grepl(no_growth_pat, tolower(trimws(data$temp_org_input)), perl = TRUE)] <- NA_character_
 
   data$organism_normalized <- NA_character_
 
@@ -264,7 +267,7 @@ prep_assign_organism_group <- function(data, organism_col = "organism_normalized
 #' Normalize sp/spp Variants
 #'
 #' Internal helper: normalizes "sp", "sp.", "spp", "spp." to "spp." and
-#' handles common abbreviations like "E.coli" → "Escherichia coli".
+#' handles common abbreviations like "E.coli" -> "Escherichia coli".
 #'
 #' @param x Character vector of organism names.
 #' @return Character vector with normalized variants.
@@ -312,9 +315,10 @@ prep_flag_organism_unmatched <- function(data, organism_col = "organism_normaliz
 
   org_ref      <- readr::read_csv(csv_path, show_col_types = FALSE)
   ref_names    <- tolower(trimws(org_ref$organism_name))
+  norm_vals    <- tolower(trimws(as.character(data[[organism_col]])))
+  has_value    <- !is.na(norm_vals) & nzchar(norm_vals)
 
-  data$is_organism_unmatched <- !is.na(data[[organism_col]]) &
-    !tolower(trimws(data[[organism_col]])) %in% ref_names
+  data$is_organism_unmatched <- has_value & !norm_vals %in% ref_names
 
   n_unmatched <- sum(data$is_organism_unmatched, na.rm = TRUE)
   if (n_unmatched > 0) {

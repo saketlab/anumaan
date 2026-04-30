@@ -7,7 +7,7 @@
 #   - prep_reconcile_hai_observed_inferred
 #   - prep_derive_icu_flag
 #
-# Note: prep_check_hai_inputs removed — covered by prep_validate_date_logic().
+# Note: prep_check_hai_inputs removed - covered by prep_validate_date_logic().
 
 
 #' Derive HAI/CAI Infection Type
@@ -121,12 +121,11 @@ prep_flag_hai_inferred <- function(data,
   }
 
   method_present <- infection_type_method_col %in% names(data)
+  method_vals <- if (method_present) data[[infection_type_method_col]] else rep(NA_character_, nrow(data))
 
   data$infection_type_src <- dplyr::case_when(
-    method_present & !is.na(data[[infection_type_method_col]]) &
-      data[[infection_type_method_col]] == "provided"    ~ "observed",
-    method_present & !is.na(data[[infection_type_method_col]]) &
-      grepl("inferred", data[[infection_type_method_col]])  ~ "inferred",
+    !is.na(method_vals) & method_vals == "provided" ~ "observed",
+    !is.na(method_vals) & grepl("inferred", method_vals) ~ "inferred",
     !is.na(data[[infection_type_col]])                   ~ "observed",
     TRUE                                                  ~ "unknown"
   )

@@ -4,20 +4,75 @@
 \alias{prep_assign_age_bins}
 \title{Assign Age Bins}
 \usage{
-prep_assign_age_bins(data, age_col = "Age", bins = "GBD_standard")
+prep_assign_age_bins(
+  data,
+  age_col = "Age",
+  bins = "GBD_standard",
+  age_unit = "years",
+  age_months_col = NULL,
+  age_days_col = NULL,
+  negative_age_strategy = c("fallback", "na"),
+  fallback_years_col = "year",
+  fallback_months_col = "months",
+  fallback_days_col = "age_days",
+  fallback_dob_col = "dob",
+  fallback_admission_col = "admission_date"
+)
 }
 \arguments{
 \item{data}{Data frame with an age column.}
 
-\item{age_col}{Character. Age column. Default "Age".}
+\item{age_col}{Character. Primary age column. Default \code{"Age"}.}
 
-\item{bins}{Character or numeric vector. "GBD_standard", "pediatric",
-"geriatric", or custom numeric breaks. Default "GBD_standard".}
+\item{bins}{Character or character vector. Preset name (\code{"GBD_standard"},
+\code{"pediatric"}, \code{"geriatric"}, \code{"neonatal"}) or a custom
+vector of bin labels. Default \code{"GBD_standard"}.}
+
+\item{age_unit}{Character. Unit of \code{age_col}: \code{"years"} (default),
+\code{"months"}, or \code{"days"}. The value is converted to decimal years
+before binning.}
+
+\item{age_months_col}{Character or NULL. Optional column holding the months
+component of age (0-11). Added to \code{age_col} after unit conversion.}
+
+\item{age_days_col}{Character or NULL. Optional column holding the days
+component of age (0-30). Added to \code{age_col} after unit conversion.}
+
+\item{negative_age_strategy}{Character. How to handle negative ages in
+\code{age_col}. \code{"fallback"} (default) tries alternate columns /
+DOB logic and falls back to 0 years when unresolved; \code{"na"} sets
+negative ages to \code{NA}.}
+
+\item{fallback_years_col}{Character or NULL. Optional years column used when
+\code{age_col} is negative. Default \code{"year"}.}
+
+\item{fallback_months_col}{Character or NULL. Optional months column used
+when \code{age_col} is negative. Default \code{"months"}.}
+
+\item{fallback_days_col}{Character or NULL. Optional days column used when
+\code{age_col} is negative. Default \code{"age_days"}.}
+
+\item{fallback_dob_col}{Character or NULL. Optional DOB column used with
+\code{fallback_admission_col} to derive age when \code{age_col} is
+negative. Default \code{"dob"}.}
+
+\item{fallback_admission_col}{Character or NULL. Optional admission/reference
+date column used with \code{fallback_dob_col}. Default
+\code{"admission_date"}.}
 }
 \value{
 Data frame with \code{Age_bin} factor column added.
 }
 \description{
 Categorizes age into bins for stratification using GBD standard or custom
-break points.
+break points. Supports ages stored as a single column in years, months, or
+days, as well as compound datasets where years, months, and days are in
+separate columns (e.g. neonatal records).
+}
+\details{
+When \code{age_months_col} or \code{age_days_col} are supplied they are
+treated as the fractional remainder on top of \code{age_col} (e.g.
+age_years = 0, age_months = 3, age_days = 5 -> 0.27 years). Missing values
+in the component columns are treated as zero so that a partially-recorded
+age is still binnable.
 }

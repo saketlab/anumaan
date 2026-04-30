@@ -2,7 +2,7 @@
 % Please edit documentation in R/prep_ast.R
 \name{prep_check_organism_ast_consistency}
 \alias{prep_check_organism_ast_consistency}
-\title{Check Organism–AST Consistency}
+\title{Check Organism-AST Consistency}
 \usage{
 prep_check_organism_ast_consistency(
   data,

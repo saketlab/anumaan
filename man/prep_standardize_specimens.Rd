@@ -24,5 +24,6 @@ Data frame with specimen_normalized, sample_category, and
 }
 \description{
 Normalizes specimen/sample type names and adds sample_category and
-sterile_classification from the reference CSV file.
+sterile_classification from the reference CSV file. Includes rule-based text
+cleaning and fuzzy matching for common shorthand and minor misspellings.
 }

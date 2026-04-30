@@ -34,11 +34,11 @@ Default \code{"icd_score"}.}
 
 \item{hierarchy_rank_col}{Character. Rank column in hierarchy. Default \code{"rank"}.}
 
-\item{keep_all_candidates}{Logical. TRUE → return all rows with \code{syndrome_selected}
-flag; FALSE → return one row per \code{patient_col} (selected only). Default TRUE.}
+\item{keep_all_candidates}{Logical. TRUE -> return all rows with \code{syndrome_selected}
+flag; FALSE -> return one row per \code{patient_col} (selected only). Default TRUE.}
 
 \item{collapse_unspecified_respiratory}{Logical. Map "Other unspecified respiratory
-site infections" → "Lower respiratory infections" before selection. Default FALSE.}
+site infections" -> "Lower respiratory infections" before selection. Default FALSE.}
 
 \item{keep_only_burden_syndromes}{Logical. Retain only syndromes where
 \code{contributes_to_amr_burden == TRUE}. Default FALSE.}

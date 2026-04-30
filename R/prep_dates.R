@@ -59,7 +59,9 @@ prep_parse_date_column <- function(x, col_name = "date", table_label = "table") 
   }
 
   # ---- String parsing for remaining indices --------------------------------
-  remaining <- idx_present[is.na(out[idx_present]) & !is_numeric[idx_present]]
+  # Keep unresolved numeric-looking strings here as well, because patterns like
+  # YYYYDDMM (e.g. 20201301) are numeric but still need the swap fallback.
+  remaining <- idx_present[is.na(out[idx_present])]
 
   if (length(remaining) > 0L) {
     parsed <- suppressWarnings(
@@ -271,5 +273,4 @@ prep_validate_date_logic <- function(data,
 
   invisible(data)
 }
-
 
