@@ -88,7 +88,7 @@ utils::globalVariables(c(
   "center", "metric_type", "organism",
   "associated", "attributable",
   "yll_per_1000", "yld_per_1000",
-  "yll_sum", "tot", "cell_lbl"
+  "yll_sum", "tot", "cell_lbl",
 
   # prep_standardize_specimens.R -- temporary/derived column names
   "temp_spec_input", "temp_spec_clean",
