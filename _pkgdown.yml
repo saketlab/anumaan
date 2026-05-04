@@ -94,6 +94,8 @@ reference:
   - print.amr_result
   - summary.amr_result
   - print.amr_preprocessing_report
+  - detect_preprocessing_capabilities
+  - prep_report_capabilities
 
 - title: "Standardization"
   desc: "Standardize column names, organisms, antibiotics, specimens, and values"
@@ -108,6 +110,11 @@ reference:
   - prep_recode_intermediate_ast
   - prep_parse_date_column
   - prep_coerce_dates
+  - prep_standardize_final_outcome
+  - prep_standardize_infection_type
+  - prep_harmonize_ast
+  - prep_flag_invalid_ast
+  - prep_decode_antibiotic_code
 
 - title: "Classification"
   desc: "MDR/XDR classification, organism grouping, AWaRe, and mortality"
@@ -120,6 +127,8 @@ reference:
   - prep_derive_hai_cai
   - prep_extract_genus
   - prep_extract_species
+  - prep_classify_readmission
+  - prep_flag_organism_unmatched
 
 - title: "Enrichment"
   desc: "Derive missing variables from existing data"
@@ -128,6 +137,11 @@ reference:
   - prep_assign_age_bins
   - prep_infer_department
   - prep_clean_optional_columns
+  - prep_derive_los_from_dates
+  - prep_derive_icu_flag
+  - prep_derive_dob_from_components
+  - prep_flag_hai_inferred
+  - prep_reconcile_hai_observed_inferred
 
 - title: "Deduplication and collapsing"
   desc: "Event IDs, deduplication, contaminant flagging, and data reshaping"
@@ -144,6 +158,13 @@ reference:
   - prep_create_wide_ast_matrix
   - prep_create_resistance_profile
   - prep_filter_analysis_ready
+  - prep_deduplicate_ast
+  - prep_compute_poly_weights
+  - prep_split_poly_episode
+  - prep_flag_polymicrobial
+  - prep_flag_readmission
+  - prep_filter_fungal
+  - prep_filter_minimally_usable
 
 - title: "Multi-centre stewardship import"
   desc: "Joining and validating ICMR multi-centre stewardship datasets"
@@ -151,6 +172,26 @@ reference:
   - prep_check_columns
   - prep_check_keys
   - prep_validate_table
+  - prep_detect_schema_drift
+  - prep_apply_column_map
+  - prep_assert_standard_names
+  - prep_build_column_map
+
+- title: "Diagnosis and syndrome mapping"
+  desc: "Map free-text diagnoses to ICD-10 codes and clinical syndromes"
+  contents:
+  - prep_map_diagnosis_to_icd
+  - prep_map_icd_to_syndrome
+  - prep_diagnosis_text
+  - prep_assign_patient_syndrome
+  - infer_patient_syndrome_wide
+
+- title: "Outcome cohorts and attrition"
+  desc: "Build outcome cohorts and track patient counts through pipeline stages"
+  contents:
+  - prep_attrition_flow
+  - prep_build_fatal_cohort
+  - prep_build_nonfatal_cohort
 
 - title: "Resistance profiles"
   desc: "Marginal resistance, co-resistance, and profile computation"
@@ -243,6 +284,10 @@ reference:
   - compute_processing_statistics
   - generate_preprocessing_report
   - export_report
+  - prep_check_organism_ast_consistency
+  - prep_validate_analysis_ready
+  - prep_validate_date_logic
+  - prep_missingness_report
 
 - title: "Utilities"
   desc: "Helper functions"
@@ -251,6 +296,8 @@ reference:
   - shorten_drug_class
   - default_column_mappings
   - get_age_bins
+  - prep_inventory_columns
+  - prep_log_source
 
 authors:
   Saket Choudhary:
