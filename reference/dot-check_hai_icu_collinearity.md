@@ -5,19 +5,9 @@ contingency table of HAI x ICU. When ICU is hospital-acquired, the two
 covariates can be highly correlated, making regression coefficients
 unstable.
 
-Computes the phi correlation for the HAI x ICU 2x2 table and warns when
-it exceeds `phi_threshold`.
-
 ## Usage
 
 ``` r
-.check_hai_icu_collinearity(
-  df,
-  hai_col = "HAI",
-  icu_col = "ICU",
-  phi_threshold = 0.7
-)
-
 .check_hai_icu_collinearity(
   df,
   hai_col = "HAI",
@@ -42,13 +32,11 @@ it exceeds `phi_threshold`.
 
 - phi_threshold:
 
-  Numeric. Default `0.7`.
+  Numeric. Absolute phi above which a warning is issued. Default `0.7`.
 
 ## Value
 
 Named list: `phi`, `tbl` (2x2 table), `warning_issued` (logical).
-
-Named list: `phi`, `tbl`, `warning_issued`.
 
 ## Details
 

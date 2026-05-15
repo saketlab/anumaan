@@ -1,7 +1,7 @@
 # Compute Hospital-Level DALY Breakdown
 
 Distributes pooled YLL/YLD totals to individual hospitals proportionally
-by deaths and discharges, and computes per-1000 rates.
+by deaths and discharges, and computes per-1 000 rates.
 
 ## Usage
 
@@ -60,5 +60,5 @@ compute_hospital_daly(
 
 ## Value
 
-Data frame with hospital-level YLL, YLD, DALY (absolute and per 1000
+Data frame with hospital-level YLL, YLD, DALY (absolute and per 1 000
 cases) columns.

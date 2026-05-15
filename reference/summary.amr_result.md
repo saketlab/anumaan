@@ -13,7 +13,7 @@ summary(object, ...)
 
 - object:
 
-  amr_result object from amr_preprocess()
+  amr_result object from run_preprocess()
 
 - ...:
 
@@ -27,7 +27,7 @@ Invisibly returns the object
 
 ``` r
 if (FALSE) { # \dontrun{
-result <- amr_preprocess(data)
+result <- run_preprocess(data)
 summary(result)
 } # }
 ```

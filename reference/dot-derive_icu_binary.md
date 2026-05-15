@@ -5,21 +5,9 @@ patient-level binary ICU indicator using the **"ever in ICU"** rule: if
 a patient has *any* row with an ICU-type location during that admission,
 `ICU = 1`; otherwise `ICU = 0`.
 
-Collapses unit-type data to a patient-level binary ICU indicator using
-the "ever in ICU" rule. Returns integer 0/1 or a 3-level factor when
-missing data is high.
-
 ## Usage
 
 ``` r
-.derive_icu_binary(
-  data,
-  patient_id_col = "PatientInformation_id",
-  unit_type_col = "unit_type",
-  icu_values = c("ICU", "Intensive Care", "Critical Care", "PICU", "NICU"),
-  missing_threshold = 0.1
-)
-
 .derive_icu_binary(
   data,
   patient_id_col = "PatientInformation_id",
@@ -33,7 +21,7 @@ missing data is high.
 
 - data:
 
-  Data frame at drug-test level.
+  Data frame at drug-test level (before patient collapse).
 
 - patient_id_col:
 
@@ -41,23 +29,23 @@ missing data is high.
 
 - unit_type_col:
 
-  Character. Default `"unit_type"`.
+  Character. Column containing ward/ICU labels. Default `"unit_type"`.
 
 - icu_values:
 
-  Character vector. ICU location labels.
+  Character vector. Values (matched case-insensitively) that indicate
+  ICU admission. Default
+  `c("ICU", "Intensive Care", "Critical Care", "PICU", "NICU")`.
 
 - missing_threshold:
 
-  Numeric. Proportion above which a 3-level factor is returned. Default
-  `0.10`.
+  Numeric in \[0, 1\]. Proportion of patients with entirely missing
+  unit-type above which a 3-level factor is returned. Default `0.10`.
 
 ## Value
 
 Patient-level data frame: `patient_id_col` and `ICU` (integer 0/1, or
 factor `"ICU"/"Ward"/"Unknown"` when missing is high).
-
-Patient-level data frame with `patient_id_col` and `ICU`.
 
 ## Details
 

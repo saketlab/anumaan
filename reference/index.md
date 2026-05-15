@@ -4,7 +4,7 @@
 
 Main preprocessing pipeline and configuration
 
-- [`amr_preprocess()`](https://saketlab.github.io/anumaan/reference/amr_preprocess.md)
+- [`run_preprocess()`](https://saketlab.github.io/anumaan/reference/run_preprocess.md)
   : AMR Data Preprocessing Pipeline
 - [`amr_config()`](https://saketlab.github.io/anumaan/reference/amr_config.md)
   : Create AMR Preprocessing Configuration
@@ -18,213 +18,258 @@ Main preprocessing pipeline and configuration
   : Summary Method for AMR Preprocessing Results
 - [`print(`*`<amr_preprocessing_report>`*`)`](https://saketlab.github.io/anumaan/reference/print.amr_preprocessing_report.md)
   : Print Preprocessing Report
+- [`detect_preprocessing_capabilities()`](https://saketlab.github.io/anumaan/reference/detect_preprocessing_capabilities.md)
+  : Detect Preprocessing Capabilities
+- [`prep_report_capabilities()`](https://saketlab.github.io/anumaan/reference/prep_report_capabilities.md)
+  : Report Preprocessing Capabilities
 
-## Normalization
+## Standardization
 
-Standardize column names, organisms, antibiotics, and specimens
+Standardize column names, organisms, antibiotics, specimens, and values
 
-- [`standardize_column_names()`](https://saketlab.github.io/anumaan/reference/standardize_column_names.md)
+- [`prep_standardize_column_names()`](https://saketlab.github.io/anumaan/reference/prep_standardize_column_names.md)
   : Standardize Column Names to Package Convention
-- [`normalize_organism()`](https://saketlab.github.io/anumaan/reference/normalize_organism.md)
+- [`prep_standardize_organisms()`](https://saketlab.github.io/anumaan/reference/prep_standardize_organisms.md)
   : Normalize Organism Names
-- [`normalize_antibiotic()`](https://saketlab.github.io/anumaan/reference/normalize_antibiotic.md)
+- [`prep_standardize_antibiotics()`](https://saketlab.github.io/anumaan/reference/prep_standardize_antibiotics.md)
   : Normalize Antibiotic Names
-- [`normalize_specimen()`](https://saketlab.github.io/anumaan/reference/normalize_specimen.md)
+- [`prep_standardize_specimens()`](https://saketlab.github.io/anumaan/reference/prep_standardize_specimens.md)
   : Normalize Specimen/Sample Type
-- [`standardize_gender()`](https://saketlab.github.io/anumaan/reference/standardize_gender.md)
-  : Standardize Gender Values
-- [`standardize_outcome()`](https://saketlab.github.io/anumaan/reference/standardize_outcome.md)
-  : Standardize Outcome Values
-- [`standardize_susceptibility()`](https://saketlab.github.io/anumaan/reference/standardize_susceptibility.md)
-  : Standardize Susceptibility Values
-- [`recode_intermediate()`](https://saketlab.github.io/anumaan/reference/recode_intermediate.md)
-  : Recode Intermediate (I) Susceptibility Values
-- [`clean_antibiotic_values()`](https://saketlab.github.io/anumaan/reference/clean_antibiotic_values.md)
+- [`prep_standardize_sex()`](https://saketlab.github.io/anumaan/reference/prep_standardize_sex.md)
+  : Standardize Sex Values
+- [`prep_standardize_outcome()`](https://saketlab.github.io/anumaan/reference/prep_standardize_outcome.md)
+  : Standardize Outcome Values (deprecated)
+- [`prep_clean_ast_values()`](https://saketlab.github.io/anumaan/reference/prep_clean_ast_values.md)
   : Clean Antibiotic Susceptibility Values
-- [`parse_dates()`](https://saketlab.github.io/anumaan/reference/parse_dates.md)
-  : Parse Dates Safely
+- [`prep_recode_intermediate_ast()`](https://saketlab.github.io/anumaan/reference/prep_recode_intermediate_ast.md)
+  : Recode Intermediate (I) Susceptibility Values
+- [`prep_parse_date_column()`](https://saketlab.github.io/anumaan/reference/prep_parse_date_column.md)
+  : Detect and decode encrypted or non-standard date columns
+- [`prep_coerce_dates()`](https://saketlab.github.io/anumaan/reference/prep_coerce_dates.md)
+  : Detect and convert all date-like columns in a table
+- [`prep_standardize_final_outcome()`](https://saketlab.github.io/anumaan/reference/prep_standardize_final_outcome.md)
+  : Standardize Final Outcome Column
+- [`prep_standardize_infection_type()`](https://saketlab.github.io/anumaan/reference/prep_standardize_infection_type.md)
+  : Standardize Infection Type Column
+- [`prep_harmonize_ast()`](https://saketlab.github.io/anumaan/reference/prep_harmonize_ast.md)
+  : Harmonize AST Values
+- [`prep_flag_invalid_ast()`](https://saketlab.github.io/anumaan/reference/prep_flag_invalid_ast.md)
+  : Flag Invalid AST Values
+- [`prep_decode_antibiotic_code()`](https://saketlab.github.io/anumaan/reference/prep_decode_antibiotic_code.md)
+  : Decode Antibiotic Short Codes to Full Names
 
 ## Classification
 
-MDR/XDR classification, organism grouping, and AWaRe
+MDR/XDR classification, organism grouping, AWaRe, and mortality
 
-- [`classify_mdr()`](https://saketlab.github.io/anumaan/reference/classify_mdr.md)
-  : Classify MDR (Multidrug Resistant)
-- [`classify_xdr()`](https://saketlab.github.io/anumaan/reference/classify_xdr.md)
-  : Classify XDR (Extensively Drug Resistant)
-- [`classify_org_group()`](https://saketlab.github.io/anumaan/reference/classify_org_group.md)
-  : Classify Organism Group
-- [`classify_aware()`](https://saketlab.github.io/anumaan/reference/classify_aware.md)
-  : Classify AWaRe Category
-- [`classify_antibiotic_class()`](https://saketlab.github.io/anumaan/reference/classify_antibiotic_class.md)
+- [`prep_classify_mdr_xdr()`](https://saketlab.github.io/anumaan/reference/prep_classify_mdr_xdr.md)
+  : Classify MDR and XDR
+- [`prep_assign_organism_group()`](https://saketlab.github.io/anumaan/reference/prep_assign_organism_group.md)
+  : Assign Organism Group
+- [`prep_classify_antibiotic_class()`](https://saketlab.github.io/anumaan/reference/prep_classify_antibiotic_class.md)
   : Classify Antibiotic to WHO Class
-- [`classify_mortality()`](https://saketlab.github.io/anumaan/reference/classify_mortality.md)
+- [`prep_classify_aware()`](https://saketlab.github.io/anumaan/reference/prep_classify_aware.md)
+  : Classify AWaRe Category
+- [`prep_classify_mortality()`](https://saketlab.github.io/anumaan/reference/prep_classify_mortality.md)
   : Classify Infection-Related Mortality
-- [`derive_infection_type()`](https://saketlab.github.io/anumaan/reference/derive_infection_type.md)
-  : Derive Infection Type (HAI / CAI) per Patient
-- [`derive_infection_type_for_mortality()`](https://saketlab.github.io/anumaan/reference/derive_infection_type_for_mortality.md)
-  : Derive Infection Type (HAI / CAI) for Mortality RR Model
+- [`prep_derive_hai_cai()`](https://saketlab.github.io/anumaan/reference/prep_derive_hai_cai.md)
+  : Derive HAI/CAI Infection Type
+- [`prep_extract_genus()`](https://saketlab.github.io/anumaan/reference/prep_extract_genus.md)
+  : Extract Genus from Organism Name
+- [`prep_extract_species()`](https://saketlab.github.io/anumaan/reference/prep_extract_species.md)
+  : Extract Species from Organism Name
+- [`prep_classify_readmission()`](https://saketlab.github.io/anumaan/reference/prep_classify_readmission.md)
+  : Classify Readmission Type
+- [`prep_flag_organism_unmatched()`](https://saketlab.github.io/anumaan/reference/prep_flag_organism_unmatched.md)
+  : Flag Organisms Unmatched in Reference
 
 ## Enrichment
 
 Derive missing variables from existing data
 
-- [`enrich_age()`](https://saketlab.github.io/anumaan/reference/enrich_age.md)
-  : Enrich Age
-- [`enrich_los()`](https://saketlab.github.io/anumaan/reference/enrich_los.md)
-  : Enrich Length of Stay
-- [`enrich_infection_type()`](https://saketlab.github.io/anumaan/reference/enrich_infection_type.md)
-  : Enrich Infection Type
-- [`enrich_hospital_department()`](https://saketlab.github.io/anumaan/reference/enrich_hospital_department.md)
-  : Enrich Hospital Department
-- [`assign_age_bins()`](https://saketlab.github.io/anumaan/reference/assign_age_bins.md)
+- [`prep_fill_age()`](https://saketlab.github.io/anumaan/reference/prep_fill_age.md)
+  : Fill Missing Age Values
+- [`prep_assign_age_bins()`](https://saketlab.github.io/anumaan/reference/prep_assign_age_bins.md)
   : Assign Age Bins
-- [`derive_age()`](https://saketlab.github.io/anumaan/reference/derive_age.md)
-  : Derive Age from Date of Birth
+- [`prep_infer_department()`](https://saketlab.github.io/anumaan/reference/prep_infer_department.md)
+  : Infer Hospital Department
+- [`prep_clean_optional_columns()`](https://saketlab.github.io/anumaan/reference/prep_clean_optional_columns.md)
+  : Clean Optional Columns
+- [`prep_derive_los_from_dates()`](https://saketlab.github.io/anumaan/reference/prep_derive_los_from_dates.md)
+  : Derive Length of Stay from Date Columns
+- [`prep_derive_icu_flag()`](https://saketlab.github.io/anumaan/reference/prep_derive_icu_flag.md)
+  : Derive ICU Flag
+- [`prep_derive_dob_from_components()`](https://saketlab.github.io/anumaan/reference/prep_derive_dob_from_components.md)
+  : Derive Date of Birth from Age Components
+- [`prep_flag_hai_inferred()`](https://saketlab.github.io/anumaan/reference/prep_flag_hai_inferred.md)
+  : Flag HAI Inferred vs Observed
+- [`prep_reconcile_hai_observed_inferred()`](https://saketlab.github.io/anumaan/reference/prep_reconcile_hai_observed_inferred.md)
+  : Reconcile Observed and Inferred HAI/CAI Classification
 
 ## Deduplication and collapsing
 
-Event IDs, deduplication, and data reshaping
+Event IDs, deduplication, contaminant flagging, and data reshaping
 
-- [`create_event_ids()`](https://saketlab.github.io/anumaan/reference/create_event_ids.md)
+- [`prep_create_event_ids()`](https://saketlab.github.io/anumaan/reference/prep_create_event_ids.md)
   : Create Event IDs from Patient-Level Data
-- [`deduplicate_events()`](https://saketlab.github.io/anumaan/reference/deduplicate_events.md)
+- [`prep_deduplicate_events()`](https://saketlab.github.io/anumaan/reference/prep_deduplicate_events.md)
   : Deduplicate Events
-- [`flag_contaminants()`](https://saketlab.github.io/anumaan/reference/flag_contaminants.md)
+- [`prep_flag_contaminants()`](https://saketlab.github.io/anumaan/reference/prep_flag_contaminants.md)
   : Flag Contaminant Organisms
-- [`flag_polymicrobial()`](https://saketlab.github.io/anumaan/reference/flag_polymicrobial.md)
-  : Flag Polymicrobial Infections (No Specimen Type, No Episode ID)
-- [`collapse_to_antibiotic_level()`](https://saketlab.github.io/anumaan/reference/collapse_to_antibiotic_level.md)
-  : Collapse to Antibiotic Level (OPTIONAL - Run When YOU Decide)
-- [`collapse_to_class_level()`](https://saketlab.github.io/anumaan/reference/collapse_to_class_level.md)
-  : Collapse to Class Level
-- [`create_wide_format()`](https://saketlab.github.io/anumaan/reference/create_wide_format.md)
-  : Create Wide Format Dataset
-- [`pivot_wide_to_long()`](https://saketlab.github.io/anumaan/reference/pivot_wide_to_long.md)
-  : Convert Wide Format to Long Format
-- [`create_resistance_profile()`](https://saketlab.github.io/anumaan/reference/create_resistance_profile.md)
-  : Create Resistance Profile
-- [`compute_polymicrobial_weight()`](https://saketlab.github.io/anumaan/reference/compute_polymicrobial_weight.md)
+- [`prep_get_contaminant_list()`](https://saketlab.github.io/anumaan/reference/prep_get_contaminant_list.md)
+  : Get Contaminant List from Reference File
+- [`prep_is_contaminant()`](https://saketlab.github.io/anumaan/reference/prep_is_contaminant.md)
+  : Check if Organism is a Contaminant
+- [`prep_flag_polymicrobial()`](https://saketlab.github.io/anumaan/reference/prep_flag_polymicrobial.md)
+  [`flag_polymicrobial()`](https://saketlab.github.io/anumaan/reference/prep_flag_polymicrobial.md)
+  : Flag Polymicrobial Infections
+- [`prep_compute_poly_weights()`](https://saketlab.github.io/anumaan/reference/prep_compute_poly_weights.md)
+  [`compute_polymicrobial_weight()`](https://saketlab.github.io/anumaan/reference/prep_compute_poly_weights.md)
   : Compute Polymicrobial Weights
+- [`prep_collapse_class_level()`](https://saketlab.github.io/anumaan/reference/prep_collapse_class_level.md)
+  : Collapse to Class Level
+- [`prep_pivot_ast_wide_to_long()`](https://saketlab.github.io/anumaan/reference/prep_pivot_ast_wide_to_long.md)
+  : Convert Wide Format to Long Format
+- [`prep_create_wide_ast_matrix()`](https://saketlab.github.io/anumaan/reference/prep_create_wide_ast_matrix.md)
+  : Create Wide Format AST Matrix
+- [`prep_create_resistance_profile()`](https://saketlab.github.io/anumaan/reference/prep_create_resistance_profile.md)
+  : Create Resistance Profile
+- [`prep_filter_analysis_ready()`](https://saketlab.github.io/anumaan/reference/prep_filter_analysis_ready.md)
+  : Filter Analysis-Ready Records
+- [`prep_deduplicate_ast()`](https://saketlab.github.io/anumaan/reference/prep_deduplicate_ast.md)
+  : Handle Duplicate AST Results
+- [`prep_split_poly_episode()`](https://saketlab.github.io/anumaan/reference/prep_split_poly_episode.md)
+  : Split Polymicrobial Episodes by Strategy
+- [`prep_flag_readmission()`](https://saketlab.github.io/anumaan/reference/prep_flag_readmission.md)
+  : Flag and Classify Readmissions
+- [`prep_filter_fungal()`](https://saketlab.github.io/anumaan/reference/prep_filter_fungal.md)
+  : Filter Fungal Organisms
+- [`prep_filter_minimally_usable()`](https://saketlab.github.io/anumaan/reference/prep_filter_minimally_usable.md)
+  : Filter Minimally Usable Records
+
+## Multi-centre stewardship import
+
+Joining and validating ICMR multi-centre stewardship datasets
+
+- [`prep_check_columns()`](https://saketlab.github.io/anumaan/reference/prep_check_columns.md)
+  : Check required columns exist and report types
+- [`prep_check_keys()`](https://saketlab.github.io/anumaan/reference/prep_check_keys.md)
+  : Check join key quality
+- [`prep_validate_table()`](https://saketlab.github.io/anumaan/reference/prep_validate_table.md)
+  : Run all pre-join sanity checks for one table
+- [`prep_detect_schema_drift()`](https://saketlab.github.io/anumaan/reference/prep_detect_schema_drift.md)
+  : Detect Schema Drift Across Centres
+- [`prep_apply_column_map()`](https://saketlab.github.io/anumaan/reference/prep_apply_column_map.md)
+  : Apply Column Map to Rename Columns
+- [`prep_assert_standard_names()`](https://saketlab.github.io/anumaan/reference/prep_assert_standard_names.md)
+  : Assert Standard Names Are Present
+- [`prep_build_column_map()`](https://saketlab.github.io/anumaan/reference/prep_build_column_map.md)
+  : Build and Validate a Column Map Against a Dataset
+
+## Diagnosis and syndrome mapping
+
+Map free-text diagnoses to ICD-10 codes and clinical syndromes
+
+- [`prep_map_diagnosis_to_icd()`](https://saketlab.github.io/anumaan/reference/prep_map_diagnosis_to_icd.md)
+  : Map Diagnosis Text to ICD Candidates
+- [`prep_map_icd_to_syndrome()`](https://saketlab.github.io/anumaan/reference/prep_map_icd_to_syndrome.md)
+  : Map ICD Codes to Infectious Syndromes
+- [`prep_diagnosis_text()`](https://saketlab.github.io/anumaan/reference/prep_diagnosis_text.md)
+  : Prepare Diagnosis Text
+- [`prep_assign_patient_syndrome()`](https://saketlab.github.io/anumaan/reference/prep_assign_patient_syndrome.md)
+  : Assign One Syndrome Per Patient or Event
+- [`infer_patient_syndrome_wide()`](https://saketlab.github.io/anumaan/reference/infer_patient_syndrome_wide.md)
+  : Assign Syndrome from Wide-Format Syndrome Flags
+
+## Outcome cohorts and attrition
+
+Build outcome cohorts and track patient counts through pipeline stages
+
+- [`prep_attrition_flow()`](https://saketlab.github.io/anumaan/reference/prep_attrition_flow.md)
+  : Track Attrition Through the Pipeline
+- [`prep_build_fatal_cohort()`](https://saketlab.github.io/anumaan/reference/prep_build_fatal_cohort.md)
+  : Build Fatal Cohort
+- [`prep_build_nonfatal_cohort()`](https://saketlab.github.io/anumaan/reference/prep_build_nonfatal_cohort.md)
+  : Build Non-Fatal Cohort
 
 ## Resistance profiles
 
-Marginal resistance, coresistance, and profile computation
+Marginal resistance, co-resistance, and profile computation
 
-- [`compute_R_kd_fatal()`](https://saketlab.github.io/anumaan/reference/compute_R_kd_fatal.md)
-  : Compute Fatal Prevalence of Resistance (R_kd)
-- [`compute_base_yll_from_dl()`](https://saketlab.github.io/anumaan/reference/compute_base_yll_from_dl.md)
-  : Compute Base YLL Block from a Scalar D_L (Steps 1-3)
-- [`compute_fatal_resistance_prevalence()`](https://saketlab.github.io/anumaan/reference/compute_fatal_resistance_prevalence.md)
-  : Compute Per-Profile Fatal Prevalence of Resistance R_Kdelta\* (Eq.
-  13)
-- [`compute_fraction_associated()`](https://saketlab.github.io/anumaan/reference/compute_fraction_associated.md)
-  : Compute Associated-Burden Fractions per Resistance Profile
-- [`compute_hospital_daly()`](https://saketlab.github.io/anumaan/reference/compute_hospital_daly.md)
-  : Compute Hospital-Level DALY Breakdown
 - [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md)
   : Compute Marginal Resistance per Pathogen and Antibiotic Class
-- [`compute_p0()`](https://saketlab.github.io/anumaan/reference/compute_p0.md)
-  : Compute Baseline Mortality Rate Among Fully Susceptible Patients
-  (p0)
-- [`compute_paf_los()`](https://saketlab.github.io/anumaan/reference/compute_paf_los.md)
-  : Compute LOS Population Attributable Fraction per Resistance Profile
-- [`compute_paf_rr_mortality()`](https://saketlab.github.io/anumaan/reference/compute_paf_rr_mortality.md)
-  : Compute Mortality Population Attributable Fraction per Resistance
-  Profile
 - [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md)
   : Compute Pairwise Co-resistance Matrices per Pathogen
-- [`compute_patient_los()`](https://saketlab.github.io/anumaan/reference/compute_patient_los.md)
-  : Compute Patient-Level Post-Infection LOS
-- [`compute_polymicrobial_weight()`](https://saketlab.github.io/anumaan/reference/compute_polymicrobial_weight.md)
-  : Compute Polymicrobial Weights
-- [`compute_processing_statistics()`](https://saketlab.github.io/anumaan/reference/compute_processing_statistics.md)
-  : Compute Processing Statistics
 - [`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md)
   : Compute Resistance Profile Probabilities per Pathogen
-- [`compute_yld_associated()`](https://saketlab.github.io/anumaan/reference/compute_yld_associated.md)
-  : Compute YLDs Associated with Resistance
-- [`compute_yld_attributable()`](https://saketlab.github.io/anumaan/reference/compute_yld_attributable.md)
-  : Compute YLDs Attributable to Resistance
-- [`compute_yll_associated()`](https://saketlab.github.io/anumaan/reference/compute_yll_associated.md)
-  : Compute YLL Associated with AMR (Patient-Level, Facility-Direct)
-- [`compute_yll_attributable()`](https://saketlab.github.io/anumaan/reference/compute_yll_attributable.md)
-  : Compute YLL Attributable to AMR
 - [`select_resistance_class()`](https://saketlab.github.io/anumaan/reference/select_resistance_class.md)
-  : Select Resistance Class
-- [`prioritize_resistance()`](https://saketlab.github.io/anumaan/reference/prioritize_resistance.md)
-  : Prioritize Resistance
+  : Select Resistance Class for Burden Attribution
 
-## Burden estimation (YLL/YLD)
+## Burden estimation (YLL/YLD/DALY)
 
 GBD-methodology burden calculations
 
-- [`calculate_CR_L()`](https://saketlab.github.io/anumaan/reference/calculate_CR_L.md)
-  : Calculate the CFR adjustment factor (CR_L)
-- [`calculate_P_Lk()`](https://saketlab.github.io/anumaan/reference/calculate_P_Lk.md)
-  : Calculate Fatal Pathogen Distribution (P\_{LK})
-- [`calculate_P_Lk_fatal()`](https://saketlab.github.io/anumaan/reference/calculate_P_Lk_fatal.md)
-  : Calculate fatal pathogen distribution (P\_{Lk})
-- [`calculate_P_Lk_prime()`](https://saketlab.github.io/anumaan/reference/calculate_P_Lk_prime.md)
-  : Calculate non-fatal pathogen distribution (P'\_{Lk})
-- [`calculate_Rkd_prime()`](https://saketlab.github.io/anumaan/reference/calculate_Rkd_prime.md)
-  : Calculate non-fatal prevalence of resistance (R'\_{k,d})
-- [`calculate_YLD()`](https://saketlab.github.io/anumaan/reference/calculate_YLD.md)
-  : Calculate YLD per pathogen
-- [`calculate_cfr_lk()`](https://saketlab.github.io/anumaan/reference/calculate_cfr_lk.md)
+- [`daly_add_rr_mappings()`](https://saketlab.github.io/anumaan/reference/daly_add_rr_mappings.md)
+  : Add RR Pathogen and Drug Mappings
+- [`daly_assign_rr_to_profiles()`](https://saketlab.github.io/anumaan/reference/daly_assign_rr_to_profiles.md)
+  : Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
+- [`daly_calc_case_fatality()`](https://saketlab.github.io/anumaan/reference/daly_calc_case_fatality.md)
   : Calculate case fatality ratio by syndrome and pathogen (CFR\_{Lk})
-- [`calculate_deaths_by_cause()`](https://saketlab.github.io/anumaan/reference/calculate_deaths_by_cause.md)
+- [`daly_calc_cr_l()`](https://saketlab.github.io/anumaan/reference/daly_calc_cr_l.md)
+  : Calculate the CFR adjustment factor (CR_L)
+- [`daly_calc_deaths_by_cause()`](https://saketlab.github.io/anumaan/reference/daly_calc_deaths_by_cause.md)
   : Calculate Deaths by Underlying Cause (D_J)
-- [`calculate_distance_matrix()`](https://saketlab.github.io/anumaan/reference/calculate_distance_matrix.md)
-  : Calculate Distance Matrix Between Locations
-- [`calculate_incidence_L()`](https://saketlab.github.io/anumaan/reference/calculate_incidence_L.md)
+- [`daly_calc_deaths_by_syndrome()`](https://saketlab.github.io/anumaan/reference/daly_calc_deaths_by_syndrome.md)
+  : Calculate Deaths by Infectious Syndrome (D_L)
+- [`daly_calc_fraction_associated_yld()`](https://saketlab.github.io/anumaan/reference/daly_calc_fraction_associated_yld.md)
+  : Compute Associated-Burden Fractions per Resistance Profile
+- [`daly_calc_incidence_from_cfr()`](https://saketlab.github.io/anumaan/reference/daly_calc_incidence_from_cfr.md)
   : Calculate syndrome incidence from deaths, CFR, and CR_L
   (formula-based)
-- [`calculate_infection_fraction()`](https://saketlab.github.io/anumaan/reference/calculate_infection_fraction.md)
+- [`daly_calc_infection_fraction()`](https://saketlab.github.io/anumaan/reference/daly_calc_infection_fraction.md)
   : Calculate Infection Fraction of Deaths by Cause (S_J)
-- [`calculate_los()`](https://saketlab.github.io/anumaan/reference/calculate_los.md)
-  : Calculate Length of Stay
-- [`calculate_spatial_autocorrelation()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_autocorrelation.md)
-  : Calculate Spatial Autocorrelation (Moran's I)
-- [`calculate_spatial_metrics()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_metrics.md)
-  : Calculate AMR Metrics by Geographic Unit
-- [`calculate_syndrome_deaths()`](https://saketlab.github.io/anumaan/reference/calculate_syndrome_deaths.md)
-  : Calculate Deaths by Infectious Syndrome (D_L)
-- [`calculate_syndrome_fraction()`](https://saketlab.github.io/anumaan/reference/calculate_syndrome_fraction.md)
+- [`daly_calc_paf_los()`](https://saketlab.github.io/anumaan/reference/daly_calc_paf_los.md)
+  : Compute PAF for length of stay per resistance profile
+- [`daly_calc_paf_mortality()`](https://saketlab.github.io/anumaan/reference/daly_calc_paf_mortality.md)
+  : Compute Mortality Population Attributable Fraction per Resistance
+  Profile
+- [`daly_calc_pathogen_fraction_fatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_fatal.md)
+  : Calculate fatal pathogen distribution (P\_{Lk})
+- [`daly_calc_syndrome_fraction()`](https://saketlab.github.io/anumaan/reference/daly_calc_syndrome_fraction.md)
   : Calculate Infectious Syndrome Fraction (M_LJ)
-- [`fit_distributions()`](https://saketlab.github.io/anumaan/reference/fit_distributions.md)
-  : Fit Multiple Distributions
-- [`fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/fit_los_rr_distribution.md)
+- [`daly_calc_yld_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yld_attributable.md)
+  : Compute YLDs Attributable to Resistance
+- [`daly_calc_yll_associated()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.md)
+  : Compute YLL Associated with AMR (Patient-Level, Facility-Direct)
+- [`daly_calc_yll_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.md)
+  : Compute YLL Attributable to AMR
+- [`daly_compute_patient_los()`](https://saketlab.github.io/anumaan/reference/daly_compute_patient_los.md)
+  : Compute Patient-Level Post-Infection LOS
+- [`daly_count_incident_cases()`](https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.md)
+  : Count incident cases by syndrome from facility data
+- [`daly_derive_hai_cai_for_los()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_los.md)
+  : Derive Infection Type (HAI / CAI) per Patient
+- [`daly_derive_hai_cai_for_mortality()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.md)
+  : Classify HAI/CAI Infection Type for the Mortality Cohort
+- [`daly_fit_los_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.md)
+  : Fit relative LOS using Gamma GLM with log link
+- [`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md)
   : Estimate Per-Class LOS Relative Risk via Parametric Distribution
   Fitting
-- [`fit_los_rr_nima()`](https://saketlab.github.io/anumaan/reference/fit_los_rr_nima.md)
-  : Estimate Per-Profile LOS Relative Risk via Distribution Fitting
-  (Nima Procedure)
-- [`fit_los_rr_poisson()`](https://saketlab.github.io/anumaan/reference/fit_los_rr_poisson.md)
-  : Estimate Per-Class LOS Relative Risk via Quasi-Poisson Regression
-- [`fit_mortality_rr_logistic()`](https://saketlab.github.io/anumaan/reference/fit_mortality_rr_logistic.md)
-  : Estimate Per-Class Mortality Odds Ratio via Mixed-Effects Logistic
-  Regression
-- [`assign_rr_to_profiles()`](https://saketlab.github.io/anumaan/reference/assign_rr_to_profiles.md)
-  : Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
-- [`convert_or_to_rr()`](https://saketlab.github.io/anumaan/reference/convert_or_to_rr.md)
-  : Convert Odds Ratios to Relative Risks Using Baseline Mortality (p0)
-- [`count_incident_cases()`](https://saketlab.github.io/anumaan/reference/count_incident_cases.md)
-  : Count incident cases by syndrome from facility data
-- [`filter_profiles_to_rr_classes()`](https://saketlab.github.io/anumaan/reference/filter_profiles_to_rr_classes.md)
-  : Filter Profiles to Classes with Actual RR Estimates
-- [`get_top_pathogens()`](https://saketlab.github.io/anumaan/reference/get_top_pathogens.md)
+- [`daly_fit_mortality_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_mortality_rr.md)
+  : Fit mortality model and derive adjusted relative risk of death
+- [`daly_get_top_pathogens()`](https://saketlab.github.io/anumaan/reference/daly_get_top_pathogens.md)
   : Identify top N pathogens by occurrence
-- [`load_rr_reference()`](https://saketlab.github.io/anumaan/reference/load_rr_reference.md)
+- [`daly_load_rr_reference()`](https://saketlab.github.io/anumaan/reference/daly_load_rr_reference.md)
   : Load RR (Relative Risk) Reference Data
-- [`lookup_rr()`](https://saketlab.github.io/anumaan/reference/lookup_rr.md)
+- [`daly_lookup_rr()`](https://saketlab.github.io/anumaan/reference/daly_lookup_rr.md)
   : Lookup Relative Risk Values
-- [`add_rr_mappings()`](https://saketlab.github.io/anumaan/reference/add_rr_mappings.md)
-  : Add RR Pathogen and Drug Mappings
-- [`map_class_to_rr()`](https://saketlab.github.io/anumaan/reference/map_class_to_rr.md)
+- [`daly_map_rr_drug_class()`](https://saketlab.github.io/anumaan/reference/daly_map_rr_drug_class.md)
   : Map Antibiotic Class to RR Drug Category
-- [`map_to_rr_pathogen()`](https://saketlab.github.io/anumaan/reference/map_to_rr_pathogen.md)
+- [`daly_map_rr_pathogen()`](https://saketlab.github.io/anumaan/reference/daly_map_rr_pathogen.md)
   : Map Organism to RR Pathogen Category
+- [`compute_hospital_daly()`](https://saketlab.github.io/anumaan/reference/compute_hospital_daly.md)
+  : Compute Hospital-Level DALY Breakdown
 
 ## LOS modeling
 
@@ -247,22 +292,60 @@ Length-of-stay distribution fitting and comparison
 
 ## Burden plots
 
-GBD-style and hospital-level burden visualizations
+Hospital-level and organism-level burden visualizations
 
-- [`compute_hospital_daly()`](https://saketlab.github.io/anumaan/reference/compute_hospital_daly.md)
-  : Compute Hospital-Level DALY Breakdown
-- [`plot_gbd_fig4()`](https://saketlab.github.io/anumaan/reference/plot_gbd_fig4.md)
-  : GBD Figure 4 – Deaths by Organism Group (Overlapping Bars)
-- [`plot_gbd_fig6()`](https://saketlab.github.io/anumaan/reference/plot_gbd_fig6.md)
-  : GBD Figure 6 – Attributable Deaths Heatmap (Pathogen x Drug Class)
-- [`plot_burden_comparison()`](https://saketlab.github.io/anumaan/reference/plot_burden_comparison.md)
-  : Burden Comparison Bar Plot
-- [`plot_burden_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_burden_heatmap.md)
-  : Burden Heatmap Across Hospitals
-- [`plot_daly_lollipop()`](https://saketlab.github.io/anumaan/reference/plot_daly_lollipop.md)
-  : DALY Lollipop Plot
-- [`plot_resistance_fraction()`](https://saketlab.github.io/anumaan/reference/plot_resistance_fraction.md)
-  : Resistance Fraction Stacked Bar
+- [`plot_burden_by_hospital()`](https://saketlab.github.io/anumaan/reference/plot_burden_by_hospital.md)
+  : Plot YLL or YLD Associated vs Attributable per Hospital
+- [`plot_burden_by_organism()`](https://saketlab.github.io/anumaan/reference/plot_burden_by_organism.md)
+  : Plot YLL or YLD Associated vs Attributable by Organism
+- [`plot_yll_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_yll_heatmap.md)
+  : Heatmap of YLL per 1 000 Admissions by Resistance Class and Pathogen
+  Group
+- [`plot_yld_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_yld_heatmap.md)
+  : Heatmap of YLD per 1 000 Admissions by Organism Group
+
+## EDA plots
+
+Exploratory plots for AMR surveillance data
+
+- [`plot_top_organisms()`](https://saketlab.github.io/anumaan/reference/plot_top_organisms.md)
+  : Plot Top Pathogens by Unique Patients
+- [`plot_abx_susceptibility()`](https://saketlab.github.io/anumaan/reference/plot_abx_susceptibility.md)
+  : Plot Antibiotic Susceptibility Pattern (Stacked R/S Bars)
+- [`plot_abx_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_abx_heatmap.md)
+  : Plot Antibiotic Resistance Heatmap
+- [`plot_outcome_distribution()`](https://saketlab.github.io/anumaan/reference/plot_outcome_distribution.md)
+  : Plot Distribution of Final Outcomes
+- [`plot_outcome_by_organism()`](https://saketlab.github.io/anumaan/reference/plot_outcome_by_organism.md)
+  : Plot Final Outcome Proportions for Resistant or Susceptible Patients
+- [`plot_death_discharged()`](https://saketlab.github.io/anumaan/reference/plot_death_discharged.md)
+  : Plot Death vs Discharged Counts for Top Pathogens
+- [`plot_resistance_by_sample()`](https://saketlab.github.io/anumaan/reference/plot_resistance_by_sample.md)
+  : Plot Distribution of Antibiotic Resistance Across Sample Types
+- [`plot_outcome_by_agebin()`](https://saketlab.github.io/anumaan/reference/plot_outcome_by_agebin.md)
+  : Plot Final Outcome Proportions by Age Bin
+- [`plot_mono_poly_by_facility()`](https://saketlab.github.io/anumaan/reference/plot_mono_poly_by_facility.md)
+  : Plot Mono vs Polymicrobial Infections by Facility
+- [`plot_hai_cai_by_facility()`](https://saketlab.github.io/anumaan/reference/plot_hai_cai_by_facility.md)
+  : Plot HAI vs CAI Infection Distribution by Facility
+- [`plot_location_by_facility()`](https://saketlab.github.io/anumaan/reference/plot_location_by_facility.md)
+  : Plot Patient Distribution by Location Type Across Facilities
+- [`plot_los_ridge()`](https://saketlab.github.io/anumaan/reference/plot_los_ridge.md)
+  : Ridge / Density Plot of Length of Stay (LOS)
+- [`plot_age_ridge()`](https://saketlab.github.io/anumaan/reference/plot_age_ridge.md)
+  : Ridge / Density Plot of Patient Age
+- [`plot_los_by_agebin()`](https://saketlab.github.io/anumaan/reference/plot_los_by_agebin.md)
+  : Boxplot of Length of Stay by Age Group
+- [`plot_outcome_by_year()`](https://saketlab.github.io/anumaan/reference/plot_outcome_by_year.md)
+  : Plot Distribution of Final Outcomes by Year
+- [`plot_patients_by_hospital()`](https://saketlab.github.io/anumaan/reference/plot_patients_by_hospital.md)
+  : Plot Unique Patient Count by Hospital
+- [`plot_syndrome_distribution()`](https://saketlab.github.io/anumaan/reference/plot_syndrome_distribution.md)
+  : Plot Syndrome Distribution
+- [`plot_resistance_by_agebin()`](https://saketlab.github.io/anumaan/reference/plot_resistance_by_agebin.md)
+  : Resistance proportion by age group
+- [`plot_resistance_by_organism()`](https://saketlab.github.io/anumaan/reference/plot_resistance_by_organism.md)
+  : Resistance proportion for top N organisms
 
 ## Visualization
 
@@ -270,6 +353,8 @@ Generic AMR plotting utilities
 
 - [`amr_theme()`](https://saketlab.github.io/anumaan/reference/amr_theme.md)
   : AMR Theme for ggplot2
+- [`eda_theme()`](https://saketlab.github.io/anumaan/reference/eda_theme.md)
+  : EDA ggplot2 Theme
 - [`get_amr_palette()`](https://saketlab.github.io/anumaan/reference/get_amr_palette.md)
   : Get Color Palette
 - [`plot_bar()`](https://saketlab.github.io/anumaan/reference/plot_bar.md)
@@ -299,10 +384,10 @@ Spatial metrics and mapping
   : Create Choropleth Map
 - [`create_interactive_map()`](https://saketlab.github.io/anumaan/reference/create_interactive_map.md)
   : Create Interactive Leaflet Map
-- [`calculate_spatial_autocorrelation()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_autocorrelation.md)
-  : Calculate Spatial Autocorrelation (Moran's I)
 - [`calculate_spatial_metrics()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_metrics.md)
   : Calculate AMR Metrics by Geographic Unit
+- [`calculate_spatial_autocorrelation()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_autocorrelation.md)
+  : Calculate Spatial Autocorrelation (Moran's I)
 - [`calculate_distance_matrix()`](https://saketlab.github.io/anumaan/reference/calculate_distance_matrix.md)
   : Calculate Distance Matrix Between Locations
 - [`detect_hotspots()`](https://saketlab.github.io/anumaan/reference/detect_hotspots.md)
@@ -315,9 +400,7 @@ Data quality checks and reports
 - [`validate_data_quality()`](https://saketlab.github.io/anumaan/reference/validate_data_quality.md)
   : Validate Data Quality
 - [`validate_required_fields()`](https://saketlab.github.io/anumaan/reference/validate_required_fields.md)
-  : Validate Required Fields
-- [`check_logical_consistency()`](https://saketlab.github.io/anumaan/reference/check_logical_consistency.md)
-  : Check Logical Consistency
+  : Validate required fields exist and meet completeness threshold
 - [`summarize_column_mapping()`](https://saketlab.github.io/anumaan/reference/summarize_column_mapping.md)
   : Summarize Column Mapping
 - [`summarize_data_quality()`](https://saketlab.github.io/anumaan/reference/summarize_data_quality.md)
@@ -326,10 +409,20 @@ Data quality checks and reports
   : Summarize Raw Data
 - [`summarize_transformations()`](https://saketlab.github.io/anumaan/reference/summarize_transformations.md)
   : Summarize Data Transformations
+- [`compute_processing_statistics()`](https://saketlab.github.io/anumaan/reference/compute_processing_statistics.md)
+  : Compute Processing Statistics
 - [`generate_preprocessing_report()`](https://saketlab.github.io/anumaan/reference/generate_preprocessing_report.md)
   : Generate Preprocessing Report
 - [`export_report()`](https://saketlab.github.io/anumaan/reference/export_report.md)
   : Export Report to File
+- [`prep_check_organism_ast_consistency()`](https://saketlab.github.io/anumaan/reference/prep_check_organism_ast_consistency.md)
+  : Check Organism-AST Consistency
+- [`prep_validate_analysis_ready()`](https://saketlab.github.io/anumaan/reference/prep_validate_analysis_ready.md)
+  : Validate Analysis-Ready Dataset
+- [`prep_validate_date_logic()`](https://saketlab.github.io/anumaan/reference/prep_validate_date_logic.md)
+  : Validate Date Logic
+- [`prep_missingness_report()`](https://saketlab.github.io/anumaan/reference/prep_missingness_report.md)
+  : Missingness Report
 
 ## Utilities
 
@@ -340,24 +433,10 @@ Helper functions
 - [`shorten_drug_class()`](https://saketlab.github.io/anumaan/reference/shorten_drug_class.md)
   : Shorten Antibiotic Class Names
 - [`default_column_mappings`](https://saketlab.github.io/anumaan/reference/default_column_mappings.md)
-  : Default Column Name Mappings
+  : Default column name mappings for fuzzy matching
 - [`get_age_bins()`](https://saketlab.github.io/anumaan/reference/get_age_bins.md)
-  : Standard Age Bins (GBD Compatible)
-- [`get_antimicrobial_categories()`](https://saketlab.github.io/anumaan/reference/get_antimicrobial_categories.md)
-  : Get Antimicrobial Categories for MDR/XDR Classification
-- [`get_beta_lactam_hierarchy()`](https://saketlab.github.io/anumaan/reference/get_beta_lactam_hierarchy.md)
-  : Beta-Lactam Class Hierarchy
-- [`get_contaminant_list()`](https://saketlab.github.io/anumaan/reference/get_contaminant_list.md)
-  : Get Contaminant List from Reference File
-- [`get_magiorakos_thresholds()`](https://saketlab.github.io/anumaan/reference/get_magiorakos_thresholds.md)
-  : Get Magiorakos MDR/XDR Thresholds
-- [`is_contaminant()`](https://saketlab.github.io/anumaan/reference/is_contaminant.md)
-  : Check if Organism is a Contaminant
-- [`groom_optional_columns()`](https://saketlab.github.io/anumaan/reference/groom_optional_columns.md)
-  : Groom Optional Columns
-- [`remove_duplicate_rows()`](https://saketlab.github.io/anumaan/reference/remove_duplicate_rows.md)
-  : Remove Duplicate Rows
-- [`extract_genus()`](https://saketlab.github.io/anumaan/reference/extract_genus.md)
-  : Extract Genus from Organism Name
-- [`extract_species()`](https://saketlab.github.io/anumaan/reference/extract_species.md)
-  : Extract Species from Organism Name
+  : Get Age Bin Labels
+- [`prep_inventory_columns()`](https://saketlab.github.io/anumaan/reference/prep_inventory_columns.md)
+  : Inventory Columns
+- [`prep_log_source()`](https://saketlab.github.io/anumaan/reference/prep_log_source.md)
+  : Log Data Source Provenance

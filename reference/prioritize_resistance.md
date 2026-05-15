@@ -1,7 +1,8 @@
-# Prioritize Resistance
+# Prioritize Resistance Class
 
-Helper function that applies hierarchy + RR ranking to select the most
-important resistance class per event.
+Internal helper for
+[`select_resistance_class()`](https://saketlab.github.io/anumaan/reference/select_resistance_class.md).
+Applies beta-lactam hierarchy + RR ranking to select one row per event.
 
 ## Usage
 
@@ -13,7 +14,7 @@ prioritize_resistance(data, event_col, class_col, rr_col = NULL, hierarchy)
 
 - data:
 
-  Data frame
+  Data frame.
 
 - event_col:
 
@@ -25,12 +26,12 @@ prioritize_resistance(data, event_col, class_col, rr_col = NULL, hierarchy)
 
 - rr_col:
 
-  Character or NULL. RR column. If NULL, uses hierarchy only.
+  Character or NULL. RR column; if NULL uses hierarchy only.
 
 - hierarchy:
 
-  Named numeric vector. Hierarchy mapping.
+  Named numeric vector mapping class name to rank.
 
 ## Value
 
-Data frame with one row per event (highest priority class)
+Data frame with one row per event (highest priority class selected).

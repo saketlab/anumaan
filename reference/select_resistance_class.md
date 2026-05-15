@@ -1,7 +1,7 @@
-# Select Resistance Class
+# Select Resistance Class for Burden Attribution
 
 Selects a single resistance class per event using beta-lactam hierarchy
-and relative risk (RR) values. Prevents double-counting in burden
+and relative risk (RR) values. Prevents double-counting in DALY burden
 estimation by choosing the most clinically relevant resistant class.
 
 ## Usage
@@ -22,7 +22,7 @@ select_resistance_class(
 
 - data:
 
-  Data frame with resistance and RR information
+  Data frame with class-level resistance and RR columns.
 
 - event_col:
 
@@ -44,7 +44,7 @@ select_resistance_class(
 - hierarchy:
 
   Named numeric vector. Custom hierarchy (class name -\> rank). If NULL,
-  uses default from get_beta_lactam_hierarchy().
+  uses `get_beta_lactam_hierarchy()`.
 
 - filter_resistant:
 
@@ -52,23 +52,10 @@ select_resistance_class(
 
 ## Value
 
-Data frame filtered to one resistance class per event
+Data frame filtered to one resistance class per event.
 
 ## Details
 
-Selection logic: 1. Filter to resistant classes only (R) 2. Apply
-beta-lactam hierarchy (Carbapenems \> 4GC \> 3GC \> ...) 3. Within same
-hierarchy rank, prioritize by RR value (higher RR first) 4. If tied,
-select alphabetically for reproducibility
-
-## Examples
-
-``` r
-if (FALSE) { # \dontrun{
-# Select single resistance class per event
-selected <- select_resistance_class(data)
-
-# Include susceptible classes too
-selected <- select_resistance_class(data, filter_resistant = FALSE)
-} # }
-```
+Selection order: 1. Beta-lactam hierarchy rank (Carbapenems \> 4GC \>
+3GC \> ...) 2. RR value (higher relative risk = higher priority) 3.
+Alphabetical tie-breaker

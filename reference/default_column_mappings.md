@@ -1,7 +1,6 @@
-# Default Column Name Mappings
+# Default column name mappings for fuzzy matching
 
-Named list mapping standard column names to common aliases found in AMR
-surveillance datasets from different sources.
+Default column name mappings for fuzzy matching
 
 ## Usage
 
@@ -11,4 +10,5 @@ default_column_mappings
 
 ## Format
 
-A named list with 15 elements
+A named list with elements mapping standard names to character vectors
+of acceptable aliases.

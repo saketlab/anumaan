@@ -1,7 +1,6 @@
-# Validate Required Fields
+# Validate required fields exist and meet completeness threshold
 
-Checks that all required columns are present and contain valid data.
-Returns validation results and optionally stops on failure.
+Validate required fields exist and meet completeness threshold
 
 ## Usage
 
@@ -19,53 +18,24 @@ validate_required_fields(
 
 - data:
 
-  Data frame to validate
+  Data frame.
 
 - required_cols:
 
-  Character vector. Required column names.
+  Character vector of required column names.
 
 - stop_on_failure:
 
-  Logical. If TRUE, stops execution on validation failure. If FALSE,
-  returns validation report. Default TRUE.
+  Logical. Stop if validation fails. Default TRUE.
 
 - allow_na:
 
-  Logical. If TRUE, allows NA values in required columns. Default FALSE.
+  Logical. Skip completeness checks if TRUE. Default FALSE.
 
 - min_completeness:
 
-  Numeric. Minimum proportion of non-NA values required (0-1). Default
-  0.8 (80 percent completeness).
+  Numeric (0-1). Minimum completeness required. Default 0.8.
 
 ## Value
 
-List with validation results:
-
-- `valid`: Logical. Overall validation status
-
-- `missing_cols`: Character vector of missing columns
-
-- `incomplete_cols`: Data frame of columns below min_completeness
-
-- `messages`: Character vector of validation messages
-
-## Examples
-
-``` r
-if (FALSE) { # \dontrun{
-# Stop on failure (default)
-validate_required_fields(
-  data,
-  required_cols = c("patient_id", "organism_normalized", "antibiotic_normalized")
-)
-
-# Get validation report without stopping
-validation <- validate_required_fields(
-  data,
-  required_cols = c("patient_id", "organism_normalized"),
-  stop_on_failure = FALSE
-)
-} # }
-```
+List with validation result details.

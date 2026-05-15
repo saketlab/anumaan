@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9009</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,7 +75,7 @@
 
       <dl><dt>
 
-          <code><a href="amr_preprocess.html">amr_preprocess()</a></code>
+          <code><a href="run_preprocess.html">run_preprocess()</a></code>
 
         </dt>
         <dd>AMR Data Preprocessing Pipeline</dd>
@@ -121,10 +121,24 @@
 
         </dt>
         <dd>Print Preprocessing Report</dd>
-      </dl></div><div class="section level2">
-      <h2 id="normalization">Normalization<a class="anchor" aria-label="anchor" href="#normalization"></a></h2>
 
-      <div class="section-desc"><p>Standardize column names, organisms, antibiotics, and specimens</p></div>
+        <dt>
+
+          <code><a href="detect_preprocessing_capabilities.html">detect_preprocessing_capabilities()</a></code>
+
+        </dt>
+        <dd>Detect Preprocessing Capabilities</dd>
+
+        <dt>
+
+          <code><a href="prep_report_capabilities.html">prep_report_capabilities()</a></code>
+
+        </dt>
+        <dd>Report Preprocessing Capabilities</dd>
+      </dl></div><div class="section level2">
+      <h2 id="standardization">Standardization<a class="anchor" aria-label="anchor" href="#standardization"></a></h2>
+
+      <div class="section-desc"><p>Standardize column names, organisms, antibiotics, specimens, and values</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -133,77 +147,112 @@
 
       <dl><dt>
 
-          <code><a href="standardize_column_names.html">standardize_column_names()</a></code>
+          <code><a href="prep_standardize_column_names.html">prep_standardize_column_names()</a></code>
 
         </dt>
         <dd>Standardize Column Names to Package Convention</dd>
 
         <dt>
 
-          <code><a href="normalize_organism.html">normalize_organism()</a></code>
+          <code><a href="prep_standardize_organisms.html">prep_standardize_organisms()</a></code>
 
         </dt>
         <dd>Normalize Organism Names</dd>
 
         <dt>
 
-          <code><a href="normalize_antibiotic.html">normalize_antibiotic()</a></code>
+          <code><a href="prep_standardize_antibiotics.html">prep_standardize_antibiotics()</a></code>
 
         </dt>
         <dd>Normalize Antibiotic Names</dd>
 
         <dt>
 
-          <code><a href="normalize_specimen.html">normalize_specimen()</a></code>
+          <code><a href="prep_standardize_specimens.html">prep_standardize_specimens()</a></code>
 
         </dt>
         <dd>Normalize Specimen/Sample Type</dd>
 
         <dt>
 
-          <code><a href="standardize_gender.html">standardize_gender()</a></code>
+          <code><a href="prep_standardize_sex.html">prep_standardize_sex()</a></code>
 
         </dt>
-        <dd>Standardize Gender Values</dd>
+        <dd>Standardize Sex Values</dd>
 
         <dt>
 
-          <code><a href="standardize_outcome.html">standardize_outcome()</a></code>
+          <code><a href="prep_standardize_outcome.html">prep_standardize_outcome()</a></code>
 
         </dt>
-        <dd>Standardize Outcome Values</dd>
+        <dd>Standardize Outcome Values (deprecated)</dd>
 
         <dt>
 
-          <code><a href="standardize_susceptibility.html">standardize_susceptibility()</a></code>
-
-        </dt>
-        <dd>Standardize Susceptibility Values</dd>
-
-        <dt>
-
-          <code><a href="recode_intermediate.html">recode_intermediate()</a></code>
-
-        </dt>
-        <dd>Recode Intermediate (I) Susceptibility Values</dd>
-
-        <dt>
-
-          <code><a href="clean_antibiotic_values.html">clean_antibiotic_values()</a></code>
+          <code><a href="prep_clean_ast_values.html">prep_clean_ast_values()</a></code>
 
         </dt>
         <dd>Clean Antibiotic Susceptibility Values</dd>
 
         <dt>
 
-          <code><a href="parse_dates.html">parse_dates()</a></code>
+          <code><a href="prep_recode_intermediate_ast.html">prep_recode_intermediate_ast()</a></code>
 
         </dt>
-        <dd>Parse Dates Safely</dd>
+        <dd>Recode Intermediate (I) Susceptibility Values</dd>
+
+        <dt>
+
+          <code><a href="prep_parse_date_column.html">prep_parse_date_column()</a></code>
+
+        </dt>
+        <dd>Detect and decode encrypted or non-standard date columns</dd>
+
+        <dt>
+
+          <code><a href="prep_coerce_dates.html">prep_coerce_dates()</a></code>
+
+        </dt>
+        <dd>Detect and convert all date-like columns in a table</dd>
+
+        <dt>
+
+          <code><a href="prep_standardize_final_outcome.html">prep_standardize_final_outcome()</a></code>
+
+        </dt>
+        <dd>Standardize Final Outcome Column</dd>
+
+        <dt>
+
+          <code><a href="prep_standardize_infection_type.html">prep_standardize_infection_type()</a></code>
+
+        </dt>
+        <dd>Standardize Infection Type Column</dd>
+
+        <dt>
+
+          <code><a href="prep_harmonize_ast.html">prep_harmonize_ast()</a></code>
+
+        </dt>
+        <dd>Harmonize AST Values</dd>
+
+        <dt>
+
+          <code><a href="prep_flag_invalid_ast.html">prep_flag_invalid_ast()</a></code>
+
+        </dt>
+        <dd>Flag Invalid AST Values</dd>
+
+        <dt>
+
+          <code><a href="prep_decode_antibiotic_code.html">prep_decode_antibiotic_code()</a></code>
+
+        </dt>
+        <dd>Decode Antibiotic Short Codes to Full Names</dd>
       </dl></div><div class="section level2">
       <h2 id="classification">Classification<a class="anchor" aria-label="anchor" href="#classification"></a></h2>
 
-      <div class="section-desc"><p>MDR/XDR classification, organism grouping, and AWaRe</p></div>
+      <div class="section-desc"><p>MDR/XDR classification, organism grouping, AWaRe, and mortality</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -212,59 +261,73 @@
 
       <dl><dt>
 
-          <code><a href="classify_mdr.html">classify_mdr()</a></code>
+          <code><a href="prep_classify_mdr_xdr.html">prep_classify_mdr_xdr()</a></code>
 
         </dt>
-        <dd>Classify MDR (Multidrug Resistant)</dd>
+        <dd>Classify MDR and XDR</dd>
 
         <dt>
 
-          <code><a href="classify_xdr.html">classify_xdr()</a></code>
+          <code><a href="prep_assign_organism_group.html">prep_assign_organism_group()</a></code>
 
         </dt>
-        <dd>Classify XDR (Extensively Drug Resistant)</dd>
+        <dd>Assign Organism Group</dd>
 
         <dt>
 
-          <code><a href="classify_org_group.html">classify_org_group()</a></code>
-
-        </dt>
-        <dd>Classify Organism Group</dd>
-
-        <dt>
-
-          <code><a href="classify_aware.html">classify_aware()</a></code>
-
-        </dt>
-        <dd>Classify AWaRe Category</dd>
-
-        <dt>
-
-          <code><a href="classify_antibiotic_class.html">classify_antibiotic_class()</a></code>
+          <code><a href="prep_classify_antibiotic_class.html">prep_classify_antibiotic_class()</a></code>
 
         </dt>
         <dd>Classify Antibiotic to WHO Class</dd>
 
         <dt>
 
-          <code><a href="classify_mortality.html">classify_mortality()</a></code>
+          <code><a href="prep_classify_aware.html">prep_classify_aware()</a></code>
+
+        </dt>
+        <dd>Classify AWaRe Category</dd>
+
+        <dt>
+
+          <code><a href="prep_classify_mortality.html">prep_classify_mortality()</a></code>
 
         </dt>
         <dd>Classify Infection-Related Mortality</dd>
 
         <dt>
 
-          <code><a href="derive_infection_type.html">derive_infection_type()</a></code>
+          <code><a href="prep_derive_hai_cai.html">prep_derive_hai_cai()</a></code>
 
         </dt>
-        <dd>Derive Infection Type (HAI / CAI) per Patient</dd>
+        <dd>Derive HAI/CAI Infection Type</dd>
 
         <dt>
 
-          <code><a href="derive_infection_type_for_mortality.html">derive_infection_type_for_mortality()</a></code>
+          <code><a href="prep_extract_genus.html">prep_extract_genus()</a></code>
 
         </dt>
-        <dd>Derive Infection Type (HAI / CAI) for Mortality RR Model</dd>
+        <dd>Extract Genus from Organism Name</dd>
+
+        <dt>
+
+          <code><a href="prep_extract_species.html">prep_extract_species()</a></code>
+
+        </dt>
+        <dd>Extract Species from Organism Name</dd>
+
+        <dt>
+
+          <code><a href="prep_classify_readmission.html">prep_classify_readmission()</a></code>
+
+        </dt>
+        <dd>Classify Readmission Type</dd>
+
+        <dt>
+
+          <code><a href="prep_flag_organism_unmatched.html">prep_flag_organism_unmatched()</a></code>
+
+        </dt>
+        <dd>Flag Organisms Unmatched in Reference</dd>
       </dl></div><div class="section level2">
       <h2 id="enrichment">Enrichment<a class="anchor" aria-label="anchor" href="#enrichment"></a></h2>
 
@@ -277,49 +340,70 @@
 
       <dl><dt>
 
-          <code><a href="enrich_age.html">enrich_age()</a></code>
+          <code><a href="prep_fill_age.html">prep_fill_age()</a></code>
 
         </dt>
-        <dd>Enrich Age</dd>
+        <dd>Fill Missing Age Values</dd>
 
         <dt>
 
-          <code><a href="enrich_los.html">enrich_los()</a></code>
-
-        </dt>
-        <dd>Enrich Length of Stay</dd>
-
-        <dt>
-
-          <code><a href="enrich_infection_type.html">enrich_infection_type()</a></code>
-
-        </dt>
-        <dd>Enrich Infection Type</dd>
-
-        <dt>
-
-          <code><a href="enrich_hospital_department.html">enrich_hospital_department()</a></code>
-
-        </dt>
-        <dd>Enrich Hospital Department</dd>
-
-        <dt>
-
-          <code><a href="assign_age_bins.html">assign_age_bins()</a></code>
+          <code><a href="prep_assign_age_bins.html">prep_assign_age_bins()</a></code>
 
         </dt>
         <dd>Assign Age Bins</dd>
 
         <dt>
 
-          <code><a href="derive_age.html">derive_age()</a></code>
+          <code><a href="prep_infer_department.html">prep_infer_department()</a></code>
 
         </dt>
-        <dd>Derive Age from Date of Birth</dd>
+        <dd>Infer Hospital Department</dd>
+
+        <dt>
+
+          <code><a href="prep_clean_optional_columns.html">prep_clean_optional_columns()</a></code>
+
+        </dt>
+        <dd>Clean Optional Columns</dd>
+
+        <dt>
+
+          <code><a href="prep_derive_los_from_dates.html">prep_derive_los_from_dates()</a></code>
+
+        </dt>
+        <dd>Derive Length of Stay from Date Columns</dd>
+
+        <dt>
+
+          <code><a href="prep_derive_icu_flag.html">prep_derive_icu_flag()</a></code>
+
+        </dt>
+        <dd>Derive ICU Flag</dd>
+
+        <dt>
+
+          <code><a href="prep_derive_dob_from_components.html">prep_derive_dob_from_components()</a></code>
+
+        </dt>
+        <dd>Derive Date of Birth from Age Components</dd>
+
+        <dt>
+
+          <code><a href="prep_flag_hai_inferred.html">prep_flag_hai_inferred()</a></code>
+
+        </dt>
+        <dd>Flag HAI Inferred vs Observed</dd>
+
+        <dt>
+
+          <code><a href="prep_reconcile_hai_observed_inferred.html">prep_reconcile_hai_observed_inferred()</a></code>
+
+        </dt>
+        <dd>Reconcile Observed and Inferred HAI/CAI Classification</dd>
       </dl></div><div class="section level2">
       <h2 id="deduplication-and-collapsing">Deduplication and collapsing<a class="anchor" aria-label="anchor" href="#deduplication-and-collapsing"></a></h2>
 
-      <div class="section-desc"><p>Event IDs, deduplication, and data reshaping</p></div>
+      <div class="section-desc"><p>Event IDs, deduplication, contaminant flagging, and data reshaping</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -328,77 +412,126 @@
 
       <dl><dt>
 
-          <code><a href="create_event_ids.html">create_event_ids()</a></code>
+          <code><a href="prep_create_event_ids.html">prep_create_event_ids()</a></code>
 
         </dt>
         <dd>Create Event IDs from Patient-Level Data</dd>
 
         <dt>
 
-          <code><a href="deduplicate_events.html">deduplicate_events()</a></code>
+          <code><a href="prep_deduplicate_events.html">prep_deduplicate_events()</a></code>
 
         </dt>
         <dd>Deduplicate Events</dd>
 
         <dt>
 
-          <code><a href="flag_contaminants.html">flag_contaminants()</a></code>
+          <code><a href="prep_flag_contaminants.html">prep_flag_contaminants()</a></code>
 
         </dt>
         <dd>Flag Contaminant Organisms</dd>
 
         <dt>
 
-          <code><a href="flag_polymicrobial.html">flag_polymicrobial()</a></code>
+          <code><a href="prep_get_contaminant_list.html">prep_get_contaminant_list()</a></code>
 
         </dt>
-        <dd>Flag Polymicrobial Infections (No Specimen Type, No Episode ID)</dd>
+        <dd>Get Contaminant List from Reference File</dd>
 
         <dt>
 
-          <code><a href="collapse_to_antibiotic_level.html">collapse_to_antibiotic_level()</a></code>
+          <code><a href="prep_is_contaminant.html">prep_is_contaminant()</a></code>
 
         </dt>
-        <dd>Collapse to Antibiotic Level (OPTIONAL - Run When YOU Decide)</dd>
+        <dd>Check if Organism is a Contaminant</dd>
 
         <dt>
 
-          <code><a href="collapse_to_class_level.html">collapse_to_class_level()</a></code>
+          <code><a href="prep_flag_polymicrobial.html">prep_flag_polymicrobial()</a></code> <code><a href="prep_flag_polymicrobial.html">flag_polymicrobial()</a></code>
+
+        </dt>
+        <dd>Flag Polymicrobial Infections</dd>
+
+        <dt>
+
+          <code><a href="prep_compute_poly_weights.html">prep_compute_poly_weights()</a></code> <code><a href="prep_compute_poly_weights.html">compute_polymicrobial_weight()</a></code>
+
+        </dt>
+        <dd>Compute Polymicrobial Weights</dd>
+
+        <dt>
+
+          <code><a href="prep_collapse_class_level.html">prep_collapse_class_level()</a></code>
 
         </dt>
         <dd>Collapse to Class Level</dd>
 
         <dt>
 
-          <code><a href="create_wide_format.html">create_wide_format()</a></code>
-
-        </dt>
-        <dd>Create Wide Format Dataset</dd>
-
-        <dt>
-
-          <code><a href="pivot_wide_to_long.html">pivot_wide_to_long()</a></code>
+          <code><a href="prep_pivot_ast_wide_to_long.html">prep_pivot_ast_wide_to_long()</a></code>
 
         </dt>
         <dd>Convert Wide Format to Long Format</dd>
 
         <dt>
 
-          <code><a href="create_resistance_profile.html">create_resistance_profile()</a></code>
+          <code><a href="prep_create_wide_ast_matrix.html">prep_create_wide_ast_matrix()</a></code>
+
+        </dt>
+        <dd>Create Wide Format AST Matrix</dd>
+
+        <dt>
+
+          <code><a href="prep_create_resistance_profile.html">prep_create_resistance_profile()</a></code>
 
         </dt>
         <dd>Create Resistance Profile</dd>
 
         <dt>
 
-          <code><a href="compute_polymicrobial_weight.html">compute_polymicrobial_weight()</a></code>
+          <code><a href="prep_filter_analysis_ready.html">prep_filter_analysis_ready()</a></code>
 
         </dt>
-        <dd>Compute Polymicrobial Weights</dd>
-      </dl></div><div class="section level2">
-      <h2 id="resistance-profiles">Resistance profiles<a class="anchor" aria-label="anchor" href="#resistance-profiles"></a></h2>
+        <dd>Filter Analysis-Ready Records</dd>
 
-      <div class="section-desc"><p>Marginal resistance, coresistance, and profile computation</p></div>
+        <dt>
+
+          <code><a href="prep_deduplicate_ast.html">prep_deduplicate_ast()</a></code>
+
+        </dt>
+        <dd>Handle Duplicate AST Results</dd>
+
+        <dt>
+
+          <code><a href="prep_split_poly_episode.html">prep_split_poly_episode()</a></code>
+
+        </dt>
+        <dd>Split Polymicrobial Episodes by Strategy</dd>
+
+        <dt>
+
+          <code><a href="prep_flag_readmission.html">prep_flag_readmission()</a></code>
+
+        </dt>
+        <dd>Flag and Classify Readmissions</dd>
+
+        <dt>
+
+          <code><a href="prep_filter_fungal.html">prep_filter_fungal()</a></code>
+
+        </dt>
+        <dd>Filter Fungal Organisms</dd>
+
+        <dt>
+
+          <code><a href="prep_filter_minimally_usable.html">prep_filter_minimally_usable()</a></code>
+
+        </dt>
+        <dd>Filter Minimally Usable Records</dd>
+      </dl></div><div class="section level2">
+      <h2 id="multi-centre-stewardship-import">Multi-centre stewardship import<a class="anchor" aria-label="anchor" href="#multi-centre-stewardship-import"></a></h2>
+
+      <div class="section-desc"><p>Joining and validating ICMR multi-centre stewardship datasets</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -407,66 +540,142 @@
 
       <dl><dt>
 
-          <code><a href="compute_R_kd_fatal.html">compute_R_kd_fatal()</a></code>
+          <code><a href="prep_check_columns.html">prep_check_columns()</a></code>
 
         </dt>
-        <dd>Compute Fatal Prevalence of Resistance (R_kd)</dd>
+        <dd>Check required columns exist and report types</dd>
 
         <dt>
 
-          <code><a href="compute_base_yll_from_dl.html">compute_base_yll_from_dl()</a></code>
+          <code><a href="prep_check_keys.html">prep_check_keys()</a></code>
 
         </dt>
-        <dd>Compute Base YLL Block from a Scalar D_L (Steps 1-3)</dd>
+        <dd>Check join key quality</dd>
 
         <dt>
 
-          <code><a href="compute_fatal_resistance_prevalence.html">compute_fatal_resistance_prevalence()</a></code>
+          <code><a href="prep_validate_table.html">prep_validate_table()</a></code>
 
         </dt>
-        <dd>Compute Per-Profile Fatal Prevalence of Resistance R_Kdelta* (Eq. 13)</dd>
+        <dd>Run all pre-join sanity checks for one table</dd>
 
         <dt>
 
-          <code><a href="compute_fraction_associated.html">compute_fraction_associated()</a></code>
+          <code><a href="prep_detect_schema_drift.html">prep_detect_schema_drift()</a></code>
 
         </dt>
-        <dd>Compute Associated-Burden Fractions per Resistance Profile</dd>
+        <dd>Detect Schema Drift Across Centres</dd>
 
         <dt>
 
-          <code><a href="compute_hospital_daly.html">compute_hospital_daly()</a></code>
+          <code><a href="prep_apply_column_map.html">prep_apply_column_map()</a></code>
 
         </dt>
-        <dd>Compute Hospital-Level DALY Breakdown</dd>
+        <dd>Apply Column Map to Rename Columns</dd>
 
         <dt>
+
+          <code><a href="prep_assert_standard_names.html">prep_assert_standard_names()</a></code>
+
+        </dt>
+        <dd>Assert Standard Names Are Present</dd>
+
+        <dt>
+
+          <code><a href="prep_build_column_map.html">prep_build_column_map()</a></code>
+
+        </dt>
+        <dd>Build and Validate a Column Map Against a Dataset</dd>
+      </dl></div><div class="section level2">
+      <h2 id="diagnosis-and-syndrome-mapping">Diagnosis and syndrome mapping<a class="anchor" aria-label="anchor" href="#diagnosis-and-syndrome-mapping"></a></h2>
+
+      <div class="section-desc"><p>Map free-text diagnoses to ICD-10 codes and clinical syndromes</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="prep_map_diagnosis_to_icd.html">prep_map_diagnosis_to_icd()</a></code>
+
+        </dt>
+        <dd>Map Diagnosis Text to ICD Candidates</dd>
+
+        <dt>
+
+          <code><a href="prep_map_icd_to_syndrome.html">prep_map_icd_to_syndrome()</a></code>
+
+        </dt>
+        <dd>Map ICD Codes to Infectious Syndromes</dd>
+
+        <dt>
+
+          <code><a href="prep_diagnosis_text.html">prep_diagnosis_text()</a></code>
+
+        </dt>
+        <dd>Prepare Diagnosis Text</dd>
+
+        <dt>
+
+          <code><a href="prep_assign_patient_syndrome.html">prep_assign_patient_syndrome()</a></code>
+
+        </dt>
+        <dd>Assign One Syndrome Per Patient or Event</dd>
+
+        <dt>
+
+          <code><a href="infer_patient_syndrome_wide.html">infer_patient_syndrome_wide()</a></code>
+
+        </dt>
+        <dd>Assign Syndrome from Wide-Format Syndrome Flags</dd>
+      </dl></div><div class="section level2">
+      <h2 id="outcome-cohorts-and-attrition">Outcome cohorts and attrition<a class="anchor" aria-label="anchor" href="#outcome-cohorts-and-attrition"></a></h2>
+
+      <div class="section-desc"><p>Build outcome cohorts and track patient counts through pipeline stages</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="prep_attrition_flow.html">prep_attrition_flow()</a></code>
+
+        </dt>
+        <dd>Track Attrition Through the Pipeline</dd>
+
+        <dt>
+
+          <code><a href="prep_build_fatal_cohort.html">prep_build_fatal_cohort()</a></code>
+
+        </dt>
+        <dd>Build Fatal Cohort</dd>
+
+        <dt>
+
+          <code><a href="prep_build_nonfatal_cohort.html">prep_build_nonfatal_cohort()</a></code>
+
+        </dt>
+        <dd>Build Non-Fatal Cohort</dd>
+      </dl></div><div class="section level2">
+      <h2 id="resistance-profiles">Resistance profiles<a class="anchor" aria-label="anchor" href="#resistance-profiles"></a></h2>
+
+      <div class="section-desc"><p>Marginal resistance, co-resistance, and profile computation</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
 
           <code><a href="compute_marginal_resistance.html">compute_marginal_resistance()</a></code>
 
         </dt>
         <dd>Compute Marginal Resistance per Pathogen and Antibiotic Class</dd>
-
-        <dt>
-
-          <code><a href="compute_p0.html">compute_p0()</a></code>
-
-        </dt>
-        <dd>Compute Baseline Mortality Rate Among Fully Susceptible Patients (p0)</dd>
-
-        <dt>
-
-          <code><a href="compute_paf_los.html">compute_paf_los()</a></code>
-
-        </dt>
-        <dd>Compute LOS Population Attributable Fraction per Resistance Profile</dd>
-
-        <dt>
-
-          <code><a href="compute_paf_rr_mortality.html">compute_paf_rr_mortality()</a></code>
-
-        </dt>
-        <dd>Compute Mortality Population Attributable Fraction per Resistance Profile</dd>
 
         <dt>
 
@@ -477,27 +686,6 @@
 
         <dt>
 
-          <code><a href="compute_patient_los.html">compute_patient_los()</a></code>
-
-        </dt>
-        <dd>Compute Patient-Level Post-Infection LOS</dd>
-
-        <dt>
-
-          <code><a href="compute_polymicrobial_weight.html">compute_polymicrobial_weight()</a></code>
-
-        </dt>
-        <dd>Compute Polymicrobial Weights</dd>
-
-        <dt>
-
-          <code><a href="compute_processing_statistics.html">compute_processing_statistics()</a></code>
-
-        </dt>
-        <dd>Compute Processing Statistics</dd>
-
-        <dt>
-
           <code><a href="compute_resistance_profiles.html">compute_resistance_profiles()</a></code>
 
         </dt>
@@ -505,47 +693,12 @@
 
         <dt>
 
-          <code><a href="compute_yld_associated.html">compute_yld_associated()</a></code>
-
-        </dt>
-        <dd>Compute YLDs Associated with Resistance</dd>
-
-        <dt>
-
-          <code><a href="compute_yld_attributable.html">compute_yld_attributable()</a></code>
-
-        </dt>
-        <dd>Compute YLDs Attributable to Resistance</dd>
-
-        <dt>
-
-          <code><a href="compute_yll_associated.html">compute_yll_associated()</a></code>
-
-        </dt>
-        <dd>Compute YLL Associated with AMR (Patient-Level, Facility-Direct)</dd>
-
-        <dt>
-
-          <code><a href="compute_yll_attributable.html">compute_yll_attributable()</a></code>
-
-        </dt>
-        <dd>Compute YLL Attributable to AMR</dd>
-
-        <dt>
-
           <code><a href="select_resistance_class.html">select_resistance_class()</a></code>
 
         </dt>
-        <dd>Select Resistance Class</dd>
-
-        <dt>
-
-          <code><a href="prioritize_resistance.html">prioritize_resistance()</a></code>
-
-        </dt>
-        <dd>Prioritize Resistance</dd>
+        <dd>Select Resistance Class for Burden Attribution</dd>
       </dl></div><div class="section level2">
-      <h2 id="burden-estimation-yll-yld-">Burden estimation (YLL/YLD)<a class="anchor" aria-label="anchor" href="#burden-estimation-yll-yld-"></a></h2>
+      <h2 id="burden-estimation-yll-yld-daly-">Burden estimation (YLL/YLD/DALY)<a class="anchor" aria-label="anchor" href="#burden-estimation-yll-yld-daly-"></a></h2>
 
       <div class="section-desc"><p>GBD-methodology burden calculations</p></div>
 
@@ -556,220 +709,206 @@
 
       <dl><dt>
 
-          <code><a href="calculate_CR_L.html">calculate_CR_L()</a></code>
-
-        </dt>
-        <dd>Calculate the CFR adjustment factor (CR_L)</dd>
-
-        <dt>
-
-          <code><a href="calculate_P_Lk.html">calculate_P_Lk()</a></code>
-
-        </dt>
-        <dd>Calculate Fatal Pathogen Distribution (P_{LK})</dd>
-
-        <dt>
-
-          <code><a href="calculate_P_Lk_fatal.html">calculate_P_Lk_fatal()</a></code>
-
-        </dt>
-        <dd>Calculate fatal pathogen distribution (P_{Lk})</dd>
-
-        <dt>
-
-          <code><a href="calculate_P_Lk_prime.html">calculate_P_Lk_prime()</a></code>
-
-        </dt>
-        <dd>Calculate non-fatal pathogen distribution (P'_{Lk})</dd>
-
-        <dt>
-
-          <code><a href="calculate_Rkd_prime.html">calculate_Rkd_prime()</a></code>
-
-        </dt>
-        <dd>Calculate non-fatal prevalence of resistance (R'_{k,d})</dd>
-
-        <dt>
-
-          <code><a href="calculate_YLD.html">calculate_YLD()</a></code>
-
-        </dt>
-        <dd>Calculate YLD per pathogen</dd>
-
-        <dt>
-
-          <code><a href="calculate_cfr_lk.html">calculate_cfr_lk()</a></code>
-
-        </dt>
-        <dd>Calculate case fatality ratio by syndrome and pathogen (CFR_{Lk})</dd>
-
-        <dt>
-
-          <code><a href="calculate_deaths_by_cause.html">calculate_deaths_by_cause()</a></code>
-
-        </dt>
-        <dd>Calculate Deaths by Underlying Cause (D_J)</dd>
-
-        <dt>
-
-          <code><a href="calculate_distance_matrix.html">calculate_distance_matrix()</a></code>
-
-        </dt>
-        <dd>Calculate Distance Matrix Between Locations</dd>
-
-        <dt>
-
-          <code><a href="calculate_incidence_L.html">calculate_incidence_L()</a></code>
-
-        </dt>
-        <dd>Calculate syndrome incidence from deaths, CFR, and CR_L (formula-based)</dd>
-
-        <dt>
-
-          <code><a href="calculate_infection_fraction.html">calculate_infection_fraction()</a></code>
-
-        </dt>
-        <dd>Calculate Infection Fraction of Deaths by Cause (S_J)</dd>
-
-        <dt>
-
-          <code><a href="calculate_los.html">calculate_los()</a></code>
-
-        </dt>
-        <dd>Calculate Length of Stay</dd>
-
-        <dt>
-
-          <code><a href="calculate_spatial_autocorrelation.html">calculate_spatial_autocorrelation()</a></code>
-
-        </dt>
-        <dd>Calculate Spatial Autocorrelation (Moran's I)</dd>
-
-        <dt>
-
-          <code><a href="calculate_spatial_metrics.html">calculate_spatial_metrics()</a></code>
-
-        </dt>
-        <dd>Calculate AMR Metrics by Geographic Unit</dd>
-
-        <dt>
-
-          <code><a href="calculate_syndrome_deaths.html">calculate_syndrome_deaths()</a></code>
-
-        </dt>
-        <dd>Calculate Deaths by Infectious Syndrome (D_L)</dd>
-
-        <dt>
-
-          <code><a href="calculate_syndrome_fraction.html">calculate_syndrome_fraction()</a></code>
-
-        </dt>
-        <dd>Calculate Infectious Syndrome Fraction (M_LJ)</dd>
-
-        <dt>
-
-          <code><a href="fit_distributions.html">fit_distributions()</a></code>
-
-        </dt>
-        <dd>Fit Multiple Distributions</dd>
-
-        <dt>
-
-          <code><a href="fit_los_rr_distribution.html">fit_los_rr_distribution()</a></code>
-
-        </dt>
-        <dd>Estimate Per-Class LOS Relative Risk via Parametric Distribution Fitting</dd>
-
-        <dt>
-
-          <code><a href="fit_los_rr_nima.html">fit_los_rr_nima()</a></code>
-
-        </dt>
-        <dd>Estimate Per-Profile LOS Relative Risk via Distribution Fitting (Nima Procedure)</dd>
-
-        <dt>
-
-          <code><a href="fit_los_rr_poisson.html">fit_los_rr_poisson()</a></code>
-
-        </dt>
-        <dd>Estimate Per-Class LOS Relative Risk via Quasi-Poisson Regression</dd>
-
-        <dt>
-
-          <code><a href="fit_mortality_rr_logistic.html">fit_mortality_rr_logistic()</a></code>
-
-        </dt>
-        <dd>Estimate Per-Class Mortality Odds Ratio via Mixed-Effects Logistic Regression</dd>
-
-        <dt>
-
-          <code><a href="assign_rr_to_profiles.html">assign_rr_to_profiles()</a></code>
-
-        </dt>
-        <dd>Assign Per-Class LOS RR to Resistance Profiles (Max Rule)</dd>
-
-        <dt>
-
-          <code><a href="convert_or_to_rr.html">convert_or_to_rr()</a></code>
-
-        </dt>
-        <dd>Convert Odds Ratios to Relative Risks Using Baseline Mortality (p0)</dd>
-
-        <dt>
-
-          <code><a href="count_incident_cases.html">count_incident_cases()</a></code>
-
-        </dt>
-        <dd>Count incident cases by syndrome from facility data</dd>
-
-        <dt>
-
-          <code><a href="filter_profiles_to_rr_classes.html">filter_profiles_to_rr_classes()</a></code>
-
-        </dt>
-        <dd>Filter Profiles to Classes with Actual RR Estimates</dd>
-
-        <dt>
-
-          <code><a href="get_top_pathogens.html">get_top_pathogens()</a></code>
-
-        </dt>
-        <dd>Identify top N pathogens by occurrence</dd>
-
-        <dt>
-
-          <code><a href="load_rr_reference.html">load_rr_reference()</a></code>
-
-        </dt>
-        <dd>Load RR (Relative Risk) Reference Data</dd>
-
-        <dt>
-
-          <code><a href="lookup_rr.html">lookup_rr()</a></code>
-
-        </dt>
-        <dd>Lookup Relative Risk Values</dd>
-
-        <dt>
-
-          <code><a href="add_rr_mappings.html">add_rr_mappings()</a></code>
+          <code><a href="daly_add_rr_mappings.html">daly_add_rr_mappings()</a></code>
 
         </dt>
         <dd>Add RR Pathogen and Drug Mappings</dd>
 
         <dt>
 
-          <code><a href="map_class_to_rr.html">map_class_to_rr()</a></code>
+          <code><a href="daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles()</a></code>
+
+        </dt>
+        <dd>Assign Per-Class LOS RR to Resistance Profiles (Max Rule)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_case_fatality.html">daly_calc_case_fatality()</a></code>
+
+        </dt>
+        <dd>Calculate case fatality ratio by syndrome and pathogen (CFR_{Lk})</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_cr_l.html">daly_calc_cr_l()</a></code>
+
+        </dt>
+        <dd>Calculate the CFR adjustment factor (CR_L)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_deaths_by_cause.html">daly_calc_deaths_by_cause()</a></code>
+
+        </dt>
+        <dd>Calculate Deaths by Underlying Cause (D_J)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_deaths_by_syndrome.html">daly_calc_deaths_by_syndrome()</a></code>
+
+        </dt>
+        <dd>Calculate Deaths by Infectious Syndrome (D_L)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_fraction_associated_yld.html">daly_calc_fraction_associated_yld()</a></code>
+
+        </dt>
+        <dd>Compute Associated-Burden Fractions per Resistance Profile</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_incidence_from_cfr.html">daly_calc_incidence_from_cfr()</a></code>
+
+        </dt>
+        <dd>Calculate syndrome incidence from deaths, CFR, and CR_L (formula-based)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_infection_fraction.html">daly_calc_infection_fraction()</a></code>
+
+        </dt>
+        <dd>Calculate Infection Fraction of Deaths by Cause (S_J)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_paf_los.html">daly_calc_paf_los()</a></code>
+
+        </dt>
+        <dd>Compute PAF for length of stay per resistance profile</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_paf_mortality.html">daly_calc_paf_mortality()</a></code>
+
+        </dt>
+        <dd>Compute Mortality Population Attributable Fraction per Resistance Profile</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_pathogen_fraction_fatal.html">daly_calc_pathogen_fraction_fatal()</a></code>
+
+        </dt>
+        <dd>Calculate fatal pathogen distribution (P_{Lk})</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_syndrome_fraction.html">daly_calc_syndrome_fraction()</a></code>
+
+        </dt>
+        <dd>Calculate Infectious Syndrome Fraction (M_LJ)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_yld_attributable.html">daly_calc_yld_attributable()</a></code>
+
+        </dt>
+        <dd>Compute YLDs Attributable to Resistance</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_yll_associated.html">daly_calc_yll_associated()</a></code>
+
+        </dt>
+        <dd>Compute YLL Associated with AMR (Patient-Level, Facility-Direct)</dd>
+
+        <dt>
+
+          <code><a href="daly_calc_yll_attributable.html">daly_calc_yll_attributable()</a></code>
+
+        </dt>
+        <dd>Compute YLL Attributable to AMR</dd>
+
+        <dt>
+
+          <code><a href="daly_compute_patient_los.html">daly_compute_patient_los()</a></code>
+
+        </dt>
+        <dd>Compute Patient-Level Post-Infection LOS</dd>
+
+        <dt>
+
+          <code><a href="daly_count_incident_cases.html">daly_count_incident_cases()</a></code>
+
+        </dt>
+        <dd>Count incident cases by syndrome from facility data</dd>
+
+        <dt>
+
+          <code><a href="daly_derive_hai_cai_for_los.html">daly_derive_hai_cai_for_los()</a></code>
+
+        </dt>
+        <dd>Derive Infection Type (HAI / CAI) per Patient</dd>
+
+        <dt>
+
+          <code><a href="daly_derive_hai_cai_for_mortality.html">daly_derive_hai_cai_for_mortality()</a></code>
+
+        </dt>
+        <dd>Classify HAI/CAI Infection Type for the Mortality Cohort</dd>
+
+        <dt>
+
+          <code><a href="daly_fit_los_rr.html">daly_fit_los_rr()</a></code>
+
+        </dt>
+        <dd>Fit relative LOS using Gamma GLM with log link</dd>
+
+        <dt>
+
+          <code><a href="daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code>
+
+        </dt>
+        <dd>Estimate Per-Class LOS Relative Risk via Parametric Distribution Fitting</dd>
+
+        <dt>
+
+          <code><a href="daly_fit_mortality_rr.html">daly_fit_mortality_rr()</a></code>
+
+        </dt>
+        <dd>Fit mortality model and derive adjusted relative risk of death</dd>
+
+        <dt>
+
+          <code><a href="daly_get_top_pathogens.html">daly_get_top_pathogens()</a></code>
+
+        </dt>
+        <dd>Identify top N pathogens by occurrence</dd>
+
+        <dt>
+
+          <code><a href="daly_load_rr_reference.html">daly_load_rr_reference()</a></code>
+
+        </dt>
+        <dd>Load RR (Relative Risk) Reference Data</dd>
+
+        <dt>
+
+          <code><a href="daly_lookup_rr.html">daly_lookup_rr()</a></code>
+
+        </dt>
+        <dd>Lookup Relative Risk Values</dd>
+
+        <dt>
+
+          <code><a href="daly_map_rr_drug_class.html">daly_map_rr_drug_class()</a></code>
 
         </dt>
         <dd>Map Antibiotic Class to RR Drug Category</dd>
 
         <dt>
 
-          <code><a href="map_to_rr_pathogen.html">map_to_rr_pathogen()</a></code>
+          <code><a href="daly_map_rr_pathogen.html">daly_map_rr_pathogen()</a></code>
 
         </dt>
         <dd>Map Organism to RR Pathogen Category</dd>
+
+        <dt>
+
+          <code><a href="compute_hospital_daly.html">compute_hospital_daly()</a></code>
+
+        </dt>
+        <dd>Compute Hospital-Level DALY Breakdown</dd>
       </dl></div><div class="section level2">
       <h2 id="los-modeling">LOS modeling<a class="anchor" aria-label="anchor" href="#los-modeling"></a></h2>
 
@@ -831,7 +970,7 @@
       </dl></div><div class="section level2">
       <h2 id="burden-plots">Burden plots<a class="anchor" aria-label="anchor" href="#burden-plots"></a></h2>
 
-      <div class="section-desc"><p>GBD-style and hospital-level burden visualizations</p></div>
+      <div class="section-desc"><p>Hospital-level and organism-level burden visualizations</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -840,52 +979,173 @@
 
       <dl><dt>
 
-          <code><a href="compute_hospital_daly.html">compute_hospital_daly()</a></code>
+          <code><a href="plot_burden_by_hospital.html">plot_burden_by_hospital()</a></code>
 
         </dt>
-        <dd>Compute Hospital-Level DALY Breakdown</dd>
+        <dd>Plot YLL or YLD Associated vs Attributable per Hospital</dd>
 
         <dt>
 
-          <code><a href="plot_gbd_fig4.html">plot_gbd_fig4()</a></code>
+          <code><a href="plot_burden_by_organism.html">plot_burden_by_organism()</a></code>
 
         </dt>
-        <dd>GBD Figure 4 – Deaths by Organism Group (Overlapping Bars)</dd>
+        <dd>Plot YLL or YLD Associated vs Attributable by Organism</dd>
 
         <dt>
 
-          <code><a href="plot_gbd_fig6.html">plot_gbd_fig6()</a></code>
+          <code><a href="plot_yll_heatmap.html">plot_yll_heatmap()</a></code>
 
         </dt>
-        <dd>GBD Figure 6 – Attributable Deaths Heatmap (Pathogen x Drug Class)</dd>
+        <dd>Heatmap of YLL per 1 000 Admissions by Resistance Class and Pathogen Group</dd>
 
         <dt>
 
-          <code><a href="plot_burden_comparison.html">plot_burden_comparison()</a></code>
+          <code><a href="plot_yld_heatmap.html">plot_yld_heatmap()</a></code>
 
         </dt>
-        <dd>Burden Comparison Bar Plot</dd>
+        <dd>Heatmap of YLD per 1 000 Admissions by Organism Group</dd>
+      </dl></div><div class="section level2">
+      <h2 id="eda-plots">EDA plots<a class="anchor" aria-label="anchor" href="#eda-plots"></a></h2>
+
+      <div class="section-desc"><p>Exploratory plots for AMR surveillance data</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="plot_top_organisms.html">plot_top_organisms()</a></code>
+
+        </dt>
+        <dd>Plot Top Pathogens by Unique Patients</dd>
 
         <dt>
 
-          <code><a href="plot_burden_heatmap.html">plot_burden_heatmap()</a></code>
+          <code><a href="plot_abx_susceptibility.html">plot_abx_susceptibility()</a></code>
 
         </dt>
-        <dd>Burden Heatmap Across Hospitals</dd>
+        <dd>Plot Antibiotic Susceptibility Pattern (Stacked R/S Bars)</dd>
 
         <dt>
 
-          <code><a href="plot_daly_lollipop.html">plot_daly_lollipop()</a></code>
+          <code><a href="plot_abx_heatmap.html">plot_abx_heatmap()</a></code>
 
         </dt>
-        <dd>DALY Lollipop Plot</dd>
+        <dd>Plot Antibiotic Resistance Heatmap</dd>
 
         <dt>
 
-          <code><a href="plot_resistance_fraction.html">plot_resistance_fraction()</a></code>
+          <code><a href="plot_outcome_distribution.html">plot_outcome_distribution()</a></code>
 
         </dt>
-        <dd>Resistance Fraction Stacked Bar</dd>
+        <dd>Plot Distribution of Final Outcomes</dd>
+
+        <dt>
+
+          <code><a href="plot_outcome_by_organism.html">plot_outcome_by_organism()</a></code>
+
+        </dt>
+        <dd>Plot Final Outcome Proportions for Resistant or Susceptible Patients</dd>
+
+        <dt>
+
+          <code><a href="plot_death_discharged.html">plot_death_discharged()</a></code>
+
+        </dt>
+        <dd>Plot Death vs Discharged Counts for Top Pathogens</dd>
+
+        <dt>
+
+          <code><a href="plot_resistance_by_sample.html">plot_resistance_by_sample()</a></code>
+
+        </dt>
+        <dd>Plot Distribution of Antibiotic Resistance Across Sample Types</dd>
+
+        <dt>
+
+          <code><a href="plot_outcome_by_agebin.html">plot_outcome_by_agebin()</a></code>
+
+        </dt>
+        <dd>Plot Final Outcome Proportions by Age Bin</dd>
+
+        <dt>
+
+          <code><a href="plot_mono_poly_by_facility.html">plot_mono_poly_by_facility()</a></code>
+
+        </dt>
+        <dd>Plot Mono vs Polymicrobial Infections by Facility</dd>
+
+        <dt>
+
+          <code><a href="plot_hai_cai_by_facility.html">plot_hai_cai_by_facility()</a></code>
+
+        </dt>
+        <dd>Plot HAI vs CAI Infection Distribution by Facility</dd>
+
+        <dt>
+
+          <code><a href="plot_location_by_facility.html">plot_location_by_facility()</a></code>
+
+        </dt>
+        <dd>Plot Patient Distribution by Location Type Across Facilities</dd>
+
+        <dt>
+
+          <code><a href="plot_los_ridge.html">plot_los_ridge()</a></code>
+
+        </dt>
+        <dd>Ridge / Density Plot of Length of Stay (LOS)</dd>
+
+        <dt>
+
+          <code><a href="plot_age_ridge.html">plot_age_ridge()</a></code>
+
+        </dt>
+        <dd>Ridge / Density Plot of Patient Age</dd>
+
+        <dt>
+
+          <code><a href="plot_los_by_agebin.html">plot_los_by_agebin()</a></code>
+
+        </dt>
+        <dd>Boxplot of Length of Stay by Age Group</dd>
+
+        <dt>
+
+          <code><a href="plot_outcome_by_year.html">plot_outcome_by_year()</a></code>
+
+        </dt>
+        <dd>Plot Distribution of Final Outcomes by Year</dd>
+
+        <dt>
+
+          <code><a href="plot_patients_by_hospital.html">plot_patients_by_hospital()</a></code>
+
+        </dt>
+        <dd>Plot Unique Patient Count by Hospital</dd>
+
+        <dt>
+
+          <code><a href="plot_syndrome_distribution.html">plot_syndrome_distribution()</a></code>
+
+        </dt>
+        <dd>Plot Syndrome Distribution</dd>
+
+        <dt>
+
+          <code><a href="plot_resistance_by_agebin.html">plot_resistance_by_agebin()</a></code>
+
+        </dt>
+        <dd>Resistance proportion by age group</dd>
+
+        <dt>
+
+          <code><a href="plot_resistance_by_organism.html">plot_resistance_by_organism()</a></code>
+
+        </dt>
+        <dd>Resistance proportion for top N organisms</dd>
       </dl></div><div class="section level2">
       <h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a></h2>
 
@@ -902,6 +1162,13 @@
 
         </dt>
         <dd>AMR Theme for ggplot2</dd>
+
+        <dt>
+
+          <code><a href="eda_theme.html">eda_theme()</a></code>
+
+        </dt>
+        <dd>EDA ggplot2 Theme</dd>
 
         <dt>
 
@@ -998,17 +1265,17 @@
 
         <dt>
 
-          <code><a href="calculate_spatial_autocorrelation.html">calculate_spatial_autocorrelation()</a></code>
-
-        </dt>
-        <dd>Calculate Spatial Autocorrelation (Moran's I)</dd>
-
-        <dt>
-
           <code><a href="calculate_spatial_metrics.html">calculate_spatial_metrics()</a></code>
 
         </dt>
         <dd>Calculate AMR Metrics by Geographic Unit</dd>
+
+        <dt>
+
+          <code><a href="calculate_spatial_autocorrelation.html">calculate_spatial_autocorrelation()</a></code>
+
+        </dt>
+        <dd>Calculate Spatial Autocorrelation (Moran's I)</dd>
 
         <dt>
 
@@ -1045,14 +1312,7 @@
           <code><a href="validate_required_fields.html">validate_required_fields()</a></code>
 
         </dt>
-        <dd>Validate Required Fields</dd>
-
-        <dt>
-
-          <code><a href="check_logical_consistency.html">check_logical_consistency()</a></code>
-
-        </dt>
-        <dd>Check Logical Consistency</dd>
+        <dd>Validate required fields exist and meet completeness threshold</dd>
 
         <dt>
 
@@ -1084,6 +1344,13 @@
 
         <dt>
 
+          <code><a href="compute_processing_statistics.html">compute_processing_statistics()</a></code>
+
+        </dt>
+        <dd>Compute Processing Statistics</dd>
+
+        <dt>
+
           <code><a href="generate_preprocessing_report.html">generate_preprocessing_report()</a></code>
 
         </dt>
@@ -1095,6 +1362,34 @@
 
         </dt>
         <dd>Export Report to File</dd>
+
+        <dt>
+
+          <code><a href="prep_check_organism_ast_consistency.html">prep_check_organism_ast_consistency()</a></code>
+
+        </dt>
+        <dd>Check Organism-AST Consistency</dd>
+
+        <dt>
+
+          <code><a href="prep_validate_analysis_ready.html">prep_validate_analysis_ready()</a></code>
+
+        </dt>
+        <dd>Validate Analysis-Ready Dataset</dd>
+
+        <dt>
+
+          <code><a href="prep_validate_date_logic.html">prep_validate_date_logic()</a></code>
+
+        </dt>
+        <dd>Validate Date Logic</dd>
+
+        <dt>
+
+          <code><a href="prep_missingness_report.html">prep_missingness_report()</a></code>
+
+        </dt>
+        <dd>Missingness Report</dd>
       </dl></div><div class="section level2">
       <h2 id="utilities">Utilities<a class="anchor" aria-label="anchor" href="#utilities"></a></h2>
 
@@ -1124,77 +1419,28 @@
           <code><a href="default_column_mappings.html">default_column_mappings</a></code>
 
         </dt>
-        <dd>Default Column Name Mappings</dd>
+        <dd>Default column name mappings for fuzzy matching</dd>
 
         <dt>
 
           <code><a href="get_age_bins.html">get_age_bins()</a></code>
 
         </dt>
-        <dd>Standard Age Bins (GBD Compatible)</dd>
+        <dd>Get Age Bin Labels</dd>
 
         <dt>
 
-          <code><a href="get_antimicrobial_categories.html">get_antimicrobial_categories()</a></code>
+          <code><a href="prep_inventory_columns.html">prep_inventory_columns()</a></code>
 
         </dt>
-        <dd>Get Antimicrobial Categories for MDR/XDR Classification</dd>
+        <dd>Inventory Columns</dd>
 
         <dt>
 
-          <code><a href="get_beta_lactam_hierarchy.html">get_beta_lactam_hierarchy()</a></code>
+          <code><a href="prep_log_source.html">prep_log_source()</a></code>
 
         </dt>
-        <dd>Beta-Lactam Class Hierarchy</dd>
-
-        <dt>
-
-          <code><a href="get_contaminant_list.html">get_contaminant_list()</a></code>
-
-        </dt>
-        <dd>Get Contaminant List from Reference File</dd>
-
-        <dt>
-
-          <code><a href="get_magiorakos_thresholds.html">get_magiorakos_thresholds()</a></code>
-
-        </dt>
-        <dd>Get Magiorakos MDR/XDR Thresholds</dd>
-
-        <dt>
-
-          <code><a href="is_contaminant.html">is_contaminant()</a></code>
-
-        </dt>
-        <dd>Check if Organism is a Contaminant</dd>
-
-        <dt>
-
-          <code><a href="groom_optional_columns.html">groom_optional_columns()</a></code>
-
-        </dt>
-        <dd>Groom Optional Columns</dd>
-
-        <dt>
-
-          <code><a href="remove_duplicate_rows.html">remove_duplicate_rows()</a></code>
-
-        </dt>
-        <dd>Remove Duplicate Rows</dd>
-
-        <dt>
-
-          <code><a href="extract_genus.html">extract_genus()</a></code>
-
-        </dt>
-        <dd>Extract Genus from Organism Name</dd>
-
-        <dt>
-
-          <code><a href="extract_species.html">extract_species()</a></code>
-
-        </dt>
-        <dd>Extract Species from Organism Name</dd>
+        <dd>Log Data Source Provenance</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
