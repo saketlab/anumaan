@@ -125,7 +125,8 @@ get_age_bins <- function(type = "GBD_standard") {
 #'   date column used with \code{fallback_dob_col}. Default
 #'   \code{"admission_date"}.
 #'
-#' @return Data frame with \code{Age_bin} factor column added.
+#' @return Data frame with resolved numeric age in \code{Age_years} and
+#'   \code{Age_bin} factor column added.
 #' @export
 prep_assign_age_bins <- function(data,
                                   age_col        = "Age",
@@ -151,23 +152,32 @@ prep_assign_age_bins <- function(data,
     days   = as.numeric(data[[age_col]]) / 365.25
   )
 
-  # Add months component if provided (treat NA as 0)
+  component_years <- rep(0, nrow(data))
+  component_present <- rep(FALSE, nrow(data))
+
+  # Add months component if provided. Missing primary age can still be
+  # resolved from month/day components.
   if (!is.null(age_months_col)) {
     if (!age_months_col %in% names(data))
       stop(sprintf("age_months_col '%s' not found in data", age_months_col))
     m <- as.numeric(data[[age_months_col]])
-    m[is.na(m)] <- 0
-    age_years <- age_years + m / 12
+    component_years[!is.na(m)] <- component_years[!is.na(m)] + m[!is.na(m)] / 12
+    component_present <- component_present | !is.na(m)
   }
 
-  # Add days component if provided (treat NA as 0)
+  # Add days component if provided. Missing primary age can still be
+  # resolved from month/day components.
   if (!is.null(age_days_col)) {
     if (!age_days_col %in% names(data))
       stop(sprintf("age_days_col '%s' not found in data", age_days_col))
     d <- as.numeric(data[[age_days_col]])
-    d[is.na(d)] <- 0
-    age_years <- age_years + d / 365.25
+    component_years[!is.na(d)] <- component_years[!is.na(d)] + d[!is.na(d)] / 365.25
+    component_present <- component_present | !is.na(d)
   }
+
+  missing_primary_with_components <- is.na(age_years) & component_present
+  age_years[missing_primary_with_components] <- 0
+  age_years[!is.na(age_years)] <- age_years[!is.na(age_years)] + component_years[!is.na(age_years)]
 
   # Optional recovery for negative ages to avoid data loss in noisy datasets.
   neg_idx <- which(!is.na(age_years) & age_years < 0)
@@ -225,6 +235,8 @@ prep_assign_age_bins <- function(data,
       ))
     }
   }
+
+  data$Age_years <- age_years
 
   if (is.character(bins) && length(bins) == 1) {
     bin_labels <- get_age_bins(bins)

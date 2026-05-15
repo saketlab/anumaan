@@ -127,28 +127,55 @@ test_that("prep_flag_invalid_ast: error handling", {
 })
 
 # prep_deduplicate_ast ---------------------------------------------------------
+# Fixture: cat2_ast_long_df() = cat2_ast_duplicates_same_day() — 5 rows:
+#   rows 1-2: pt_020 | e.coli | amikacin | 2025-01-15 | S  (exact duplicate)
+#   row  3:   pt_020 | e.coli | amikacin | 2025-01-15 | R  (conflict with row 1 after exact-dedup)
+#   row  4:   pt_020 | e.coli | cefotaxime | 2025-01-15 | I
+#   row  5:   pt_021 | k.pneumo | ampicillin | 2025-01-16 | S
 
-test_that("prep_deduplicate_ast: valid behavior", {
+test_that("prep_deduplicate_ast: detect mode removes exact dups then flags conflicts", {
   dat <- cat2_ast_long_df()
   out <- prep_deduplicate_ast(dat, mode = "detect")
   expect_true("is_ast_duplicate" %in% names(out))
+  # row 2 is an exact dup of row 1 — removed in step 1 → 4 rows remain
+  expect_equal(nrow(out), 4L)
+  # amikacin S vs R is still a conflict after exact-dedup
+  expect_true(any(out$is_ast_duplicate))
 })
 
-test_that("prep_deduplicate_ast: edge cases", {
+test_that("prep_deduplicate_ast: remove mode resolves both exact dups and conflicts", {
   dat <- cat2_ast_long_df()
   out <- prep_deduplicate_ast(dat, mode = "remove", strategy = "resistant_wins")
   expect_false("is_ast_duplicate" %in% names(out))
+  # amikacin conflict: R wins; cefotaxime and ampicillin have no conflict → 3 rows
+  expect_equal(nrow(out), 3L)
 })
 
-test_that("prep_deduplicate_ast: missingness", {
+test_that("prep_deduplicate_ast: exact duplicates only — no conflicts flagged", {
+  dat <- cat2_ast_exact_duplicates()
+  out <- prep_deduplicate_ast(dat, mode = "detect")
+  # rows 1-2 are exact dups → reduced to 1 row before conflict detection
+  expect_equal(nrow(out), 2L)
+  expect_false(any(out$is_ast_duplicate))
+})
+
+test_that("prep_deduplicate_ast: remove mode on exact-dup-only data is a no-op for conflicts", {
+  dat <- cat2_ast_exact_duplicates()
+  out <- prep_deduplicate_ast(dat, mode = "remove", strategy = "resistant_wins")
+  expect_equal(nrow(out), 2L)
+})
+
+test_that("prep_deduplicate_ast: missingness — NA value breaks exact-dup grouping", {
   dat <- cat2_ast_long_df()
-  dat$ast_value_harmonized <- dat$antibiotic_value
   dat$ast_value_harmonized[1] <- NA
+  # rows 1 (NA) and 2 (S) are no longer exact dups → all 5 rows survive exact-dedup
+  # amikacin group {NA, S, R}: n_distinct(na.rm=TRUE) = 2 (S and R) → conflict flagged
   out <- prep_deduplicate_ast(dat, mode = "detect")
   expect_true("is_ast_duplicate" %in% names(out))
+  expect_equal(nrow(out), 5L)
 })
 
-test_that("prep_deduplicate_ast: error handling", {
+test_that("prep_deduplicate_ast: error handling — warns and returns unchanged on missing columns", {
   dat <- data.frame(x = 1)
   expect_warning(out <- prep_deduplicate_ast(dat, mode = "detect"), "not found")
   expect_identical(out, dat)

@@ -65,6 +65,16 @@ utils::globalVariables(c(
   "total_mono", "total_tested", "total_weight",
   "value", "weight", "weighted_deaths", "weighted_total",
   "xdr", "xdr_confidence", "xdr_method", "yll_contribution",
+  "Age_bin", "Age_years", "center_name",
+  "DALY_associated", "DALY_assoc_per_1000",
+  "DALY_attributable", "DALY_attr_per_1000",
+  "org_group", "profile",
+  "YLD_associated", "YLD_assoc_per_1000",
+  "YLD_attributable", "YLD_attr_per_1000",
+  "YLD_base", "YLD_base_per_1000",
+  "YLL_associated", "YLL_assoc_per_1000",
+  "YLL_attributable", "YLL_attr_per_1000",
+  "YLL_base", "YLL_base_per_1000",
 
   # Column names with spaces/trailing whitespace from CSV headers
   "Common commensals", "Category ",

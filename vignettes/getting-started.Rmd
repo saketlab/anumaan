@@ -907,26 +907,51 @@ pfrac <- daly_calc_pathogen_fraction_fatal(data, syndrome_deaths)
 ```{r yll}
 # Associated YLL: all deaths in patients with this pathogen
 yll_associated <- daly_calc_yll_associated(
-  data,
-  life_expectancy_path = "GBD_2019_LE.csv"
+  data             = result$data,
+  outcome_col      = "final_outcome",
+  death_value      = "Died",
+  pathogen_col     = "organism_name",
+  patient_col      = "patient_id",
+  age_bin_col      = "Age_bin",
+  sex_col          = "gender",
+  facility_col     = "center_name",
+  date_culture_col = "date_of_culture",
+  specimen_col     = "specimen_type"
 )
 
 # Attributable YLL: deaths caused by resistance (RR-based)
 yll_attributable <- daly_calc_yll_attributable(
-  data,
-  rr_mortality = rr_table
+  yll_patient_data = yll_associated$patient_data,
+  paf_mort         = paf_mortality,
+  pathogen_col     = "organism_name",
+  patient_col      = "patient_id",
+  age_bin_col      = "Age_bin",
+  sex_col          = ".sex_norm",
+  facility_col     = "center_name"
 )
 ```
 
 ## Years Lived with Disability (YLD) and PAF
 
 ```{r yld}
-yld_base <- daly_calc_yld_baseline(incidence_data)
+yld_base <- daly_calc_yld_baseline(
+  incidence_data = incidence_data,
+  P_Lk_prime_tbl = p_lk_prime,
+  DW_sepsis      = 0.133,
+  avg_los_years  = 7 / 365.25
+)
 
-paf_los  <- daly_calc_paf_los(data, rr_los = rr_los_table)
+fraction_assoc <- daly_calc_fraction_associated_yld(profiles_with_rr)
+paf_los        <- daly_calc_paf_los(profiles_with_rr)
 
-yld_associated   <- daly_calc_fraction_associated_yld(yld_base, paf_los)
+yld_associated   <- anumaan:::daly_calc_yld_associated(yld_base, fraction_assoc)
 yld_attributable <- daly_calc_yld_attributable(yld_base, paf_los)
+
+yld_summary <- dplyr::left_join(
+  yld_associated[, c("pathogen", "YLD_associated")],
+  yld_attributable[, c("pathogen", "YLD_attributable")],
+  by = "pathogen"
+)
 ```
 
 ## Hospital-Level DALY Summary
@@ -934,14 +959,14 @@ yld_attributable <- daly_calc_yld_attributable(yld_base, paf_los)
 ```{r hospital-daly}
 hospital_daly <- compute_hospital_daly(
   hospital_counts  = centre_counts,
-  total_deaths     = sum(deaths$total),
+  total_deaths     = sum(centre_counts$deaths_h),
   total_discharged = sum(centre_counts$discharged_h),
-  yll_base         = sum(yll_base),
-  yll_associated   = sum(yll_associated),
-  yll_attributable = sum(yll_attributable),
-  yld_base         = sum(yld_base),
-  yld_associated   = sum(yld_associated),
-  yld_attributable = sum(yld_attributable)
+  yll_base         = yll_associated$total,
+  yll_associated   = yll_associated$total,
+  yll_attributable = yll_attributable$total,
+  yld_base         = sum(yld_base$YLD, na.rm = TRUE),
+  yld_associated   = sum(yld_associated$YLD_associated, na.rm = TRUE),
+  yld_attributable = sum(yld_attributable$YLD_attributable, na.rm = TRUE)
 )
 ```
 
@@ -988,25 +1013,35 @@ plot_stacked_bar(
 ## LOS Distributions
 
 ```{r plot-los}
-plot_los_distributions(hospital_daly)
+plot_los_distributions(
+  los_vec = result$data$los_days,
+  title   = "Length of Stay Distribution"
+)
 ```
 
 ## DALY Burden Plots
 
 ```{r plot-daly}
-# Hospital-level YLL/YLD bars (output of compute_hospital_daly())
 plot_burden_by_hospital(hospital_daly, metric = "YLL")
-plot_burden_by_hospital(hospital_daly, metric = "YLD")
 
-# Top organisms by YLL/YLD burden
-plot_burden_by_organism(organism_yll, metric = "YLL", n = 8)
+plot_burden_by_organism(
+  data         = yll_associated$per_pathogen |>
+    dplyr::left_join(yll_attributable$per_pathogen, by = "pathogen"),
+  metric       = "YLL",
+  organism_col = "pathogen"
+)
 
-# YLL heatmap: resistance class x pathogen group
-plot_yll_heatmap(yll_class_data, value_col = "YLL_class",
-                 type = "attributable", n_admissions = 500)
+plot_yll_heatmap(
+  data         = yll_attributable$by_profile,
+  type         = "attributable",
+  value_col    = "YLL_attributable_k",
+  n_admissions = nrow(result$data)
+)
 
-# YLD heatmap: associated vs attributable by organism
-plot_yld_heatmap(yld_data, n_admissions = 500)
+plot_yld_heatmap(
+  data         = yld_summary,
+  n_admissions = nrow(result$data)
+)
 ```
 
 ## Consistent AMR Theme

@@ -41,16 +41,21 @@ One of \code{"resistant_wins"} (default), \code{"susceptible_wins"}, or \code{"f
 }
 }
 \description{
-Detects and optionally resolves conflicting AST records for the same
-patient + organism + antibiotic + date combination.
+Deduplicates AST records in two sequential steps:
+\enumerate{
+  \item \strong{Exact-duplicate removal}: drops rows that are fully identical
+    across all five key columns (patient + organism + antibiotic + date + value).
+    These are true redundant records with no ambiguity.
+  \item \strong{Conflict resolution}: handles the remaining cases where the same
+    patient + organism + antibiotic + date group has \emph{different} values.
+}
 }
 \details{
 \describe{
-  \item{\code{"detect"}}{Flags conflicting rows with \code{is_ast_duplicate = TRUE}
-    and prints a QC summary of all conflict groups. Returns the full data frame
-    with the flag column so you can inspect or filter before deciding how to resolve.}
-  \item{\code{"remove"}}{Runs the detect step first (flag + QC summary), then
-    applies \code{strategy} to keep one row per key combination and drops the
-    flag column from the returned data.}
+  \item{\code{"detect"}}{After exact-dedup, flags conflicting rows with
+    \code{is_ast_duplicate = TRUE} and prints a QC summary. Returns the data
+    with the flag column so you can inspect before deciding how to resolve.}
+  \item{\code{"remove"}}{Runs both steps: removes exact duplicates, then applies
+    \code{strategy} to keep one row per key combination for any remaining conflicts.}
 }
 }

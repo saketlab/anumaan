@@ -9,7 +9,7 @@
 #   - prep_harmonize_ast           (pipeline wrapper: clean -> recode)
 #   - prep_check_organism_ast_consistency
 #   - prep_flag_invalid_ast
-#   - prep_deduplicate_ast        (mode="detect" -> flag + QC summary; mode="remove" -> flag + resolve)
+#   - prep_deduplicate_ast        (step1: exact-dedup on 5 keys; step2: conflict detect/resolve)
 #
 # Note: prep_standardize_ast_values removed - exact-match subset of prep_clean_ast_values.
 
@@ -350,16 +350,21 @@ prep_flag_invalid_ast <- function(data, col = "ast_value_harmonized") {
 
 #' Handle Duplicate AST Results
 #'
-#' Detects and optionally resolves conflicting AST records for the same
-#' patient + organism + antibiotic + date combination.
+#' Deduplicates AST records in two sequential steps:
+#' \enumerate{
+#'   \item \strong{Exact-duplicate removal}: drops rows that are fully identical
+#'     across all five key columns (patient + organism + antibiotic + date + value).
+#'     These are true redundant records with no ambiguity.
+#'   \item \strong{Conflict resolution}: handles the remaining cases where the same
+#'     patient + organism + antibiotic + date group has \emph{different} values.
+#' }
 #'
 #' \describe{
-#'   \item{\code{"detect"}}{Flags conflicting rows with \code{is_ast_duplicate = TRUE}
-#'     and prints a QC summary of all conflict groups. Returns the full data frame
-#'     with the flag column so you can inspect or filter before deciding how to resolve.}
-#'   \item{\code{"remove"}}{Runs the detect step first (flag + QC summary), then
-#'     applies \code{strategy} to keep one row per key combination and drops the
-#'     flag column from the returned data.}
+#'   \item{\code{"detect"}}{After exact-dedup, flags conflicting rows with
+#'     \code{is_ast_duplicate = TRUE} and prints a QC summary. Returns the data
+#'     with the flag column so you can inspect before deciding how to resolve.}
+#'   \item{\code{"remove"}}{Runs both steps: removes exact duplicates, then applies
+#'     \code{strategy} to keep one row per key combination for any remaining conflicts.}
 #' }
 #'
 #' @param data Data frame with AST data in long format.
@@ -390,16 +395,24 @@ prep_deduplicate_ast <- function(data,
   mode     <- match.arg(mode)
   strategy <- match.arg(strategy)
 
-  key_cols   <- c(patient_col, organism_col, antibiotic_col, date_col)
-  all_needed <- c(key_cols, ast_col)
-  missing    <- setdiff(all_needed, names(data))
+  key_cols       <- c(patient_col, organism_col, antibiotic_col, date_col)
+  exact_key_cols <- c(key_cols, ast_col)
+  missing        <- setdiff(exact_key_cols, names(data))
   if (length(missing) > 0) {
     warning(sprintf("[prep_deduplicate_ast] Column(s) not found: %s. Returning data unchanged.",
                     paste(missing, collapse = ", ")))
     return(data)
   }
 
-  # --- Step 1: detect conflicts and flag rows ---
+  # --- Step 1 (always): remove exact duplicates on all 5 key columns ---
+  n_before_exact <- nrow(data)
+  data <- dplyr::distinct(data, dplyr::across(dplyr::all_of(exact_key_cols)), .keep_all = TRUE)
+  n_exact_removed <- n_before_exact - nrow(data)
+  if (n_exact_removed > 0)
+    message(sprintf("[prep_deduplicate_ast] Removed %d exact duplicate row(s) (identical key + value).",
+                    n_exact_removed))
+
+  # --- Step 2 (always): detect conflicts (same 4-key group, different values) ---
   conflict_summary <- data %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
     dplyr::summarise(
@@ -432,7 +445,7 @@ prep_deduplicate_ast <- function(data,
 
   if (mode == "detect") return(data)
 
-  # --- Step 2 (remove only): resolve conflicts via strategy ---
+  # --- Step 3 (remove only): resolve conflicts via strategy ---
   n_before <- nrow(data)
 
   if (strategy %in% c("resistant_wins", "susceptible_wins")) {

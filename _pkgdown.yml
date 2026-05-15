@@ -73,6 +73,8 @@ navbar:
       menu:
       - text: Getting Started
         href: articles/getting-started.html
+      - text: Preprocessing Workflow
+        href: articles/preprocessing-workflow.html
 
     news:
       text: Changelog
@@ -134,6 +136,8 @@ reference:
   desc: "Derive missing variables from existing data"
   contents:
   - prep_fill_age
+  - prep_derive_dob_from_components
+  - prep_derive_los_from_dates
   - prep_assign_age_bins
   - prep_infer_department
   - prep_clean_optional_columns
@@ -153,6 +157,7 @@ reference:
   - prep_is_contaminant
   - flag_polymicrobial
   - compute_polymicrobial_weight
+  - prep_deduplicate_ast
   - prep_collapse_class_level
   - prep_pivot_ast_wide_to_long
   - prep_create_wide_ast_matrix
@@ -166,8 +171,8 @@ reference:
   - prep_filter_fungal
   - prep_filter_minimally_usable
 
-- title: "Multi-centre stewardship import"
-  desc: "Joining and validating ICMR multi-centre stewardship datasets"
+- title: "Table validation"
+  desc: "Column, key, and table-level validation helpers"
   contents:
   - prep_check_columns
   - prep_check_keys
@@ -280,6 +285,8 @@ reference:
   contents:
   - validate_data_quality
   - validate_required_fields
+  - prep_validate_date_logic
+  - prep_validate_analysis_ready
   - summarize_column_mapping
   - summarize_data_quality
   - summarize_raw_data
@@ -299,8 +306,6 @@ reference:
   - shorten_drug_class
   - default_column_mappings
   - get_age_bins
-  - prep_inventory_columns
-  - prep_log_source
 
 authors:
   Saket Choudhary:

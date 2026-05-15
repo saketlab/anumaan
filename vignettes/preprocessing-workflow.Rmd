@@ -1,0 +1,520 @@
+---
+title: "Preprocessing Workflow in anumaan"
+author: "Nilanjana Dey, Nima Jijo, Namrata Kharat, Saket Choudhary"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Preprocessing Workflow in anumaan}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{r libraries}
+library(anumaan)
+library(dplyr)
+```
+
+# Overview
+
+This vignette focuses on the **preprocessing layer only**. It does not cover
+DALY estimation, spatial workflows, or downstream visualization.
+
+The examples are deliberately small and synthetic, but they mirror the kinds of
+inputs covered by the package's Category 1 and Category 2 preprocessing tests:
+
+- schema alignment and column mapping
+- date parsing and table validation
+- organism, specimen, antibiotic, and AST cleaning
+- age, length-of-stay, and HAI/CAI derivation
+- event creation and deduplication
+- contaminant and polymicrobial handling
+- analysis-readiness filtering
+
+# A Small Synthetic Raw Dataset
+
+The main example starts with non-standard column names plus the kinds of messy
+values that preprocessing is supposed to absorb.
+
+```{r raw-data}
+raw_alias <- data.frame(
+  PID = c("pt_001", "pt_001", "pt_002", "pt_003", "pt_003", "pt_004"),
+  Date.of.admission = c("2025-01-01", "2025-01-01", "43831", "2025/01/10", "2025/01/10", "20201301"),
+  CultureDate = c("2025-01-03", "2025-01-03", "43833", "2025/01/11", "2025/01/11", "2025-01-15"),
+  Date.of.14.day.outcome = c("2025-01-08", "2025-01-08", "43840", "2025/01/18", "2025/01/18", "2025-01-25"),
+  Final.outcome = c("alive", "alive", "expired", "Discharged Alive", "Died/Expired", "LAMA"),
+  Organism = c(
+    "E. coli",
+    "E. coli",
+    "MRSA(Methicillin resistant staphylococcus aureus)",
+    "CONS (Coagulase Negative Staphylococci)",
+    "Non fermenting Gram negative bacilli",
+    "No growth in culture."
+  ),
+  Sample_type1_name = c(
+    "blood culure",
+    "blood culure",
+    "Blood",
+    "Blood",
+    "ETA",
+    "Urine culture / sensitivity"
+  ),
+  Antibiotic = c("Amikacin", "Ciproflox", "Vancomycin", "Oxacillin", "Colistin", "UnknownDrugZZ"),
+  Result = c("Resistant", "Susceptible", "S", "Intermediate", "1", ""),
+  Gender = c("M", "M", "female", "WOMAN", "man", "unknown"),
+  DOB = c("1988-05-01", "1988-05-01", "1975/03/12", "1990-03-20", "19881301", NA),
+  infection_type = c("Hospital-Acquired", "Hospital-Acquired", "Community acquired", "", "Healthcare Associated", ""),
+  stringsAsFactors = FALSE
+)
+
+raw_alias
+```
+
+# Schema Checks and Column Mapping
+
+## Inspect what preprocessing is possible
+
+```{r capabilities}
+prep_report_capabilities(raw_alias)
+```
+
+## Build a rename map explicitly
+
+Use the staged API when you want the mapping to be visible and reviewable.
+
+```{r column-map}
+column_map <- prep_build_column_map(
+  raw_alias,
+  column_map = c(
+    patient_id = "PID",
+    date_of_admission = "Date.of.admission",
+    date_of_culture = "CultureDate",
+    date_of_final_outcome = "Date.of.14.day.outcome",
+    final_outcome = "Final.outcome",
+    organism_name = "Organism",
+    specimen_type = "Sample_type1_name",
+    antibiotic_name = "Antibiotic",
+    antibiotic_value = "Result",
+    gender = "Gender",
+    DOB = "DOB"
+  )
+)
+
+column_map
+```
+
+```{r apply-column-map}
+prepped <- prep_apply_column_map(raw_alias, column_map)
+names(prepped)
+```
+
+## One-step convenience wrapper
+
+If you do not need the staged rename, `prep_standardize_column_names()` wraps
+the same logic in one call.
+
+```{r one-step-column-standardization}
+std_cols <- prep_standardize_column_names(raw_alias, fuzzy_match = TRUE)
+names(std_cols$data)
+```
+
+## Assert the minimum standard names
+
+```{r assert-standard}
+prep_assert_standard_names(
+  prepped,
+  required_standard_names = c(
+    "patient_id",
+    "date_of_culture",
+    "organism_name",
+    "antibiotic_name",
+    "antibiotic_value"
+  ),
+  strict = TRUE
+)
+```
+
+# Dates and Table Validation
+
+## Parse a single vector of mixed date encodings
+
+```{r parse-single-date-column}
+prep_parse_date_column(
+  c("43831", "1577836800000", "20201301", "2025/01/05", "bad-date"),
+  col_name = "date_of_culture",
+  table_label = "example_dates"
+)
+```
+
+## Validate and coerce the working table
+
+`prep_validate_table()` is a good checkpoint before running downstream logic.
+
+```{r validate-table}
+validated <- prep_validate_table(
+  prepped,
+  required_cols = c("patient_id", "organism_name", "antibiotic_name", "antibiotic_value"),
+  key_col = "patient_id",
+  date_cols = c("date_of_admission", "date_of_culture", "date_of_final_outcome", "DOB"),
+  table_label = "raw_alias",
+  stop_on_missing = FALSE
+)
+
+prepped <- validated$data
+prepped[, c("patient_id", "date_of_admission", "date_of_culture", "date_of_final_outcome", "DOB")]
+```
+
+## Validate chronology
+
+```{r date-logic}
+prep_validate_date_logic(
+  prepped,
+  admission_col = "date_of_admission",
+  culture_col = "date_of_culture",
+  outcome_col = "date_of_final_outcome",
+  dob_col = "DOB"
+)
+```
+
+# Standardize Core Clinical Fields
+
+## Organisms
+
+```{r organisms}
+prepped <- prep_standardize_organisms(prepped, organism_col = "organism_name")
+prepped <- prep_assign_organism_group(prepped, organism_col = "organism_normalized")
+prepped <- prep_extract_genus(prepped, organism_col = "organism_normalized")
+prepped <- prep_extract_species(prepped, organism_col = "organism_normalized")
+prepped <- prep_flag_organism_unmatched(prepped, organism_col = "organism_normalized")
+
+prepped[, c(
+  "organism_name",
+  "organism_normalized",
+  "organism_group",
+  "org_genus",
+  "org_species",
+  "is_organism_unmatched"
+)]
+```
+
+## Specimen, sex, outcome, and infection type
+
+```{r types}
+prepped <- prep_standardize_specimens(prepped, specimen_col = "specimen_type")
+prepped <- prep_standardize_sex(prepped, col = "gender")
+prepped <- prep_standardize_final_outcome(prepped, col = "final_outcome")
+prepped <- prep_standardize_infection_type(prepped, col = "infection_type")
+
+prepped[, c(
+  "specimen_type",
+  "specimen_normalized",
+  "sample_category",
+  "sterile_classification",
+  "gender",
+  "outcome_std",
+  "infection_type"
+)]
+```
+
+## Antibiotics and AST values
+
+```{r antibiotics-and-ast}
+prepped <- prep_standardize_antibiotics(prepped, antibiotic_col = "antibiotic_name")
+prepped <- prep_clean_ast_values(prepped, value_col = "antibiotic_value")
+prepped <- prep_harmonize_ast(
+  prepped,
+  antibiotic_col = "antibiotic_normalized",
+  ast_col = "antibiotic_value"
+)
+prepped <- prep_check_organism_ast_consistency(
+  prepped,
+  organism_col = "organism_normalized",
+  antibiotic_col = "antibiotic_normalized"
+)
+prepped <- prep_flag_invalid_ast(prepped, col = "ast_value_harmonized")
+
+prepped[, c(
+  "antibiotic_name",
+  "antibiotic_normalized",
+  "antibiotic_class",
+  "aware_category",
+  "antibiotic_value",
+  "ast_value_harmonized",
+  "is_ast_inconsistent",
+  "is_ast_invalid"
+)]
+```
+
+# Demographic and Clinical Derivations
+
+## Fill age and assign age bins
+
+```{r age}
+prepped <- prep_fill_age(
+  prepped,
+  age_col = "Age",
+  dob_col = "DOB",
+  date_col = "date_of_culture",
+  overwrite = FALSE
+)
+
+prepped <- prep_assign_age_bins(prepped, age_col = "Age", bins = "GBD_standard")
+
+prepped[, c("patient_id", "DOB", "date_of_culture", "Age", "age_method", "age_confidence", "Age_bin")]
+```
+
+## Derive length of stay
+
+```{r los}
+prepped <- prep_derive_los_from_dates(
+  prepped,
+  admission_col = "date_of_admission",
+  outcome_col = "date_of_final_outcome",
+  los_col = "los_days"
+)
+
+prepped[, c("patient_id", "date_of_admission", "date_of_final_outcome", "los_days")]
+```
+
+## Derive HAI/CAI and source flags
+
+```{r hai-cai}
+prepped <- prep_derive_hai_cai(
+  prepped,
+  infection_type_col = "infection_type",
+  admission_col = "date_of_admission",
+  culture_col = "date_of_culture",
+  hai_cutoff = 2,
+  overwrite = FALSE
+)
+
+prepped <- prep_flag_hai_inferred(prepped)
+
+prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_type", "infection_type_method", "infection_type_src")]
+```
+
+# Event Creation and AST Reshaping
+
+## Create event IDs from long-format isolates
+
+```{r events}
+prepped <- prep_create_event_ids(
+  prepped,
+  patient_col = "patient_id",
+  date_col = "date_of_culture",
+  organism_col = "organism_normalized",
+  specimen_col = "specimen_normalized",
+  antibiotic_col = "antibiotic_normalized",
+  value_col = "ast_value_harmonized",
+  gap_days = 14
+)
+
+prepped[, c("patient_id", "organism_normalized", "date_of_culture", "event_id")]
+```
+
+## Deduplicate event-level rows
+
+```{r deduplicate-events}
+event_dedup <- prep_deduplicate_events(
+  prepped,
+  event_col = "event_id",
+  organism_col = "organism_normalized",
+  antibiotic_col = "antibiotic_normalized"
+)
+
+nrow(prepped)
+nrow(event_dedup)
+```
+
+## Pivot wide AST input to long format
+
+```{r wide-to-long}
+wide_ast <- data.frame(
+  patient_id = c("pt_010", "pt_011"),
+  organism_name = c("Escherichia coli", "Klebsiella pneumoniae"),
+  AMK = c("S", "R"),
+  CIP = c("R", "S"),
+  CTX = c("I", NA),
+  stringsAsFactors = FALSE
+)
+
+ast_long <- prep_pivot_ast_wide_to_long(
+  wide_ast,
+  id_cols = c("patient_id", "organism_name"),
+  antibiotic_cols = c("AMK", "CIP", "CTX"),
+  remove_missing = TRUE
+)
+
+ast_long
+```
+
+## Deduplicate AST records
+
+`prep_deduplicate_ast()` runs in two sequential steps:
+
+1. **Exact-duplicate removal** — drops rows that are fully identical across
+   patient, organism, antibiotic, date, *and* value. These are true redundant
+   records (e.g. the same result entered twice) with no ambiguity.
+2. **Conflict resolution** — after exact duplicates are gone, detects groups
+   where the same patient + organism + antibiotic + date has *different* values
+   (e.g. one lab returns S, another returns R), then flags or resolves them via
+   a strategy.
+
+**Step 1 — exact duplicates removed automatically:**
+
+```{r exact-dedup}
+ast_exact_dups <- data.frame(
+  patient_id            = c("pt_030", "pt_030", "pt_031"),
+  culture_date          = as.Date(c("2025-02-01", "2025-02-01", "2025-02-01")),
+  organism_normalized   = c("escherichia coli", "escherichia coli", "klebsiella pneumoniae"),
+  antibiotic_normalized = c("amikacin", "amikacin", "ciprofloxacin"),
+  ast_value_harmonized  = c("R", "R", "S"),
+  stringsAsFactors      = FALSE
+)
+
+# 3 rows in — rows 1 and 2 are identical on all 5 key columns
+# step 1 removes the duplicate → 2 rows out, no conflicts flagged
+out_exact <- prep_deduplicate_ast(ast_exact_dups, mode = "detect")
+nrow(out_exact)
+out_exact[, c("patient_id", "antibiotic_normalized", "ast_value_harmonized", "is_ast_duplicate")]
+```
+
+**Step 2 — conflict detection after exact-dedup:**
+
+```{r deduplicate-ast}
+ast_dups <- data.frame(
+  patient_id            = c("pt_020", "pt_020", "pt_020"),
+  culture_date          = as.Date(c("2025-01-15", "2025-01-15", "2025-01-15")),
+  organism_normalized   = c("escherichia coli", "escherichia coli", "escherichia coli"),
+  antibiotic_normalized = c("amikacin", "amikacin", "cefotaxime"),
+  antibiotic_name       = c("Amikacin", "Amikacin", "Cefotaxime"),
+  antibiotic_class      = c("Aminoglycosides", "Aminoglycosides", "Third-generation-cephalosporins"),
+  antibiotic_value      = c("S", "R", "I"),
+  ast_value_harmonized  = c("S", "R", "I"),
+  stringsAsFactors      = FALSE
+)
+
+# detect mode: inspect which rows are flagged as conflicting
+prep_deduplicate_ast(ast_dups, mode = "detect")[, c(
+  "patient_id",
+  "antibiotic_normalized",
+  "ast_value_harmonized",
+  "is_ast_duplicate"
+)]
+
+# remove mode: resolve conflicts in one call — resistant_wins keeps "R"
+prep_deduplicate_ast(ast_dups, mode = "remove", strategy = "resistant_wins")[, c(
+  "patient_id",
+  "antibiotic_normalized",
+  "ast_value_harmonized"
+)]
+```
+
+# Contaminants and Polymicrobial Episodes
+
+## Flag likely contaminants
+
+```{r contaminants}
+prepped <- prep_flag_contaminants(prepped, method = "auto")
+
+prepped[, c("organism_normalized", "specimen_normalized", "is_contaminant", "contaminant_confidence", "contaminant_method")]
+```
+
+## Exclude fungal isolates when needed
+
+```{r fungal-filter}
+prep_filter_fungal(prepped, group_col = "organism_group")[, c("patient_id", "organism_normalized", "organism_group")]
+```
+
+## Flag and weight polymicrobial episodes
+
+`prep_flag_polymicrobial()` is easiest to interpret at the event level, where
+each row is already attached to an episode identifier.
+
+```{r polymicrobial}
+poly_input <- data.frame(
+  patient_id = c("pt_poly_1", "pt_poly_1", "pt_poly_2"),
+  event_id = c("ev_poly_1", "ev_poly_1", "ev_poly_2"),
+  organism_normalized = c("escherichia coli", "klebsiella pneumoniae", "escherichia coli"),
+  stringsAsFactors = FALSE
+)
+
+poly_flagged <- prep_flag_polymicrobial(
+  poly_input,
+  patient_col = "event_id",
+  organism_col = "organism_normalized"
+)
+
+poly_weighted <- prep_compute_poly_weights(
+  poly_flagged,
+  episode_col = "event_id",
+  organism_col = "organism_normalized",
+  polymicrobial_col = "is_polymicrobial",
+  method = "equal"
+)
+
+poly_split <- prep_split_poly_episode(poly_weighted, strategy = "fractional")
+
+poly_split
+```
+
+# Attrition and Analysis Readiness
+
+## Track attrition across preprocessing stages
+
+```{r attrition}
+flow <- NULL
+flow <- prep_attrition_flow(flow, raw_alias, "raw_input", "Unmapped raw extract", patient_col = "PID")
+flow <- prep_attrition_flow(flow, prepped, "preprocessed", "After schema, cleaning, and derivation", patient_col = "patient_id", event_col = "event_id")
+
+ready <- prep_filter_analysis_ready(
+  prepped,
+  patient_col = "patient_id",
+  culture_date_col = "date_of_culture",
+  organism_col = "organism_name",
+  antibiotic_col = "antibiotic_name",
+  ast_col = "ast_value_harmonized",
+  contaminant_col = "is_contaminant"
+)
+
+flow <- prep_attrition_flow(flow, ready, "analysis_ready", "Rows retained for downstream analysis", patient_col = "patient_id", event_col = "event_id")
+flow
+```
+
+## Final readiness checks
+
+```{r final-readiness}
+prep_missingness_report(
+  ready,
+  threshold = 20,
+  cols = c("patient_id", "organism_name", "antibiotic_name", "ast_value_harmonized", "Age")
+)
+
+prep_validate_analysis_ready(ready, min_rows = 1, stop_on_failure = FALSE)
+```
+
+# Summary
+
+The preprocessing layer is designed to be used in two ways:
+
+- **modular**, with explicit staged calls like the ones above
+- **pipeline-first**, by wrapping the same steps inside `run_preprocess()`
+
+For development, the modular route is the more useful one because it makes
+every transformation inspectable and keeps failures local to one stage.
+
+Once this workflow is stable for your dataset, the next step is usually to:
+
+1. freeze the column map for that source
+2. run the staged workflow on a larger extract
+3. compare attrition before and after each filter
+4. wrap the validated sequence inside `run_preprocess()`

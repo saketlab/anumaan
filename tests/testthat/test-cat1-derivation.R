@@ -33,6 +33,7 @@ test_that("prep_assign_age_bins: valid behavior", {
   dat <- cat1_age_years_edge()[c(4, 9, 12), c("age"), drop = FALSE]
   out <- prep_assign_age_bins(dat, age_col = "age")
   expect_true("Age_bin" %in% names(out))
+  expect_true("Age_years" %in% names(out))
   expect_equal(as.character(out$Age_bin), c("<1", "10-15", "85+"))
 })
 
@@ -64,8 +65,12 @@ test_that("prep_assign_age_bins: edge cases - compound columns", {
 })
 
 test_that("prep_assign_age_bins: missingness", {
-  # NA in primary age stays NA; NA in component columns treated as 0.
+  # Missing primary age can be resolved from components; all-missing stays NA.
   dat <- cat1_age_from_components()[c(13, 24), c("age_years", "age_months", "age_days"), drop = FALSE]
+  dat <- rbind(
+    dat,
+    data.frame(age_years = NA_real_, age_months = NA_real_, age_days = NA_real_)
+  )
   out <- prep_assign_age_bins(
     dat,
     age_col = "age_years",
@@ -74,7 +79,31 @@ test_that("prep_assign_age_bins: missingness", {
     bins = "neonatal"
   )
   expect_false(is.na(out$Age_bin[1]))
-  expect_true(is.na(out$Age_bin[2]))
+  expect_false(is.na(out$Age_bin[2]))
+  expect_true(is.na(out$Age_bin[3]))
+})
+
+test_that("prep_assign_age_bins: resolves Age_years from month/day components when primary age is missing", {
+  dat <- data.frame(
+    age_years = c(NA, NA, NA, 2),
+    age_months = c(45, 2, NA, 6),
+    age_days = c(NA, NA, 10, NA),
+    stringsAsFactors = FALSE
+  )
+
+  out <- prep_assign_age_bins(
+    dat,
+    age_col = "age_years",
+    age_months_col = "age_months",
+    age_days_col = "age_days",
+    bins = "GBD_standard"
+  )
+
+  expect_equal(out$Age_years[1], 45 / 12)
+  expect_equal(out$Age_years[2], 2 / 12)
+  expect_equal(out$Age_years[3], 10 / 365.25)
+  expect_equal(out$Age_years[4], 2.5)
+  expect_equal(as.character(out$Age_bin), c("1-5", "<1", "<1", "1-5"))
 })
 
 test_that("prep_assign_age_bins: age-years edge values from shared fixture", {

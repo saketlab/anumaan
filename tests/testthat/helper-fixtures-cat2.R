@@ -214,6 +214,17 @@ cat2_ast_duplicates_same_day <- function() {
   )
 }
 
+cat2_ast_exact_duplicates <- function() {
+  data.frame(
+    patient_id            = c("pt_030", "pt_030", "pt_031"),
+    culture_date          = as.Date(c("2025-02-01", "2025-02-01", "2025-02-01")),
+    organism_normalized   = c("escherichia coli", "escherichia coli", "klebsiella pneumoniae"),
+    antibiotic_normalized = c("amikacin", "amikacin", "ciprofloxacin"),
+    ast_value_harmonized  = c("R", "R", "S"),
+    stringsAsFactors      = FALSE
+  )
+}
+
 cat2_ast_wide_matrix <- function() {
   data.frame(
     patient_id = c("pt_001", "pt_002", "pt_003"),
