@@ -89,7 +89,10 @@ prep_assign_age_bins(
 
 ## Value
 
-Data frame with `Age_bin` factor column added.
+Data frame with resolved numeric age in `Age_years`, `Age_bin` factor
+column, and `Age_resolved` (decimal years rounded to one decimal place,
+derived from whatever year / month / day components were available —
+e.g. 45 months with no year value yields `Age_resolved = 3.8`) added.
 
 ## Details
 

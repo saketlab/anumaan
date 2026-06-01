@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Getting Started with anumaan • anumaan</title>
 <script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Getting Started with anumaan">
@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9009</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9012</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,10 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Pipelines</h6></li>
+    <li><a class="dropdown-item" href="../articles/preprocessing-workflow.html">Preprocessing Workflow</a></li>
+    <li><a class="dropdown-item" href="../articles/daly-pipeline.html">DALY Burden Estimation</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -99,10 +103,8 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Getting Started with anumaan</h1>
-                        <h4 data-toc-skip class="author">Nilanjana Dey,
-Nima Jijo, Namrata Kharat, Saket Choudhary</h4>
             
-            <h4 data-toc-skip class="date">2026-05-15</h4>
+            <h4 data-toc-skip class="date">2026-06-01</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -111,98 +113,152 @@ Nima Jijo, Namrata Kharat, Saket Choudhary</h4>
     
     
 <div class="section level2">
-<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
+<h2 id="what-is-anumaan">What is anumaan?<a class="anchor" aria-label="anchor" href="#what-is-anumaan"></a>
 </h2>
 <p><strong>anumaan</strong> is an R package for preprocessing
-antimicrobial resistance (AMR) surveillance data and performing
-GBD-style burden estimation. It takes messy hospital data and produces
-analysis-ready, standardized datasets - handling organism and antibiotic
-normalization, event deduplication, MDR/XDR classification,
-polymicrobial weighting, and DALY calculations.</p>
-<div class="section level3">
-<h3 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
-</h3>
+antimicrobial resistance (AMR) surveillance data and estimating disease
+burden using GBD methodology. It is structured around two sequential,
+independent pipelines that can be used together or separately.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="pipeline-1-preprocessing">Pipeline 1 — Preprocessing<a class="anchor" aria-label="anchor" href="#pipeline-1-preprocessing"></a>
+</h2>
+<p><strong>Vignette:</strong> <a href="preprocessing-workflow.html">Preprocessing Workflow</a></p>
+<p>The preprocessing pipeline standardises raw hospital or surveillance
+data into an analysis-ready format. It covers:</p>
 <ul>
-<li>
-<strong>Automated pipeline</strong>: <code><a href="../reference/run_preprocess.html">run_preprocess()</a></code>
-runs the full sequence in one call</li>
-<li>
-<strong>Input validation</strong>: column checks, key quality, date
-repair before every step</li>
-<li>
-<strong>Organism normalization</strong>: handles typos,
-abbreviations, case, MRSA/CoNS flags</li>
-<li>
-<strong>Antibiotic classification</strong>: WHO AWaRe categories and
-drug classes</li>
-<li>
-<strong>AST cleaning</strong>: standardizes free-text R/S/I values,
-flags invalid entries</li>
-<li>
-<strong>MDR/XDR classification</strong>: Magiorakos 2012
-(WHO/CDC-compliant)</li>
-<li>
-<strong>Event deduplication</strong>: unique infection episodes
-across repeat cultures</li>
-<li><strong>Polymicrobial detection and fractional
-weighting</strong></li>
-<li>
-<strong>HAI / CAI classification</strong>: derived from
-admission-to-culture date gap</li>
-<li>
-<strong>Diagnosis -&gt; ICD-10 -&gt; syndrome mapping</strong>:
-text, rule-based, or embedding</li>
-<li>
-<strong>Contaminant flagging</strong>: syndrome-aware contaminant
-lists</li>
-<li>
-<strong>Attrition tracking</strong>: patient and event counts at
-every filter step</li>
-<li>
-<strong>DALY burden estimation</strong>: YLL, YLD, attributable and
-associated burden</li>
-<li>
-<strong>Visualization</strong>: ggplot2-based resistance, burden,
-and spatial plots</li>
+<li>Column name standardisation and schema alignment</li>
+<li>Date parsing and chronological validation</li>
+<li>Organism, specimen, antibiotic, and AST value cleaning</li>
+<li>Demographic derivations (age, HAI/CAI, LOS)</li>
+<li>Event creation, deduplication, and readmission classification</li>
+<li>Contaminant detection and polymicrobial weighting</li>
+<li>Attrition tracking and analysis-readiness filtering</li>
 </ul>
-</div>
-<div class="section level3">
-<h3 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
-</h3>
+<p>All functions start with <code>prep_</code>. The pipeline entry point
+is <code><a href="../reference/run_preprocess.html">run_preprocess()</a></code> for automated runs or the modular
+<code>prep_*</code> functions for staged, inspectable workflows.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># From GitHub</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># From source during development</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="load-the-package">Load the Package<a class="anchor" aria-label="anchor" href="#load-the-package"></a>
-</h3>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://saketlab.github.io/anumaan/">anumaan</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'dplyr'</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     filter, lag</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     intersect, setdiff, setequal, union</span></span></code></pre></div>
+<span></span>
+<span><span class="co"># Full automated pipeline</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_preprocess.html">run_preprocess</a></span><span class="op">(</span></span>
+<span>  data   <span class="op">=</span> <span class="va">your_ast_data</span>,</span>
+<span>  config <span class="op">=</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span>hai_cutoff <span class="op">=</span> <span class="fl">3</span>, event_gap_days <span class="op">=</span> <span class="fl">14</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Or modular</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_organisms.html">prep_standardize_organisms</a></span><span class="op">(</span><span class="va">data</span>, organism_col <span class="op">=</span> <span class="st">"organism_name"</span><span class="op">)</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_harmonize_ast.html">prep_harmonize_ast</a></span><span class="op">(</span><span class="va">data</span>, ast_col <span class="op">=</span> <span class="st">"antibiotic_value"</span><span class="op">)</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_event_ids.html">prep_create_event_ids</a></span><span class="op">(</span><span class="va">data</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
+<span>                               date_col <span class="op">=</span> <span class="st">"date_of_culture"</span><span class="op">)</span></span></code></pre></div>
+<p>See the full step-by-step walkthrough in the <a href="preprocessing-workflow.html">Preprocessing Workflow
+vignette</a>.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="pipeline-2-daly-burden-estimation">Pipeline 2 — DALY Burden Estimation<a class="anchor" aria-label="anchor" href="#pipeline-2-daly-burden-estimation"></a>
+</h2>
+<p><strong>Vignette:</strong> <a href="daly-pipeline.html">DALY Burden
+Estimation</a></p>
+<p>The DALY pipeline takes analysis-ready preprocessed data and produces
+resistance-profile probability distributions and GBD-style burden
+estimates. It covers:</p>
+<ul>
+<li>Resistance profile estimation via convex optimisation (Pathway 1) —
+works from either facility line-list data or pre-computed aggregate
+marginals (GBD ST-GPR, GLASS, national surveillance networks)</li>
+<li>Marginal and pairwise co-resistance computation with Pearson
+back-calculation</li>
+<li>Profile probability estimation solving a simplex-constrained QP</li>
+<li>Bootstrap uncertainty intervals for profile probabilities</li>
+<li>Years of Life Lost (YLL) — associated and attributable</li>
+<li>Years Lived with Disability (YLD) — associated and attributable</li>
+<li>Total DALY burden per pathogen, hospital, and organism group</li>
+</ul>
+<p>All estimation functions start with <code>daly_</code>.
+Profile-specific functions are <code>compute_*</code>,
+<code>estimate_*</code>, <code>enumerate_*</code>, <code>build_*</code>,
+<code>validate_*</code>, <code>check_*</code>, and
+<code>bootstrap_*</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># From aggregate marginals (GBD / GLASS / national surveillance)</span></span>
+<span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex</a></span><span class="op">(</span></span>
+<span>  marginals <span class="op">=</span> <span class="va">your_marginals_table</span>,</span>
+<span>  panel_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"Klebsiella pneumoniae"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Assign LOS relative risk and compute fatal resistance prevalence</span></span>
+<span><span class="va">profiles_rr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles</a></span><span class="op">(</span><span class="va">profiles</span>, <span class="va">rr_table</span><span class="op">)</span></span>
+<span><span class="va">R_k</span>         <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_resistance_prevalence_fatal.html">daly_calc_resistance_prevalence_fatal</a></span><span class="op">(</span><span class="va">profiles_rr</span><span class="op">)</span></span></code></pre></div>
+<p>See the full walkthrough in the <a href="daly-pipeline.html">DALY
+Burden Estimation vignette</a>.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># From GitHub</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="optional-dependencies">Optional dependencies<a class="anchor" aria-label="anchor" href="#optional-dependencies"></a>
+</h3>
+<table class="table">
+<thead><tr class="header">
+<th>Feature</th>
+<th>Packages</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Convex QP solver (recommended)</td>
+<td>
+<code>osqp</code>, <code>Matrix</code>
+</td>
+</tr>
+<tr class="even">
+<td>Convex QP solver (fallback)</td>
+<td><code>quadprog</code></td>
+</tr>
+<tr class="odd">
+<td>Mixed-effects LOS modelling</td>
+<td>
+<code>lme4</code>, <code>glmmTMB</code>
+</td>
+</tr>
+<tr class="even">
+<td>Spatial analysis</td>
+<td>
+<code>sf</code>, <code>spdep</code>, <code>leaflet</code>
+</td>
+</tr>
+<tr class="odd">
+<td>Python ICD-10 embedding</td>
+<td>
+<code>reticulate</code> + <code>alethia</code>
+</td>
+</tr>
+</tbody>
+</table>
 <hr>
 </div>
 </div>
 <div class="section level2">
 <h2 id="data-format">Data Format<a class="anchor" aria-label="anchor" href="#data-format"></a>
 </h2>
-<p>anumaan expects <strong>long format</strong>: one row per
-patient-organism-antibiotic combination. The minimum required columns
-are:</p>
+<p>Both pipelines expect <strong>long format</strong> input — one row
+per isolate × antibiotic combination:</p>
 <table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
 <thead><tr class="header">
 <th>Column</th>
-<th>Description</th>
+<th>Role</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
@@ -210,1489 +266,51 @@ are:</p>
 <td>Unique patient identifier</td>
 </tr>
 <tr class="even">
-<td><code>organism_name</code></td>
-<td>Organism name (raw, any format)</td>
+<td><code>isolate_id</code></td>
+<td>Unique isolate identifier (counting unit for resistance stats)</td>
 </tr>
 <tr class="odd">
+<td><code>organism_name</code></td>
+<td>Organism name (raw)</td>
+</tr>
+<tr class="even">
 <td><code>antibiotic_name</code></td>
 <td>Antibiotic name (raw)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>antibiotic_value</code></td>
 <td>Susceptibility result: R, I, or S</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>date_of_culture</code></td>
-<td>Date the culture was collected</td>
+<td>Culture collection date</td>
+</tr>
+<tr class="odd">
+<td><code>specimen_type</code></td>
+<td>Specimen source</td>
 </tr>
 </tbody>
 </table>
 <p>Optional but used when present: <code>date_of_admission</code>,
 <code>date_of_final_outcome</code>, <code>DOB</code>, <code>Age</code>,
-<code>specimen_type</code>, <code>gender</code>,
-<code>final_outcome</code>, <code>infection_type</code>.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sample_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  patient_id            <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"P001"</span>,<span class="st">"P001"</span>,<span class="st">"P002"</span>,<span class="st">"P003"</span>,<span class="st">"P003"</span>,</span>
-<span>                             <span class="st">"P004"</span>,<span class="st">"P004"</span>,<span class="st">"P005"</span>,<span class="st">"P006"</span>,<span class="st">"P006"</span><span class="op">)</span>,</span>
-<span>  date_of_admission     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-10"</span>,<span class="st">"2024-01-10"</span>,<span class="st">"2024-01-18"</span>,</span>
-<span>                                    <span class="st">"2024-02-01"</span>,<span class="st">"2024-02-01"</span>,<span class="st">"2024-02-10"</span>,</span>
-<span>                                    <span class="st">"2024-02-10"</span>,<span class="st">"2024-03-05"</span>,<span class="st">"2024-03-15"</span>,</span>
-<span>                                    <span class="st">"2024-03-15"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  date_of_culture       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-15"</span>,<span class="st">"2024-01-15"</span>,<span class="st">"2024-01-20"</span>,</span>
-<span>                                    <span class="st">"2024-02-03"</span>,<span class="st">"2024-02-03"</span>,<span class="st">"2024-02-14"</span>,</span>
-<span>                                    <span class="st">"2024-02-14"</span>,<span class="st">"2024-03-07"</span>,<span class="st">"2024-03-17"</span>,</span>
-<span>                                    <span class="st">"2024-03-17"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  date_of_final_outcome <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-25"</span>,<span class="st">"2024-01-25"</span>,<span class="st">"2024-01-28"</span>,</span>
-<span>                                    <span class="st">"2024-02-15"</span>,<span class="st">"2024-02-15"</span>,<span class="st">"2024-02-22"</span>,</span>
-<span>                                    <span class="st">"2024-02-22"</span>,<span class="st">"2024-03-18"</span>,<span class="st">"2024-03-28"</span>,</span>
-<span>                                    <span class="st">"2024-03-28"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  final_outcome         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Survived"</span>,<span class="st">"Survived"</span>,<span class="st">"Died"</span>,<span class="st">"Survived"</span>,<span class="st">"Survived"</span>,</span>
-<span>                             <span class="st">"Died"</span>,<span class="st">"Died"</span>,<span class="st">"Survived"</span>,<span class="st">"Survived"</span>,<span class="st">"Survived"</span><span class="op">)</span>,</span>
-<span>  specimen_type         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Blood"</span>,<span class="st">"Blood"</span>,<span class="st">"Urine"</span>,<span class="st">"Blood"</span>,<span class="st">"Blood"</span>,</span>
-<span>                             <span class="st">"Urine"</span>,<span class="st">"Urine"</span>,<span class="st">"Blood"</span>,<span class="st">"Blood"</span>,<span class="st">"Blood"</span><span class="op">)</span>,</span>
-<span>  organism_name         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E. coli"</span>,<span class="st">"E. coli"</span>,<span class="st">"K. pneumoniae"</span>,<span class="st">"S. aureus"</span>,</span>
-<span>                             <span class="st">"S. aureus"</span>,<span class="st">"E. coli"</span>,<span class="st">"K. pneumoniae"</span>,</span>
-<span>                             <span class="st">"A. baumannii"</span>,<span class="st">"K. pneumoniae"</span>,<span class="st">"K. pneumoniae"</span><span class="op">)</span>,</span>
-<span>  antibiotic_name       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Ampicillin"</span>,<span class="st">"Meropenem"</span>,<span class="st">"Ciprofloxacin"</span>,<span class="st">"Oxacillin"</span>,</span>
-<span>                             <span class="st">"Vancomycin"</span>,<span class="st">"Ampicillin"</span>,<span class="st">"Ciprofloxacin"</span>,<span class="st">"Meropenem"</span>,</span>
-<span>                             <span class="st">"Ceftriaxone"</span>,<span class="st">"Meropenem"</span><span class="op">)</span>,</span>
-<span>  antibiotic_value      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R"</span>,<span class="st">"S"</span>,<span class="st">"R"</span>,<span class="st">"R"</span>,<span class="st">"S"</span>,<span class="st">"R"</span>,<span class="st">"R"</span>,<span class="st">"R"</span>,<span class="st">"R"</span>,<span class="st">"S"</span><span class="op">)</span>,</span>
-<span>  DOB                   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1960-05-01"</span>,<span class="st">"1960-05-01"</span>,<span class="st">"1975-08-15"</span>,</span>
-<span>                                    <span class="st">"1990-03-20"</span>,<span class="st">"1990-03-20"</span>,<span class="st">"2000-11-05"</span>,</span>
-<span>                                    <span class="st">"2000-11-05"</span>,<span class="st">"1955-02-28"</span>,<span class="st">"1968-07-12"</span>,</span>
-<span>                                    <span class="st">"1968-07-12"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  gender                <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Male"</span>,<span class="st">"Male"</span>,<span class="st">"Female"</span>,<span class="st">"Male"</span>,<span class="st">"Male"</span>,</span>
-<span>                             <span class="st">"Female"</span>,<span class="st">"Female"</span>,<span class="st">"Male"</span>,<span class="st">"Female"</span>,<span class="st">"Female"</span><span class="op">)</span>,</span>
-<span>  center_name           <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Centre A"</span>,<span class="st">"Centre A"</span>,<span class="st">"Centre A"</span>,</span>
-<span>                             <span class="st">"Centre B"</span>,<span class="st">"Centre B"</span>,<span class="st">"Centre B"</span>,<span class="st">"Centre B"</span>,</span>
-<span>                             <span class="st">"Centre C"</span>,<span class="st">"Centre C"</span>,<span class="st">"Centre C"</span><span class="op">)</span>,</span>
-<span>  age_years             <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">63</span>,<span class="fl">63</span>,<span class="fl">48</span>,<span class="fl">33</span>,<span class="fl">33</span>,<span class="fl">23</span>,<span class="fl">23</span>,<span class="fl">69</span>,<span class="fl">55</span>,<span class="fl">55</span><span class="op">)</span>,</span>
-<span>  Age_bin               <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span></span>
-<span>                            <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"45-64"</span>,<span class="st">"45-64"</span>,<span class="st">"45-64"</span>,<span class="st">"18-44"</span>,<span class="st">"18-44"</span>,</span>
-<span>                              <span class="st">"18-44"</span>,<span class="st">"18-44"</span>,<span class="st">"65+"</span>,<span class="st">"45-64"</span>,<span class="st">"45-64"</span><span class="op">)</span>,</span>
-<span>                            levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"&lt;5"</span>,<span class="st">"18-44"</span>,<span class="st">"45-64"</span>,<span class="st">"65+"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  is_polymicrobial      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">FALSE</span>,<span class="cn">FALSE</span>,<span class="cn">FALSE</span>,<span class="cn">FALSE</span>,<span class="cn">FALSE</span>,<span class="cn">TRUE</span>,<span class="cn">TRUE</span>,<span class="cn">FALSE</span>,<span class="cn">FALSE</span>,<span class="cn">FALSE</span><span class="op">)</span>,</span>
-<span>  location              <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ICU"</span>,<span class="st">"ICU"</span>,<span class="st">"Ward"</span>,<span class="st">"ICU"</span>,<span class="st">"ICU"</span>,</span>
-<span>                             <span class="st">"Ward"</span>,<span class="st">"Ward"</span>,<span class="st">"ICU"</span>,<span class="st">"Ward"</span>,<span class="st">"Ward"</span><span class="op">)</span>,</span>
-<span>  infectious_syndrome   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BSI"</span>,<span class="st">"BSI"</span>,<span class="st">"UTI"</span>,<span class="st">"BSI"</span>,<span class="st">"BSI"</span>,</span>
-<span>                             <span class="st">"UTI"</span>,<span class="st">"UTI"</span>,<span class="st">"BSI"</span>,<span class="st">"BSI"</span>,<span class="st">"BSI"</span><span class="op">)</span>,</span>
-<span>  stringsAsFactors      <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<code>gender</code>, <code>final_outcome</code>,
+<code>infection_type</code>, <code>state</code>.</p>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="the-complete-pipeline">The Complete Pipeline<a class="anchor" aria-label="anchor" href="#the-complete-pipeline"></a>
+<h2 id="package-reference">Package Reference<a class="anchor" aria-label="anchor" href="#package-reference"></a>
 </h2>
-<p><code><a href="../reference/run_preprocess.html">run_preprocess()</a></code> is the single entry point that runs all
-phases in sequence.</p>
+<p>Full function documentation is at the <a href="../reference/index.html">Reference page</a>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_preprocess.html">run_preprocess</a></span><span class="op">(</span></span>
-<span>  data            <span class="op">=</span> <span class="va">sample_data</span>,</span>
-<span>  config          <span class="op">=</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  phases          <span class="op">=</span> <span class="st">"all"</span>,       <span class="co"># "standardize", "enrich", "derive", or "all"</span></span>
-<span>  verbose         <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  validate        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  generate_report <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">clean_data</span>     <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">data</span>      <span class="co"># preprocessed data frame</span></span>
-<span><span class="va">config_used</span>    <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">config</span>    <span class="co"># amr_config() object used</span></span>
-<span><span class="va">processing_log</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">log</span>       <span class="co"># per-phase transformation logs</span></span>
-<span><span class="va">report</span>         <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">report</span>    <span class="co"># preprocessing report</span></span>
-<span><span class="va">metadata</span>       <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">metadata</span>  <span class="co"># timing, row counts, phases run</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="configuration">Configuration<a class="anchor" aria-label="anchor" href="#configuration"></a>
-</h3>
-<p>Pass <code><a href="../reference/amr_config.html">amr_config()</a></code> to override any default:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span></span>
-<span>  fuzzy_match               <span class="op">=</span> <span class="cn">TRUE</span>,          <span class="co"># auto-detect column names</span></span>
-<span>  hai_cutoff                <span class="op">=</span> <span class="fl">3</span>,             <span class="co"># days after admission -&gt; HAI</span></span>
-<span>  event_gap_days            <span class="op">=</span> <span class="fl">14</span>,            <span class="co"># deduplication window</span></span>
-<span>  mortality_window          <span class="op">=</span> <span class="fl">14</span>,            <span class="co"># days post-culture to attribute death</span></span>
-<span>  age_bins                  <span class="op">=</span> <span class="st">"GBD_standard"</span>,<span class="co"># "pediatric", "geriatric", or custom</span></span>
-<span>  mdr_definition            <span class="op">=</span> <span class="st">"CDC"</span>,         <span class="co"># "CDC", "WHO", or numeric threshold</span></span>
-<span>  xdr_definition            <span class="op">=</span> <span class="st">"CDC"</span>,</span>
-<span>  intermediate_as_resistant <span class="op">=</span> <span class="cn">TRUE</span>,          <span class="co"># treat I as R (except Colistin)</span></span>
-<span>  strict_validation         <span class="op">=</span> <span class="cn">FALSE</span>          <span class="co"># warn vs stop on issues</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">config</span><span class="op">)</span></span>
-<span><span class="co">#&gt; AMR Preprocessing Configuration</span></span>
-<span><span class="co">#&gt; ================================</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Phase 1 - Standardization:</span></span>
-<span><span class="co">#&gt;   Fuzzy column matching: TRUE</span></span>
-<span><span class="co">#&gt;   Strict validation: FALSE</span></span>
-<span><span class="co">#&gt;   Date columns: date_of_admission, date_of_culture, date_of_final_outcome, DOB</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Phase 2 - Enrichment:</span></span>
-<span><span class="co">#&gt;   HAI cutoff: 3 days</span></span>
-<span><span class="co">#&gt;   Infer department: TRUE</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Phase 3 - Derivation:</span></span>
-<span><span class="co">#&gt;   Event gap: 14 days</span></span>
-<span><span class="co">#&gt;   Mortality window: 14 days</span></span>
-<span><span class="co">#&gt;   Age bins: custom</span></span>
-<span><span class="co">#&gt;   Contaminant method: auto</span></span>
-<span><span class="co">#&gt;   MDR definition: CDC</span></span>
-<span><span class="co">#&gt;   XDR definition: CDC</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Reference Data:</span></span>
-<span><span class="co">#&gt;   RR table: GBD_2021</span></span>
-<span><span class="co">#&gt;   Organism map: default</span></span>
-<span><span class="co">#&gt;   Antibiotic map: WHO_2023</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Processing Rules:</span></span>
-<span><span class="co">#&gt;   Intermediate as Resistant: TRUE</span></span>
-<span><span class="co">#&gt;   Verbose: TRUE</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="run-on-a-subset-of-phases">Run on a Subset of Phases<a class="anchor" aria-label="anchor" href="#run-on-a-subset-of-phases"></a>
-</h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Only standardization</span></span>
-<span><span class="va">result_std</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_preprocess.html">run_preprocess</a></span><span class="op">(</span><span class="va">sample_data</span>, phases <span class="op">=</span> <span class="st">"standardize"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Standardization + Enrichment (no event/MDR derivation)</span></span>
-<span><span class="va">result_enr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_preprocess.html">run_preprocess</a></span><span class="op">(</span><span class="va">sample_data</span>, phases <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"standardize"</span>, <span class="st">"enrich"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="input-validation-and-schema-checks">Input Validation and Schema Checks<a class="anchor" aria-label="anchor" href="#input-validation-and-schema-checks"></a>
-</h2>
-<p>Run these before any join or preprocessing step to catch problems
-early.</p>
-<div class="section level3">
-<h3 id="column-and-key-checks">Column and Key Checks<a class="anchor" aria-label="anchor" href="#column-and-key-checks"></a>
-</h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Check required columns exist and report types</span></span>
-<span><span class="fu"><a href="../reference/prep_check_columns.html">prep_check_columns</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  required    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_name"</span>, <span class="st">"antibiotic_name"</span>, <span class="st">"antibiotic_value"</span><span class="op">)</span>,</span>
-<span>  table_label <span class="op">=</span> <span class="st">"sample_data"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; [sample_data] Column check: 17 cols | 4 required | 0 missing | 0 type warnings</span></span>
-<span></span>
-<span><span class="co"># Check key column quality: missing, duplicates, placeholder values</span></span>
-<span><span class="fu"><a href="../reference/prep_check_keys.html">prep_check_keys</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  key_col     <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>  table_label <span class="op">=</span> <span class="st">"sample_data"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; [sample_data] Key 'patient_id': 10 rows | 0 missing (0.0%) | 6 distinct | 4 duplicated | 0 rows missing both date_of_admission and date_of_culture</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="full-table-validation">Full Table Validation<a class="anchor" aria-label="anchor" href="#full-table-validation"></a>
-</h3>
-<p><code><a href="../reference/prep_validate_table.html">prep_validate_table()</a></code> combines column checks, key
-checks, and date coercion in one call - the function used internally
-before every merge step.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">val</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_validate_table.html">prep_validate_table</a></span><span class="op">(</span></span>
-<span>  data          <span class="op">=</span> <span class="va">sample_data</span>,</span>
-<span>  required_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_name"</span><span class="op">)</span>,</span>
-<span>  key_col       <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>  date_cols     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_of_admission"</span>, <span class="st">"date_of_culture"</span><span class="op">)</span>,</span>
-<span>  table_label   <span class="op">=</span> <span class="st">"sample_data"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; [sample_data] Column check: 17 cols | 2 required | 0 missing | 0 type warnings</span></span>
-<span><span class="co">#&gt; [sample_data] Key 'patient_id': 10 rows | 0 missing (0.0%) | 6 distinct | 4 duplicated | 0 rows missing both date_of_admission and date_of_culture</span></span>
-<span><span class="co"># val$data        - date-coerced data frame</span></span>
-<span><span class="co"># val$col_report  - per-column type/missing summary</span></span>
-<span><span class="co"># val$key_report  - key quality summary</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="missingness-report">Missingness Report<a class="anchor" aria-label="anchor" href="#missingness-report"></a>
-</h3>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_missingness_report.html">prep_missingness_report</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  threshold <span class="op">=</span> <span class="fl">20</span>,   <span class="co"># flag columns with &gt; 20% missing</span></span>
-<span>  cols      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_name"</span>, <span class="st">"antibiotic_value"</span>, <span class="st">"DOB"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt;           col_name n_total n_missing pct_missing is_high_missing</span></span>
-<span><span class="co">#&gt; 1       patient_id      10         0           0           FALSE</span></span>
-<span><span class="co">#&gt; 2    organism_name      10         0           0           FALSE</span></span>
-<span><span class="co">#&gt; 3 antibiotic_value      10         0           0           FALSE</span></span>
-<span><span class="co">#&gt; 4              DOB      10         0           0           FALSE</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="required-fields-and-data-quality">Required Fields and Data Quality<a class="anchor" aria-label="anchor" href="#required-fields-and-data-quality"></a>
-</h3>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">validation</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_required_fields.html">validate_required_fields</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  required_cols    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_name"</span>,</span>
-<span>                        <span class="st">"antibiotic_name"</span>, <span class="st">"antibiotic_value"</span><span class="op">)</span>,</span>
-<span>  min_completeness <span class="op">=</span> <span class="fl">0.8</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">validation</span><span class="op">$</span><span class="va">valid</span></span>
-<span><span class="va">validation</span><span class="op">$</span><span class="va">messages</span></span>
-<span></span>
-<span><span class="va">quality</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_data_quality.html">validate_data_quality</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  min_rows        <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  max_missing_pct <span class="op">=</span> <span class="fl">90</span>,</span>
-<span>  stop_on_failure <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="detect-schema-drift-across-datasets">Detect Schema Drift Across Datasets<a class="anchor" aria-label="anchor" href="#detect-schema-drift-across-datasets"></a>
-</h3>
-<p>Useful when combining data from multiple sources or time periods:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_detect_schema_drift.html">prep_detect_schema_drift</a></span><span class="op">(</span></span>
-<span>  data_list        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>centre_A <span class="op">=</span> <span class="va">data_A</span>, centre_B <span class="op">=</span> <span class="va">data_B</span><span class="op">)</span>,</span>
-<span>  reference_centre <span class="op">=</span> <span class="st">"centre_A"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="column-name-standardization">Column Name Standardization<a class="anchor" aria-label="anchor" href="#column-name-standardization"></a>
-</h2>
-<div class="section level3">
-<h3 id="automatic-mapping">Automatic Mapping<a class="anchor" aria-label="anchor" href="#automatic-mapping"></a>
-</h3>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Renames known aliases to the package-standard names</span></span>
-<span><span class="co"># e.g. "PatientID" -&gt; "patient_id", "Organism" -&gt; "organism_name"</span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_column_names.html">prep_standardize_column_names</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  fuzzy_match     <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  fuzzy_threshold <span class="op">=</span> <span class="fl">0.3</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'patient_id' -&gt; 'patient_id' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'gender' -&gt; 'gender' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'location' -&gt; 'location' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'date_of_admission' -&gt; 'date_of_admission' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'date_of_culture' -&gt; 'date_of_culture' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'date_of_final_outcome' -&gt; 'date_of_final_outcome' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'final_outcome' -&gt; 'final_outcome' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'organism_name' -&gt; 'organism_name' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'antibiotic_name' -&gt; 'antibiotic_name' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'antibiotic_value' -&gt; 'antibiotic_value' (dist 0.00)</span></span>
-<span><span class="co">#&gt; Auto fuzzy: 'specimen_type' -&gt; 'specimen_type' (dist 0.00)</span></span>
-<span><span class="co">#&gt; [prep_apply_column_map] Renamed 13 column(s).</span></span>
-<span><span class="co">#&gt; [prep_apply_column_map] 4 column(s) not in map (kept as-is): center_name, Age_bin, is_polymicrobial, infectious_syndrome</span></span>
-<span><span class="co"># mapped$data        - renamed data frame</span></span>
-<span><span class="co"># mapped$mapping_log - what was renamed and how (exact / fuzzy)</span></span>
-<span><span class="co"># mapped$unmapped    - columns that couldn't be matched</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="manual-column-map">Manual Column Map<a class="anchor" aria-label="anchor" href="#manual-column-map"></a>
-</h3>
-<p>For datasets with non-standard names that fuzzy matching misses:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">col_map</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_build_column_map.html">prep_build_column_map</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  column_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    patient_id    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"PtID"</span>, <span class="st">"patient_number"</span><span class="op">)</span>,</span>
-<span>    organism_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Pathogen"</span>, <span class="st">"bug"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">data_renamed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_apply_column_map.html">prep_apply_column_map</a></span><span class="op">(</span><span class="va">sample_data</span>, <span class="va">col_map</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="assert-standard-names">Assert Standard Names<a class="anchor" aria-label="anchor" href="#assert-standard-names"></a>
-</h3>
-<p>Stops with a clear error if a required standard column is absent -
-useful as a guard at the start of analysis scripts:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_assert_standard_names.html">prep_assert_standard_names</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  required_standard_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_name"</span>, <span class="st">"antibiotic_value"</span><span class="op">)</span>,</span>
-<span>  strict <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="detect-preprocessing-capabilities">Detect Preprocessing Capabilities<a class="anchor" aria-label="anchor" href="#detect-preprocessing-capabilities"></a>
-</h3>
-<p>Reports which preprocessing steps are possible given the columns
-present:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_report_capabilities.html">prep_report_capabilities</a></span><span class="op">(</span><span class="va">sample_data</span><span class="op">)</span></span>
-<span><span class="co">#&gt; === Preprocessing Capabilities ===</span></span>
-<span><span class="co">#&gt; Enabled (5):</span></span>
-<span><span class="co">#&gt;   [+] standardize_organism</span></span>
-<span><span class="co">#&gt;   [+] standardize_antibiotic</span></span>
-<span><span class="co">#&gt;   [+] harmonize_ast</span></span>
-<span><span class="co">#&gt;   [+] flag_polymicrobial</span></span>
-<span><span class="co">#&gt;   [+] build_outputs</span></span>
-<span><span class="co">#&gt; Skipped / missing inputs (8):</span></span>
-<span><span class="co">#&gt;   [-] parse_dates</span></span>
-<span><span class="co">#&gt;   [-] derive_hai</span></span>
-<span><span class="co">#&gt;   [-] derive_los</span></span>
-<span><span class="co">#&gt;   [-] derive_age</span></span>
-<span><span class="co">#&gt;   [-] standardize_specimen</span></span>
-<span><span class="co">#&gt;   [-] create_events</span></span>
-<span><span class="co">#&gt;   [-] flag_contaminants</span></span>
-<span><span class="co">#&gt;   [-] classify_mdr</span></span>
-<span><span class="co">#&gt; ===================================</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="date-handling">Date Handling<a class="anchor" aria-label="anchor" href="#date-handling"></a>
-</h2>
-<div class="section level3">
-<h3 id="parse-a-single-date-column">Parse a Single Date Column<a class="anchor" aria-label="anchor" href="#parse-a-single-date-column"></a>
-</h3>
-<p>Handles Excel serial numbers, Unix timestamps (ms), ISO strings,
-DMY/MDY formats, and reversed YYYYDDMM patterns automatically:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dates_raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-15"</span>, <span class="st">"45306"</span>, <span class="st">"15/01/2024"</span>, <span class="cn">NA</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/prep_parse_date_column.html">prep_parse_date_column</a></span><span class="op">(</span><span class="va">dates_raw</span>, col_name <span class="op">=</span> <span class="st">"date_of_culture"</span>, table_label <span class="op">=</span> <span class="st">"example"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [example] 'date_of_culture': 1 value(s) decoded as Excel serial date.</span></span>
-<span><span class="co">#&gt; [example] 'date_of_culture': 3 / 3 non-missing value(s) successfully parsed as Date (0 failed).</span></span>
-<span><span class="co">#&gt; [1] "2024-01-15" "2024-01-15" "2024-01-15" NA</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="coerce-all-date-columns-in-a-data-frame">Coerce All Date Columns in a Data Frame<a class="anchor" aria-label="anchor" href="#coerce-all-date-columns-in-a-data-frame"></a>
-</h3>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data_with_dates</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_coerce_dates.html">prep_coerce_dates</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  cols        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_of_admission"</span>, <span class="st">"date_of_culture"</span>, <span class="st">"date_of_final_outcome"</span><span class="op">)</span>,</span>
-<span>  table_label <span class="op">=</span> <span class="st">"sample_data"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="validate-date-logic">Validate Date Logic<a class="anchor" aria-label="anchor" href="#validate-date-logic"></a>
-</h3>
-<p>Checks that admission &lt;= culture &lt;= outcome, and that DOB is
-before culture:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_validate_date_logic.html">prep_validate_date_logic</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>  culture_col   <span class="op">=</span> <span class="st">"date_of_culture"</span>,</span>
-<span>  outcome_col   <span class="op">=</span> <span class="st">"date_of_final_outcome"</span>,</span>
-<span>  dob_col       <span class="op">=</span> <span class="st">"DOB"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="organism-standardization">Organism Standardization<a class="anchor" aria-label="anchor" href="#organism-standardization"></a>
-</h2>
-<div class="section level3">
-<h3 id="normalize-organism-names">Normalize Organism Names<a class="anchor" aria-label="anchor" href="#normalize-organism-names"></a>
-</h3>
-<p>Maps free-text organism names to a standard reference, handles typos,
-case, abbreviations (<code>E. coli</code> -&gt;
-<code>Escherichia coli</code>), MRSA/CoNS flags:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">org_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  organism_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E. coli"</span>, <span class="st">"ACINETOBACTER BAUMANNII"</span>,</span>
-<span>                     <span class="st">"Klebsiella pnuemoniae"</span>, <span class="st">"MRSA"</span>, <span class="st">"CoNS"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">normalized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_organisms.html">prep_standardize_organisms</a></span><span class="op">(</span><span class="va">org_data</span>, organism_col <span class="op">=</span> <span class="st">"organism_name"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Normalized 5/5 organisms (100.0%)</span></span>
-<span><span class="co">#&gt; Result: 5 unique organisms</span></span>
-<span><span class="co">#&gt; is_MRSA: 1</span></span>
-<span><span class="co">#&gt; is_MSSA: 0</span></span>
-<span><span class="co">#&gt; is_MRCONS: 0</span></span>
-<span><span class="co">#&gt; is_MSCONS: 0</span></span>
-<span><span class="va">normalized</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"organism_name"</span>, <span class="st">"organism_normalized"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;             organism_name              organism_normalized</span></span>
-<span><span class="co">#&gt; 1                 E. coli                 escherichia coli</span></span>
-<span><span class="co">#&gt; 2 ACINETOBACTER BAUMANNII          acinetobacter baumannii</span></span>
-<span><span class="co">#&gt; 3   Klebsiella pnuemoniae            klebsiella spp. other</span></span>
-<span><span class="co">#&gt; 4                    MRSA            staphylococcus aureus</span></span>
-<span><span class="co">#&gt; 5                    CoNS coagulase-negative staphylococci</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="assign-organism-group">Assign Organism Group<a class="anchor" aria-label="anchor" href="#assign-organism-group"></a>
-</h3>
-<p>Adds <code>organism_group</code> (e.g. “Enterobacterales”,
-“Gram-positive cocci”, “Fungal isolates”) - required for MDR/XDR
-classification:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_assign_organism_group.html">prep_assign_organism_group</a></span><span class="op">(</span><span class="va">normalized</span>, organism_col <span class="op">=</span> <span class="st">"organism_normalized"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">organism_group</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="extract-genus-and-species">Extract Genus and Species<a class="anchor" aria-label="anchor" href="#extract-genus-and-species"></a>
-</h3>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_extract_genus.html">prep_extract_genus</a></span><span class="op">(</span><span class="va">data</span>,   organism_col <span class="op">=</span> <span class="st">"organism_normalized"</span><span class="op">)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_extract_species.html">prep_extract_species</a></span><span class="op">(</span><span class="va">data</span>, organism_col <span class="op">=</span> <span class="st">"organism_normalized"</span><span class="op">)</span></span>
-<span><span class="co"># Adds: org_genus, org_species</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="flag-unmatched-organisms">Flag Unmatched Organisms<a class="anchor" aria-label="anchor" href="#flag-unmatched-organisms"></a>
-</h3>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_organism_unmatched.html">prep_flag_organism_unmatched</a></span><span class="op">(</span><span class="va">data</span>, organism_col <span class="op">=</span> <span class="st">"organism_normalized"</span><span class="op">)</span></span>
-<span><span class="co"># Adds: organism_match_status ("matched" / "unmatched")</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">organism_match_status</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="specimen-sex-and-outcome-standardization">Specimen, Sex, and Outcome Standardization<a class="anchor" aria-label="anchor" href="#specimen-sex-and-outcome-standardization"></a>
-</h2>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_specimens.html">prep_standardize_specimens</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  specimen_col <span class="op">=</span> <span class="st">"specimen_type"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Specimen normalization: 10/10 matched (100.0%)</span></span>
-<span><span class="co">#&gt; Sterile classification: 7 sterile, 3 non-sterile</span></span>
-<span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_sex.html">prep_standardize_sex</a></span><span class="op">(</span><span class="va">data</span>, col <span class="op">=</span> <span class="st">"gender"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Standardized gender: M=5, F=5, NA=0</span></span>
-<span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_final_outcome.html">prep_standardize_final_outcome</a></span><span class="op">(</span><span class="va">data</span>, col <span class="op">=</span> <span class="st">"final_outcome"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Standardized final outcome distribution:</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     Died Survived </span></span>
-<span><span class="co">#&gt;        3        7</span></span>
-<span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_infection_type.html">prep_standardize_infection_type</a></span><span class="op">(</span><span class="va">data</span>, col <span class="op">=</span> <span class="st">"infection_type"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning in prep_standardize_infection_type(data, col = "infection_type"):</span></span>
-<span><span class="co">#&gt; Column 'infection_type' not found. Skipping infection type standardization.</span></span></code></pre></div>
-<p>Typos and shorthand in specimen names are handled with rule-based
-cleaning and fuzzy matching against the specimen reference table:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">spec_typo</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  specimen_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"blood culure"</span>, <span class="st">"urne c/s"</span>, <span class="st">"csff"</span><span class="op">)</span>,</span>
-<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">spec_out</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_specimens.html">prep_standardize_specimens</a></span><span class="op">(</span><span class="va">spec_typo</span>, specimen_col <span class="op">=</span> <span class="st">"specimen_type"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Specimen normalization: 3/3 matched (100.0%)</span></span>
-<span><span class="co">#&gt; Sterile classification: 2 sterile, 1 non-sterile</span></span>
-<span><span class="va">spec_out</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"specimen_type"</span>, <span class="st">"specimen_normalized"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;   specimen_type specimen_normalized</span></span>
-<span><span class="co">#&gt; 1  blood culure               Blood</span></span>
-<span><span class="co">#&gt; 2      urne c/s               Urine</span></span>
-<span><span class="co">#&gt; 3          csff                 CSF</span></span></code></pre></div>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="antibiotic-standardization">Antibiotic Standardization<a class="anchor" aria-label="anchor" href="#antibiotic-standardization"></a>
-</h2>
-<div class="section level3">
-<h3 id="normalize-antibiotic-names">Normalize Antibiotic Names<a class="anchor" aria-label="anchor" href="#normalize-antibiotic-names"></a>
-</h3>
-<p>Maps to WHO standard names and adds drug class and AWaRe
-category:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">abx_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  antibiotic_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Ampicillin"</span>, <span class="st">"Meropenem"</span>, <span class="st">"Ciprofloxacin"</span>, <span class="st">"Vancomycin"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">normalized_abx</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_antibiotics.html">prep_standardize_antibiotics</a></span><span class="op">(</span></span>
-<span>  <span class="va">abx_data</span>,</span>
-<span>  antibiotic_col <span class="op">=</span> <span class="st">"antibiotic_name"</span>,</span>
-<span>  add_class      <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  add_aware      <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Normalizing 4 unique antibiotic names against WHO reference (257 antibiotics)...</span></span>
-<span><span class="co">#&gt; Normalized: 4 unique names -&gt; 4</span></span>
-<span><span class="co">#&gt; With antibiotic_class: 4 (100.0%)</span></span>
-<span><span class="co">#&gt; With AWaRe category: 4 (100.0%)</span></span>
-<span><span class="va">normalized_abx</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"antibiotic_name"</span>, <span class="st">"antibiotic_normalized"</span>,</span>
-<span>                    <span class="st">"antibiotic_class"</span>, <span class="st">"aware_category"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;   antibiotic_name antibiotic_normalized antibiotic_class aware_category</span></span>
-<span><span class="co">#&gt; 1      Ampicillin            ampicillin Aminopenicillins         Access</span></span>
-<span><span class="co">#&gt; 2       Meropenem             meropenem      Carbapenems          Watch</span></span>
-<span><span class="co">#&gt; 3   Ciprofloxacin         ciprofloxacin Fluoroquinolones          Watch</span></span>
-<span><span class="co">#&gt; 4      Vancomycin         vancomycin_iv       Vancomycin          Watch</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="classify-drug-class-and-aware-separately">Classify Drug Class and AWaRe Separately<a class="anchor" aria-label="anchor" href="#classify-drug-class-and-aware-separately"></a>
-</h3>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_classify_antibiotic_class.html">prep_classify_antibiotic_class</a></span><span class="op">(</span><span class="va">data</span>, antibiotic_col <span class="op">=</span> <span class="st">"antibiotic_normalized"</span><span class="op">)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_classify_aware.html">prep_classify_aware</a></span><span class="op">(</span><span class="va">data</span>, antibiotic_col <span class="op">=</span> <span class="st">"antibiotic_normalized"</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="ast-value-cleaning">AST Value Cleaning<a class="anchor" aria-label="anchor" href="#ast-value-cleaning"></a>
-</h2>
-<div class="section level3">
-<h3 id="clean-free-text-rsi-values">Clean Free-Text R/S/I Values<a class="anchor" aria-label="anchor" href="#clean-free-text-rsi-values"></a>
-</h3>
-<p>Standardizes “Resistant”, “res”, “r”, “1”, “SENS”, etc. to R / I /
-S:</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ast_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  antibiotic_value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R"</span>, <span class="st">"Resistant"</span>, <span class="st">"S"</span>, <span class="st">"Sensitive"</span>,</span>
-<span>                        <span class="st">"I"</span>, <span class="st">"Intermediate"</span>, <span class="st">"resistant"</span>, <span class="st">"1"</span>, <span class="st">"0"</span>, <span class="cn">NA</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">cleaned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_clean_ast_values.html">prep_clean_ast_values</a></span><span class="op">(</span><span class="va">ast_data</span>, value_col <span class="op">=</span> <span class="st">"antibiotic_value"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Cleaning antibiotic values: 9 unique values found</span></span>
-<span><span class="co">#&gt; Cleaned: 9 unique values -&gt; 3 (S/I/R)</span></span>
-<span><span class="co">#&gt; [!] 3 values could not be parsed (30.0%)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Value distribution:</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    I    R    S &lt;NA&gt; </span></span>
-<span><span class="co">#&gt;    2    3    2    3</span></span>
-<span><span class="va">cleaned</span></span>
-<span><span class="co">#&gt;    antibiotic_value</span></span>
-<span><span class="co">#&gt; 1                 R</span></span>
-<span><span class="co">#&gt; 2                 R</span></span>
-<span><span class="co">#&gt; 3                 S</span></span>
-<span><span class="co">#&gt; 4                 S</span></span>
-<span><span class="co">#&gt; 5                 I</span></span>
-<span><span class="co">#&gt; 6                 I</span></span>
-<span><span class="co">#&gt; 7                 R</span></span>
-<span><span class="co">#&gt; 8              &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 9              &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 10             &lt;NA&gt;</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="harmonize-ast-interpretations">Harmonize AST Interpretations<a class="anchor" aria-label="anchor" href="#harmonize-ast-interpretations"></a>
-</h3>
-<p>Applies breakpoint-based harmonization (handles MIC/disk zone
-inputs):</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_harmonize_ast.html">prep_harmonize_ast</a></span><span class="op">(</span><span class="va">data</span>, ast_col <span class="op">=</span> <span class="st">"antibiotic_value"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="recode-intermediate-as-resistant">Recode Intermediate as Resistant<a class="anchor" aria-label="anchor" href="#recode-intermediate-as-resistant"></a>
-</h3>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Per WHO/EUCAST "I = susceptible with increased exposure" - keep I, or:</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_recode_intermediate_ast.html">prep_recode_intermediate_ast</a></span><span class="op">(</span><span class="va">data</span>, col <span class="op">=</span> <span class="st">"antibiotic_value"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="flag-invalid-ast-entries">Flag Invalid AST Entries<a class="anchor" aria-label="anchor" href="#flag-invalid-ast-entries"></a>
-</h3>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_invalid_ast.html">prep_flag_invalid_ast</a></span><span class="op">(</span><span class="va">data</span>, col <span class="op">=</span> <span class="st">"ast_value_harmonized"</span><span class="op">)</span></span>
-<span><span class="co"># Adds: ast_invalid (TRUE/FALSE)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="wide-format-ast-import">Wide-Format AST Import<a class="anchor" aria-label="anchor" href="#wide-format-ast-import"></a>
-</h3>
-<p>If your data has one column per antibiotic, pivot to long first:</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">long_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_pivot_ast_wide_to_long.html">prep_pivot_ast_wide_to_long</a></span><span class="op">(</span></span>
-<span>  <span class="va">wide_data</span>,</span>
-<span>  id_cols         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"date_of_culture"</span>, <span class="st">"organism_name"</span><span class="op">)</span>,</span>
-<span>  antibiotic_cols <span class="op">=</span> <span class="cn">NULL</span>   <span class="co"># NULL = auto-detect</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="age-and-demographics">Age and Demographics<a class="anchor" aria-label="anchor" href="#age-and-demographics"></a>
-</h2>
-<div class="section level3">
-<h3 id="fill-missing-age-from-date-of-birth">Fill Missing Age from Date of Birth<a class="anchor" aria-label="anchor" href="#fill-missing-age-from-date-of-birth"></a>
-</h3>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">age_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  DOB             <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1960-05-01"</span>, <span class="st">"1975-08-15"</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  date_of_culture <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-15"</span>, <span class="st">"2024-01-20"</span>, <span class="st">"2024-02-03"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  Age             <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">NA</span>, <span class="fl">45</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">result_age</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_fill_age.html">prep_fill_age</a></span><span class="op">(</span></span>
-<span>  <span class="va">age_data</span>,</span>
-<span>  age_col   <span class="op">=</span> <span class="st">"Age"</span>,</span>
-<span>  dob_col   <span class="op">=</span> <span class="st">"DOB"</span>,</span>
-<span>  date_col  <span class="op">=</span> <span class="st">"date_of_culture"</span>,</span>
-<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Enriched Age: 2 rows filled using DOB calculation</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Age enrichment summary:</span></span>
-<span><span class="co">#&gt;            age_method age_confidence n</span></span>
-<span><span class="co">#&gt; 1 calculated_from_dob           high 2</span></span>
-<span><span class="co">#&gt; 2            provided           high 1</span></span>
-<span><span class="va">result_age</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age"</span>, <span class="st">"age_method"</span>, <span class="st">"age_confidence"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;        Age          age_method age_confidence</span></span>
-<span><span class="co">#&gt; 1 63.70705 calculated_from_dob           high</span></span>
-<span><span class="co">#&gt; 2 48.43258 calculated_from_dob           high</span></span>
-<span><span class="co">#&gt; 3 45.00000            provided           high</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="assign-age-bins">Assign Age Bins<a class="anchor" aria-label="anchor" href="#assign-age-bins"></a>
-</h3>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">binned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_assign_age_bins.html">prep_assign_age_bins</a></span><span class="op">(</span></span>
-<span>  <span class="va">result_age</span>,</span>
-<span>  age_col <span class="op">=</span> <span class="st">"Age"</span>,</span>
-<span>  bins    <span class="op">=</span> <span class="st">"GBD_standard"</span>   <span class="co"># or "pediatric", "geriatric", or custom numeric vector</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Assigned age bins: 3 binned, 0 unbinned</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">binned</span><span class="op">$</span><span class="va">Age_bin</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    &lt;1   1-5  5-10 10-15 15-20 20-25 25-30 30-35 35-40 40-45 45-50 50-55 55-60 </span></span>
-<span><span class="co">#&gt;     0     0     0     0     0     0     0     0     0     0     2     0     0 </span></span>
-<span><span class="co">#&gt; 60-65 65-70 70-75 75-80 80-85   85+ </span></span>
-<span><span class="co">#&gt;     1     0     0     0     0     0</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="derive-age-from-dob-components">Derive Age from DOB Components<a class="anchor" aria-label="anchor" href="#derive-age-from-dob-components"></a>
-</h3>
-<p>When DOB is split across day/month/year columns:</p>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_derive_dob_from_components.html">prep_derive_dob_from_components</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  day_col   <span class="op">=</span> <span class="st">"birth_day"</span>,</span>
-<span>  month_col <span class="op">=</span> <span class="st">"birth_month"</span>,</span>
-<span>  year_col  <span class="op">=</span> <span class="st">"birth_year"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="length-of-stay-and-haicai">Length of Stay and HAI/CAI<a class="anchor" aria-label="anchor" href="#length-of-stay-and-haicai"></a>
-</h2>
-<div class="section level3">
-<h3 id="derive-length-of-stay">Derive Length of Stay<a class="anchor" aria-label="anchor" href="#derive-length-of-stay"></a>
-</h3>
-<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">los_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_derive_los_from_dates.html">prep_derive_los_from_dates</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>  outcome_col   <span class="op">=</span> <span class="st">"date_of_final_outcome"</span>,</span>
-<span>  los_col       <span class="op">=</span> <span class="st">"los_days"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; [prep_derive_los_from_dates] 10 rows filled from date_of_final_outcome - date_of_admission.</span></span>
-<span><span class="co">#&gt; [prep_derive_los_from_dates] 10 filled; 0 remain missing.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; LOS summary:</span></span>
-<span><span class="co">#&gt;   mean_los median_los min_los max_los</span></span>
-<span><span class="co">#&gt; 1     13.1         13      10      15</span></span>
-<span><span class="va">los_data</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"date_of_admission"</span>, <span class="st">"date_of_final_outcome"</span>, <span class="st">"los_days"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    patient_id date_of_admission date_of_final_outcome los_days</span></span>
-<span><span class="co">#&gt; 1        P001        2024-01-10            2024-01-25       15</span></span>
-<span><span class="co">#&gt; 2        P001        2024-01-10            2024-01-25       15</span></span>
-<span><span class="co">#&gt; 3        P002        2024-01-18            2024-01-28       10</span></span>
-<span><span class="co">#&gt; 4        P003        2024-02-01            2024-02-15       14</span></span>
-<span><span class="co">#&gt; 5        P003        2024-02-01            2024-02-15       14</span></span>
-<span><span class="co">#&gt; 6        P004        2024-02-10            2024-02-22       12</span></span>
-<span><span class="co">#&gt; 7        P004        2024-02-10            2024-02-22       12</span></span>
-<span><span class="co">#&gt; 8        P005        2024-03-05            2024-03-18       13</span></span>
-<span><span class="co">#&gt; 9        P006        2024-03-15            2024-03-28       13</span></span>
-<span><span class="co">#&gt; 10       P006        2024-03-15            2024-03-28       13</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="classify-hai-vs-cai">Classify HAI vs CAI<a class="anchor" aria-label="anchor" href="#classify-hai-vs-cai"></a>
-</h3>
-<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">hc_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_derive_hai_cai.html">prep_derive_hai_cai</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>  culture_col   <span class="op">=</span> <span class="st">"date_of_culture"</span>,</span>
-<span>  hai_cutoff    <span class="op">=</span> <span class="fl">3</span>   <span class="co"># cultures &gt;= 3 days after admission = HAI</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Inferring infection type using 3-day HAI cutoff...</span></span>
-<span><span class="co">#&gt; Enriched infection_type: 10 rows filled</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Infection type distribution:</span></span>
-<span><span class="co">#&gt;   infection_type infection_type_method n</span></span>
-<span><span class="co">#&gt; 1            CAI  inferred_3day_cutoff 6</span></span>
-<span><span class="co">#&gt; 2            HAI  inferred_3day_cutoff 4</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">hc_data</span><span class="op">$</span><span class="va">hai_cai</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt; table of extent 0 &gt;</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="flag-hai-observations-not-clinically-coded">Flag HAI Observations Not Clinically Coded<a class="anchor" aria-label="anchor" href="#flag-hai-observations-not-clinically-coded"></a>
-</h3>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_hai_inferred.html">prep_flag_hai_inferred</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span>
-<span><span class="co"># Adds: hai_inferred (TRUE where hai_cai derived differs from coded infection_type)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="derive-icu-flag">Derive ICU Flag<a class="anchor" aria-label="anchor" href="#derive-icu-flag"></a>
-</h3>
-<div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_derive_icu_flag.html">prep_derive_icu_flag</a></span><span class="op">(</span><span class="va">data</span>, department_col <span class="op">=</span> <span class="st">"department"</span><span class="op">)</span></span>
-<span><span class="co"># Adds: is_icu (TRUE/FALSE)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="event-deduplication">Event Deduplication<a class="anchor" aria-label="anchor" href="#event-deduplication"></a>
-</h2>
-<p>Repeat cultures of the same organism within a time window belong to
-the same infection episode. <code><a href="../reference/prep_create_event_ids.html">prep_create_event_ids()</a></code> groups
-them into events.</p>
-<div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">event_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_event_ids.html">prep_create_event_ids</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_data</span>,</span>
-<span>  patient_col  <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>  date_col     <span class="op">=</span> <span class="st">"date_of_culture"</span>,</span>
-<span>  organism_col <span class="op">=</span> <span class="st">"organism_name"</span>,</span>
-<span>  specimen_col <span class="op">=</span> <span class="st">"specimen_type"</span>,</span>
-<span>  gap_days     <span class="op">=</span> <span class="fl">14</span>   <span class="co"># &gt; 14 days between same organism/site = new event</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Creating events (gap threshold: &gt;14 days) ...</span></span>
-<span><span class="co">#&gt; Done: 6 patients -&gt; 7 events (1.17 per patient)</span></span>
-<span><span class="va">event_data</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_name"</span>, <span class="st">"date_of_culture"</span>, <span class="st">"event_id"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    patient_id organism_name date_of_culture</span></span>
-<span><span class="co">#&gt; 1        P001       E. coli      2024-01-15</span></span>
-<span><span class="co">#&gt; 2        P001       E. coli      2024-01-15</span></span>
-<span><span class="co">#&gt; 3        P002 K. pneumoniae      2024-01-20</span></span>
-<span><span class="co">#&gt; 4        P003     S. aureus      2024-02-03</span></span>
-<span><span class="co">#&gt; 5        P003     S. aureus      2024-02-03</span></span>
-<span><span class="co">#&gt; 6        P004       E. coli      2024-02-14</span></span>
-<span><span class="co">#&gt; 7        P004 K. pneumoniae      2024-02-14</span></span>
-<span><span class="co">#&gt; 8        P005  A. baumannii      2024-03-07</span></span>
-<span><span class="co">#&gt; 9        P006 K. pneumoniae      2024-03-17</span></span>
-<span><span class="co">#&gt; 10       P006 K. pneumoniae      2024-03-17</span></span>
-<span><span class="co">#&gt;                                 event_id</span></span>
-<span><span class="co">#&gt; 1        P001_blood_20240115_e. coli_001</span></span>
-<span><span class="co">#&gt; 2        P001_blood_20240115_e. coli_001</span></span>
-<span><span class="co">#&gt; 3  P002_urine_20240120_k. pneumoniae_001</span></span>
-<span><span class="co">#&gt; 4      P003_blood_20240203_s. aureus_001</span></span>
-<span><span class="co">#&gt; 5      P003_blood_20240203_s. aureus_001</span></span>
-<span><span class="co">#&gt; 6        P004_urine_20240214_e. coli_001</span></span>
-<span><span class="co">#&gt; 7  P004_urine_20240214_k. pneumoniae_002</span></span>
-<span><span class="co">#&gt; 8   P005_blood_20240307_a. baumannii_001</span></span>
-<span><span class="co">#&gt; 9  P006_blood_20240317_k. pneumoniae_001</span></span>
-<span><span class="co">#&gt; 10 P006_blood_20240317_k. pneumoniae_001</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="remove-duplicate-rows-within-events">Remove Duplicate Rows Within Events<a class="anchor" aria-label="anchor" href="#remove-duplicate-rows-within-events"></a>
-</h3>
-<div class="sourceCode" id="cb40"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">deduped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_deduplicate_events.html">prep_deduplicate_events</a></span><span class="op">(</span></span>
-<span>  <span class="va">event_data</span>,</span>
-<span>  event_col      <span class="op">=</span> <span class="st">"event_id"</span>,</span>
-<span>  organism_col   <span class="op">=</span> <span class="st">"organism_name"</span>,</span>
-<span>  antibiotic_col <span class="op">=</span> <span class="st">"antibiotic_name"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="readmission-classification">Readmission Classification<a class="anchor" aria-label="anchor" href="#readmission-classification"></a>
-</h3>
-<div class="sourceCode" id="cb41"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_readmission.html">prep_flag_readmission</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  patient_col   <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>  admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>  gap_days      <span class="op">=</span> <span class="fl">30</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_classify_readmission.html">prep_classify_readmission</a></span><span class="op">(</span><span class="va">data</span>, readmission_col <span class="op">=</span> <span class="st">"readmission_class"</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="contaminant-detection">Contaminant Detection<a class="anchor" aria-label="anchor" href="#contaminant-detection"></a>
-</h2>
-<div class="section level3">
-<h3 id="syndrome-aware-contaminant-lists">Syndrome-Aware Contaminant Lists<a class="anchor" aria-label="anchor" href="#syndrome-aware-contaminant-lists"></a>
-</h3>
-<div class="sourceCode" id="cb42"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Retrieve the contaminant list for a syndrome</span></span>
-<span><span class="va">contaminants</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_get_contaminant_list.html">prep_get_contaminant_list</a></span><span class="op">(</span></span>
-<span>  syndrome   <span class="op">=</span> <span class="st">"Bloodstream infections"</span>,</span>
-<span>  return_all <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">contaminants</span><span class="op">$</span><span class="va">names</span></span>
-<span><span class="co">#&gt;  [1] "Coagulase-negative Staphylococcus" "Staphylococcus epidermidis"       </span></span>
-<span><span class="co">#&gt;  [3] "Staphylococcus hominis"            "Staphylococcus haemolyticus"      </span></span>
-<span><span class="co">#&gt;  [5] "Staphylococcus capitis"            "Staphylococcus warneri"           </span></span>
-<span><span class="co">#&gt;  [7] "Corynebacterium species"           "Corynebacterium striatum"         </span></span>
-<span><span class="co">#&gt;  [9] "Corynebacterium jeikeium"          "Cutibacterium"                    </span></span>
-<span><span class="co">#&gt; [11] "Cutibacterium acnes"               "Micrococcus species"              </span></span>
-<span><span class="co">#&gt; [13] "Micrococcus luteus"                "Bacillus (non-anthracis)"         </span></span>
-<span><span class="co">#&gt; [15] "Bacillus subtilis"                 "Bacillus cereus"                  </span></span>
-<span><span class="co">#&gt; [17] "Viridans streptococci"             "Aerococcus spp."                  </span></span>
-<span><span class="co">#&gt; [19] "Kocuria spp."                      "Dermacoccus spp."                 </span></span>
-<span><span class="co">#&gt; [21] "Rothia spp."</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="flag-likely-contaminants">Flag Likely Contaminants<a class="anchor" aria-label="anchor" href="#flag-likely-contaminants"></a>
-</h3>
-<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_contaminants.html">prep_flag_contaminants</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"auto"</span>   <span class="co"># "auto", "device_based", "heuristic", "provided"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">is_contaminant</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="test-individual-organism-names">Test Individual Organism Names<a class="anchor" aria-label="anchor" href="#test-individual-organism-names"></a>
-</h3>
-<div class="sourceCode" id="cb44"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_is_contaminant.html">prep_is_contaminant</a></span><span class="op">(</span></span>
-<span>  organism_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Staphylococcus epidermidis"</span>, <span class="st">"Escherichia coli"</span><span class="op">)</span>,</span>
-<span>  syndrome      <span class="op">=</span> <span class="st">"Bloodstream infections"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1]  TRUE FALSE</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="exclude-fungal-isolates">Exclude Fungal Isolates<a class="anchor" aria-label="anchor" href="#exclude-fungal-isolates"></a>
-</h3>
-<div class="sourceCode" id="cb45"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_filter_fungal.html">prep_filter_fungal</a></span><span class="op">(</span><span class="va">data</span>, organism_group_col <span class="op">=</span> <span class="st">"organism_group"</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="polymicrobial-infections">Polymicrobial Infections<a class="anchor" aria-label="anchor" href="#polymicrobial-infections"></a>
-</h2>
-<p>Multiple organisms from the same patient-episode must be weighted so
-each organism does not count as a full independent event.</p>
-<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># 1. Flag episodes with &gt; 1 organism</span></span>
-<span><span class="va">poly_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_polymicrobial.html">prep_flag_polymicrobial</a></span><span class="op">(</span></span>
-<span>  <span class="va">event_data</span>,</span>
-<span>  patient_col  <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>  organism_col <span class="op">=</span> <span class="st">"organism_name"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Identifying polymicrobial infections ...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Polymicrobial: 1/6 patient-context groups (16.7%)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Organism count distribution per patient-context:</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 2</span></span></span>
-<span><span class="co">#&gt;   n_organisms n_groups</span></span>
-<span><span class="co">#&gt;         <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>           1        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>           2        1</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">poly_data</span><span class="op">$</span><span class="va">is_polymicrobial</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt; table of extent 0 &gt;</span></span></code></pre></div>
-<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># 2. Assign fractional weight to each organism within an episode</span></span>
-<span><span class="va">poly_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_compute_poly_weights.html">prep_compute_poly_weights</a></span><span class="op">(</span></span>
-<span>  <span class="va">poly_data</span>,</span>
-<span>  episode_col <span class="op">=</span> <span class="st">"event_id"</span>,</span>
-<span>  method      <span class="op">=</span> <span class="st">"monomicrobial_proportion"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 3. Expand: one row per organism with its weight</span></span>
-<span><span class="va">poly_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_split_poly_episode.html">prep_split_poly_episode</a></span><span class="op">(</span><span class="va">poly_data</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="mdr-xdr-classification">MDR / XDR Classification<a class="anchor" aria-label="anchor" href="#mdr-xdr-classification"></a>
-</h2>
-<p>Classification follows Magiorakos et al. (2012) criteria. Requires
-<code>organism_group</code>, <code>antibiotic_class</code>, and
-<code>antibiotic_value</code>.</p>
-<div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Collapse to antibiotic-class level first (one row per event-class)</span></span>
-<span><span class="va">class_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_collapse_class_level.html">prep_collapse_class_level</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  event_col          <span class="op">=</span> <span class="st">"event_id"</span>,</span>
-<span>  organism_col       <span class="op">=</span> <span class="st">"organism_normalized"</span>,</span>
-<span>  class_col          <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
-<span>  susceptibility_col <span class="op">=</span> <span class="st">"antibiotic_value"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Classify</span></span>
-<span><span class="va">class_data</span> <span class="op">&lt;-</span> <span class="fu">prep_classify_mdr</span><span class="op">(</span><span class="va">class_data</span>, definition <span class="op">=</span> <span class="st">"CDC"</span><span class="op">)</span></span>
-<span><span class="va">class_data</span> <span class="op">&lt;-</span> <span class="fu">prep_classify_xdr</span><span class="op">(</span><span class="va">class_data</span>, definition <span class="op">=</span> <span class="st">"CDC"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">class_data</span><span class="op">$</span><span class="va">mdr</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">class_data</span><span class="op">$</span><span class="va">xdr</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="reference-tables">Reference Tables<a class="anchor" aria-label="anchor" href="#reference-tables"></a>
-</h3>
-<div class="sourceCode" id="cb49"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># MDR/XDR thresholds per organism group (Magiorakos 2012)</span></span>
-<span><span class="fu">anumaan</span><span class="fu">:::</span><span class="fu">get_magiorakos_thresholds</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 4</span></span></span>
-<span><span class="co">#&gt;   organism_group           mdr_threshold xdr_threshold total_categories</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                            <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> Enterobacterales                     3 all_but_2                    9</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> Pseudomonas aeruginosa               3 all_but_2                   10</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> Acinetobacter spp                    3 all_but_2                    9</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> Staphylococcus aureus                3 all_but_2                    9</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> Enterococcus spp                     3 all_but_2                    7</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> Streptococcus pneumoniae             3 all_but_2                    5</span></span>
-<span></span>
-<span><span class="co"># Antimicrobial categories for a specific organism group</span></span>
-<span><span class="fu">anumaan</span><span class="fu">:::</span><span class="fu">get_antimicrobial_categories</span><span class="op">(</span><span class="st">"Enterobacterales"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Aminoglycosides"                        </span></span>
-<span><span class="co">#&gt; [2] "Carbapenems"                            </span></span>
-<span><span class="co">#&gt; [3] "Cephalosporins (3rd gen)"               </span></span>
-<span><span class="co">#&gt; [4] "Cephalosporins (4th gen)"               </span></span>
-<span><span class="co">#&gt; [5] "Fluoroquinolones"                       </span></span>
-<span><span class="co">#&gt; [6] "Monobactams"                            </span></span>
-<span><span class="co">#&gt; [7] "Penicillins + beta-lactamase inhibitors"</span></span>
-<span><span class="co">#&gt; [8] "Polymyxins"                             </span></span>
-<span><span class="co">#&gt; [9] "Tigecycline"</span></span>
-<span></span>
-<span><span class="co"># Beta-lactam hierarchy (broadest -&gt; narrowest spectrum)</span></span>
-<span><span class="fu">anumaan</span><span class="fu">:::</span><span class="fu">get_beta_lactam_hierarchy</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Carbapenems"                                          </span></span>
-<span><span class="co">#&gt; [2] "Fourth-generation-cephalosporins"                     </span></span>
-<span><span class="co">#&gt; [3] "Third-generation-cephalosporins"                      </span></span>
-<span><span class="co">#&gt; [4] "Beta-lactam/beta-lactamase-inhibitor_anti-pseudomonal"</span></span>
-<span><span class="co">#&gt; [5] "Beta-lactam/beta-lactamase-inhibitor"                 </span></span>
-<span><span class="co">#&gt; [6] "Aminopenicillins"                                     </span></span>
-<span><span class="co">#&gt; [7] "Penicillins"</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="resistance-profiles">Resistance Profiles<a class="anchor" aria-label="anchor" href="#resistance-profiles"></a>
-</h2>
-<div class="section level3">
-<h3 id="per-isolate-resistance-profile">Per-Isolate Resistance Profile<a class="anchor" aria-label="anchor" href="#per-isolate-resistance-profile"></a>
-</h3>
-<div class="sourceCode" id="cb50"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_resistance_profile.html">prep_create_resistance_profile</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  organism_col       <span class="op">=</span> <span class="st">"organism_normalized"</span>,</span>
-<span>  antibiotic_col     <span class="op">=</span> <span class="st">"antibiotic_normalized"</span>,</span>
-<span>  susceptibility_col <span class="op">=</span> <span class="st">"antibiotic_value"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="wide-ast-matrix">Wide AST Matrix<a class="anchor" aria-label="anchor" href="#wide-ast-matrix"></a>
-</h3>
-<p>Pivot to one row per isolate, one column per antibiotic:</p>
-<div class="sourceCode" id="cb51"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">wide_ast</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_wide_ast_matrix.html">prep_create_wide_ast_matrix</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  event_col          <span class="op">=</span> <span class="st">"event_id"</span>,</span>
-<span>  antibiotic_col     <span class="op">=</span> <span class="st">"antibiotic_normalized"</span>,</span>
-<span>  susceptibility_col <span class="op">=</span> <span class="st">"antibiotic_value"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="diagnosis-and-syndrome-mapping">Diagnosis and Syndrome Mapping<a class="anchor" aria-label="anchor" href="#diagnosis-and-syndrome-mapping"></a>
-</h2>
-<p>Map free-text diagnoses to ICD-10 codes and then to clinical
-syndromes.</p>
-<div class="section level3">
-<h3 id="text-based-diagnosis-mapping">Text-Based Diagnosis Mapping<a class="anchor" aria-label="anchor" href="#text-based-diagnosis-mapping"></a>
-</h3>
-<div class="sourceCode" id="cb52"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Rule-based matching (no Python required)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_map_diagnosis_to_icd.html">prep_map_diagnosis_to_icd</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  diagnosis_col <span class="op">=</span> <span class="st">"diagnosis"</span>,</span>
-<span>  method        <span class="op">=</span> <span class="st">"text_match"</span>   <span class="co"># or "python_embedding" (requires alethia)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="icd-10-to-syndrome">ICD-10 to Syndrome<a class="anchor" aria-label="anchor" href="#icd-10-to-syndrome"></a>
-</h3>
-<div class="sourceCode" id="cb53"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_map_icd_to_syndrome.html">prep_map_icd_to_syndrome</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  icd_col       <span class="op">=</span> <span class="st">"icd10_code"</span>,</span>
-<span>  hierarchy_path <span class="op">=</span> <span class="cn">NULL</span>   <span class="co"># NULL uses the bundled infectious_syndrome_hierarchy.csv</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="assign-patient-level-syndrome">Assign Patient-Level Syndrome<a class="anchor" aria-label="anchor" href="#assign-patient-level-syndrome"></a>
-</h3>
-<div class="sourceCode" id="cb54"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_assign_patient_syndrome.html">prep_assign_patient_syndrome</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  patient_col   <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>  syndrome_col  <span class="op">=</span> <span class="st">"infectious_syndrome"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="outcome-cohorts-and-attrition-tracking">Outcome Cohorts and Attrition Tracking<a class="anchor" aria-label="anchor" href="#outcome-cohorts-and-attrition-tracking"></a>
-</h2>
-<div class="section level3">
-<h3 id="track-patient-counts-at-every-step">Track Patient Counts at Every Step<a class="anchor" aria-label="anchor" href="#track-patient-counts-at-every-step"></a>
-</h3>
-<p><code><a href="../reference/prep_attrition_flow.html">prep_attrition_flow()</a></code> accumulates a table of rows,
-unique patients, and unique events at each stage of your pipeline:</p>
-<div class="sourceCode" id="cb55"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Initialize</span></span>
-<span><span class="va">flow</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_attrition_flow.html">prep_attrition_flow</a></span><span class="op">(</span></span>
-<span>  flow        <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  data        <span class="op">=</span> <span class="va">sample_data</span>,</span>
-<span>  stage_name  <span class="op">=</span> <span class="st">"raw_input"</span>,</span>
-<span>  reason      <span class="op">=</span> <span class="st">"all loaded records"</span>,</span>
-<span>  patient_col <span class="op">=</span> <span class="st">"patient_id"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># After a filter step</span></span>
-<span><span class="va">filtered_data</span> <span class="op">&lt;-</span> <span class="va">sample_data</span><span class="op">[</span><span class="va">sample_data</span><span class="op">$</span><span class="va">antibiotic_value</span> <span class="op">!=</span> <span class="st">"S"</span>, <span class="op">]</span></span>
-<span><span class="va">flow</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_attrition_flow.html">prep_attrition_flow</a></span><span class="op">(</span></span>
-<span>  flow        <span class="op">=</span> <span class="va">flow</span>,</span>
-<span>  data        <span class="op">=</span> <span class="va">filtered_data</span>,</span>
-<span>  stage_name  <span class="op">=</span> <span class="st">"resistant_only"</span>,</span>
-<span>  reason      <span class="op">=</span> <span class="st">"removed susceptible records"</span>,</span>
-<span>  patient_col <span class="op">=</span> <span class="st">"patient_id"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">flow</span></span>
-<span><span class="co">#&gt;            stage n_rows n_patients n_events n_removed</span></span>
-<span><span class="co">#&gt; 1      raw_input     10          6       NA         0</span></span>
-<span><span class="co">#&gt; 2 resistant_only      7          6       NA         3</span></span>
-<span><span class="co">#&gt;                        reason</span></span>
-<span><span class="co">#&gt; 1          all loaded records</span></span>
-<span><span class="co">#&gt; 2 removed susceptible records</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="analytical-readiness-filters">Analytical Readiness Filters<a class="anchor" aria-label="anchor" href="#analytical-readiness-filters"></a>
-</h3>
-<div class="sourceCode" id="cb56"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Keep only patients with at least one non-NA value in all required columns</span></span>
-<span><span class="va">ready</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_filter_analysis_ready.html">prep_filter_analysis_ready</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  required_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"final_outcome"</span>, <span class="st">"organism_name"</span>,</span>
-<span>                     <span class="st">"antibiotic_name"</span>, <span class="st">"antibiotic_value"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co"># ready$data          - filtered data</span></span>
-<span><span class="co"># ready$attrition     - attrition table</span></span>
-<span><span class="co"># ready$patient_flags - per-patient completeness flags</span></span>
-<span></span>
-<span><span class="co"># Final gate: remove rows that are completely unusable</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_filter_minimally_usable.html">prep_filter_minimally_usable</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Full analytical readiness assertion (stops if required fields absent)</span></span>
-<span><span class="fu"><a href="../reference/prep_validate_analysis_ready.html">prep_validate_analysis_ready</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="build-outcome-cohorts">Build Outcome Cohorts<a class="anchor" aria-label="anchor" href="#build-outcome-cohorts"></a>
-</h3>
-<div class="sourceCode" id="cb57"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fatal_cohort</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_build_fatal_cohort.html">prep_build_fatal_cohort</a></span><span class="op">(</span><span class="va">data</span>,</span>
-<span>                     outcome_col <span class="op">=</span> <span class="st">"final_outcome"</span>,</span>
-<span>                     fatal_value <span class="op">=</span> <span class="st">"Died"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">nonfatal_cohort</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_build_nonfatal_cohort.html">prep_build_nonfatal_cohort</a></span><span class="op">(</span><span class="va">data</span>,</span>
-<span>                     outcome_col <span class="op">=</span> <span class="st">"final_outcome"</span>,</span>
-<span>                     fatal_value <span class="op">=</span> <span class="st">"Died"</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="daly-burden-estimation">DALY Burden Estimation<a class="anchor" aria-label="anchor" href="#daly-burden-estimation"></a>
-</h2>
-<p>After preprocessing, anumaan supports GBD-style DALY calculations:
-Years of Life Lost (YLL) + Years Lived with Disability (YLD).</p>
-<div class="section level3">
-<h3 id="pathogen-fractions-and-deaths">Pathogen Fractions and Deaths<a class="anchor" aria-label="anchor" href="#pathogen-fractions-and-deaths"></a>
-</h3>
-<div class="sourceCode" id="cb58"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Total deaths by cause</span></span>
-<span><span class="va">deaths</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_deaths_by_cause.html">daly_calc_deaths_by_cause</a></span><span class="op">(</span><span class="va">pop_data</span>, <span class="va">data</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Fraction attributable to infection</span></span>
-<span><span class="va">inf_fraction</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_infection_fraction.html">daly_calc_infection_fraction</a></span><span class="op">(</span><span class="va">pop_data</span>, <span class="va">data</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Syndrome-specific death counts</span></span>
-<span><span class="va">syndrome_deaths</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_deaths_by_syndrome.html">daly_calc_deaths_by_syndrome</a></span><span class="op">(</span></span>
-<span>  d_j      <span class="op">=</span> <span class="va">deaths</span>,</span>
-<span>  inf_frac <span class="op">=</span> <span class="va">inf_fraction</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Incident cases from case-fatality ratios</span></span>
-<span><span class="va">incidents</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_incidence_from_cfr.html">daly_calc_incidence_from_cfr</a></span><span class="op">(</span>deaths_L <span class="op">=</span> <span class="va">syndrome_deaths</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Pathogen fraction of deaths (isolate-level)</span></span>
-<span><span class="va">pfrac</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_pathogen_fraction_fatal.html">daly_calc_pathogen_fraction_fatal</a></span><span class="op">(</span><span class="va">data</span>, <span class="va">syndrome_deaths</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="years-of-life-lost-yll">Years of Life Lost (YLL)<a class="anchor" aria-label="anchor" href="#years-of-life-lost-yll"></a>
-</h3>
-<div class="sourceCode" id="cb59"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Associated YLL: all deaths in patients with this pathogen</span></span>
-<span><span class="va">yll_associated</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_yll_associated.html">daly_calc_yll_associated</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  life_expectancy_path <span class="op">=</span> <span class="st">"GBD_2019_LE.csv"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Attributable YLL: deaths caused by resistance (RR-based)</span></span>
-<span><span class="va">yll_attributable</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_yll_attributable.html">daly_calc_yll_attributable</a></span><span class="op">(</span></span>
-<span>  <span class="va">data</span>,</span>
-<span>  rr_mortality <span class="op">=</span> <span class="va">rr_table</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="years-lived-with-disability-yld-and-paf">Years Lived with Disability (YLD) and PAF<a class="anchor" aria-label="anchor" href="#years-lived-with-disability-yld-and-paf"></a>
-</h3>
-<div class="sourceCode" id="cb60"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">yld_base</span> <span class="op">&lt;-</span> <span class="fu">daly_calc_yld_baseline</span><span class="op">(</span><span class="va">incidence_data</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">paf_los</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_paf_los.html">daly_calc_paf_los</a></span><span class="op">(</span><span class="va">data</span>, rr_los <span class="op">=</span> <span class="va">rr_los_table</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">yld_associated</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_fraction_associated_yld.html">daly_calc_fraction_associated_yld</a></span><span class="op">(</span><span class="va">yld_base</span>, <span class="va">paf_los</span><span class="op">)</span></span>
-<span><span class="va">yld_attributable</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_yld_attributable.html">daly_calc_yld_attributable</a></span><span class="op">(</span><span class="va">yld_base</span>, <span class="va">paf_los</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="hospital-level-daly-summary">Hospital-Level DALY Summary<a class="anchor" aria-label="anchor" href="#hospital-level-daly-summary"></a>
-</h3>
-<div class="sourceCode" id="cb61"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">hospital_daly</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_hospital_daly.html">compute_hospital_daly</a></span><span class="op">(</span></span>
-<span>  hospital_counts  <span class="op">=</span> <span class="va">centre_counts</span>,</span>
-<span>  total_deaths     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">deaths</span><span class="op">$</span><span class="va">total</span><span class="op">)</span>,</span>
-<span>  total_discharged <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">centre_counts</span><span class="op">$</span><span class="va">discharged_h</span><span class="op">)</span>,</span>
-<span>  yll_base         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">yll_base</span><span class="op">)</span>,</span>
-<span>  yll_associated   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">yll_associated</span><span class="op">)</span>,</span>
-<span>  yll_attributable <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">yll_attributable</span><span class="op">)</span>,</span>
-<span>  yld_base         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">yld_base</span><span class="op">)</span>,</span>
-<span>  yld_associated   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">yld_associated</span><span class="op">)</span>,</span>
-<span>  yld_attributable <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">yld_attributable</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a>
-</h2>
-<p>All plot functions return a <code>ggplot2</code> object that can be
-further customized.</p>
-<div class="section level3">
-<h3 id="resistance-heatmap">Resistance Heatmap<a class="anchor" aria-label="anchor" href="#resistance-heatmap"></a>
-</h3>
-<div class="sourceCode" id="cb62"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_resistance_heatmap.html">plot_resistance_heatmap</a></span><span class="op">(</span></span>
-<span>  data        <span class="op">=</span> <span class="va">result</span><span class="op">$</span><span class="va">data</span>,</span>
-<span>  isolate_col <span class="op">=</span> <span class="st">"organism_normalized"</span>,</span>
-<span>  class_col   <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
-<span>  result_col  <span class="op">=</span> <span class="st">"antibiotic_value"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="bar-and-grouped-bar-charts">Bar and Grouped Bar Charts<a class="anchor" aria-label="anchor" href="#bar-and-grouped-bar-charts"></a>
-</h3>
-<div class="sourceCode" id="cb63"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_bar.html">plot_bar</a></span><span class="op">(</span></span>
-<span>  data  <span class="op">=</span> <span class="va">result</span><span class="op">$</span><span class="va">data</span>,</span>
-<span>  x     <span class="op">=</span> <span class="st">"organism_normalized"</span>,</span>
-<span>  fill  <span class="op">=</span> <span class="st">"mdr"</span>,</span>
-<span>  title <span class="op">=</span> <span class="st">"MDR Status by Organism"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="../reference/plot_grouped_bar.html">plot_grouped_bar</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">result</span><span class="op">$</span><span class="va">data</span>,</span>
-<span>  x    <span class="op">=</span> <span class="st">"organism_group"</span>,</span>
-<span>  fill <span class="op">=</span> <span class="st">"aware_category"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="../reference/plot_stacked_bar.html">plot_stacked_bar</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">result</span><span class="op">$</span><span class="va">data</span>,</span>
-<span>  x    <span class="op">=</span> <span class="st">"specimen_type"</span>,</span>
-<span>  fill <span class="op">=</span> <span class="st">"mdr"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="los-distributions">LOS Distributions<a class="anchor" aria-label="anchor" href="#los-distributions"></a>
-</h3>
-<div class="sourceCode" id="cb64"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_los_distributions.html">plot_los_distributions</a></span><span class="op">(</span><span class="va">hospital_daly</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="daly-burden-plots">DALY Burden Plots<a class="anchor" aria-label="anchor" href="#daly-burden-plots"></a>
-</h3>
-<div class="sourceCode" id="cb65"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Hospital-level YLL/YLD bars (output of compute_hospital_daly())</span></span>
-<span><span class="fu"><a href="../reference/plot_burden_by_hospital.html">plot_burden_by_hospital</a></span><span class="op">(</span><span class="va">hospital_daly</span>, metric <span class="op">=</span> <span class="st">"YLL"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_burden_by_hospital.html">plot_burden_by_hospital</a></span><span class="op">(</span><span class="va">hospital_daly</span>, metric <span class="op">=</span> <span class="st">"YLD"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Top organisms by YLL/YLD burden</span></span>
-<span><span class="fu"><a href="../reference/plot_burden_by_organism.html">plot_burden_by_organism</a></span><span class="op">(</span><span class="va">organism_yll</span>, metric <span class="op">=</span> <span class="st">"YLL"</span>, n <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># YLL heatmap: resistance class x pathogen group</span></span>
-<span><span class="fu"><a href="../reference/plot_yll_heatmap.html">plot_yll_heatmap</a></span><span class="op">(</span><span class="va">yll_class_data</span>, value_col <span class="op">=</span> <span class="st">"YLL_class"</span>,</span>
-<span>                 type <span class="op">=</span> <span class="st">"attributable"</span>, n_admissions <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># YLD heatmap: associated vs attributable by organism</span></span>
-<span><span class="fu"><a href="../reference/plot_yld_heatmap.html">plot_yld_heatmap</a></span><span class="op">(</span><span class="va">yld_data</span>, n_admissions <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="consistent-amr-theme">Consistent AMR Theme<a class="anchor" aria-label="anchor" href="#consistent-amr-theme"></a>
-</h3>
-<div class="sourceCode" id="cb66"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">organism_normalized</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_bar.html" class="external-link">geom_bar</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="../reference/amr_theme.html">amr_theme</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="eda-plots">EDA Plots<a class="anchor" aria-label="anchor" href="#eda-plots"></a>
-</h2>
-<p>The <code>plot_*</code> functions produce ready-made exploratory
-charts. The examples below use the same <code>sample_data</code> defined
-earlier. Where function defaults differ from <code>sample_data</code>
-column names, explicit overrides are shown.</p>
-<div class="section level3">
-<h3 id="enrolment">Enrolment<a class="anchor" aria-label="anchor" href="#enrolment"></a>
-</h3>
-<div class="sourceCode" id="cb67"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Unique patients per hospital, sorted by count</span></span>
-<span><span class="fu"><a href="../reference/plot_patients_by_hospital.html">plot_patients_by_hospital</a></span><span class="op">(</span><span class="va">sample_data</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Syndrome distribution -- overall, faceted, or single centre</span></span>
-<span><span class="fu"><a href="../reference/plot_syndrome_distribution.html">plot_syndrome_distribution</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                           patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_syndrome_distribution.html">plot_syndrome_distribution</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"faceted"</span>,</span>
-<span>                           patient_col <span class="op">=</span> <span class="st">"patient_id"</span>, ncol <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_syndrome_distribution.html">plot_syndrome_distribution</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"single"</span>,</span>
-<span>                           patient_col <span class="op">=</span> <span class="st">"patient_id"</span>, center <span class="op">=</span> <span class="st">"Centre A"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="organisms-and-resistance">Organisms and Resistance<a class="anchor" aria-label="anchor" href="#organisms-and-resistance"></a>
-</h3>
-<div class="sourceCode" id="cb68"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Top organisms by unique patient count</span></span>
-<span><span class="fu"><a href="../reference/plot_top_organisms.html">plot_top_organisms</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>, n <span class="op">=</span> <span class="fl">10</span>,</span>
-<span>                   patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_top_organisms.html">plot_top_organisms</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"faceted"</span>, n <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>                   patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Resistance rate per antibiotic (stacked R/I/S)</span></span>
-<span><span class="fu"><a href="../reference/plot_abx_susceptibility.html">plot_abx_susceptibility</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                        patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Resistance by specimen type</span></span>
-<span><span class="fu"><a href="../reference/plot_resistance_by_sample.html">plot_resistance_by_sample</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                          patient_col <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>                          sample_col  <span class="op">=</span> <span class="st">"specimen_type"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Pathogen x antibiotic resistance heatmap</span></span>
-<span><span class="fu"><a href="../reference/plot_abx_heatmap.html">plot_abx_heatmap</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"all"</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="outcomes">Outcomes<a class="anchor" aria-label="anchor" href="#outcomes"></a>
-</h3>
-<div class="sourceCode" id="cb69"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Outcome distribution -- pooled and faceted</span></span>
-<span><span class="fu"><a href="../reference/plot_outcome_distribution.html">plot_outcome_distribution</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                          patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_outcome_distribution.html">plot_outcome_distribution</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"faceted"</span>,</span>
-<span>                          patient_col <span class="op">=</span> <span class="st">"patient_id"</span>, ncol <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Death vs Discharged split (sample_data uses "Died"/"Survived")</span></span>
-<span><span class="fu"><a href="../reference/plot_death_discharged.html">plot_death_discharged</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                      patient_col       <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>                      death_label       <span class="op">=</span> <span class="st">"Died"</span>,</span>
-<span>                      discharged_label  <span class="op">=</span> <span class="st">"Survived"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Outcomes within each organism</span></span>
-<span><span class="fu"><a href="../reference/plot_outcome_by_organism.html">plot_outcome_by_organism</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                         patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Outcomes by GBD age bin</span></span>
-<span><span class="fu"><a href="../reference/plot_outcome_by_agebin.html">plot_outcome_by_agebin</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                       patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Outcome trends by year</span></span>
-<span><span class="fu"><a href="../reference/plot_outcome_by_year.html">plot_outcome_by_year</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                     patient_col <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>                     date_col    <span class="op">=</span> <span class="st">"date_of_final_outcome"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="infection-type-and-location">Infection Type and Location<a class="anchor" aria-label="anchor" href="#infection-type-and-location"></a>
-</h3>
-<div class="sourceCode" id="cb70"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># HAI vs CAI per centre (derived from admission-to-culture gap)</span></span>
-<span><span class="fu"><a href="../reference/plot_hai_cai_by_facility.html">plot_hai_cai_by_facility</a></span><span class="op">(</span><span class="va">sample_data</span>,</span>
-<span>                         patient_col   <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>                         admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>                         culture_col   <span class="op">=</span> <span class="st">"date_of_culture"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Mono vs polymicrobial infections per centre</span></span>
-<span><span class="fu"><a href="../reference/plot_mono_poly_by_facility.html">plot_mono_poly_by_facility</a></span><span class="op">(</span><span class="va">sample_data</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># ICU / Ward / Other breakdown per centre</span></span>
-<span><span class="fu"><a href="../reference/plot_location_by_facility.html">plot_location_by_facility</a></span><span class="op">(</span><span class="va">sample_data</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="length-of-stay-and-age">Length of Stay and Age<a class="anchor" aria-label="anchor" href="#length-of-stay-and-age"></a>
-</h3>
-<div class="sourceCode" id="cb71"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># LOS distribution ridge plot (plot_los_ridge defaults patient_col = "patient_id")</span></span>
-<span><span class="fu"><a href="../reference/plot_los_ridge.html">plot_los_ridge</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"all"</span>,</span>
-<span>               admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>               discharge_col <span class="op">=</span> <span class="st">"date_of_final_outcome"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Age distribution ridge plot</span></span>
-<span><span class="fu"><a href="../reference/plot_age_ridge.html">plot_age_ridge</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"all"</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Median LOS by age group</span></span>
-<span><span class="fu"><a href="../reference/plot_los_by_agebin.html">plot_los_by_agebin</a></span><span class="op">(</span><span class="va">sample_data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
-<span>                   patient_col   <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>                   admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
-<span>                   discharge_col <span class="op">=</span> <span class="st">"date_of_final_outcome"</span><span class="op">)</span></span></code></pre></div>
-<p>All functions return a <code>ggplot2</code> object and accept
-<code>base_size</code>, <code>title</code>, and <code>subtitle</code>
-arguments for quick customisation.</p>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="common-analysis-tasks">Common Analysis Tasks<a class="anchor" aria-label="anchor" href="#common-analysis-tasks"></a>
-</h2>
-<div class="section level3">
-<h3 id="resistance-rates">Resistance Rates<a class="anchor" aria-label="anchor" href="#resistance-rates"></a>
-</h3>
-<div class="sourceCode" id="cb72"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sample_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">antibiotic_value</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">organism_name</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
-<span>    n               <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    n_resistant     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">antibiotic_value</span> <span class="op">==</span> <span class="st">"R"</span><span class="op">)</span>,</span>
-<span>    resistance_rate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="va">n_resistant</span> <span class="op">/</span> <span class="va">n</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>    .groups         <span class="op">=</span> <span class="st">"drop"</span></span>
-<span>  <span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/desc.html" class="external-link">desc</a></span><span class="op">(</span><span class="va">resistance_rate</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 4 × 4</span></span></span>
-<span><span class="co">#&gt;   organism_name     n n_resistant resistance_rate</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> A. baumannii      1           1           100  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> K. pneumoniae     4           3            75  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> E. coli           3           2            66.7</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> S. aureus         2           1            50</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="mdr-prevalence-by-organism">MDR Prevalence by Organism<a class="anchor" aria-label="anchor" href="#mdr-prevalence-by-organism"></a>
-</h3>
-<div class="sourceCode" id="cb73"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span><span class="op">$</span><span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">organism_normalized</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
-<span>    total    <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    n_mdr    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">mdr</span> <span class="op">==</span> <span class="st">"MDR"</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
-<span>    mdr_rate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="va">n_mdr</span> <span class="op">/</span> <span class="va">total</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>    .groups  <span class="op">=</span> <span class="st">"drop"</span></span>
-<span>  <span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/desc.html" class="external-link">desc</a></span><span class="op">(</span><span class="va">mdr_rate</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="resistance-by-specimen-type">Resistance by Specimen Type<a class="anchor" aria-label="anchor" href="#resistance-by-specimen-type"></a>
-</h3>
-<div class="sourceCode" id="cb74"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span><span class="op">$</span><span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">specimen_type</span><span class="op">)</span>, <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">antibiotic_value</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">specimen_type</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
-<span>    n               <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>    resistance_rate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">antibiotic_value</span> <span class="op">==</span> <span class="st">"R"</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>    .groups         <span class="op">=</span> <span class="st">"drop"</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-</div>
-<div class="section level2">
-<h2 id="export-results">Export Results<a class="anchor" aria-label="anchor" href="#export-results"></a>
-</h2>
-<div class="sourceCode" id="cb75"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/write.table.html" class="external-link">write.csv</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data</span>, <span class="st">"processed_amr_data.csv"</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Save full pipeline result for reproducibility</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS</a></span><span class="op">(</span><span class="va">result</span>, <span class="st">"preprocessing_result.rds"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Reload</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="st">"preprocessing_result.rds"</span><span class="op">)</span></span></code></pre></div>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="troubleshooting">Troubleshooting<a class="anchor" aria-label="anchor" href="#troubleshooting"></a>
-</h2>
-<p><strong>Column not found after standardization</strong></p>
-<p><code><a href="../reference/prep_standardize_column_names.html">prep_standardize_column_names()</a></code> uses fuzzy matching when
-<code>fuzzy_match = TRUE</code>. Inspect your column names and provide
-explicit overrides if needed:</p>
-<div class="sourceCode" id="cb76"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sample_data</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  [1] "patient_id"            "date_of_admission"     "date_of_culture"      </span></span>
-<span><span class="co">#&gt;  [4] "date_of_final_outcome" "final_outcome"         "specimen_type"        </span></span>
-<span><span class="co">#&gt;  [7] "organism_name"         "antibiotic_name"       "antibiotic_value"     </span></span>
-<span><span class="co">#&gt; [10] "DOB"                   "gender"                "center_name"          </span></span>
-<span><span class="co">#&gt; [13] "age_years"             "Age_bin"               "is_polymicrobial"     </span></span>
-<span><span class="co">#&gt; [16] "location"              "infectious_syndrome"</span></span>
-<span><span class="co"># Then supply a manual map:</span></span>
-<span><span class="co"># config &lt;- amr_config(column_mappings = list(organism_name = "Pathogen"))</span></span></code></pre></div>
-<p><strong>Organism names not normalizing</strong></p>
-<p>Organisms absent from the reference pass through unchanged. Check
-coverage:</p>
-<div class="sourceCode" id="cb77"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">organism_match_status</span><span class="op">)</span></span>
-<span><span class="co"># "unmatched" rows will have organism_normalized == organism_name (unchanged)</span></span></code></pre></div>
-<p><strong>Too many / too few events</strong></p>
-<p>Tune the deduplication window:</p>
-<div class="sourceCode" id="cb78"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span>event_gap_days <span class="op">=</span> <span class="fl">7</span><span class="op">)</span>   <span class="co"># smaller -&gt; more events</span></span>
-<span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span>event_gap_days <span class="op">=</span> <span class="fl">30</span><span class="op">)</span>  <span class="co"># larger  -&gt; fewer events</span></span></code></pre></div>
-<p><strong>Intermediate (I) counted as resistant</strong></p>
-<div class="sourceCode" id="cb79"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span>intermediate_as_resistant <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Date columns not parsing</strong></p>
-<p>Use <code><a href="../reference/prep_parse_date_column.html">prep_parse_date_column()</a></code> directly to inspect how
-values are being interpreted:</p>
-<div class="sourceCode" id="cb80"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_parse_date_column.html">prep_parse_date_column</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"15/01/2024"</span>, <span class="st">"45306"</span>, <span class="st">"2024-01-15"</span><span class="op">)</span>,</span>
-<span>  col_name    <span class="op">=</span> <span class="st">"date_of_culture"</span>,</span>
-<span>  table_label <span class="op">=</span> <span class="st">"debug"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; [debug] 'date_of_culture': 1 value(s) decoded as Excel serial date.</span></span>
-<span><span class="co">#&gt; [debug] 'date_of_culture': 3 / 3 non-missing value(s) successfully parsed as Date (0 failed).</span></span>
-<span><span class="co">#&gt; [1] "2024-01-15" "2024-01-15" "2024-01-15"</span></span></code></pre></div>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="getting-help">Getting Help<a class="anchor" aria-label="anchor" href="#getting-help"></a>
-</h2>
-<div class="sourceCode" id="cb81"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="op">?</span><span class="va">run_preprocess</span></span>
-<span><span class="op">?</span><span class="va">amr_config</span></span>
-<span><span class="op">?</span><span class="va">prep_standardize_organisms</span></span>
-<span><span class="op">?</span><span class="va">prep_create_event_ids</span></span>
-<span><span class="op">?</span><span class="va">prep_classify_mdr</span></span>
-<span><span class="op">?</span><span class="va">prep_derive_hai_cai</span></span>
-<span><span class="op">?</span><span class="va">prep_attrition_flow</span></span>
-<span><span class="op">?</span><span class="va">prep_map_diagnosis_to_icd</span></span>
-<span></span>
+<code class="sourceCode R"><span><span class="co"># Search all functions</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/help.html" class="external-link">help</a></span><span class="op">(</span>package <span class="op">=</span> <span class="st">"anumaan"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/ls.html" class="external-link">ls</a></span><span class="op">(</span><span class="st">"package:anumaan"</span><span class="op">)</span></span></code></pre></div>
+<span></span>
+<span><span class="co"># Common entry points</span></span>
+<span><span class="op">?</span><span class="va">run_preprocess</span></span>
+<span><span class="op">?</span><span class="va">amr_config</span></span>
+<span><span class="op">?</span><span class="va">estimate_profiles_convex</span></span>
+<span><span class="op">?</span><span class="va">compute_resistance_profiles</span></span></code></pre></div>
 <p>Report bugs at <a href="https://github.com/saketlab/anumaan/issues" class="external-link uri">https://github.com/saketlab/anumaan/issues</a>.</p>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="session-info">Session Info<a class="anchor" aria-label="anchor" href="#session-info"></a>
-</h2>
-<div class="sourceCode" id="cb82"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; R version 4.6.0 (2026-04-24)</span></span>
-<span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
-<span><span class="co">#&gt; Running under: Ubuntu 24.04.4 LTS</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Matrix products: default</span></span>
-<span><span class="co">#&gt; BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 </span></span>
-<span><span class="co">#&gt; LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; locale:</span></span>
-<span><span class="co">#&gt;  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       </span></span>
-<span><span class="co">#&gt;  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   </span></span>
-<span><span class="co">#&gt;  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          </span></span>
-<span><span class="co">#&gt; [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; time zone: UTC</span></span>
-<span><span class="co">#&gt; tzcode source: system (glibc)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; attached base packages:</span></span>
-<span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9009</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span><span class="co">#&gt;  [1] bit_4.6.0         jsonlite_2.0.0    crayon_1.5.3      compiler_4.6.0   </span></span>
-<span><span class="co">#&gt;  [5] tidyselect_1.2.1  stringr_1.6.0     parallel_4.6.0    jquerylib_0.1.4  </span></span>
-<span><span class="co">#&gt;  [9] systemfonts_1.3.2 textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0    </span></span>
-<span><span class="co">#&gt; [13] readr_2.2.0       R6_2.6.1          generics_0.1.4    knitr_1.51       </span></span>
-<span><span class="co">#&gt; [17] htmlwidgets_1.6.4 tibble_3.3.1      desc_1.4.3        lubridate_1.9.5  </span></span>
-<span><span class="co">#&gt; [21] tzdb_0.5.0        bslib_0.10.0      pillar_1.11.1     rlang_1.2.0      </span></span>
-<span><span class="co">#&gt; [25] utf8_1.2.6        stringi_1.8.7     cachem_1.1.0      xfun_0.57        </span></span>
-<span><span class="co">#&gt; [29] fs_2.1.0          sass_0.4.10       bit64_4.8.0       otel_0.2.0       </span></span>
-<span><span class="co">#&gt; [33] timechange_0.4.0  cli_3.6.6         withr_3.0.2       pkgdown_2.2.0    </span></span>
-<span><span class="co">#&gt; [37] magrittr_2.0.5    stringdist_0.9.17 digest_0.6.39     vroom_1.7.1      </span></span>
-<span><span class="co">#&gt; [41] hms_1.1.4         lifecycle_1.0.5   vctrs_0.7.3       evaluate_1.0.5   </span></span>
-<span><span class="co">#&gt; [45] glue_1.8.1        ragg_1.5.2        rmarkdown_2.31    tools_4.6.0      </span></span>
-<span><span class="co">#&gt; [49] pkgconfig_2.0.3   htmltools_0.5.9</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

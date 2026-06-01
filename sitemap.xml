@@ -2,19 +2,26 @@
 <url><loc>https://saketlab.github.io/anumaan/404.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/LICENSE-text.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/LICENSE.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/articles/daly-pipeline.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/articles/getting-started.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/articles/index.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/articles/preprocessing-workflow.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/authors.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/index.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/amr_config.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/amr_theme.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/bootstrap_profiles_convex.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/build_constraint_matrix.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/calculate_distance_matrix.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/calculate_spatial_autocorrelation.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/calculate_spatial_metrics.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/check_profile_constraints.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compare_distribution_aic.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_hospital_daly.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/compute_marginals_from_data.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/compute_pairwise_from_data.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_processing_statistics.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/convert_df_to_html_table.html</loc></url>
@@ -33,6 +40,7 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_paf_los.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_paf_mortality.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_fatal.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_resistance_prevalence_fatal.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_syndrome_fraction.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yld_attributable.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.html</loc></url>
@@ -41,14 +49,12 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_los.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_fit_mortality_rr.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_get_top_pathogens.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_load_rr_reference.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/daly_lookup_rr.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/daly_map_rr_drug_class.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/daly_map_rr_pathogen.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/default_column_mappings.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/detect_hotspots.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/detect_key_columns.html</loc></url>
@@ -60,6 +66,8 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-derive_icu_binary.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-encode_comorbidity_mortality.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/eda_theme.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report_html.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report_pdf.html</loc></url>
@@ -69,7 +77,6 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/generate_preprocessing_report.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/get_age_bins.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/get_amr_palette.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/get_class_rr_map.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/get_los_by_resistance.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/get_organism_taxonomy.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/index.html</loc></url>
@@ -180,6 +187,7 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_validate_date_logic.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_validate_table.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prepare_los_data.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/preprocess_for_profiles.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/print.amr_config.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/print.amr_preprocessing_report.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/print.amr_result.html</loc></url>
@@ -196,8 +204,10 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/summarize_transformations.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/summarize_value_mapping.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/summary.amr_result.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/validate_aggregate_inputs.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/validate_config.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/validate_data_quality.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/validate_profile_inputs.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/validate_required_fields.html</loc></url>
 </urlset>
 

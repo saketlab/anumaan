@@ -1,7 +1,13 @@
 # Handle Duplicate AST Results
 
-Detects and optionally resolves conflicting AST records for the same
-patient + organism + antibiotic + date combination.
+Deduplicates AST records in two sequential steps:
+
+1.  **Exact-duplicate removal**: drops rows that are fully identical
+    across all five key columns (patient + organism + antibiotic +
+    date + value). These are true redundant records with no ambiguity.
+
+2.  **Conflict resolution**: handles the remaining cases where the same
+    patient + organism + antibiotic + date group has *different* values.
 
 ## Usage
 
@@ -67,13 +73,12 @@ prep_deduplicate_ast(
 
 - `"detect"`:
 
-  Flags conflicting rows with `is_ast_duplicate = TRUE` and prints a QC
-  summary of all conflict groups. Returns the full data frame with the
-  flag column so you can inspect or filter before deciding how to
+  After exact-dedup, flags conflicting rows with
+  `is_ast_duplicate = TRUE` and prints a QC summary. Returns the data
+  with the flag column so you can inspect before deciding how to
   resolve.
 
 - `"remove"`:
 
-  Runs the detect step first (flag + QC summary), then applies
-  `strategy` to keep one row per key combination and drops the flag
-  column from the returned data.
+  Runs both steps: removes exact duplicates, then applies `strategy` to
+  keep one row per key combination for any remaining conflicts.

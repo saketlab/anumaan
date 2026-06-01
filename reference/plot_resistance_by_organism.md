@@ -1,9 +1,9 @@
 # Resistance proportion for top N organisms
 
 100 vs Susceptible patients for the top `n` organisms (ranked by total
-distinct patient count). A patient × organism pair is classified as
+distinct patient count). A patient x organism pair is classified as
 Resistant if any antibiotic result for that pair is `"R"`
-(worst-phenotype rule at patient × organism × antibiotic level).
+(worst-phenotype rule at patient x organism x antibiotic level).
 
 ## Usage
 
@@ -31,7 +31,7 @@ plot_resistance_by_organism(
 
 - data:
 
-  Data frame (one row per patient × organism × antibiotic result).
+  Data frame (one row per patient x organism x antibiotic result).
 
 - n:
 

@@ -149,7 +149,7 @@ Event IDs, deduplication, contaminant flagging, and data reshaping
 
 ## Multi-centre stewardship import
 
-Joining and validating ICMR multi-centre stewardship datasets
+Joining and validating multi-centre stewardship datasets
 
 - [`prep_check_columns()`](https://saketlab.github.io/anumaan/reference/prep_check_columns.md)
   : Check required columns exist and report types
@@ -192,9 +192,10 @@ Build outcome cohorts and track patient counts through pipeline stages
 - [`prep_build_nonfatal_cohort()`](https://saketlab.github.io/anumaan/reference/prep_build_nonfatal_cohort.md)
   : Build Non-Fatal Cohort
 
-## Resistance profiles
+## Resistance profiles (core)
 
-Marginal resistance, co-resistance, and profile computation
+Marginal resistance, co-resistance matrices, and low-level profile
+computation
 
 - [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md)
   : Compute Marginal Resistance per Pathogen and Antibiotic Class
@@ -204,13 +205,43 @@ Marginal resistance, co-resistance, and profile computation
   : Compute Resistance Profile Probabilities per Pathogen
 - [`select_resistance_class()`](https://saketlab.github.io/anumaan/reference/select_resistance_class.md)
   : Select Resistance Class for Burden Attribution
+- [`enumerate_binary_profiles()`](https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.md)
+  : Enumerate All Binary Resistance Profiles for a Set of Antibiotic
+  Classes
+- [`build_constraint_matrix()`](https://saketlab.github.io/anumaan/reference/build_constraint_matrix.md)
+  : Build QP Constraint Matrix and Target Vector
+
+## Pathway 1: Convex Profile Estimation
+
+End-to-end pipeline for estimating resistance-profile probability
+distributions from facility-level or aggregate surveillance data via
+convex optimisation (GBD equation 7.5.1.3). Supports geography, year,
+and outcome stratification; optional override with externally modelled
+marginals (e.g. GBD ST-GPR).
+
+- [`validate_profile_inputs()`](https://saketlab.github.io/anumaan/reference/validate_profile_inputs.md)
+  : Validate Inputs for Resistance Profile Estimation (Pathway 1)
+- [`preprocess_for_profiles()`](https://saketlab.github.io/anumaan/reference/preprocess_for_profiles.md)
+  : Preprocess AST Data for Resistance Profile Estimation (Pathway 1)
+- [`validate_aggregate_inputs()`](https://saketlab.github.io/anumaan/reference/validate_aggregate_inputs.md)
+  : Validate Pre-computed Aggregate Marginal Inputs
+- [`compute_marginals_from_data()`](https://saketlab.github.io/anumaan/reference/compute_marginals_from_data.md)
+  : Compute Marginal Resistance Rates from Preprocessed Wide Data
+- [`compute_pairwise_from_data()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_from_data.md)
+  : Compute Pairwise Co-resistance Using Pearson Back-calculation
+- [`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md)
+  : Estimate Resistance Profile Probabilities via Convex Optimisation
+- [`check_profile_constraints()`](https://saketlab.github.io/anumaan/reference/check_profile_constraints.md)
+  : Formally Check Resistance Profile Probability Constraints
+- [`bootstrap_profiles_convex()`](https://saketlab.github.io/anumaan/reference/bootstrap_profiles_convex.md)
+  : Bootstrap Uncertainty Intervals for Resistance Profile Probabilities
 
 ## Burden estimation (YLL/YLD/DALY)
 
 GBD-methodology burden calculations
 
 - [`daly_add_rr_mappings()`](https://saketlab.github.io/anumaan/reference/daly_add_rr_mappings.md)
-  : Add RR Pathogen and Drug Mappings
+  : Add RR Pathogen and Drug Class Mappings
 - [`daly_assign_rr_to_profiles()`](https://saketlab.github.io/anumaan/reference/daly_assign_rr_to_profiles.md)
   : Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
 - [`daly_calc_case_fatality()`](https://saketlab.github.io/anumaan/reference/daly_calc_case_fatality.md)
@@ -235,6 +266,8 @@ GBD-methodology burden calculations
   Profile
 - [`daly_calc_pathogen_fraction_fatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_fatal.md)
   : Calculate fatal pathogen distribution (P\_{Lk})
+- [`daly_calc_resistance_prevalence_fatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_resistance_prevalence_fatal.md)
+  : Calculate Fatal Resistance Prevalence (R_k)
 - [`daly_calc_syndrome_fraction()`](https://saketlab.github.io/anumaan/reference/daly_calc_syndrome_fraction.md)
   : Calculate Infectious Syndrome Fraction (M_LJ)
 - [`daly_calc_yld_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yld_attributable.md)
@@ -251,6 +284,8 @@ GBD-methodology burden calculations
   : Derive Infection Type (HAI / CAI) per Patient
 - [`daly_derive_hai_cai_for_mortality()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.md)
   : Classify HAI/CAI Infection Type for the Mortality Cohort
+- [`daly_filter_profiles_to_rr_classes()`](https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.md)
+  : Filter Resistance Profiles to Classes with RR Estimates
 - [`daly_fit_los_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.md)
   : Fit relative LOS using Gamma GLM with log link
 - [`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md)
@@ -262,12 +297,6 @@ GBD-methodology burden calculations
   : Identify top N pathogens by occurrence
 - [`daly_load_rr_reference()`](https://saketlab.github.io/anumaan/reference/daly_load_rr_reference.md)
   : Load RR (Relative Risk) Reference Data
-- [`daly_lookup_rr()`](https://saketlab.github.io/anumaan/reference/daly_lookup_rr.md)
-  : Lookup Relative Risk Values
-- [`daly_map_rr_drug_class()`](https://saketlab.github.io/anumaan/reference/daly_map_rr_drug_class.md)
-  : Map Antibiotic Class to RR Drug Category
-- [`daly_map_rr_pathogen()`](https://saketlab.github.io/anumaan/reference/daly_map_rr_pathogen.md)
-  : Map Organism to RR Pathogen Category
 - [`compute_hospital_daly()`](https://saketlab.github.io/anumaan/reference/compute_hospital_daly.md)
   : Compute Hospital-Level DALY Breakdown
 

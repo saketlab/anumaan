@@ -1,7 +1,8 @@
-# Add RR Pathogen and Drug Mappings
+# Add RR Pathogen and Drug Class Mappings
 
-Adds rr_pathogen and rr_drug columns to data by matching against the GBD
-RR reference list.
+Maps organism names to GBD RR pathogen categories and antibiotic class
+names to RR drug categories in a single pass. Either mapping is skipped
+silently when the corresponding column is absent from `data`.
 
 ## Usage
 
@@ -9,7 +10,7 @@ RR reference list.
 daly_add_rr_mappings(
   data,
   organism_col = "organism_normalized",
-  antibiotic_col = "antibiotic_class"
+  class_col = "antibiotic_class"
 )
 ```
 
@@ -17,24 +18,24 @@ daly_add_rr_mappings(
 
 - data:
 
-  Data frame with organism and antibiotic columns
+  Data frame with organism and/or antibiotic class columns.
 
 - organism_col:
 
-  Character. Organism column. Default "organism_normalized".
+  Character. Column with organism names to map to `rr_pathogen`. Set to
+  `NULL` to skip. Default `"organism_normalized"`.
 
-- antibiotic_col:
+- class_col:
 
-  Character. Antibiotic column. Default "antibiotic_class".
+  Character. Column with antibiotic class names to map to `rr_drug`. Set
+  to `NULL` to skip. Default `"antibiotic_class"`.
 
 ## Value
 
-Data frame with rr_pathogen and rr_drug columns added
+Data frame with `rr_pathogen` and/or `rr_drug` columns appended.
 
-## Examples
+## Details
 
-``` r
-if (FALSE) { # \dontrun{
-data <- daly_add_rr_mappings(data)
-} # }
-```
+Pathogen mapping uses the organism taxonomy
+([`get_organism_taxonomy()`](https://saketlab.github.io/anumaan/reference/get_organism_taxonomy.md));
+drug class mapping uses `inst/extdata/WHO_aware_class.csv`.
