@@ -61,8 +61,11 @@ date column used with \code{fallback_dob_col}. Default
 \code{"admission_date"}.}
 }
 \value{
-Data frame with resolved numeric age in \code{Age_years} and
-  \code{Age_bin} factor column added.
+Data frame with resolved numeric age in \code{Age_years},
+  \code{Age_bin} factor column, and \code{Age_resolved} (decimal years
+  rounded to one decimal place, derived from whatever year / month / day
+  components were available — e.g. 45 months with no year value yields
+  \code{Age_resolved = 3.8}) added.
 }
 \description{
 Categorizes age into bins for stratification using GBD standard or custom

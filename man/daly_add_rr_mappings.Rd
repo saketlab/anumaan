@@ -2,30 +2,35 @@
 % Please edit documentation in R/daly_resistance_prevalence.R
 \name{daly_add_rr_mappings}
 \alias{daly_add_rr_mappings}
-\title{Add RR Pathogen and Drug Mappings}
+\title{Add RR Pathogen and Drug Class Mappings}
 \usage{
 daly_add_rr_mappings(
   data,
   organism_col = "organism_normalized",
-  antibiotic_col = "antibiotic_class"
+  class_col = "antibiotic_class"
 )
 }
 \arguments{
-\item{data}{Data frame with organism and antibiotic columns}
+\item{data}{Data frame with organism and/or antibiotic class columns.}
 
-\item{organism_col}{Character. Organism column. Default "organism_normalized".}
+\item{organism_col}{Character. Column with organism names to map to
+\code{rr_pathogen}. Set to \code{NULL} to skip. Default
+\code{"organism_normalized"}.}
 
-\item{antibiotic_col}{Character. Antibiotic column. Default "antibiotic_class".}
+\item{class_col}{Character. Column with antibiotic class names to map to
+\code{rr_drug}. Set to \code{NULL} to skip. Default
+\code{"antibiotic_class"}.}
 }
 \value{
-Data frame with rr_pathogen and rr_drug columns added
+Data frame with \code{rr_pathogen} and/or \code{rr_drug} columns
+  appended.
 }
 \description{
-Adds rr_pathogen and rr_drug columns to data by matching against
-the GBD RR reference list.
+Maps organism names to GBD RR pathogen categories and antibiotic class names
+to RR drug categories in a single pass. Either mapping is skipped silently
+when the corresponding column is absent from \code{data}.
 }
-\examples{
-\dontrun{
-data <- daly_add_rr_mappings(data)
-}
+\details{
+Pathogen mapping uses the organism taxonomy (\code{get_organism_taxonomy()});
+drug class mapping uses \code{inst/extdata/WHO_aware_class.csv}.
 }

@@ -3,8 +3,8 @@
 
 #' @importFrom magrittr %>%
 #' @importFrom rlang .data .env := %||%
-#' @importFrom stats density median na.omit pnorm profile quantile reorder setNames
-#' @importFrom utils adist head object.size
+#' @importFrom stats cor density median na.omit pnorm profile quantile rbinom reorder setNames
+#' @importFrom utils adist combn head object.size
 NULL
 
 # Column names used in tidyverse non-standard evaluation (NSE) pipelines
@@ -107,5 +107,26 @@ utils::globalVariables(c(
   "unit_admission_date", "unit_duration_days", "location",
 
   # plot_resistance_by_agebin / plot_resistance_by_organism -- dplyr NSE columns
-  "abx_call", "pct", "pt_count", "resistance"
+  "abx_call", "pct", "pt_count", "resistance",
+
+  # profile_convex.R -- Pathway 1 pipeline NSE column names
+  # Temporary column created then removed in the isolate dedup step
+  ".sir_rank",
+  # Marginal computation: source flag and temporary external-override column
+  "marginal_source", ".ext_rate",
+  # check_profile_constraints(): bare column refs inside dplyr::summarise
+  "pass", "abs_residual",
+  # estimate_profiles_convex() / output schema columns created in dplyr::mutate
+  "profile_probability", "convergence_flag", "identifiability_flag",
+  "max_abs_residual", "profile_set_type", "profile_class_set", "estimator",
+  # compute_pairwise_from_data() output columns
+  "antibiotic_class_1", "antibiotic_class_2", "pairwise_prevalence",
+  "n_co_tested", "rho",
+  # bootstrap_profiles_convex() output columns
+  "probability_mean", "probability_median",
+  "n_replicates_converged", "convergence_rate",
+  # validate_profile_inputs() / preprocess_for_profiles() report columns
+  "check_name", "n_affected", "n_rows_in", "n_rows_out",
+  # compute_resistance_profiles() new stored output fields
+  "constraint_targets", "constraint_names"
 ))

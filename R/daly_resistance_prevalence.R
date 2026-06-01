@@ -48,334 +48,81 @@ daly_load_rr_reference <- function() {
 }
 
 
-#' Add RR Pathogen and Drug Mappings
+#' Add RR Pathogen and Drug Class Mappings
 #'
-#' Adds rr_pathogen and rr_drug columns to data by matching against
-#' the GBD RR reference list.
+#' Maps organism names to GBD RR pathogen categories and antibiotic class names
+#' to RR drug categories in a single pass. Either mapping is skipped silently
+#' when the corresponding column is absent from \code{data}.
 #'
-#' @param data Data frame with organism and antibiotic columns
-#' @param organism_col Character. Organism column. Default "organism_normalized".
-#' @param antibiotic_col Character. Antibiotic column. Default "antibiotic_class".
+#' Pathogen mapping uses the organism taxonomy (\code{get_organism_taxonomy()});
+#' drug class mapping uses \code{inst/extdata/WHO_aware_class.csv}.
 #'
-#' @return Data frame with rr_pathogen and rr_drug columns added
+#' @param data Data frame with organism and/or antibiotic class columns.
+#' @param organism_col Character. Column with organism names to map to
+#'   \code{rr_pathogen}. Set to \code{NULL} to skip. Default
+#'   \code{"organism_normalized"}.
+#' @param class_col Character. Column with antibiotic class names to map to
+#'   \code{rr_drug}. Set to \code{NULL} to skip. Default
+#'   \code{"antibiotic_class"}.
+#'
+#' @return Data frame with \code{rr_pathogen} and/or \code{rr_drug} columns
+#'   appended.
 #' @export
-#'
-#' @examples
-#' \dontrun{
-#' data <- daly_add_rr_mappings(data)
-#' }
 daly_add_rr_mappings <- function(data,
                                  organism_col = "organism_normalized",
-                                 antibiotic_col = "antibiotic_class") {
-  if (!organism_col %in% names(data)) {
-    warning(sprintf("Column '%s' not found. Skipping RR mapping.", organism_col))
-    return(data)
-  }
-
-  # Load RR reference
-  rr_ref <- daly_load_rr_reference()
-
-  # Create lowercase versions for matching
-  data$temp_org_lower <- tolower(trimws(data[[organism_col]]))
-  rr_ref$temp_path_lower <- tolower(trimws(rr_ref$pathogen))
-
-  # Join to add rr_pathogen
-  data <- data %>%
-    dplyr::left_join(
-      rr_ref %>%
-        dplyr::select(temp_path_lower, pathogen) %>%
-        dplyr::distinct(),
-      by = c("temp_org_lower" = "temp_path_lower")
-    ) %>%
-    dplyr::rename(rr_pathogen = pathogen)
-
-  # Join to add rr_drug (if antibiotic_col exists)
-  if (antibiotic_col %in% names(data)) {
-    data$temp_drug_lower <- tolower(trimws(data[[antibiotic_col]]))
-    rr_ref$temp_drug_ref_lower <- tolower(trimws(rr_ref$drug))
-
-    data <- data %>%
-      dplyr::left_join(
-        rr_ref %>%
-          dplyr::select(temp_drug_ref_lower, drug) %>%
-          dplyr::distinct(),
-        by = c("temp_drug_lower" = "temp_drug_ref_lower")
-      ) %>%
-      dplyr::rename(rr_drug = drug)
-
-    data$temp_drug_lower <- NULL
-  }
-
-  # Clean up
-  data$temp_org_lower <- NULL
-
-  # Report
-  n_pathogen_mapped <- sum(!is.na(data$rr_pathogen))
-  message(sprintf(
-    "RR pathogen mapping: %d/%d (%.1f%%)",
-    n_pathogen_mapped, nrow(data),
-    100 * n_pathogen_mapped / nrow(data)
-  ))
-
-  if (antibiotic_col %in% names(data)) {
-    n_drug_mapped <- sum(!is.na(data$rr_drug))
-    message(sprintf(
-      "RR drug mapping: %d/%d (%.1f%%)",
-      n_drug_mapped, nrow(data),
-      100 * n_drug_mapped / nrow(data)
-    ))
-  }
-
-  return(data)
-}
-
-
-#' Map Organism to RR Pathogen Category
-#'
-#' Maps normalized organism names to RR (Relative Risk) pathogen categories
-#' used in burden estimation.
-#'
-#' @param data Data frame
-#' @param organism_col Character. Normalized organism column.
-#'
-#' @return Data frame with rr_pathogen column added
-#' @export
-daly_map_rr_pathogen <- function(data, organism_col = "organism_normalized") {
-  if (!organism_col %in% names(data)) {
-    stop(sprintf("Organism column '%s' not found", organism_col))
-  }
-
-  # Get mapping
-  rr_map <- get_rr_pathogen_map()
-
-  # Join
-  data <- data %>%
-    dplyr::left_join(
-      rr_map,
-      by = stats::setNames("organism_name", organism_col)
-    )
-
-  n_mapped <- sum(!is.na(data$rr_pathogen))
-  pct_mapped <- 100 * n_mapped / nrow(data)
-
-  message(sprintf(
-    "Mapped to RR pathogen: %d/%d (%.1f%%)",
-    n_mapped, nrow(data), pct_mapped
-  ))
-
-  unmapped_orgs <- unique(data[[organism_col]][is.na(data$rr_pathogen)])
-  if (length(unmapped_orgs) > 0) {
-    message("Unmapped organisms: ", paste(head(unmapped_orgs, 10), collapse = ", "))
-  }
-
-  return(data)
-}
-
-
-#' Map Antibiotic Class to RR Drug Category
-#'
-#' Maps WHO antibiotic classes to RR drug categories for burden estimation.
-#'
-#' @param data Data frame
-#' @param class_col Character. Antibiotic class column. Default "antibiotic_class".
-#'
-#' @return Data frame with rr_drug column added
-#' @export
-daly_map_rr_drug_class <- function(data, class_col = "antibiotic_class") {
-  if (!class_col %in% names(data)) {
-    stop(sprintf("Class column '%s' not found", class_col))
-  }
-
-  # Get mapping
-  class_map <- get_class_rr_map()
-
-  # Join
-  data <- data %>%
-    dplyr::left_join(
-      class_map,
-      by = stats::setNames("Class", class_col)
-    )
-
-  n_mapped <- sum(!is.na(data$rr_drug))
-  pct_mapped <- 100 * n_mapped / nrow(data)
-
-  message(sprintf(
-    "Mapped to RR drug: %d/%d (%.1f%%)",
-    n_mapped, nrow(data), pct_mapped
-  ))
-
-  return(data)
-}
-
-
-#' Lookup Relative Risk Values
-#'
-#' Looks up RR values from table. Implements 3GC/4GC proxy logic.
-#'
-#' @param data Data frame with rr_pathogen and rr_drug columns
-#' @param rr_table Data frame with RR values. If NULL, uses built-in.
-#'
-#' @return Data frame with rr_value column added
-#' @export
-daly_lookup_rr <- function(data, rr_table = NULL) {
-  if (!all(c("rr_pathogen", "rr_drug") %in% names(data))) {
-    stop("Must have rr_pathogen and rr_drug columns. Run mapping functions first.")
-  }
-
-  if (is.null(rr_table)) {
-    message("RR table not provided. Cannot lookup RR values.")
-    data$rr_value <- NA_real_
-    data$rr_source <- "no_table"
-    return(data)
-  }
-
-  # Normalize for matching
-  data_norm <- data %>%
-    dplyr::mutate(
-      rr_pathogen_norm = normalize_join(rr_pathogen),
-      rr_drug_norm = normalize_join(rr_drug)
-    )
-
-  rr_norm <- rr_table %>%
-    dplyr::mutate(
-      rr_pathogen_norm = normalize_join(rr_pathogen),
-      rr_drug_norm = normalize_join(rr_drug)
-    )
-
-  # Join
-  data <- data_norm %>%
-    dplyr::left_join(
-      rr_norm %>% dplyr::select(rr_pathogen_norm, rr_drug_norm, RR),
-      by = c("rr_pathogen_norm", "rr_drug_norm")
-    ) %>%
-    dplyr::rename(rr_value = RR) %>%
-    dplyr::select(-rr_pathogen_norm, -rr_drug_norm)
-
-  n_matched <- sum(!is.na(data$rr_value))
-  pct_matched <- 100 * n_matched / nrow(data)
-
-  message(sprintf(
-    "RR values found: %d/%d (%.1f%%)",
-    n_matched, nrow(data), pct_matched
-  ))
-
-  # TODO: Implement 3GC/4GC proxy logic if needed
-
-  return(data)
-}
-
-daly_calc_resistance_prevalence_nonfatal <- function(ast_data,
-                                                     isolate_col = "isolate_id",
-                                                     pathogen_col = "pathogen",
-                                                     antibiotic_col = "antibiotic",
-                                                     ast_result_col = "ast_result",
-                                                     # Antibiotic class handling
-                                                     drug_class_col = NULL,
-                                                     antibiotic_class_map = NULL,
-                                                     # Facility handling
-                                                     facility_col = NULL,
-                                                     facility_name = NULL,
-                                                     # Pathogen filter
-                                                     pathogen_name = NULL) {
-  ## -- sanity checks ---------------------------------------------
-  required_cols <- c(
-    isolate_col, pathogen_col,
-    antibiotic_col, ast_result_col
-  )
-  missing_cols <- setdiff(required_cols, names(ast_data))
-  if (length(missing_cols) > 0) {
-    stop(sprintf(
-      "Missing column(s): %s",
-      paste(missing_cols, collapse = ", ")
-    ))
-  }
-
-  ## -- facility filter (explicit) --------------------------------
-  if (!is.null(facility_name)) {
-    if (is.null(facility_col)) {
-      stop("facility_col must be provided if facility_name is specified.")
+                                 class_col    = "antibiotic_class") {
+  # -- Pathogen mapping -------------------------------------------------------
+  if (!is.null(organism_col) && organism_col %in% names(data)) {
+    taxonomy <- get_organism_taxonomy()
+    if (nrow(taxonomy) > 0) {
+      rr_map <- unique(data.frame(
+        organism_name = taxonomy$organism_name,
+        rr_pathogen   = taxonomy$organism_name,
+        stringsAsFactors = FALSE
+      ))
+      data <- dplyr::left_join(
+        data, rr_map,
+        by = stats::setNames("organism_name", organism_col)
+      )
+      n_mapped <- sum(!is.na(data$rr_pathogen))
+      message(sprintf(
+        "Mapped to RR pathogen: %d/%d (%.1f%%)",
+        n_mapped, nrow(data), 100 * n_mapped / nrow(data)
+      ))
+      unmapped <- unique(data[[organism_col]][is.na(data$rr_pathogen)])
+      if (length(unmapped) > 0)
+        message("Unmapped organisms: ", paste(head(unmapped, 10), collapse = ", "))
+    } else {
+      warning("Organism taxonomy is empty. Skipping pathogen mapping.")
     }
-    ast_data <- ast_data %>%
-      dplyr::filter(.data[[facility_col]] == facility_name)
   }
 
-  ## -- pathogen filter -------------------------------------------
-  if (!is.null(pathogen_name)) {
-    ast_data <- ast_data %>%
-      dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
-    if (nrow(ast_data) == 0) {
-      stop(sprintf(
-        "No records found for pathogen(s): %s",
-        paste(pathogen_name, collapse = ", ")
+  # -- Drug class mapping -----------------------------------------------------
+  if (!is.null(class_col) && class_col %in% names(data)) {
+    csv_path <- find_extdata_file("WHO_aware_class.csv")
+    if (csv_path == "") {
+      warning("WHO_aware_class.csv not found. Skipping drug class mapping.")
+    } else {
+      who <- utils::read.csv(csv_path, stringsAsFactors = FALSE)
+      if (!"rr_drug" %in% names(who)) who$rr_drug <- who$Class
+      class_map <- unique(who[, c("Class", "rr_drug")])
+      data <- dplyr::left_join(
+        data, class_map,
+        by = stats::setNames("Class", class_col)
+      )
+      n_mapped <- sum(!is.na(data$rr_drug))
+      message(sprintf(
+        "Mapped to RR drug: %d/%d (%.1f%%)",
+        n_mapped, nrow(data), 100 * n_mapped / nrow(data)
       ))
     }
-    message(sprintf(
-      "Pathogen filter applied: %s",
-      paste(pathogen_name, collapse = ", ")
-    ))
   }
 
-  ## -- antibiotic class resolution -------------------------------
-  if (!is.null(drug_class_col)) {
-    if (!drug_class_col %in% names(ast_data)) {
-      stop("Specified drug_class_col not found in data.")
-    }
-
-    working <- ast_data %>%
-      dplyr::mutate(drug_class = .data[[drug_class_col]])
-  } else {
-    if (is.null(antibiotic_class_map)) {
-      stop("Provide either drug_class_col or antibiotic_class_map.")
-    }
-
-    if (!all(c("antibiotic", "drug_class") %in%
-      names(antibiotic_class_map))) {
-      stop("antibiotic_class_map must have columns: antibiotic, drug_class")
-    }
-
-    working <- ast_data %>%
-      dplyr::left_join(
-        antibiotic_class_map,
-        by = c(antibiotic_col = "antibiotic")
-      )
-  }
-
-  ## -- resistance flag -------------------------------------------
-  working <- working %>%
-    dplyr::mutate(
-      resistant_flag = dplyr::if_else(
-        .data[[ast_result_col]] == "R", 1L, 0L
-      )
-    )
-
-  ## -- isolate-wise collapse -------------------------------------
-  isolate_level <- working %>%
-    dplyr::group_by(
-      .data[[isolate_col]],
-      .data[[pathogen_col]],
-      drug_class
-    ) %>%
-    dplyr::summarise(
-      resistant = max(resistant_flag, na.rm = TRUE),
-      tested    = 1L,
-      .groups   = "drop"
-    )
-
-  ## -- pathogen x drug-class aggregation -------------------------
-  result <- isolate_level %>%
-    dplyr::group_by(
-      .data[[pathogen_col]],
-      drug_class
-    ) %>%
-    dplyr::summarise(
-      N_tested    = sum(tested),
-      N_resistant = sum(resistant),
-      R_kd_prime  = N_resistant / N_tested,
-      .groups     = "drop"
-    )
-
-  return(result)
+  return(data)
 }
+
+
+
 
 #' Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
 #'
@@ -490,6 +237,23 @@ daly_assign_rr_to_profiles <- function(
   return(out)
 }
 
+#' Filter Resistance Profiles to Classes with RR Estimates
+#'
+#' Drops profiles whose resistant classes have no RR estimate in
+#' \code{rr_table} and re-normalises the remaining probabilities. The
+#' all-susceptible reference profile is always kept.
+#'
+#' @param profiles_with_rr Named list returned by
+#'   \code{daly_assign_rr_to_profiles()}.
+#' @param rr_table Data frame of RR estimates.
+#' @param pathogen_col Character. Default \code{"pathogen"}.
+#' @param class_col Character. Default \code{"antibiotic_class"}.
+#' @param probability_col Character. Default \code{"probability"}.
+#' @param fallback_rr Numeric. Default \code{1}.
+#'
+#' @return Named list (one entry per pathogen) with filtered and
+#'   re-normalised profiles.
+#' @export
 daly_filter_profiles_to_rr_classes <- function(
   profiles_with_rr,
   rr_table,
@@ -585,6 +349,23 @@ daly_filter_profiles_to_rr_classes <- function(
   return(out)
 }
 
+#' Calculate Fatal Resistance Prevalence (R_k)
+#'
+#' Computes the profile-weighted expected proportion of deaths attributable to
+#' resistance (R_k) and the expected odds ratio of death (E[OR_death]) for
+#' each pathogen.
+#'
+#' @param profiles_with_rr Named list returned by
+#'   \code{daly_assign_rr_to_profiles()} or
+#'   \code{daly_filter_profiles_to_rr_classes()}.
+#' @param probability_col Character. Profile probability column.
+#'   Default \code{"probability"}.
+#' @param rr_profile_col Character. Profile-level OR column.
+#'   Default \code{"RR_LOS_profile"}.
+#'
+#' @return Named list (one entry per pathogen) each containing
+#'   \code{per_profile} data frame, \code{R_k}, and \code{E_OR_k}.
+#' @export
 daly_calc_resistance_prevalence_fatal <- function(
   profiles_with_rr,
   probability_col = "probability",
@@ -1745,7 +1526,7 @@ compute_resistance_profiles <- function(
       probability = p_hat,
       stringsAsFactors = FALSE
     )
-    profiles_df <- cbind(profiles_df, as.data.frame(profiles_mat))
+    profiles_df <- cbind(profiles_df, as.data.frame(profiles_mat, check.names = FALSE))
 
     message(sprintf(
       "'%s': n=%d classes -> %d profiles. Max |residual| = %.5f.",
@@ -1756,10 +1537,12 @@ compute_resistance_profiles <- function(
       type = "success",
       path = path,
       result = list(
-        profiles             = profiles_df,
-        classes              = classes,
-        n_classes            = n,
-        constraint_residuals = residuals
+        profiles              = profiles_df,
+        classes               = classes,
+        n_classes             = n,
+        constraint_residuals  = residuals,
+        constraint_targets    = setNames(v, names(residuals)),
+        constraint_names      = names(residuals)
       )
     )
   }
@@ -1801,44 +1584,6 @@ compute_resistance_profiles <- function(
   }
 
   return(out)
-}
-get_rr_pathogen_map <- function() {
-  taxonomy <- get_organism_taxonomy()
-  if (nrow(taxonomy) == 0) {
-    return(data.frame(
-      organism_name = character(),
-      rr_pathogen = character(),
-      stringsAsFactors = FALSE
-    ))
-  }
-  # Use organism_name as the rr_pathogen (no dedicated column in current data)
-  taxonomy$rr_pathogen <- taxonomy$organism_name
-  taxonomy[, c("organism_name", "rr_pathogen")]
-}
-
-
-#' Get Antibiotic Class to RR Drug Mapping
-#'
-#' Returns a mapping from WHO antibiotic classes to RR drug categories.
-#' Reads from inst/extdata/WHO_aware_class.csv.
-#'
-#' @return Data frame with columns Class and rr_drug
-#' @keywords internal
-get_class_rr_map <- function() {
-  file_path <- find_extdata_file("WHO_aware_class.csv")
-  if (file_path == "") {
-    warning("WHO_aware_class.csv not found. Returning empty class-RR map.")
-    return(data.frame(
-      Class = character(),
-      rr_drug = character(),
-      stringsAsFactors = FALSE
-    ))
-  }
-  who <- utils::read.csv(file_path, stringsAsFactors = FALSE)
-  if (!"rr_drug" %in% names(who)) {
-    who$rr_drug <- who$Class
-  }
-  unique(who[, c("Class", "rr_drug")])
 }
 
 
@@ -1949,8 +1694,12 @@ prioritize_resistance <- function(data,
                                   class_col,
                                   rr_col    = NULL,
                                   hierarchy) {
+  # Accept either a named vector (name = class, value = rank) or an unnamed
+  # character vector (position = rank) -- get_beta_lactam_hierarchy() returns
+  # the latter.
+  hier_classes <- if (!is.null(names(hierarchy))) names(hierarchy) else as.character(hierarchy)
   hierarchy_df <- data.frame(
-    class          = names(hierarchy),
+    class          = hier_classes,
     hierarchy_rank = seq_along(hierarchy),
     stringsAsFactors = FALSE
   )
