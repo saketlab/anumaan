@@ -331,13 +331,8 @@ run_preprocess <- function(data,
     }
 
     # Step 3.11: Map to RR pathogens and classes (if enabled)
-    if ("organism_normalized" %in% names(data)) {
-      if (verbose) message("\n[3.12] Mapping to RR categories...")
-      data <- daly_map_rr_pathogen(data)
-    }
-    if ("antibiotic_class" %in% names(data)) {
-      data <- daly_map_rr_drug_class(data)
-    }
+    if (verbose) message("\n[3.12] Mapping to RR categories...")
+    data <- daly_add_rr_mappings(data)
   }
 
   # ========================================

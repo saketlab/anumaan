@@ -1,8 +1,10 @@
 ---
 title: "Preprocessing Workflow in anumaan"
-author: "Nilanjana Dey, Nima Jijo, Namrata Kharat, Saket Choudhary"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
 vignette: >
   %\VignetteIndexEntry{Preprocessing Workflow in anumaan}
   %\VignetteEngine{knitr::rmarkdown}

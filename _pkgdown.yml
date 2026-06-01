@@ -73,8 +73,12 @@ navbar:
       menu:
       - text: Getting Started
         href: articles/getting-started.html
+      - text: "-------"
+      - text: "Pipelines"
       - text: Preprocessing Workflow
         href: articles/preprocessing-workflow.html
+      - text: DALY Burden Estimation
+        href: articles/daly-pipeline.html
 
     news:
       text: Changelog
@@ -195,13 +199,31 @@ reference:
   - prep_build_fatal_cohort
   - prep_build_nonfatal_cohort
 
-- title: "Resistance profiles"
-  desc: "Marginal resistance, co-resistance, and profile computation"
+- title: "Resistance profiles (core)"
+  desc: "Marginal resistance, co-resistance matrices, and low-level profile computation"
   contents:
   - compute_marginal_resistance
   - compute_pairwise_coresistance
   - compute_resistance_profiles
   - select_resistance_class
+  - enumerate_binary_profiles
+  - build_constraint_matrix
+
+- title: "Pathway 1: Convex Profile Estimation"
+  desc: >
+    End-to-end pipeline for estimating resistance-profile probability distributions
+    from facility-level or aggregate surveillance data via convex optimisation (GBD
+    equation 7.5.1.3). Supports geography, year, and outcome stratification;
+    optional override with externally modelled marginals (e.g. GBD ST-GPR).
+  contents:
+  - validate_profile_inputs
+  - preprocess_for_profiles
+  - validate_aggregate_inputs
+  - compute_marginals_from_data
+  - compute_pairwise_from_data
+  - estimate_profiles_convex
+  - check_profile_constraints
+  - bootstrap_profiles_convex
 
 - title: "Burden estimation (YLL/YLD/DALY)"
   desc: "GBD-methodology burden calculations"

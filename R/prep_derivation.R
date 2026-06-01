@@ -125,8 +125,11 @@ get_age_bins <- function(type = "GBD_standard") {
 #'   date column used with \code{fallback_dob_col}. Default
 #'   \code{"admission_date"}.
 #'
-#' @return Data frame with resolved numeric age in \code{Age_years} and
-#'   \code{Age_bin} factor column added.
+#' @return Data frame with resolved numeric age in \code{Age_years},
+#'   \code{Age_bin} factor column, and \code{Age_resolved} (decimal years
+#'   rounded to one decimal place, derived from whatever year / month / day
+#'   components were available — e.g. 45 months with no year value yields
+#'   \code{Age_resolved = 3.8}) added.
 #' @export
 prep_assign_age_bins <- function(data,
                                   age_col        = "Age",
@@ -253,6 +256,13 @@ prep_assign_age_bins <- function(data,
     right          = FALSE,
     include.lowest = TRUE
   )
+
+  # Age_resolved: decimal years rounded to 1 d.p., derived from whatever
+  # year / month / day components were available.  Placed after Age_bin so
+  # the three age columns (Age_years, Age_bin, Age_resolved) are adjacent
+  # at the end of the frame.
+  # Example: primary age absent but months = 45  →  45 / 12 = 3.75 → 3.8
+  data$Age_resolved <- round(age_years, 1)
 
   n_binned   <- sum(!is.na(data$Age_bin))
   n_unbinned <- sum(is.na(data$Age_bin) & !is.na(age_years))
