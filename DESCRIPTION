@@ -57,11 +57,10 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,
+    pkgdown,
+    ggpubr (>= 0.4.0),
     reticulate (>= 1.28),
     lme4 (>= 1.1.0),
-    ggpubr,
-    ggrepel,
-    pkgdown,
     sf,
     leaflet,
     spdep,
@@ -69,7 +68,9 @@ Suggests:
     Matrix,
     osqp,
     quadprog,
-    car
+    cmdstanr (>= 0.5.0),
+    posterior (>= 1.0.0),
+    mvtnorm (>= 1.1.0)
 VignetteBuilder: knitr
 URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
 BugReports: https://github.com/saketlab/anumaan/issues

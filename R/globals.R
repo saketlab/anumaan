@@ -128,5 +128,28 @@ utils::globalVariables(c(
   # validate_profile_inputs() / preprocess_for_profiles() report columns
   "check_name", "n_affected", "n_rows_in", "n_rows_out",
   # compute_resistance_profiles() new stored output fields
-  "constraint_targets", "constraint_names"
+  "constraint_targets", "constraint_names",
+
+  # Pathway 2 — fit_bayesian_multivariate_probit()
+  "resistance_binary", "antibiotic_class", ".eid", ".pt_adm_key",
+  "d_idx", "h_idx", "p_idx",
+
+  # Pathway 2 — compute_event_profile_probabilities()
+  "profile_class_set", "profile_delta", "profile_probability",
+  "draw_s", "R_ALL_s", "R_NF_s",
+
+  # Pathway 2 — aggregate_profiles_for_daly()
+  "R_ALL_mean", "R_ALL_lower", "R_ALL_upper",
+  "R_NF_mean",  "R_NF_lower",  "R_NF_upper",
+  "used_for_YLL", "used_for_YLD", "profile_set_type",
+  "n_draws_used", "profile_label",
+
+  # Pathway 2 — summarize_reserve_drugs()
+  "n_total", "n_tested", "n_resistant",
+  "tested_subset_resistance", "adjusted_testing_support",
+  "subgroup_notes", "reserve_drug_flag", "sensitivity_flag",
+
+  # estimate_resistance_profiles() diagnostics
+  "pct_converged", "any_underdetermined", "n_profiles_estimated",
+  "n_eligible_pathogens", "n_profiles"
 ))

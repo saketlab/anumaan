@@ -2567,3 +2567,470 @@ get_los_by_resistance <- function(abx_data,
 
   list(R = los_R, S = los_S)
 }
+
+
+# ===========================================================================
+# Relative risk reference data, pathogen-drug mappings, and profile-level
+# RR assignment.
+#
+# Loads GBD-derived relative risk (RR) estimates for pathogen-antibiotic class
+# combinations, maps organism and drug class names to RR categories, and
+# assigns profile-level RR values to resistance profiles using the GBD max
+# rule: the profile RR equals the highest class-level RR among all resistant
+# classes in that profile. Re-normalises profile probabilities after dropping
+# profiles whose resistant classes carry no RR estimate, and computes the
+# fatal resistance prevalence R_k and expected odds ratio E[OR_death] for
+# each pathogen.
+#
+#   daly_load_rr_reference()              loads rr_list_gbd.xlsx
+#   daly_add_rr_mappings()                appends rr_pathogen and rr_drug columns
+#   daly_assign_rr_to_profiles()          assigns RR_LOS_profile via max rule
+#   daly_filter_profiles_to_rr_classes()  drops and re-normalises unmatched profiles
+#   daly_calc_resistance_prevalence_fatal() computes R_k and E[OR_death]
+# ===========================================================================
+
+#' Load RR (Relative Risk) Reference Data
+#'
+#' Loads the rr_list_gbd.xlsx file containing pathogen-drug combinations
+#' with relative risk values for burden estimation.
+#'
+#' @return Data frame with Pathogen, Drug, and RR columns
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' rr_data <- daly_load_rr_reference()
+#' head(rr_data)
+#' }
+daly_load_rr_reference <- function() {
+  # Find Excel file
+  xlsx_path <- find_extdata_file("rr_list_gbd.xlsx")
+
+  if (xlsx_path == "" || !file.exists(xlsx_path)) {
+    stop("rr_list_gbd.xlsx not found in inst/extdata/")
+  }
+
+  # Load Excel file
+  rr_data <- readxl::read_excel(xlsx_path, sheet = "Sheet2")
+
+  # Clean column names
+  names(rr_data) <- c(
+    "pathogen",
+    "drug",
+    "sample_size",
+    "mean_rr",
+    "lower_bound",
+    "upper_bound"
+  )
+
+  # Remove rows with NA pathogen (like footer notes)
+  rr_data <- rr_data %>%
+    dplyr::filter(!is.na(pathogen), !is.na(drug))
+
+  message(sprintf(
+    "[v] Loaded %d pathogen-drug RR combinations",
+    nrow(rr_data)
+  ))
+
+  return(rr_data)
+}
+
+
+#' Add RR Pathogen and Drug Class Mappings
+#'
+#' Maps organism names to GBD RR pathogen categories and antibiotic class names
+#' to RR drug categories in a single pass. Either mapping is skipped silently
+#' when the corresponding column is absent from \code{data}.
+#'
+#' Pathogen mapping uses the organism taxonomy (\code{get_organism_taxonomy()});
+#' drug class mapping uses \code{inst/extdata/WHO_aware_class.csv}.
+#'
+#' @param data Data frame with organism and/or antibiotic class columns.
+#' @param organism_col Character. Column with organism names to map to
+#'   \code{rr_pathogen}. Set to \code{NULL} to skip. Default
+#'   \code{"organism_normalized"}.
+#' @param class_col Character. Column with antibiotic class names to map to
+#'   \code{rr_drug}. Set to \code{NULL} to skip. Default
+#'   \code{"antibiotic_class"}.
+#'
+#' @return Data frame with \code{rr_pathogen} and/or \code{rr_drug} columns
+#'   appended.
+#' @export
+daly_add_rr_mappings <- function(data,
+                                 organism_col = "organism_normalized",
+                                 class_col    = "antibiotic_class") {
+  # -- Pathogen mapping -------------------------------------------------------
+  if (!is.null(organism_col) && organism_col %in% names(data)) {
+    taxonomy <- get_organism_taxonomy()
+    if (nrow(taxonomy) > 0) {
+      rr_map <- unique(data.frame(
+        organism_name = taxonomy$organism_name,
+        rr_pathogen   = taxonomy$organism_name,
+        stringsAsFactors = FALSE
+      ))
+      data <- dplyr::left_join(
+        data, rr_map,
+        by = stats::setNames("organism_name", organism_col)
+      )
+      n_mapped <- sum(!is.na(data$rr_pathogen))
+      message(sprintf(
+        "Mapped to RR pathogen: %d/%d (%.1f%%)",
+        n_mapped, nrow(data), 100 * n_mapped / nrow(data)
+      ))
+      unmapped <- unique(data[[organism_col]][is.na(data$rr_pathogen)])
+      if (length(unmapped) > 0)
+        message("Unmapped organisms: ", paste(head(unmapped, 10), collapse = ", "))
+    } else {
+      warning("Organism taxonomy is empty. Skipping pathogen mapping.")
+    }
+  }
+
+  # -- Drug class mapping -----------------------------------------------------
+  if (!is.null(class_col) && class_col %in% names(data)) {
+    csv_path <- find_extdata_file("WHO_aware_class.csv")
+    if (csv_path == "") {
+      warning("WHO_aware_class.csv not found. Skipping drug class mapping.")
+    } else {
+      who <- utils::read.csv(csv_path, stringsAsFactors = FALSE)
+      if (!"rr_drug" %in% names(who)) who$rr_drug <- who$Class
+      class_map <- unique(who[, c("Class", "rr_drug")])
+      data <- dplyr::left_join(
+        data, class_map,
+        by = stats::setNames("Class", class_col)
+      )
+      n_mapped <- sum(!is.na(data$rr_drug))
+      message(sprintf(
+        "Mapped to RR drug: %d/%d (%.1f%%)",
+        n_mapped, nrow(data), 100 * n_mapped / nrow(data)
+      ))
+    }
+  }
+
+  return(data)
+}
+
+
+
+
+#' Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
+#'
+#' For each resistance profile delta (from compute_resistance_profiles()),
+#' determines the profile-level RR_kd_LOS using the GBD max rule:
+#'   RR_kd_LOS = max over c in C_R(d) of RR_kc_LOS   [if C_R(d) non-empty]
+#'             = 1                                      [if d = all-susceptible]
+#' where C_R(d) = \{c : d_c = 1\}.
+#' The CI reported for each profile is that of its dominant (max-RR) class.
+#'
+#' @param profiles_output Named list from compute_resistance_profiles().
+#' @param rr_table Data frame from daly_fit_los_rr() or daly_fit_los_rr_nima().
+#'   Must have columns pathogen_col, class_col, rr_col, and optionally
+#'   CI_lower / CI_upper.
+#' @param pathogen_col Character. Default \code{"pathogen"}.
+#' @param class_col Character. Default \code{"antibiotic_class"}.
+#' @param rr_col Character. Default \code{"RR_LOS"}.
+#' @param fallback_rr Numeric. RR for resistant classes with no match.
+#'   Default \code{1} (no attributable effect).
+#'
+#' @return Named list (one entry per pathogen): original profiles data frame
+#'   augmented with RR_LOS_profile, dominant_class, and (if available)
+#'   CI_lower_profile / CI_upper_profile.
+#' @export
+daly_assign_rr_to_profiles <- function(
+  profiles_output,
+  rr_table,
+  pathogen_col = "pathogen",
+  class_col = "antibiotic_class",
+  rr_col = "RR_LOS",
+  fallback_rr = 1
+) {
+  if (!is.list(profiles_output) ||
+    !all(sapply(
+      profiles_output,
+      function(x) all(c("profiles", "classes") %in% names(x))
+    ))) {
+    stop("profiles_output must be the list returned by compute_resistance_profiles().")
+  }
+  missing_rr <- setdiff(c(pathogen_col, class_col, rr_col), names(rr_table))
+  if (length(missing_rr) > 0L) {
+    stop(sprintf(
+      "Column(s) not found in rr_table: %s",
+      paste(missing_rr, collapse = ", ")
+    ))
+  }
+
+  has_ci <- all(c("CI_lower", "CI_upper") %in% names(rr_table))
+  out <- list()
+
+  for (path in names(profiles_output)) {
+    prof_list <- profiles_output[[path]]
+    profiles <- prof_list$profiles
+    classes <- prof_list$classes # alphabetical; matches profile cols
+
+    rr_k <- rr_table[rr_table[[pathogen_col]] == path, ]
+    rr_lookup <- setNames(rr_k[[rr_col]], rr_k[[class_col]])
+    ci_lo_lookup <- if (has_ci) setNames(rr_k$CI_lower, rr_k[[class_col]]) else NULL
+    ci_hi_lookup <- if (has_ci) setNames(rr_k$CI_upper, rr_k[[class_col]]) else NULL
+
+    n_prof <- nrow(profiles)
+    rr_profile <- numeric(n_prof)
+    dom_class <- character(n_prof)
+    ci_lo_prof <- if (has_ci) numeric(n_prof) else NULL
+    ci_hi_prof <- if (has_ci) numeric(n_prof) else NULL
+
+    for (i in seq_len(n_prof)) {
+      resist_cls <- classes[as.integer(profiles[i, classes]) == 1L]
+
+      if (length(resist_cls) == 0L) {
+        rr_profile[i] <- 1.0
+        dom_class[i] <- "all_susceptible"
+        if (has_ci) {
+          ci_lo_prof[i] <- 1.0
+          ci_hi_prof[i] <- 1.0
+        }
+        next
+      }
+
+      rrs_c <- sapply(resist_cls, function(cc) {
+        ifelse(cc %in% names(rr_lookup), rr_lookup[[cc]], fallback_rr)
+      })
+      max_idx <- which.max(rrs_c)
+      rr_profile[i] <- rrs_c[max_idx]
+      dom_class[i] <- resist_cls[max_idx]
+
+      if (has_ci) {
+        dc <- dom_class[i]
+        ci_lo_prof[i] <- ifelse(dc %in% names(ci_lo_lookup),
+          ci_lo_lookup[[dc]], fallback_rr
+        )
+        ci_hi_prof[i] <- ifelse(dc %in% names(ci_hi_lookup),
+          ci_hi_lookup[[dc]], fallback_rr
+        )
+      }
+    }
+
+    profiles$RR_LOS_profile <- round(rr_profile, 4L)
+    profiles$dominant_class <- dom_class
+    if (has_ci) {
+      profiles$CI_lower_profile <- round(ci_lo_prof, 4L)
+      profiles$CI_upper_profile <- round(ci_hi_prof, 4L)
+    }
+
+    out[[path]] <- profiles
+    message(sprintf(
+      "'%s': relative LOS assigned to %d profiles. Max relative LOS = %.4f (dominant class: %s).",
+      path, n_prof, max(rr_profile), dom_class[which.max(rr_profile)]
+    ))
+  }
+
+  return(out)
+}
+
+#' Filter Resistance Profiles to Classes with RR Estimates
+#'
+#' Drops profiles whose resistant classes have no RR estimate in
+#' \code{rr_table} and re-normalises the remaining probabilities. The
+#' all-susceptible reference profile is always kept.
+#'
+#' @param profiles_with_rr Named list returned by
+#'   \code{daly_assign_rr_to_profiles()}.
+#' @param rr_table Data frame of RR estimates.
+#' @param pathogen_col Character. Default \code{"pathogen"}.
+#' @param class_col Character. Default \code{"antibiotic_class"}.
+#' @param probability_col Character. Default \code{"probability"}.
+#' @param fallback_rr Numeric. Default \code{1}.
+#'
+#' @return Named list (one entry per pathogen) with filtered and
+#'   re-normalised profiles.
+#' @export
+daly_filter_profiles_to_rr_classes <- function(
+  profiles_with_rr,
+  rr_table,
+  pathogen_col = "pathogen",
+  class_col = "antibiotic_class",
+  probability_col = "probability",
+  fallback_rr = 1
+) {
+  if (!is.list(profiles_with_rr)) {
+    stop("profiles_with_rr must be the list returned by daly_assign_rr_to_profiles().")
+  }
+  if (!all(c(pathogen_col, class_col) %in% names(rr_table))) {
+    stop(sprintf(
+      "Columns '%s' and '%s' must be present in rr_table.",
+      pathogen_col, class_col
+    ))
+  }
+
+  out <- list()
+
+  for (path in names(profiles_with_rr)) {
+    df <- profiles_with_rr[[path]]
+
+    # Classes that have a real RR estimate for this pathogen
+    rr_classes <- rr_table[rr_table[[pathogen_col]] == path, class_col]
+    rr_classes <- unique(rr_classes[!is.na(rr_classes)])
+
+    # Identify class indicator columns present in this profile data frame
+    non_class_cols <- c(
+      "profile", probability_col, "RR_LOS_profile",
+      "dominant_class", "CI_lower_profile",
+      "CI_upper_profile", "numerator", "PAF_LOS",
+      "denominator"
+    )
+    class_cols <- setdiff(names(df), non_class_cols)
+
+    # Matchable classes: those present as indicator columns AND in rr_table
+    matchable <- intersect(class_cols, rr_classes)
+
+    if (length(matchable) == 0L) {
+      warning(sprintf(
+        "'%s': no profile classes overlap with relative LOS table -- all profiles dropped.",
+        path
+      ))
+      next
+    }
+
+    # Keep profiles where:
+    #   (a) the profile is all-susceptible (reference, always kept), OR
+    #   (b) at least one matchable class is resistant (== 1)
+    # This ensures the all-susceptible reference profile is never dropped.
+    all_class_cols <- setdiff(names(df), non_class_cols)
+    is_all_s <- if (length(all_class_cols) > 0L) {
+      rowSums(df[, all_class_cols, drop = FALSE] == 1L, na.rm = TRUE) == 0L
+    } else {
+      rep(TRUE, nrow(df))
+    }
+
+    if (length(matchable) == 1L) {
+      has_matchable_r <- df[[matchable]] == 1L
+    } else {
+      has_matchable_r <- rowSums(df[, matchable, drop = FALSE] == 1L) > 0L
+    }
+
+    keep <- is_all_s | has_matchable_r
+
+    n_before <- nrow(df)
+    df_kept <- df[keep, , drop = FALSE]
+    n_after <- nrow(df_kept)
+    n_dropped <- n_before - n_after
+
+    if (n_after == 0L) {
+      warning(sprintf("'%s': all profiles dropped after matching -- skipping.", path))
+      next
+    }
+
+    # Re-normalise probabilities
+    prob_sum <- sum(df_kept[[probability_col]], na.rm = TRUE)
+    if (prob_sum <= 0) {
+      warning(sprintf("'%s': probability sum is zero after filtering -- skipping.", path))
+      next
+    }
+    df_kept[[probability_col]] <- df_kept[[probability_col]] / prob_sum
+
+    out[[path]] <- df_kept
+
+    message(sprintf(
+      "'%s': %d -> %d profiles kept (%d dropped, no matchable relative LOS class). Prob re-normalised.",
+      path, n_before, n_after, n_dropped
+    ))
+  }
+
+  return(out)
+}
+
+#' Calculate Fatal Resistance Prevalence (R_k)
+#'
+#' Computes the profile-weighted expected proportion of deaths attributable to
+#' resistance (R_k) and the expected odds ratio of death (E[OR_death]) for
+#' each pathogen.
+#'
+#' @param profiles_with_rr Named list returned by
+#'   \code{daly_assign_rr_to_profiles()} or
+#'   \code{daly_filter_profiles_to_rr_classes()}.
+#' @param probability_col Character. Profile probability column.
+#'   Default \code{"probability"}.
+#' @param rr_profile_col Character. Profile-level OR column.
+#'   Default \code{"RR_LOS_profile"}.
+#'
+#' @return Named list (one entry per pathogen) each containing
+#'   \code{per_profile} data frame, \code{R_k}, and \code{E_OR_k}.
+#' @export
+daly_calc_resistance_prevalence_fatal <- function(
+  profiles_with_rr,
+  probability_col = "probability",
+  rr_profile_col = "RR_LOS_profile"
+) {
+  if (!is.list(profiles_with_rr)) {
+    stop("profiles_with_rr must be the list returned by daly_assign_rr_to_profiles().")
+  }
+
+  # Columns that are metadata / computed -- NOT class indicator columns
+  non_class_cols <- c(
+    "profile", probability_col, rr_profile_col,
+    "dominant_class", "CI_lower_profile", "CI_upper_profile",
+    "numerator", "PAF_LOS", "denominator",
+    "numerator_assoc", "fraction_assoc",
+    "numerator_R_kd", "R_kd"
+  )
+
+  out <- list()
+
+  for (path in names(profiles_with_rr)) {
+    df <- profiles_with_rr[[path]]
+
+    for (col in c(probability_col, rr_profile_col)) {
+      if (!col %in% names(df)) {
+        stop(sprintf(
+          "Column '%s' not found in profiles for '%s'.",
+          col, path
+        ))
+      }
+    }
+
+    p <- df[[probability_col]] # R'_K_delta  (sums to 1)
+    or <- df[[rr_profile_col]] # OR_death_K_delta (1.0 for all-susceptible)
+
+    # E[OR_k] = sum_delta  R'_K_delta * OR_K_delta
+    E_OR_k <- sum(p * or, na.rm = TRUE)
+
+    if (!is.finite(E_OR_k) || E_OR_k <= 0) {
+      warning(sprintf(
+        "'%s': E[OR_death] = %.6g (must be > 0) -- all mortality ORs may be <= 1 or NA; skipping.",
+        path, E_OR_k
+      ))
+      next
+    }
+
+    numerator_R_kd <- p * or
+    R_kd_vec <- numerator_R_kd / E_OR_k
+
+    df$numerator_R_kd <- round(numerator_R_kd, 6L)
+    df$R_kd <- round(R_kd_vec, 6L)
+
+    # Resistant profiles: at least one binary class indicator column == 1.
+    # The all-susceptible profile has every class column = 0 and OR = 1.
+    class_cols <- setdiff(names(df), non_class_cols)
+    if (length(class_cols) > 0L) {
+      is_resistant <- rowSums(
+        df[, class_cols, drop = FALSE] == 1L,
+        na.rm = TRUE
+      ) > 0L
+    } else {
+      is_resistant <- or > 1.0
+    }
+
+    R_k <- sum(R_kd_vec[is_resistant], na.rm = TRUE)
+
+    out[[path]] <- list(
+      per_profile = df,
+      R_k         = round(R_k, 6L),
+      E_OR_k      = round(E_OR_k, 6L)
+    )
+
+    message(sprintf(
+      "'%s': R_k (fatal resistance prevalence) = %.4f | E[OR_death] = %.4f | %d profiles (%d resistant).",
+      path, R_k, E_OR_k, nrow(df), sum(is_resistant)
+    ))
+  }
+
+  return(out)
+}

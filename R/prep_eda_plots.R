@@ -17,6 +17,9 @@
 #' @return A ggplot2 theme object.
 #' @export
 eda_theme <- function(base_size = 14, legend_position = "top") {
+  if (!requireNamespace("ggpubr", quietly = TRUE))
+    stop("Package 'ggpubr' is required for eda_theme(). Install with: install.packages('ggpubr')",
+         call. = FALSE)
   ggpubr::theme_pubr(base_size = base_size) +
     ggplot2::theme(
       strip.text       = ggplot2::element_text(face = "bold"),

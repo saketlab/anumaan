@@ -1,12 +1,42 @@
-# profile_convex.R
-# Pathway 1: Convex optimisation-based resistance profile estimation.
+# daly_resistance_profiles.R
 #
-# Functions implemented here:
-#   validate_profile_inputs()   -- column checks, format detection, stratification
-#   preprocess_for_profiles()   -- full preprocessing pipeline
+# Estimates antimicrobial resistance profiles for two complementary data sources.
+# All profile probability distributions produced by either pathway feed directly
+# into the DALY burden pipeline (YLL and YLD calculations).
 #
-# Downstream functions (estimate_profiles_convex, bootstrap, etc.) will follow
-# in this same file.
+# Pathway 1 — Convex optimisation (aggregate surveillance or GBD-style data)
+#   Accepts marginal resistance prevalences and optional pairwise co-resistance
+#   rates per pathogen, enumerates all 2^n binary resistance profiles, and
+#   recovers a valid probability distribution over those profiles by solving a
+#   simplex-constrained weighted least-squares quadratic programme.
+#   Supports bootstrapped uncertainty intervals, stratification by geography
+#   and year, and integration of externally modelled marginals.
+#
+#   Key functions:
+#     validate_profile_inputs()       input checks, format detection
+#     preprocess_for_profiles()       full AST preprocessing pipeline
+#     compute_marginals_from_data()   marginal resistance from wide isolate data
+#     compute_pairwise_from_data()    pairwise co-resistance via Pearson back-calculation
+#     validate_aggregate_inputs()     validates pre-computed aggregate inputs
+#     enumerate_binary_profiles()     enumerates 2^n binary profiles
+#     build_constraint_matrix()       constructs QP constraint matrix and target vector
+#     estimate_profiles_convex()      solves the QP and returns profile probabilities
+#     bootstrap_profiles_convex()     quantifies uncertainty via binomial resampling
+#     check_profile_constraints()     verifies non-negativity, sum-to-one, and residuals
+#     compute_marginal_resistance()   class-level marginals with any-R collapse rule
+#     compute_pairwise_coresistance() pairwise co-resistance matrices per pathogen
+#     compute_resistance_profiles()   QP profile estimation from isolate-level inputs
+#     select_resistance_class()       selects one resistance class per event for attribution
+#
+# Pathway 2 — Bayesian hierarchical modelling (facility-level AST data)
+#   Fits a multivariate probit model to event-level AST records, accounting for
+#   partial and selective testing, hospital-level heterogeneity, patient-admission
+#   clustering, and correlated resistance outcomes across antibiotic classes.
+#   Produces hospital-specific R_ALL and R_NF profile distributions for YLL
+#   and YLD calculations respectively.
+#
+#   Key functions:
+#     [Pathway 2 functions follow below]
 
 
 # ---------------------------------------------------------------------------
@@ -2537,4 +2567,2335 @@ estimate_profiles_convex <- function(
     if (length(strat_cols) > 0L) dplyr::n_distinct(final_tbl[, strat_cols, drop = FALSE]) else 1L
   ))
   final_tbl
+}
+
+
+# ===========================================================================
+# Pathway 1 — Isolate-level engine
+#
+# Computes resistance profiles directly from line-level isolate data in a
+# three-step pipeline. This engine serves the DALY YLL and YLD calculations
+# and accepts both pre-processed facility data and survey datasets.
+#
+#   Step 1  compute_marginal_resistance()
+#     Collapses drug-level records to antibiotic-class level per isolate
+#     (class R if the isolate is resistant to ANY drug in that class), then
+#     computes marginal resistance rates per pathogen x class. Classes at or
+#     below zero_threshold are flagged in $near_zero for downstream review.
+#
+#   Step 2  compute_pairwise_coresistance()
+#     Builds pairwise co-resistance matrices from the collapsed class-level
+#     data produced in Step 1:
+#       T[k, i, j]    number of isolates tested for both class i and class j
+#       R[k, i, j]    number resistant to both
+#       Prev[k, i, j] = R / T  (NA where T < min_co_tested)
+#
+#   Step 3  compute_resistance_profiles()
+#     Enumerates all 2^n binary resistance profiles and recovers profile
+#     probabilities via a simplex-constrained weighted least-squares QP
+#     (GBD methodology, eq. 7.5.1.3). Marginal and pairwise co-resistance
+#     rates serve as constraints; the solver falls back to a uniform
+#     distribution if the QP fails.
+#
+# Unit of analysis: isolate (one unique isolate_col value per pathogen).
+# Class-level resistance rule: R_{e,k,c} = 1 if resistant to ANY drug in c.
+#
+# Reference: Antimicrobial Resistance Collaborators. Lancet. 2022.
+# ===========================================================================
+
+
+# -- Internal helper -----------------------------------------------------------
+
+#' Validate that required columns exist in a data frame
+#' @keywords internal
+.check_cols <- function(data, cols) {
+  missing <- setdiff(cols, names(data))
+  if (length(missing) > 0) {
+    stop(sprintf(
+      "Column(s) not found in data: %s",
+      paste(missing, collapse = ", ")
+    ))
+  }
+}
+
+
+# -- Step 1 --------------------------------------------------------------------
+
+#' Compute Marginal Resistance per Pathogen and Antibiotic Class
+#'
+#' Collapses drug-level susceptibility data to antibiotic-class level per
+#' isolate (\eqn{R_{e,k,c} = 1} if resistant to \strong{any} drug in class
+#' \eqn{c}), then computes marginal resistance for every pathogen x class
+#' combination found in the data.
+#'
+#' Classes whose marginal resistance is at or below \code{zero_threshold} are
+#' listed in \code{$near_zero} as a flag for downstream use -- they are
+#' \strong{not} removed here.
+#'
+#' @param data Data frame. Pre-processed AMR data at isolate x antibiotic
+#'   level (one row per isolate-antibiotic combination). Results must already
+#'   be binary (\code{"S"} / \code{"R"}); no reclassification is applied.
+#' @param pathogen_col Character. Column with pathogen names.
+#'   Default \code{"organism_name"}.
+#' @param org_group_col Character. Column with organism group labels.
+#'   Default \code{"org_group"}.
+#' @param isolate_col Character. Column uniquely identifying each isolate.
+#'   Default \code{"isolate_id"}.
+#' @param antibiotic_class_col Character. Column with the antibiotic class
+#'   for each drug. Default \code{"antibiotic_class"}.
+#' @param antibiotic_value_col Character. Column with susceptibility result
+#'   (\code{"S"} or \code{"R"}). Default \code{"antibiotic_value"}.
+#' @param zero_threshold Numeric. Classes with
+#'   \code{marginal_resistance <= zero_threshold} are listed in
+#'   \code{$near_zero}. Default \code{0}.
+#' @param min_n_tested Integer or \code{NULL}. Minimum number of isolates that
+#'   must have been tested for a pathogen-class combination to be retained.
+#'   Combinations with \code{n_tested < min_n_tested} are dropped from
+#'   \code{$marginal} \strong{and} from \code{$class_long}, so the exclusion
+#'   propagates automatically into \code{compute_pairwise_coresistance()} and
+#'   \code{compute_resistance_profiles()}. Set to \code{NULL} or \code{0} to
+#'   disable the filter. Default \code{30}.
+#' @param facility_col Character or \code{NULL}. Name of the column identifying
+#'   the facility/site. When provided together with \code{facility_name}, data
+#'   are filtered to the specified facility \strong{before} any computation.
+#'   Both \code{facility_col} and \code{facility_name} must be supplied together
+#'   or both left \code{NULL}. When provided, \code{facility_col} is also
+#'   retained in \code{$class_long} and \code{$marginal} so that downstream
+#'   steps can apply the same filter. Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. The facility value to retain
+#'   (matched via \code{==} against \code{facility_col}). Default \code{NULL}.
+#' @param outcome_col Character or \code{NULL}. Name of the column containing
+#'   patient outcomes (e.g. \code{"final_outcome"}). When provided together with
+#'   \code{outcome_value}, data are filtered to isolates with the specified
+#'   outcome \strong{before} any computation. Both \code{outcome_col} and
+#'   \code{outcome_value} must be supplied together or both left \code{NULL}.
+#'   When provided, \code{outcome_col} is retained in \code{$class_long} and
+#'   \code{$marginal} so that downstream steps can apply the same filter.
+#'   Default \code{NULL}.
+#' @param outcome_value Character or \code{NULL}. The outcome value to retain
+#'   (e.g. \code{"discharged"}, \code{"dead"}; matched via \code{==} against
+#'   \code{outcome_col}). Default \code{NULL}.
+#'
+#' @return Named list:
+#' \describe{
+#'   \item{\code{marginal}}{Data frame with columns: \code{pathogen_col},
+#'     \code{org_group_col}, \code{antibiotic_class_col}, \code{n_tested},
+#'     \code{n_resistant}, \code{marginal_resistance}. Sorted descending by
+#'     \code{marginal_resistance} within each pathogen.}
+#'   \item{\code{near_zero}}{Subset of \code{marginal} where
+#'     \code{marginal_resistance <= zero_threshold}. These classes are
+#'     candidates for exclusion in downstream profiling.}
+#'   \item{\code{class_long}}{Collapsed isolate x pathogen x class data frame
+#'     (columns: \code{isolate_col}, \code{pathogen_col}, \code{org_group_col},
+#'     \code{antibiotic_class_col}, \code{class_result}). Pass this directly
+#'     to \code{compute_pairwise_coresistance()}.}
+#' }
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' marg <- compute_marginal_resistance(
+#'   data                 = amr_clean,
+#'   pathogen_col         = "organism_name",
+#'   org_group_col        = "org_group",
+#'   isolate_col          = "isolate_id",
+#'   antibiotic_class_col = "antibiotic_class",
+#'   antibiotic_value_col = "antibiotic_value"
+#' )
+#'
+#' marg$marginal # full marginal resistance table
+#' marg$near_zero # classes flagged as near-zero
+#' }
+compute_marginal_resistance <- function(
+  data,
+  pathogen_col = "organism_name",
+  org_group_col = "org_group",
+  isolate_col = "isolate_id",
+  antibiotic_class_col = "antibiotic_class",
+  antibiotic_value_col = "antibiotic_value",
+  zero_threshold = 0,
+  min_n_tested = 30,
+  facility_col = NULL,
+  facility_name = NULL,
+  outcome_col = NULL,
+  outcome_value = NULL
+) {
+  .check_cols(data, c(
+    pathogen_col, org_group_col, isolate_col,
+    antibiotic_class_col, antibiotic_value_col
+  ))
+
+  # -- Optional facility filter ----------------------------------------------
+
+  if (!is.null(facility_col) || !is.null(facility_name)) {
+    if (is.null(facility_col) || is.null(facility_name)) {
+      stop("Both facility_col and facility_name must be provided together, or both NULL.")
+    }
+    .check_cols(data, facility_col)
+    n_before <- nrow(data)
+    data <- data[data[[facility_col]] == facility_name, , drop = FALSE]
+    if (nrow(data) == 0L) {
+      stop(sprintf("No rows found for %s = '%s'.", facility_col, facility_name))
+    }
+    message(sprintf(
+      "Facility filter applied: %s = '%s' (%d -> %d rows).",
+      facility_col, facility_name, n_before, nrow(data)
+    ))
+  }
+
+  # -- Optional outcome filter -----------------------------------------------
+
+  if (!is.null(outcome_col) || !is.null(outcome_value)) {
+    if (is.null(outcome_col) || is.null(outcome_value)) {
+      stop("Both outcome_col and outcome_value must be provided together, or both NULL.")
+    }
+    .check_cols(data, outcome_col)
+    n_before <- nrow(data)
+    data <- data[data[[outcome_col]] == outcome_value, , drop = FALSE]
+    if (nrow(data) == 0L) {
+      stop(sprintf("No rows found for %s = '%s'.", outcome_col, outcome_value))
+    }
+    message(sprintf(
+      "Outcome filter applied: %s = '%s' (%d -> %d rows).",
+      outcome_col, outcome_value, n_before, nrow(data)
+    ))
+  }
+
+  # -- Collapse to isolate x pathogen x class -------------------------------
+  #
+  # R_{e,k,c} = 1 if resistant to ANY drug in class c.
+
+  iso_grp <- c(isolate_col, pathogen_col, org_group_col, antibiotic_class_col)
+  if (!is.null(facility_col)) iso_grp <- c(facility_col, iso_grp)
+  if (!is.null(outcome_col)) iso_grp <- c(outcome_col, iso_grp)
+
+  class_long <- data %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(iso_grp))) %>%
+    dplyr::summarise(
+      class_result = dplyr::if_else(
+        any(!!rlang::sym(antibiotic_value_col) == "R"), "R", "S"
+      ),
+      .groups = "drop"
+    )
+
+  message(sprintf(
+    "Collapsed to class level: %d isolates | %d pathogens | %d classes.",
+    dplyr::n_distinct(class_long[[isolate_col]]),
+    dplyr::n_distinct(class_long[[pathogen_col]]),
+    dplyr::n_distinct(class_long[[antibiotic_class_col]])
+  ))
+
+  # -- Marginal resistance per pathogen x class -----------------------------
+
+  marg_grp <- c(pathogen_col, org_group_col, antibiotic_class_col)
+  if (!is.null(facility_col)) marg_grp <- c(facility_col, marg_grp)
+  if (!is.null(outcome_col)) marg_grp <- c(outcome_col, marg_grp)
+
+  marginal <- class_long %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(marg_grp))) %>%
+    dplyr::summarise(
+      n_tested    = dplyr::n(),
+      n_resistant = sum(class_result == "R", na.rm = TRUE),
+      .groups     = "drop"
+    ) %>%
+    dplyr::mutate(
+      marginal_resistance = n_resistant / n_tested
+    ) %>%
+    dplyr::arrange(
+      !!rlang::sym(pathogen_col),
+      dplyr::desc(marginal_resistance)
+    )
+
+  # -- Flag near-zero classes ------------------------------------------------
+
+  near_zero <- marginal %>%
+    dplyr::filter(marginal_resistance <= zero_threshold)
+
+  if (nrow(near_zero) > 0) {
+    message(sprintf(
+      "%d pathogen-class combination(s) have marginal_resistance <= %g (listed in $near_zero):",
+      nrow(near_zero), zero_threshold
+    ))
+    print(
+      near_zero[, c(
+        pathogen_col, antibiotic_class_col,
+        "n_tested", "n_resistant", "marginal_resistance"
+      )],
+      row.names = FALSE
+    )
+  } else {
+    message(sprintf(
+      "No classes with marginal_resistance <= %g.", zero_threshold
+    ))
+  }
+
+  # -- Minimum-tests threshold (optional) ------------------------------------
+  # Drop pathogen-class combinations with too few isolates tested.
+  # class_long is filtered to match so the exclusion carries through to
+  # compute_pairwise_coresistance() and compute_resistance_profiles().
+
+  if (!is.null(min_n_tested) && min_n_tested > 0) {
+    n_before <- nrow(marginal)
+    excluded <- marginal[marginal$n_tested < min_n_tested, , drop = FALSE]
+    marginal <- marginal[marginal$n_tested >= min_n_tested, , drop = FALSE]
+
+    if (nrow(excluded) > 0L) {
+      message(sprintf(
+        "min_n_tested = %d: %d of %d pathogen-class combination(s) excluded (n_tested < %d):",
+        min_n_tested, nrow(excluded), n_before, min_n_tested
+      ))
+      print(
+        excluded[, c(pathogen_col, antibiotic_class_col, "n_tested"),
+          drop = FALSE
+        ],
+        row.names = FALSE
+      )
+    } else {
+      message(sprintf(
+        "min_n_tested = %d: all %d pathogen-class combination(s) passed the threshold.",
+        min_n_tested, n_before
+      ))
+    }
+
+    # Re-derive near_zero from the already-filtered marginal
+    near_zero <- marginal[marginal$marginal_resistance <= zero_threshold, ,
+      drop = FALSE
+    ]
+
+    # Align class_long: remove isolate rows for excluded pathogen-class combos.
+    # Join keys: pathogen x class (facility/outcome are already constant if filtered).
+    join_keys <- c(pathogen_col, antibiotic_class_col)
+    if (!is.null(facility_col)) join_keys <- c(facility_col, join_keys)
+    if (!is.null(outcome_col)) join_keys <- c(outcome_col, join_keys)
+    class_long <- dplyr::semi_join(
+      class_long,
+      marginal[, join_keys, drop = FALSE],
+      by = join_keys
+    )
+
+    message(sprintf(
+      "class_long after min_n_tested filter: %d isolate-class row(s) retained.",
+      nrow(class_long)
+    ))
+  }
+
+  return(list(
+    marginal   = marginal,
+    near_zero  = near_zero,
+    class_long = class_long
+  ))
+}
+
+
+# -- Step 2 --------------------------------------------------------------------
+
+#' Compute Pairwise Co-resistance Matrices per Pathogen
+#'
+#' For every pathogen and every pair of antibiotic classes \eqn{(c_i, c_j)}
+#' that were both tested:
+#' \deqn{
+#'   T_{k,i,j} = \sum_e \mathbf{1}(c_i \text{ tested} \land c_j \text{ tested})
+#' }
+#' \deqn{
+#'   R_{k,i,j} = \sum_e \mathbf{1}(R_{e,k,c_i}=1 \land R_{e,k,c_j}=1)
+#' }
+#' \deqn{
+#'   \text{Prev}_{k,i,j} = R_{k,i,j} \;/\; T_{k,i,j}
+#' }
+#'
+#' Matrices are computed for \strong{all} tested classes -- no filtering by
+#' marginal resistance or GBD core list is applied here.
+#'
+#' @param marginal_output The list returned by
+#'   \code{compute_marginal_resistance()}. The \code{$class_long} element is
+#'   used as input.
+#' @param pathogen_col Character. Must match the column name used in Step 1.
+#'   Default \code{"organism_name"}.
+#' @param org_group_col Character. Default \code{"org_group"}.
+#' @param isolate_col Character. Default \code{"isolate_id"}.
+#' @param antibiotic_class_col Character. Default \code{"antibiotic_class"}.
+#' @param min_co_tested Integer. Pairwise cells with fewer than
+#'   \code{min_co_tested} co-tested isolates are set to \code{NA} in the
+#'   prevalence matrix. Default \code{10}.
+#' @param facility_col Character or \code{NULL}. Column identifying the
+#'   facility/site. When provided together with \code{facility_name}, filters
+#'   \code{class_long} to the specified facility before building matrices.
+#'   For this to work, \code{compute_marginal_resistance()} must have been
+#'   called with the same \code{facility_col} argument so that the column is
+#'   present in \code{$class_long}. Both must be supplied together or both
+#'   left \code{NULL}. Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. Facility value to retain.
+#'   Default \code{NULL}.
+#' @param outcome_col Character or \code{NULL}. Column containing patient
+#'   outcomes. When provided together with \code{outcome_value}, filters
+#'   \code{class_long} to isolates with the specified outcome before building
+#'   matrices. \code{compute_marginal_resistance()} must have been called with
+#'   the same \code{outcome_col} so that the column is present in
+#'   \code{$class_long}. Both must be supplied together or both left
+#'   \code{NULL}. Default \code{NULL}.
+#' @param outcome_value Character or \code{NULL}. Outcome value to retain
+#'   (e.g. \code{"discharged"}, \code{"dead"}). Default \code{NULL}.
+#'
+#' @return Named list. One entry per pathogen (keyed by pathogen name), each
+#'   containing:
+#' \describe{
+#'   \item{\code{prevalence}}{Square symmetric matrix of pairwise co-resistance
+#'     rates. Diagonal and cells with \code{n < min_co_tested} are \code{NA}.}
+#'   \item{\code{T_matrix}}{Integer matrix of co-tested isolate counts.}
+#'   \item{\code{R_matrix}}{Integer matrix of co-resistant isolate counts.}
+#'   \item{\code{classes}}{Character vector of class names (row/column order).}
+#' }
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' marg <- compute_marginal_resistance(amr_clean, ...)
+#' co_res <- compute_pairwise_coresistance(marg)
+#'
+#' # Prevalence matrix for K. pneumoniae
+#' co_res[["Klebsiella pneumoniae"]]$prevalence
+#'
+#' # Co-tested counts
+#' co_res[["Klebsiella pneumoniae"]]$T_matrix
+#' }
+compute_pairwise_coresistance <- function(
+  marginal_output,
+  pathogen_col = "organism_name",
+  org_group_col = "org_group",
+  isolate_col = "isolate_id",
+  antibiotic_class_col = "antibiotic_class",
+  min_co_tested = 10,
+  facility_col = NULL,
+  facility_name = NULL,
+  outcome_col = NULL,
+  outcome_value = NULL
+) {
+  if (!is.list(marginal_output) || !"class_long" %in% names(marginal_output)) {
+    stop("marginal_output must be the list returned by compute_marginal_resistance().")
+  }
+
+  class_long <- marginal_output$class_long
+
+  .check_cols(class_long, c(
+    isolate_col, pathogen_col,
+    org_group_col, antibiotic_class_col
+  ))
+
+  # -- Optional facility filter ----------------------------------------------
+
+  if (!is.null(facility_col) || !is.null(facility_name)) {
+    if (is.null(facility_col) || is.null(facility_name)) {
+      stop("Both facility_col and facility_name must be provided together, or both NULL.")
+    }
+    if (!facility_col %in% names(class_long)) {
+      stop(sprintf(
+        paste0(
+          "facility_col '%s' not found in class_long. ",
+          "Re-run compute_marginal_resistance() with the same ",
+          "facility_col and facility_name to filter upstream."
+        ),
+        facility_col
+      ))
+    }
+    n_before <- nrow(class_long)
+    class_long <- class_long[class_long[[facility_col]] == facility_name, , drop = FALSE]
+    if (nrow(class_long) == 0L) {
+      stop(sprintf("No rows in class_long for %s = '%s'.", facility_col, facility_name))
+    }
+    message(sprintf(
+      "Facility filter applied: %s = '%s' (%d -> %d rows in class_long).",
+      facility_col, facility_name, n_before, nrow(class_long)
+    ))
+  }
+
+  # -- Optional outcome filter -----------------------------------------------
+
+  if (!is.null(outcome_col) || !is.null(outcome_value)) {
+    if (is.null(outcome_col) || is.null(outcome_value)) {
+      stop("Both outcome_col and outcome_value must be provided together, or both NULL.")
+    }
+    if (!outcome_col %in% names(class_long)) {
+      stop(sprintf(
+        paste0(
+          "outcome_col '%s' not found in class_long. ",
+          "Re-run compute_marginal_resistance() with the same ",
+          "outcome_col and outcome_value to filter upstream."
+        ),
+        outcome_col
+      ))
+    }
+    n_before <- nrow(class_long)
+    class_long <- class_long[class_long[[outcome_col]] == outcome_value, , drop = FALSE]
+    if (nrow(class_long) == 0L) {
+      stop(sprintf("No rows in class_long for %s = '%s'.", outcome_col, outcome_value))
+    }
+    message(sprintf(
+      "Outcome filter applied: %s = '%s' (%d -> %d rows in class_long).",
+      outcome_col, outcome_value, n_before, nrow(class_long)
+    ))
+  }
+
+  pathogens <- sort(unique(class_long[[pathogen_col]]))
+  out <- list()
+
+  for (path in pathogens) {
+    org_data <- class_long[class_long[[pathogen_col]] == path, ]
+    classes <- sort(unique(org_data[[antibiotic_class_col]]))
+    n_c <- length(classes)
+
+    if (n_c < 2) {
+      message(sprintf("'%s': fewer than 2 classes tested, skipping.", path))
+      next
+    }
+
+    # Wide: rows = isolates, cols = classes, values = "R" / "S" / NA (not tested)
+    iso_wide <- org_data %>%
+      tidyr::pivot_wider(
+        id_cols     = !!rlang::sym(isolate_col),
+        names_from  = !!rlang::sym(antibiotic_class_col),
+        values_from = class_result
+        # isolates not tested for a class -> NA
+      )
+
+    # Binary matrix: 1 = R, 0 = S, NA = not tested
+    bin_mat <- iso_wide[, classes, drop = FALSE] %>%
+      dplyr::mutate(dplyr::across(
+        dplyr::everything(),
+        ~ dplyr::case_when(.x == "R" ~ 1L, .x == "S" ~ 0L, TRUE ~ NA_integer_)
+      )) %>%
+      as.matrix()
+
+    # Pairwise T and R
+    pairwise_T <- matrix(0L, n_c, n_c, dimnames = list(classes, classes))
+    pairwise_R <- matrix(0L, n_c, n_c, dimnames = list(classes, classes))
+
+    for (i in seq_len(n_c)) {
+      for (j in i:n_c) {
+        both_tested <- !is.na(bin_mat[, i]) & !is.na(bin_mat[, j])
+        pairwise_T[i, j] <- pairwise_T[j, i] <- sum(both_tested)
+        pairwise_R[i, j] <- pairwise_R[j, i] <- sum(
+          both_tested & bin_mat[, i] == 1L & bin_mat[, j] == 1L
+        )
+      }
+    }
+
+    # Prevalence matrix: NA where co-tested < min_co_tested or on diagonal
+    prev_mat <- ifelse(
+      pairwise_T < min_co_tested,
+      NA_real_,
+      pairwise_R / pairwise_T
+    )
+    dimnames(prev_mat) <- list(classes, classes)
+    diag(prev_mat) <- NA_real_
+
+    out[[path]] <- list(
+      prevalence = prev_mat,
+      T_matrix   = pairwise_T,
+      R_matrix   = pairwise_R,
+      classes    = classes
+    )
+
+    message(sprintf(
+      "'%s': %d classes, %d isolates -- co-resistance matrix built.",
+      path, n_c, nrow(bin_mat)
+    ))
+  }
+
+  return(out)
+}
+
+
+# -- Step 3 --------------------------------------------------------------------
+
+#' Compute Resistance Profile Probabilities per Pathogen
+#'
+#' For each pathogen \eqn{k} with \eqn{n_k} antibiotic classes, enumerates all
+#' \eqn{2^{n_k}} binary resistance profiles \eqn{\delta \in \{0,1\}^{n_k}} and
+#' estimates their probabilities by solving a simplex-constrained weighted
+#' least-squares Quadratic Programme (GBD equation 7.5.1.3):
+#'
+#' \deqn{
+#'   \hat{p} = \arg\min_{p \in \Delta_{2^n}}
+#'             \sum_{i=1}^{m} \frac{(m_i^\top p - v_i)^2}{\sigma_i^2}
+#' }
+#'
+#' where \eqn{m = n(n+1)/2} data-derived linear constraints encode
+#' \strong{n marginal} resistance rates and \strong{n(n-1)/2 pairwise}
+#' co-resistance rates, and \eqn{\Delta} is the standard probability simplex.
+#'
+#' \subsection{Constraint rows in M}{
+#'   \describe{
+#'     \item{Marginal (rows 1 to n)}{
+#'       Row \eqn{d}: \eqn{M_{d,\delta} = 1} iff \eqn{\delta_d = 1}
+#'       (i.e., class \eqn{d} is resistant in profile \eqn{\delta}).
+#'       Constraint: \eqn{\sum_\delta M_{d,\delta}\,p_\delta = \hat{r}_{kd}}.
+#'     }
+#'     \item{Pairwise (rows n+1 to m)}{
+#'       Row \eqn{(d_1,d_2)}: \eqn{M_{d_1 d_2,\delta} = 1} iff
+#'       \eqn{\delta_{d_1} = 1 \land \delta_{d_2} = 1}.
+#'       Constraint: \eqn{\sum_\delta M_{d_1 d_2,\delta}\,p_\delta =
+#'       \hat{r}_{k,d_1 d_2}}.
+#'       When a pairwise estimate is unavailable (too few co-tested isolates),
+#'       the product of marginals (independence assumption) is used as fallback.
+#'     }
+#'   }
+#' }
+#'
+#' The QP is solved via \code{quadprog::solve.QP}. A small ridge term
+#' (\code{ridge}) is added to the Hessian to guarantee strict
+#' positive-definiteness. On solver failure the pathogen gets a uniform
+#' distribution over all profiles.
+#'
+#' \subsection{Performance Notes}{
+#'   This function has been optimized for speed with vectorized profile generation
+#'   and label creation (10-100x faster than previous versions). However,
+#'   computational complexity is still exponential in the number of classes:
+#'   \itemize{
+#'     \item \strong{n <= 14}: Fast (seconds to minutes)
+#'     \item \strong{n = 15}: Moderate (minutes)
+#'     \item \strong{n >= 16}: Slow and memory-intensive (use \code{top_n_classes})
+#'   }
+#'   For large datasets with many pathogens, consider using \code{top_n_classes}
+#'   to limit each pathogen to its most-tested classes (e.g., \code{top_n_classes = 12}).
+#' }
+#'
+#' @param marginal_output    List returned by \code{compute_marginal_resistance()}.
+#' @param coresistance_output List returned by
+#'   \code{compute_pairwise_coresistance()}.
+#' @param pathogens          Character vector. Pathogen(s) to process.
+#'   \code{NULL} (default) processes every pathogen in \code{marginal_output}.
+#' @param top_n_pathogens    Integer or \code{NULL} (default). When set, only
+#'   the top \code{top_n_pathogens} pathogens ranked by total isolates tested
+#'   (sum of \code{n_tested} across all antibiotic classes, descending) are
+#'   processed. Applied after the \code{pathogens} argument filter. Useful for
+#'   focusing on the most data-rich pathogens -- e.g. \code{top_n_pathogens = 5}
+#'   runs profiles for only the 5 most-tested pathogens.
+#' @param exclude_near_zero  Logical. If \code{TRUE} (default), antibiotic
+#'   classes that appear in \code{marginal_output$near_zero} for a given
+#'   pathogen are excluded from profile enumeration.
+#' @param top_n_classes      Integer or \code{NULL} (default). When set, only
+#'   the top \code{top_n_classes} antibiotic classes ranked by \code{n_tested}
+#'   (descending) are kept per pathogen before profile enumeration. Useful for
+#'   capping the combinatorial explosion (2^n profiles) for pathogens tested
+#'   against many drug classes -- e.g. \code{top_n_classes = 5} gives at most
+#'   32 profiles. Applied after \code{exclude_near_zero}.
+#' @param sigma_sq           Positive numeric. Assumed variance for each
+#'   constraint (uniform). Default \code{1}.
+#' @param ridge              Positive numeric. Ridge term added to the QP
+#'   Hessian for numerical stability. Default \code{1e-8}.
+#' @param pathogen_col       Character. Column name for pathogens. Must match
+#'   the column used in Steps 1-2. Default \code{"organism_name"}.
+#' @param antibiotic_class_col Character. Column name for antibiotic classes.
+#'   Default \code{"antibiotic_class"}.
+#' @param facility_col Character or \code{NULL}. Column identifying the
+#'   facility/site. When provided together with \code{facility_name}, filters
+#'   \code{marginal_output$marginal} and \code{marginal_output$near_zero} to
+#'   the specified facility before profile enumeration. For this to work,
+#'   \code{compute_marginal_resistance()} must have been called with the same
+#'   \code{facility_col} argument. Both must be supplied together or both left
+#'   \code{NULL}. Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. Facility value to retain.
+#'   Default \code{NULL}.
+#' @param outcome_col Character or \code{NULL}. Column containing patient
+#'   outcomes. When provided together with \code{outcome_value}, filters
+#'   \code{marginal_output$marginal} and \code{marginal_output$near_zero} to
+#'   the specified outcome before profile enumeration.
+#'   \code{compute_marginal_resistance()} must have been called with the same
+#'   \code{outcome_col} argument. Both must be supplied together or both left
+#'   \code{NULL}. Default \code{NULL}.
+#' @param outcome_value Character or \code{NULL}. Outcome value to retain
+#'   (e.g. \code{"discharged"}, \code{"dead"}). Default \code{NULL}.
+#' @param n_cores Integer. Number of CPU cores for parallel computation.
+#'   Default \code{1L} (sequential).
+#'
+#' @return Named list, one entry per pathogen, each a list with:
+#' \describe{
+#'   \item{\code{profiles}}{Data frame: \code{profile} (character label,
+#'     e.g.\ \code{"RSR"}), \code{probability} (\eqn{\hat{p}_\delta}), and
+#'     one binary (0/1) integer column per antibiotic class indicating whether
+#'     that class is resistant (\code{1}) or susceptible (\code{0}) in each
+#'     profile.}
+#'   \item{\code{classes}}{Character vector of antibiotic class names used
+#'     (alphabetical; bit 0 = classes[1]).}
+#'   \item{\code{n_classes}}{Integer. Number of classes used.}
+#'   \item{\code{constraint_residuals}}{Named numeric vector of
+#'     \eqn{m_i^\top \hat{p} - v_i} for each constraint. Small absolute
+#'     values indicate good constraint satisfaction.}
+#' }
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' marg <- compute_marginal_resistance(amr_clean)
+#' co_res <- compute_pairwise_coresistance(marg)
+#' rp <- compute_resistance_profiles(marg, co_res)
+#'
+#' # All profiles and probabilities for K. pneumoniae
+#' rp[["Klebsiella pneumoniae"]]$profiles
+#'
+#' # Constraint residuals (quality check)
+#' rp[["Klebsiella pneumoniae"]]$constraint_residuals
+#'
+#' # Single pathogen
+#' rp_kp <- compute_resistance_profiles(
+#'   marg, co_res,
+#'   pathogens = "Klebsiella pneumoniae"
+#' )
+#' }
+compute_resistance_profiles <- function(
+  marginal_output,
+  coresistance_output,
+  pathogens = NULL,
+  top_n_pathogens = NULL,
+  exclude_near_zero = TRUE,
+  top_n_classes = NULL,
+  sigma_sq = 1,
+  ridge = 1e-8,
+  pathogen_col = "organism_name",
+  antibiotic_class_col = "antibiotic_class",
+  facility_col = NULL,
+  facility_name = NULL,
+  outcome_col = NULL,
+  outcome_value = NULL,
+  n_cores = 1L
+) {
+  # -- Input validation -------------------------------------------------------
+  if (!is.list(marginal_output) ||
+    !all(c("marginal", "near_zero", "class_long") %in% names(marginal_output))) {
+    stop("marginal_output must be the list returned by compute_marginal_resistance().")
+  }
+  if (!is.list(coresistance_output)) {
+    stop("coresistance_output must be the list returned by compute_pairwise_coresistance().")
+  }
+  has_osqp <- requireNamespace("osqp", quietly = TRUE) &&
+    requireNamespace("Matrix", quietly = TRUE)
+  has_quadprog <- requireNamespace("quadprog", quietly = TRUE)
+  if (!has_osqp && !has_quadprog) {
+    stop("Either 'osqp' + 'Matrix' (recommended) or 'quadprog' must be installed.")
+  }
+
+  if (!is.null(n_cores)) {
+    n_cores <- as.integer(n_cores)
+    if (is.na(n_cores) || n_cores < 1L) stop("n_cores must be a positive integer.")
+  } else {
+    n_cores <- 1L
+  }
+
+  if (!is.null(top_n_pathogens)) {
+    if (!is.numeric(top_n_pathogens) || length(top_n_pathogens) != 1 ||
+      top_n_pathogens < 1 || top_n_pathogens != round(top_n_pathogens)) {
+      stop("top_n_pathogens must be a single positive integer.")
+    }
+    top_n_pathogens <- as.integer(top_n_pathogens)
+  }
+
+  if (!is.null(top_n_classes)) {
+    if (!is.numeric(top_n_classes) || length(top_n_classes) != 1 ||
+      top_n_classes < 1 || top_n_classes != round(top_n_classes)) {
+      stop("top_n_classes must be a single positive integer.")
+    }
+    top_n_classes <- as.integer(top_n_classes)
+  }
+
+  # -- Optional facility filter ----------------------------------------------
+
+  if (!is.null(facility_col) || !is.null(facility_name)) {
+    if (is.null(facility_col) || is.null(facility_name)) {
+      stop("Both facility_col and facility_name must be provided together, or both NULL.")
+    }
+    if (!facility_col %in% names(marginal_output$marginal)) {
+      stop(sprintf(
+        paste0(
+          "facility_col '%s' not found in marginal_output$marginal. ",
+          "Re-run compute_marginal_resistance() with the same ",
+          "facility_col and facility_name to filter upstream."
+        ),
+        facility_col
+      ))
+    }
+    marginal_output$marginal <- marginal_output$marginal[
+      marginal_output$marginal[[facility_col]] == facility_name, ,
+      drop = FALSE
+    ]
+    marginal_output$near_zero <- marginal_output$near_zero[
+      marginal_output$near_zero[[facility_col]] == facility_name, ,
+      drop = FALSE
+    ]
+    if (nrow(marginal_output$marginal) == 0L) {
+      stop(sprintf("No rows in marginal for %s = '%s'.", facility_col, facility_name))
+    }
+    message(sprintf(
+      "Facility filter applied: %s = '%s'.", facility_col, facility_name
+    ))
+  }
+
+  # -- Optional outcome filter -----------------------------------------------
+
+  if (!is.null(outcome_col) || !is.null(outcome_value)) {
+    if (is.null(outcome_col) || is.null(outcome_value)) {
+      stop("Both outcome_col and outcome_value must be provided together, or both NULL.")
+    }
+    if (!outcome_col %in% names(marginal_output$marginal)) {
+      stop(sprintf(
+        paste0(
+          "outcome_col '%s' not found in marginal_output$marginal. ",
+          "Re-run compute_marginal_resistance() with the same ",
+          "outcome_col and outcome_value to filter upstream."
+        ),
+        outcome_col
+      ))
+    }
+    marginal_output$marginal <- marginal_output$marginal[
+      marginal_output$marginal[[outcome_col]] == outcome_value, ,
+      drop = FALSE
+    ]
+    marginal_output$near_zero <- marginal_output$near_zero[
+      marginal_output$near_zero[[outcome_col]] == outcome_value, ,
+      drop = FALSE
+    ]
+    if (nrow(marginal_output$marginal) == 0L) {
+      stop(sprintf("No rows in marginal for %s = '%s'.", outcome_col, outcome_value))
+    }
+    message(sprintf(
+      "Outcome filter applied: %s = '%s'.", outcome_col, outcome_value
+    ))
+  }
+
+  all_pathogens <- sort(unique(marginal_output$marginal[[pathogen_col]]))
+
+  if (!is.null(pathogens)) {
+    missing_p <- setdiff(pathogens, all_pathogens)
+    if (length(missing_p) > 0) {
+      stop(sprintf(
+        "Pathogen(s) not found in marginal_output: %s",
+        paste(missing_p, collapse = ", ")
+      ))
+    }
+    all_pathogens <- pathogens
+  }
+
+  # -- Restrict to top N most-tested pathogens ---------------------------------
+  if (!is.null(top_n_pathogens)) {
+    path_tested <- marginal_output$marginal %>%
+      dplyr::filter(!!rlang::sym(pathogen_col) %in% all_pathogens) %>%
+      dplyr::group_by(!!rlang::sym(pathogen_col)) %>%
+      dplyr::summarise(total_tested = sum(n_tested), .groups = "drop") %>%
+      dplyr::arrange(dplyr::desc(total_tested))
+
+    top_paths <- path_tested[[pathogen_col]][
+      seq_len(min(top_n_pathogens, nrow(path_tested)))
+    ]
+    excluded <- setdiff(all_pathogens, top_paths)
+
+    message(sprintf(
+      "top_n_pathogens = %d: keeping %d pathogen(s), excluding %d.",
+      top_n_pathogens, length(top_paths), length(excluded)
+    ))
+    if (length(excluded) > 0) {
+      message("  Excluded: ", paste(excluded, collapse = ", "))
+    }
+    message("  Selected (ranked by total isolates tested):")
+    print(path_tested[path_tested[[pathogen_col]] %in% top_paths, ],
+      row.names = FALSE
+    )
+
+    all_pathogens <- top_paths # preserves descending rank order
+  }
+
+  out <- list()
+  skipped_single <- list()
+
+  n_pathogens_total <- length(all_pathogens)
+  if (n_pathogens_total > 1) {
+    message(sprintf(
+      "\nProcessing %d pathogen(s) with %d core(s)...",
+      n_pathogens_total, n_cores
+    ))
+  }
+
+  # -- Per-pathogen worker (closure over outer env) --------------------------
+  .process_one <- function(path_idx) {
+    path <- all_pathogens[path_idx]
+
+    if (n_pathogens_total > 1) {
+      message(sprintf(
+        "\n[%d/%d] Processing '%s'...",
+        path_idx, n_pathogens_total, path
+      ))
+    }
+
+    # -- Determine antibiotic classes ---------------------------------------
+    marg_k <- marginal_output$marginal[
+      marginal_output$marginal[[pathogen_col]] == path,
+    ]
+
+    if (exclude_near_zero) {
+      nz_classes <- marginal_output$near_zero[
+        marginal_output$near_zero[[pathogen_col]] == path,
+        antibiotic_class_col,
+        drop = TRUE
+      ]
+      marg_k <- marg_k[!marg_k[[antibiotic_class_col]] %in% nz_classes, ]
+    }
+
+    if (!is.null(top_n_classes) && nrow(marg_k) > top_n_classes) {
+      marg_k <- marg_k[order(marg_k$n_tested, decreasing = TRUE), ][
+        seq_len(top_n_classes),
+      ]
+      message(sprintf(
+        "'%s': restricting to top %d classes by n_tested.", path, top_n_classes
+      ))
+    }
+
+    classes <- sort(marg_k[[antibiotic_class_col]])
+    n <- length(classes)
+
+    if (n == 0) {
+      message(sprintf("'%s': no classes remain after filtering, skipping.", path))
+      return(list(type = "empty", path = path))
+    }
+
+    if (n < 2) {
+      return(list(
+        type = "skipped",
+        path = path,
+        data = data.frame(
+          pathogen            = path,
+          antibiotic_class    = marg_k[[antibiotic_class_col]],
+          n_tested            = marg_k$n_tested,
+          marginal_resistance = marg_k$marginal_resistance,
+          stringsAsFactors    = FALSE
+        )
+      ))
+    }
+
+    n_profiles <- 2L^n
+
+    if (n > 18L) {
+      warning(sprintf(
+        "'%s': %d classes -> 2^%d = %d profiles. This may be very slow and memory-intensive.",
+        path, n, n, n_profiles
+      ))
+    }
+
+    # -- Marginal resistance vector r_kd ------------------------------------
+    r_marg <- setNames(
+      marg_k$marginal_resistance,
+      marg_k[[antibiotic_class_col]]
+    )[classes]
+
+    # -- Pairwise co-resistance matrix (may be NULL) ------------------------
+    co_mat <- if (path %in% names(coresistance_output)) {
+      coresistance_output[[path]]$prevalence
+    } else {
+      NULL
+    }
+
+    # -- Enumerate 2^n resistance profiles ---------------------------------
+    profiles_mat <- matrix(
+      as.integer(
+        outer(0L:(n_profiles - 1L), 2L^(0L:(n - 1L)), bitwAnd) > 0L
+      ),
+      nrow = n_profiles, ncol = n,
+      dimnames = list(NULL, classes)
+    )
+
+    char_mat <- matrix("S", nrow = n_profiles, ncol = n)
+    char_mat[profiles_mat == 1L] <- "R"
+    profile_labels <- do.call(paste0, as.data.frame(char_mat))
+
+    # -- Constraint matrix M (m x 2^n) and target vector v -----------------
+    M_marg <- t(profiles_mat)
+    v_marg <- r_marg
+
+    pairs_mat <- utils::combn(n, 2L)
+    n_pair <- ncol(pairs_mat)
+    d1_idx <- pairs_mat[1L, ]
+    d2_idx <- pairs_mat[2L, ]
+    c1_names <- classes[d1_idx]
+    c2_names <- classes[d2_idx]
+    pair_names <- paste0(c1_names, "_", c2_names)
+
+    M_pair <- t(
+      profiles_mat[, d1_idx, drop = FALSE] *
+        profiles_mat[, d2_idx, drop = FALSE]
+    )
+
+    r1 <- r_marg[c1_names]
+    r2 <- r_marg[c2_names]
+
+    if (!is.null(co_mat) &&
+      !is.null(rownames(co_mat)) && !is.null(colnames(co_mat))) {
+      in_rows <- c1_names %in% rownames(co_mat)
+      in_cols <- c2_names %in% colnames(co_mat)
+      can_look <- in_rows & in_cols
+      co_vals <- rep(NA_real_, n_pair)
+      if (any(can_look)) {
+        co_vals[can_look] <- co_mat[cbind(
+          c1_names[can_look],
+          c2_names[can_look]
+        )]
+      }
+    } else {
+      co_vals <- rep(NA_real_, n_pair)
+    }
+
+    cap_vals <- pmin(r1, r2)
+    has_co <- !is.na(co_vals)
+    capped_co <- pmin(co_vals, cap_vals)
+    was_capped <- has_co & !is.na(capped_co) & (capped_co < co_vals)
+    v_pair <- ifelse(has_co, capped_co, r1 * r2)
+
+    if (any(was_capped)) {
+      message(sprintf(
+        "'%s': %d pairwise value(s) capped to min(marginal): %s",
+        path, sum(was_capped),
+        paste(
+          sprintf(
+            "(%s,%s) %.4f->%.4f",
+            c1_names[was_capped], c2_names[was_capped],
+            co_vals[was_capped], capped_co[was_capped]
+          ),
+          collapse = "; "
+        )
+      ))
+    }
+    if (any(!has_co)) {
+      message(sprintf(
+        "'%s': %d pair(s) used independence fallback: %s",
+        path, sum(!has_co),
+        paste(sprintf("(%s,%s)", c1_names[!has_co], c2_names[!has_co]),
+          collapse = "; "
+        )
+      ))
+    }
+
+    M <- rbind(M_marg, M_pair)
+    v <- c(v_marg, v_pair)
+    storage.mode(M) <- "double"
+
+    # -- QP: simplex-constrained weighted least-squares ---------------------
+    #
+    # Minimise  (1/2) p^T H p  -  d^T p
+    #   H = (2/sigma_sq) * M^T M  +  ridge * I   (guaranteed pos-def)
+    #   d = (2/sigma_sq) * M^T v
+    # Subject to: sum(p) = 1, p >= 0
+    #
+    # OSQP path: constraint matrix A = rbind([1...1], I_{2^n}) stored sparse
+    #   -> O(2^n) memory vs O(4^n) for the dense diag() used by quadprog.
+    # quadprog path: retained as fallback when osqp/Matrix are unavailable.
+    coef <- 2.0 / sigma_sq
+    H_mat <- coef * crossprod(M)
+    diag(H_mat) <- diag(H_mat) + ridge
+    d_qp <- coef * drop(crossprod(M, v))
+
+    p_hat <- tryCatch(
+      {
+        if (has_osqp) {
+          A_sp <- rbind(
+            Matrix::Matrix(1.0, nrow = 1L, ncol = n_profiles, sparse = TRUE),
+            Matrix::Diagonal(n_profiles)
+          )
+          prob <- osqp::osqp(
+            P = Matrix::forceSymmetric(Matrix::Matrix(H_mat)),
+            q = -d_qp,
+            A = A_sp,
+            l = c(1.0, rep(0.0, n_profiles)),
+            u = c(1.0, rep(Inf, n_profiles)),
+            pars = osqp::osqpSettings(
+              verbose  = FALSE,
+              eps_abs  = 1e-8,
+              eps_rel  = 1e-8,
+              max_iter = 10000L,
+              polish   = TRUE
+            )
+          )
+          res <- prob$solve()
+          if (!(res$info$status %in% c("solved", "solved_inaccurate"))) {
+            stop(paste("OSQP status:", res$info$status))
+          }
+          pmax(res$x, 0.0)
+        } else {
+          # quadprog fallback -- dense Amat, slow for n > 12
+          Amat <- cbind(rep(1.0, n_profiles), diag(n_profiles))
+          bvec <- c(1.0, rep(0.0, n_profiles))
+          sol <- quadprog::solve.QP(
+            Dmat = H_mat, dvec = d_qp,
+            Amat = Amat,  bvec = bvec, meq = 1L
+          )
+          pmax(sol$solution, 0.0)
+        }
+      },
+      error = function(e) {
+        warning(sprintf(
+          "'%s': QP solver failed (%s). Returning uniform distribution.",
+          path, conditionMessage(e)
+        ))
+        rep(1.0 / n_profiles, n_profiles)
+      }
+    )
+
+    p_hat <- p_hat / sum(p_hat)
+
+    # -- Constraint residuals -----------------------------------------------
+    residuals <- drop(M %*% p_hat) - v
+    names(residuals) <- c(
+      paste0("marg_", classes),
+      paste0("pair_", pair_names)
+    )
+
+    profiles_df <- data.frame(
+      profile = profile_labels,
+      probability = p_hat,
+      stringsAsFactors = FALSE
+    )
+    profiles_df <- cbind(profiles_df, as.data.frame(profiles_mat, check.names = FALSE))
+
+    message(sprintf(
+      "'%s': n=%d classes -> %d profiles. Max |residual| = %.5f.",
+      path, n, n_profiles, max(abs(residuals))
+    ))
+
+    list(
+      type = "success",
+      path = path,
+      result = list(
+        profiles              = profiles_df,
+        classes               = classes,
+        n_classes             = n,
+        constraint_residuals  = residuals,
+        constraint_targets    = setNames(v, names(residuals)),
+        constraint_names      = names(residuals)
+      )
+    )
+  }
+
+  # -- Execute: parallel or sequential ---------------------------------------
+  if (n_cores > 1L) {
+    all_results <- parallel::mclapply(
+      seq_along(all_pathogens), .process_one,
+      mc.cores = n_cores,
+      mc.preschedule = FALSE # better load balancing across heterogeneous pathogens
+    )
+  } else {
+    all_results <- lapply(seq_along(all_pathogens), .process_one)
+  }
+
+  # -- Collect results --------------------------------------------------------
+  for (res in all_results) {
+    if (is.null(res) || inherits(res, "try-error")) next
+    if (res$type == "success") {
+      out[[res$path]] <- res$result
+    } else if (res$type == "skipped") {
+      skipped_single[[res$path]] <- res$data
+    }
+  }
+
+  # -- Summary: pathogens skipped because only 1 class remained --------------
+  if (length(skipped_single) > 0) {
+    skipped_tbl <- do.call(rbind, skipped_single)
+    message(sprintf(
+      "\n%d pathogen(s) skipped -- only 1 antibiotic class remained after filtering.",
+      length(skipped_single)
+    ))
+    message(paste0(
+      "For these pathogens the resistance profile IS the marginal resistance.\n",
+      "  Tip: use top_n_classes, reduce zero_threshold, or set exclude_near_zero = FALSE",
+      " to include them.\n"
+    ))
+    print(skipped_tbl, row.names = FALSE)
+  }
+
+  return(out)
+}
+
+
+# Normalize String for Joining
+#
+# Lowercases, trims whitespace, and removes punctuation for fuzzy joins.
+
+
+# ---------------------------------------------------------------------------
+# Resistance class selection (moved from prep_ast_and_syndrome.R)
+# These are analysis functions that inform DALY burden attribution - they
+# do not belong in the preprocessing layer.
+# ---------------------------------------------------------------------------
+
+#' Select Resistance Class for Burden Attribution
+#'
+#' Selects a single resistance class per event using beta-lactam hierarchy
+#' and relative risk (RR) values. Prevents double-counting in DALY burden
+#' estimation by choosing the most clinically relevant resistant class.
+#'
+#' Selection order:
+#' 1. Beta-lactam hierarchy rank (Carbapenems > 4GC > 3GC > ...)
+#' 2. RR value (higher relative risk = higher priority)
+#' 3. Alphabetical tie-breaker
+#'
+#' @param data Data frame with class-level resistance and RR columns.
+#' @param event_col Character. Event ID column. Default "event_id".
+#' @param class_col Character. Antibiotic class column. Default "antibiotic_class".
+#' @param susceptibility_col Character. Susceptibility column. Default "antibiotic_value".
+#' @param rr_col Character. RR value column. Default "rr_value".
+#'   If missing, only hierarchy is used.
+#' @param hierarchy Named numeric vector. Custom hierarchy (class name -> rank).
+#'   If NULL, uses \code{get_beta_lactam_hierarchy()}.
+#' @param filter_resistant Logical. If TRUE, only consider resistant (R) classes.
+#'   Default TRUE.
+#'
+#' @return Data frame filtered to one resistance class per event.
+#' @export
+select_resistance_class <- function(data,
+                                    event_col          = "event_id",
+                                    class_col          = "antibiotic_class",
+                                    susceptibility_col = "antibiotic_value",
+                                    rr_col             = "rr_value",
+                                    hierarchy          = NULL,
+                                    filter_resistant   = TRUE) {
+  required_cols <- c(event_col, class_col, susceptibility_col)
+  missing_cols  <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0)
+    stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
+
+  if (is.null(hierarchy)) hierarchy <- get_beta_lactam_hierarchy()
+
+  use_rr <- rr_col %in% names(data)
+  if (!use_rr)
+    message(sprintf("RR column '%s' not found. Using hierarchy only for selection.", rr_col))
+
+  n_before        <- nrow(data)
+  n_events_before <- dplyr::n_distinct(data[[event_col]])
+
+  message(sprintf("Selecting resistance classes using hierarchy%s...",
+                  ifelse(use_rr, " + RR", "")))
+
+  if (filter_resistant) {
+    data <- data %>% dplyr::filter(!!rlang::sym(susceptibility_col) == "R")
+    message(sprintf("Filtered to resistant classes: %d rows", nrow(data)))
+  }
+
+  selected <- prioritize_resistance(
+    data      = data,
+    event_col = event_col,
+    class_col = class_col,
+    rr_col    = if (use_rr) rr_col else NULL,
+    hierarchy = hierarchy
+  )
+
+  n_events_after <- dplyr::n_distinct(selected[[event_col]])
+  message(sprintf(
+    "Selected: %d rows from %d events (avg %.2f classes/event before -> 1.0 after)",
+    nrow(selected), n_events_after, n_before / n_events_before
+  ))
+
+  selection_summary <- selected %>%
+    dplyr::count(!!rlang::sym(class_col), name = "n_events") %>%
+    dplyr::arrange(dplyr::desc(n_events)) %>%
+    utils::head(10)
+  message("\nTop 10 selected classes:")
+  print(selection_summary)
+
+  return(selected)
+}
+
+
+#' Prioritize Resistance Class
+#'
+#' Internal helper for \code{select_resistance_class()}. Applies beta-lactam
+#' hierarchy + RR ranking to select one row per event.
+#'
+#' @param data Data frame.
+#' @param event_col Character. Event ID column.
+#' @param class_col Character. Class column.
+#' @param rr_col Character or NULL. RR column; if NULL uses hierarchy only.
+#' @param hierarchy Named numeric vector mapping class name to rank.
+#'
+#' @return Data frame with one row per event (highest priority class selected).
+#' @keywords internal
+prioritize_resistance <- function(data,
+                                  event_col,
+                                  class_col,
+                                  rr_col    = NULL,
+                                  hierarchy) {
+  # Accept either a named vector (name = class, value = rank) or an unnamed
+  # character vector (position = rank) -- get_beta_lactam_hierarchy() returns
+  # the latter.
+  hier_classes <- if (!is.null(names(hierarchy))) names(hierarchy) else as.character(hierarchy)
+  hierarchy_df <- data.frame(
+    class          = hier_classes,
+    hierarchy_rank = seq_along(hierarchy),
+    stringsAsFactors = FALSE
+  )
+  names(hierarchy_df)[1] <- class_col
+
+  data     <- data %>% dplyr::left_join(hierarchy_df, by = class_col)
+  max_rank <- max(hierarchy_df$hierarchy_rank, na.rm = TRUE)
+  data     <- data %>%
+    dplyr::mutate(hierarchy_rank = dplyr::coalesce(hierarchy_rank, max_rank + 1L))
+
+  if (!is.null(rr_col) && rr_col %in% names(data)) {
+    selected <- data %>%
+      dplyr::group_by(!!rlang::sym(event_col)) %>%
+      dplyr::arrange(hierarchy_rank, dplyr::desc(!!rlang::sym(rr_col)),
+                     !!rlang::sym(class_col)) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(selection_method = "hierarchy_rr", selection_confidence = "high")
+  } else {
+    selected <- data %>%
+      dplyr::group_by(!!rlang::sym(event_col)) %>%
+      dplyr::arrange(hierarchy_rank, !!rlang::sym(class_col)) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(selection_method = "hierarchy_only", selection_confidence = "medium")
+  }
+
+  selected <- selected %>% dplyr::select(-hierarchy_rank)
+
+  multi_class_events <- data %>%
+    dplyr::group_by(!!rlang::sym(event_col)) %>%
+    dplyr::summarise(n_classes = dplyr::n(), .groups = "drop") %>%
+    dplyr::filter(n_classes > 1)
+
+  if (nrow(multi_class_events) > 0)
+    message(sprintf("Applied selection to %d events with multiple resistant classes.",
+                    nrow(multi_class_events)))
+
+  return(selected)
+}
+
+
+# ===========================================================================
+# Pathway 2 — Bayesian hierarchical multivariate probit
+#
+# Accepts wide-format event-level AST data (one row per organism-event, one
+# column per antibiotic class) and estimates hospital-specific resistance
+# profile probability distributions using a hierarchical Bayesian multivariate
+# probit model. The model is fitted once across all hospitals simultaneously,
+# enabling partial pooling of information through shared correlation structure
+# and hyperpriors while still producing hospital-specific profile estimates.
+#
+# The model captures:
+#   - Class-specific baseline resistance (fixed effects per class)
+#   - Patient covariates: ICU/ward, HAI/CAI, specimen type, year (shared across classes)
+#   - Hospital heterogeneity: hospital x class random effects (partial pooling)
+#   - Patient-admission clustering: patient-admission random effects
+#   - Correlated resistance across classes: residual LKJ correlation matrix Omega
+#
+# Hospitals with fewer eligible classes contribute narrower profiles; the
+# function uses each hospital's observed class set (classes with at least one
+# non-NA value in the data) to define hospital-specific profile dimensions.
+# Profile labels are always anchored to the hospital-specific ordered class set.
+#
+# Outputs feed directly into the DALY burden pipeline:
+#   R_ALL  all eligible infected events with known outcome  -> YLL
+#   R_NF   non-fatal / discharged events only              -> YLD
+# ===========================================================================
+
+
+
+
+# ---------------------------------------------------------------------------
+# Internal: Stan model code — two variants based on number of RE levels
+# ---------------------------------------------------------------------------
+# Priors are passed as data so the model compiles once and prior values
+# can be changed freely between runs without recompilation.
+
+.amr_probit_stan_1re <- function() {
+  r"(
+// Multivariate probit — one grouping level (upper clustering only)
+data {
+  int<lower=1> N;
+  int<lower=2> D;
+  int<lower=1> H;
+  int<lower=1> K;
+  array[N] int<lower=0,upper=1> y;
+  matrix[N, K] X;
+  array[N] int<lower=1,upper=D> d_idx;
+  array[N] int<lower=1,upper=H> h_idx;
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[H, D] u_raw;
+  vector<lower=0>[D] tau_h;
+  cholesky_factor_corr[D] L_Omega;
+}
+transformed parameters {
+  matrix[H, D] u;
+  for (d in 1:D)
+    u[, d] = tau_h[d] * u_raw[, d];
+}
+model {
+  to_vector(beta)  ~ normal(0, prior_beta_sd);
+  tau_h            ~ normal(0, prior_tau_sd);
+  to_vector(u_raw) ~ std_normal();
+  L_Omega          ~ lkj_corr_cholesky(lkj_eta);
+  {
+    vector[N] mu;
+    for (n in 1:N)
+      mu[n] = dot_product(X[n], beta[, d_idx[n]])
+              + u[h_idx[n], d_idx[n]];
+    y ~ bernoulli(Phi(mu));
+  }
+}
+generated quantities {
+  corr_matrix[D] Omega = multiply_lower_tri_self_transpose(L_Omega);
+}
+)"
+}
+
+.amr_probit_stan_2re <- function() {
+  r"(
+// Multivariate probit — two grouping levels (upper + lower clustering)
+data {
+  int<lower=1> N;
+  int<lower=2> D;
+  int<lower=1> H;
+  int<lower=1> Pt;
+  int<lower=1> K;
+  array[N] int<lower=0,upper=1> y;
+  matrix[N, K] X;
+  array[N] int<lower=1,upper=D> d_idx;
+  array[N] int<lower=1,upper=H> h_idx;
+  array[N] int<lower=1,upper=Pt> p_idx;
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[H, D] u_raw;
+  matrix[Pt, D] v_raw;
+  vector<lower=0>[D] tau_h;
+  vector<lower=0>[D] tau_pt;
+  cholesky_factor_corr[D] L_Omega;
+}
+transformed parameters {
+  matrix[H, D] u;
+  matrix[Pt, D] v;
+  for (d in 1:D) {
+    u[, d] = tau_h[d]  * u_raw[, d];
+    v[, d] = tau_pt[d] * v_raw[, d];
+  }
+}
+model {
+  to_vector(beta)  ~ normal(0, prior_beta_sd);
+  tau_h            ~ normal(0, prior_tau_sd);
+  tau_pt           ~ normal(0, prior_tau_sd);
+  to_vector(u_raw) ~ std_normal();
+  to_vector(v_raw) ~ std_normal();
+  L_Omega          ~ lkj_corr_cholesky(lkj_eta);
+  {
+    vector[N] mu;
+    for (n in 1:N)
+      mu[n] = dot_product(X[n], beta[, d_idx[n]])
+              + u[h_idx[n], d_idx[n]]
+              + v[p_idx[n], d_idx[n]];
+    y ~ bernoulli(Phi(mu));
+  }
+}
+generated quantities {
+  corr_matrix[D] Omega = multiply_lower_tri_self_transpose(L_Omega);
+}
+)"
+}
+
+
+# ---------------------------------------------------------------------------
+# fit_bayesian_multivariate_probit()
+# ---------------------------------------------------------------------------
+
+#' Fit Bayesian Hierarchical Multivariate Probit Model for Resistance Profiles
+#'
+#' Accepts wide-format event-level AST data (one row per organism-event, one
+#' column per antibiotic class with 0 / 1 / \code{NA} values) and fits a
+#' hierarchical Bayesian multivariate probit model via \pkg{cmdstanr}.
+#'
+#' \strong{Model:}
+#' \deqn{Y_{id} = \mathbf{1}(Z_{id} > 0), \quad
+#'   Z_i \sim \text{MVN}(\mu_i,\,\Omega)}
+#' \deqn{\mu_{id} = \mathbf{x}_i^\top\beta_d + u_{\text{upper}(i),\,d}
+#'   \;[+\; v_{\text{lower}(i),\,d}]}
+#' where \eqn{\Omega} is the residual correlation matrix across classes
+#' estimated via an LKJ prior.
+#'
+#' \strong{Fixed effects} (\code{fixed_effects}): event-level covariates
+#' supplied by the user — e.g. age, ICU/ward, HAI/CAI, specimen type, year.
+#' All named columns must be present in \code{event_class_data}; the function
+#' stops with an informative error if any are missing.
+#'
+#' \strong{Random effects} (\code{random_effects}): 1 or 2 grouping column
+#' names. The first defines the upper clustering level (typically hospital or
+#' site); the second, if supplied, defines the lower level (typically patient
+#' or admission). Isolate-level residual correlation is captured by \eqn{\Omega}
+#' and does not need a third random-effect level. Supplying more than 2 columns
+#' raises an error.
+#'
+#' \strong{Priors} (\code{prior_config}): passed as Stan data so the model
+#' compiles once and prior values can be changed without recompilation. Defaults
+#' are weakly informative on the probit scale:
+#' \itemize{
+#'   \item \code{beta_sd = 1.5}  Normal(0, 1.5) for fixed effects —
+#'     \eqn{\Phi(\pm1.5) \approx 7\%\text{–}93\%} resistance.
+#'   \item \code{tau_sd = 1.0}   Half-Normal(0, 1) for all random-effect SDs —
+#'     allows ~30–35 pp between-group variation.
+#'   \item \code{lkj_eta = 2.0}  LKJ(2) mildly favours near-zero correlations.
+#' }
+#'
+#' @param event_class_data Data frame. One row per organism-event. Antibiotic
+#'   class columns hold 0 (susceptible), 1 (resistant), or \code{NA} (not
+#'   tested). Metadata columns hold covariates and grouping variables.
+#' @param class_cols Character vector. Names of the antibiotic class columns.
+#'   Required — no default.
+#' @param fixed_effects Character vector. Event-level covariate column names
+#'   to include as fixed effects. Required — no default. All columns must be
+#'   present in \code{event_class_data}.
+#' @param random_effects Character vector of length 1 or 2. Grouping column
+#'   names. Required — no default. First element is the upper clustering level;
+#'   second (optional) is the lower clustering level.
+#' @param pathogen_col Character. Column identifying the pathogen. Used for
+#'   eligibility filtering and output labelling. Default \code{"pathogen"}.
+#' @param eligible_pairs Tibble or \code{NULL}. Hospital x pathogen pairs to
+#'   include. \code{NULL} uses all pairs present in the data.
+#' @param outcome_col Character or \code{NULL}. Patient outcome column. Only
+#'   used downstream in \code{compute_event_profile_probabilities()} to split
+#'   R_ALL and R_NF cohorts — does not enter the probit likelihood. Default
+#'   \code{NULL}.
+#' @param reserve_drug_cols Character vector or \code{NULL}. Class columns to
+#'   exclude from the main model; handled by \code{summarize_reserve_drugs()}.
+#' @param prior_config Named list. Prior hyperparameters. Any subset of
+#'   \code{beta_sd}, \code{tau_sd}, \code{lkj_eta} can be supplied; missing
+#'   entries fall back to the defaults listed above.
+#' @param chains Integer. MCMC chains. Default \code{4L}.
+#' @param iter_warmup Integer. Warmup iterations per chain. Default \code{1000L}.
+#' @param iter_sampling Integer. Post-warmup iterations. Default \code{1000L}.
+#' @param seed Integer. Random seed. Default \code{123L}.
+#' @param show_messages Logical. Print sampling progress. Default \code{TRUE}.
+#' @param ... Additional arguments forwarded to \code{cmdstanr::sample()}.
+#'
+#' @return Named list with elements: \code{draws}, \code{diagnostics},
+#'   \code{fit}, \code{data_long}, \code{index_maps}, \code{X_design},
+#'   \code{class_cols}, \code{event_metadata}, \code{n_re_levels},
+#'   \code{upper_re_col}, \code{lower_re_col}, \code{pathogen_col},
+#'   \code{prior_config_used}.
+#' @export
+fit_bayesian_multivariate_probit <- function(
+    event_class_data,
+    class_cols,
+    fixed_effects,
+    random_effects,
+    pathogen_col      = "pathogen",
+    eligible_pairs    = NULL,
+    outcome_col       = NULL,
+    reserve_drug_cols = NULL,
+    prior_config      = list(),
+    chains            = 4L,
+    iter_warmup       = 1000L,
+    iter_sampling     = 1000L,
+    seed              = 123L,
+    show_messages     = TRUE,
+    ...
+) {
+  # -- Package checks ---------------------------------------------------------
+  if (!requireNamespace("cmdstanr", quietly = TRUE))
+    stop(paste0("Package 'cmdstanr' is required for Pathway 2.\n",
+                "  install.packages('cmdstanr', repos = c('https://mc-stan.org/r-packages/', getOption('repos')))"),
+         call. = FALSE)
+  if (!requireNamespace("posterior", quietly = TRUE))
+    stop("Package 'posterior' is required (installed automatically with cmdstanr).", call. = FALSE)
+
+  # -- Data checks ------------------------------------------------------------
+  if (!is.data.frame(event_class_data) || nrow(event_class_data) == 0L)
+    stop("`event_class_data` must be a non-empty data frame.", call. = FALSE)
+
+  # -- Validate class_cols ----------------------------------------------------
+  if (missing(class_cols) || length(class_cols) == 0L)
+    stop("`class_cols` is required. Supply a character vector of antibiotic class column names.",
+         call. = FALSE)
+  miss_cls <- setdiff(class_cols, names(event_class_data))
+  if (length(miss_cls) > 0L)
+    stop(sprintf("class_cols not found in event_class_data: %s",
+                 paste(miss_cls, collapse = ", ")), call. = FALSE)
+
+  # -- Validate fixed_effects -------------------------------------------------
+  if (missing(fixed_effects) || is.null(fixed_effects) || length(fixed_effects) == 0L)
+    stop(paste0("`fixed_effects` is required with no default.\n",
+                "  Supply a character vector of covariate column names, e.g.:\n",
+                "  fixed_effects = c('Age', 'ICU_or_ward', 'HAI_or_CAI', 'specimen_type', 'year')"),
+         call. = FALSE)
+  miss_fe <- setdiff(fixed_effects, names(event_class_data))
+  if (length(miss_fe) > 0L)
+    stop(sprintf("fixed_effects column(s) not found in event_class_data: %s",
+                 paste(miss_fe, collapse = ", ")), call. = FALSE)
+
+  # -- Validate random_effects ------------------------------------------------
+  if (missing(random_effects) || is.null(random_effects) || length(random_effects) == 0L)
+    stop(paste0("`random_effects` is required with no default.\n",
+                "  Supply 1 or 2 grouping column names, e.g.:\n",
+                "  random_effects = c('hospital', 'patient_id')"),
+         call. = FALSE)
+  if (length(random_effects) > 2L)
+    stop(paste0("`random_effects` accepts 1 or 2 grouping columns. ",
+                "Isolate-level residual correlation is captured by Omega; ",
+                "a third RE level is not identifiable in this model."),
+         call. = FALSE)
+  miss_re <- setdiff(random_effects, names(event_class_data))
+  if (length(miss_re) > 0L)
+    stop(sprintf("random_effects column(s) not found in event_class_data: %s",
+                 paste(miss_re, collapse = ", ")), call. = FALSE)
+
+  upper_re_col <- random_effects[1L]
+  lower_re_col <- if (length(random_effects) == 2L) random_effects[2L] else NULL
+  n_re_levels  <- length(random_effects)
+
+  # -- Validate pathogen_col --------------------------------------------------
+  if (!pathogen_col %in% names(event_class_data))
+    stop(sprintf("pathogen_col '%s' not found in event_class_data.", pathogen_col), call. = FALSE)
+
+  # -- Resolve prior_config ---------------------------------------------------
+  pc <- list(beta_sd = 1.5, tau_sd = 1.0, lkj_eta = 2.0)
+  for (nm in names(prior_config)) pc[[nm]] <- prior_config[[nm]]
+
+  if (!is.numeric(pc$beta_sd) || pc$beta_sd <= 0)
+    stop("`prior_config$beta_sd` must be a positive number.", call. = FALSE)
+  if (!is.numeric(pc$tau_sd) || pc$tau_sd <= 0)
+    stop("`prior_config$tau_sd` must be a positive number.", call. = FALSE)
+  if (!is.numeric(pc$lkj_eta) || pc$lkj_eta < 1)
+    stop("`prior_config$lkj_eta` must be >= 1.", call. = FALSE)
+
+  message(sprintf(
+    "[fit_bayesian_multivariate_probit] Priors: beta ~ N(0, %.2g) | tau ~ HN(0, %.2g) | LKJ(%.2g)",
+    pc$beta_sd, pc$tau_sd, pc$lkj_eta))
+
+  # -- Remove reserve drug columns from main model ----------------------------
+  if (!is.null(reserve_drug_cols)) {
+    class_cols <- setdiff(class_cols, reserve_drug_cols)
+    if (length(class_cols) < 2L)
+      stop("Fewer than 2 class columns remain after removing reserve_drug_cols.", call. = FALSE)
+    message(sprintf("[fit_bayesian_multivariate_probit] %d reserve drug column(s) excluded.",
+                    length(reserve_drug_cols)))
+  }
+  if (length(class_cols) < 2L)
+    stop("At least 2 class columns are required for the multivariate probit.", call. = FALSE)
+
+  # -- Filter to eligible hospital-pathogen pairs -----------------------------
+  event_data <- event_class_data
+  if (!is.null(eligible_pairs)) {
+    ep_req <- c(upper_re_col, pathogen_col)
+    miss_ep <- setdiff(ep_req, names(eligible_pairs))
+    if (length(miss_ep) > 0L)
+      stop(sprintf("`eligible_pairs` must have columns: %s", paste(ep_req, collapse = ", ")),
+           call. = FALSE)
+    event_data <- dplyr::semi_join(event_data, eligible_pairs, by = ep_req)
+    if (nrow(event_data) == 0L)
+      stop("No events remain after filtering to eligible_pairs.", call. = FALSE)
+    message(sprintf("[fit_bayesian_multivariate_probit] %d events after eligible_pairs filter.",
+                    nrow(event_data)))
+  }
+
+  # -- Internal event identifier ----------------------------------------------
+  if ("event_id" %in% names(event_data)) {
+    event_data$.eid <- event_data[["event_id"]]
+  } else {
+    event_data$.eid <- seq_len(nrow(event_data))
+  }
+  event_id_col <- ".eid"
+
+  # -- Columns to carry into long format --------------------------------------
+  meta_carry <- unique(c(
+    event_id_col, upper_re_col, lower_re_col, pathogen_col,
+    if (!is.null(outcome_col) && outcome_col %in% names(event_data)) outcome_col,
+    fixed_effects
+  ))
+  meta_carry <- meta_carry[!is.null(meta_carry) & meta_carry %in% names(event_data)]
+
+  # -- Pivot to long format (only observed outcomes) --------------------------
+  data_long <- event_data %>%
+    dplyr::select(dplyr::all_of(c(meta_carry, class_cols))) %>%
+    tidyr::pivot_longer(
+      cols      = dplyr::all_of(class_cols),
+      names_to  = "antibiotic_class",
+      values_to = "resistance_binary"
+    ) %>%
+    dplyr::filter(!is.na(.data$resistance_binary)) %>%
+    dplyr::mutate(resistance_binary = as.integer(.data$resistance_binary))
+
+  if (nrow(data_long) == 0L)
+    stop("No observed (event x class) pairs after removing NAs.", call. = FALSE)
+
+  message(sprintf(
+    "[fit_bayesian_multivariate_probit] %d observed pairs | %d events | %d classes | %d %s(s)",
+    nrow(data_long),
+    dplyr::n_distinct(data_long[[event_id_col]]),
+    length(class_cols),
+    dplyr::n_distinct(data_long[[upper_re_col]]),
+    upper_re_col))
+
+  # -- Build integer index maps (1-based for Stan) ----------------------------
+  class_levels  <- class_cols
+  upper_levels  <- sort(unique(data_long[[upper_re_col]]))
+
+  data_long <- data_long %>%
+    dplyr::mutate(
+      d_idx = match(.data$antibiotic_class, class_levels),
+      h_idx = match(.data[[upper_re_col]],  upper_levels)
+    )
+
+  lower_levels <- NULL
+  if (n_re_levels == 2L) {
+    lower_levels <- sort(unique(data_long[[lower_re_col]]))
+    data_long <- data_long %>%
+      dplyr::mutate(p_idx = match(.data[[lower_re_col]], lower_levels))
+    Pt <- length(lower_levels)
+
+    if (Pt * length(class_levels) > 5000L)
+      warning(sprintf(
+        "Large lower-RE block: %d %s(s) x %d classes = %d parameters. Sampling may be slow.",
+        Pt, lower_re_col, length(class_levels), Pt * length(class_levels)), call. = FALSE)
+  }
+
+  # -- Fixed-effects design matrix (intercept always included) ----------------
+  fe_df <- data_long[, fixed_effects, drop = FALSE]
+  for (cc in fixed_effects) {
+    if (is.character(fe_df[[cc]])) fe_df[[cc]] <- factor(fe_df[[cc]])
+    if (anyNA(fe_df[[cc]])) {
+      if (is.factor(fe_df[[cc]])) {
+        mode_v <- names(sort(table(fe_df[[cc]]), decreasing = TRUE))[1L]
+        fe_df[[cc]][is.na(fe_df[[cc]])] <- mode_v
+        warning(sprintf("NAs in fixed effect '%s' imputed with mode ('%s').", cc, mode_v),
+                call. = FALSE)
+      } else {
+        med_v <- stats::median(fe_df[[cc]], na.rm = TRUE)
+        fe_df[[cc]][is.na(fe_df[[cc]])] <- med_v
+        warning(sprintf("NAs in fixed effect '%s' imputed with median (%g).", cc, med_v),
+                call. = FALSE)
+      }
+    }
+  }
+  X <- stats::model.matrix(~ ., data = fe_df)
+
+  D <- length(class_levels)
+  H <- length(upper_levels)
+  K <- ncol(X)
+
+  # -- Build Stan data list ---------------------------------------------------
+  stan_data <- list(
+    N             = nrow(data_long),
+    D             = D,
+    H             = H,
+    K             = K,
+    y             = as.integer(data_long$resistance_binary),
+    X             = unname(X),
+    d_idx         = as.integer(data_long$d_idx),
+    h_idx         = as.integer(data_long$h_idx),
+    prior_beta_sd = as.numeric(pc$beta_sd),
+    prior_tau_sd  = as.numeric(pc$tau_sd),
+    lkj_eta       = as.numeric(pc$lkj_eta)
+  )
+  if (n_re_levels == 2L) {
+    stan_data$Pt    <- as.integer(Pt)
+    stan_data$p_idx <- as.integer(data_long$p_idx)
+  }
+
+  # -- Compile Stan model (cached by cmdstanr via content hash) ---------------
+  stan_code <- if (n_re_levels == 1L) .amr_probit_stan_1re() else .amr_probit_stan_2re()
+  stan_file  <- cmdstanr::write_stan_file(stan_code)
+  message(sprintf("[fit_bayesian_multivariate_probit] Compiling %d-RE Stan model...",
+                  n_re_levels))
+  mod <- cmdstanr::cmdstan_model(stan_file, compile = TRUE)
+
+  # -- Sample -----------------------------------------------------------------
+  message(sprintf(
+    "[fit_bayesian_multivariate_probit] Sampling: %d chains x (%d warmup + %d sampling)...",
+    chains, iter_warmup, iter_sampling))
+  fit <- mod$sample(
+    data          = stan_data,
+    seed          = as.integer(seed),
+    chains        = as.integer(chains),
+    iter_warmup   = as.integer(iter_warmup),
+    iter_sampling = as.integer(iter_sampling),
+    refresh       = if (show_messages) 200L else 0L,
+    ...
+  )
+
+  # -- Diagnostics ------------------------------------------------------------
+  draws_arr    <- fit$draws(format = "draws_array")
+  rhat_tbl     <- fit$summary(variables = NULL, "rhat")
+  ess_tbl      <- fit$summary(variables = NULL, "ess_bulk", "ess_tail")
+  n_divergent  <- sum(fit$sampler_diagnostics(format = "matrix")[, "divergent__"])
+  max_rhat     <- max(rhat_tbl$rhat,    na.rm = TRUE)
+  min_ess_bulk <- min(ess_tbl$ess_bulk, na.rm = TRUE)
+
+  if (max_rhat > 1.05)
+    warning(sprintf("Convergence concern: max Rhat = %.3f (> 1.05).", max_rhat), call. = FALSE)
+  if (n_divergent > 0L)
+    warning(sprintf("%d divergent transition(s). Consider higher adapt_delta.", n_divergent),
+            call. = FALSE)
+
+  diag_tbl <- tibble::tibble(
+    n_chains          = as.integer(chains),
+    iter_warmup       = as.integer(iter_warmup),
+    iter_sampling     = as.integer(iter_sampling),
+    n_re_levels       = as.integer(n_re_levels),
+    n_observed_pairs  = nrow(data_long),
+    n_classes         = D,
+    n_upper_groups    = H,
+    n_lower_groups    = if (n_re_levels == 2L) as.integer(Pt) else NA_integer_,
+    n_divergent       = as.integer(n_divergent),
+    max_rhat          = round(max_rhat, 4L),
+    min_ess_bulk      = round(min_ess_bulk, 1L)
+  )
+
+  message(sprintf(
+    "[fit_bayesian_multivariate_probit] Done. max_Rhat=%.3f | min_ESS=%.0f | divergent=%d",
+    max_rhat, min_ess_bulk, n_divergent))
+
+  list(
+    draws            = draws_arr,
+    diagnostics      = diag_tbl,
+    fit              = fit,
+    data_long        = tibble::as_tibble(data_long),
+    index_maps       = list(
+      class_levels  = class_levels,
+      upper_levels  = upper_levels,
+      lower_levels  = lower_levels
+    ),
+    X_design         = X,
+    class_cols       = class_cols,
+    event_metadata   = tibble::as_tibble(event_data),
+    n_re_levels      = n_re_levels,
+    upper_re_col     = upper_re_col,
+    lower_re_col     = lower_re_col,
+    pathogen_col     = pathogen_col,
+    prior_config_used = pc
+  )
+}
+
+
+# ---------------------------------------------------------------------------
+# compute_event_profile_probabilities()
+# ---------------------------------------------------------------------------
+
+#' Compute Posterior Resistance Profile Probabilities via MVN Simulation
+#'
+#' For each posterior draw, constructs the linear predictor \eqn{\mu_i} for
+#' every eligible event using the fixed effects and random effects from the
+#' fitted model, simulates latent \eqn{Z_i \sim \text{MVN}(\mu_i, \Omega)}
+#' over the hospital-specific eligible class set, converts to binary outcomes,
+#' and accumulates profile probabilities. Returns both event-level posterior
+#' means and draw-level aggregate R_ALL / R_NF values per hospital x pathogen
+#' pair for computing proper Bayesian credible intervals downstream.
+#'
+#' @param fitted_model List returned by \code{fit_bayesian_multivariate_probit()}.
+#' @param n_profile_simulations Integer. Number of posterior draws to use.
+#'   Subsampled without replacement when total draws exceed this value.
+#'   Default \code{2000L}.
+#' @param outcome_col Character or \code{NULL}. Patient outcome column in
+#'   \code{fitted_model$event_metadata}. When \code{NULL}, all events are
+#'   treated as having a known outcome and R_NF is not computed separately.
+#' @param nonfatal_values Character vector. Outcome values that define the
+#'   non-fatal cohort for R_NF. Default covers common discharge/survival labels.
+#' @param seed Integer. Random seed for MVN simulation. Default \code{123L}.
+#'
+#' @return Named list: \code{event_profiles} (event-level posterior means) and
+#'   \code{aggregate_draws} (per-draw R_ALL and R_NF per hospital x pathogen x
+#'   profile, used by \code{aggregate_profiles_for_daly()} for credible
+#'   intervals).
+#' @export
+compute_event_profile_probabilities <- function(
+    fitted_model,
+    n_profile_simulations = 2000L,
+    outcome_col           = NULL,
+    nonfatal_values       = c("Discharged", "Survived", "Alive",
+                              "discharged", "survived", "alive"),
+    seed                  = 123L
+) {
+  if (!requireNamespace("mvtnorm",   quietly = TRUE))
+    stop("Package 'mvtnorm' is required. Install with: install.packages('mvtnorm')", call. = FALSE)
+  if (!requireNamespace("posterior", quietly = TRUE))
+    stop("Package 'posterior' is required (installed with cmdstanr).", call. = FALSE)
+
+  set.seed(as.integer(seed))
+
+  draws        <- fitted_model$draws
+  class_cols   <- fitted_model$class_cols
+  idx_maps     <- fitted_model$index_maps
+  X_long       <- fitted_model$X_design
+  data_long    <- fitted_model$data_long
+  event_meta   <- fitted_model$event_metadata
+  n_re_levels  <- fitted_model$n_re_levels
+  upper_re_col <- fitted_model$upper_re_col
+  lower_re_col <- fitted_model$lower_re_col
+  pathogen_col <- fitted_model$pathogen_col
+
+  D <- length(idx_maps$class_levels)
+  H <- length(idx_maps$upper_levels)
+  K <- ncol(X_long)
+
+  # -- Thin draws to n_profile_simulations ------------------------------------
+  draws_mat <- posterior::as_draws_matrix(draws)
+  n_total   <- nrow(draws_mat)
+  S         <- min(as.integer(n_profile_simulations), n_total)
+  draw_idx  <- if (S < n_total) sort(sample.int(n_total, S)) else seq_len(n_total)
+  draws_mat <- draws_mat[draw_idx, , drop = FALSE]
+
+  # -- Extract parameter arrays [S, dim1, dim2] -------------------------------
+  .arr <- function(prefix, d1, d2) {
+    cols <- as.vector(outer(seq_len(d1), seq_len(d2),
+                            function(a, b) sprintf("%s[%d,%d]", prefix, a, b)))
+    array(draws_mat[, cols, drop = FALSE], dim = c(S, d1, d2))
+  }
+  beta_arr  <- .arr("beta",  K, D)
+  u_arr     <- .arr("u",     H, D)
+  omega_arr <- .arr("Omega", D, D)
+
+  has_lower_re <- n_re_levels == 2L
+  if (has_lower_re) {
+    Pt    <- length(idx_maps$lower_levels)
+    v_arr <- .arr("v", Pt, D)
+  }
+
+  # -- Event-level design and index vectors -----------------------------------
+  event_id_col <- if ("event_id" %in% names(data_long)) "event_id" else ".eid"
+  event_rows   <- data_long %>%
+    dplyr::group_by(.data[[event_id_col]]) %>%
+    dplyr::slice(1L) %>%
+    dplyr::ungroup()
+
+  row_match  <- match(event_rows[[event_id_col]], data_long[[event_id_col]])
+  X_event    <- X_long[row_match, , drop = FALSE]
+  h_events   <- as.integer(event_rows$h_idx)
+  p_events   <- if (has_lower_re) as.integer(event_rows$p_idx) else NULL
+  N_ev       <- nrow(event_rows)
+
+  # -- Outcome flags per event ------------------------------------------------
+  if (!is.null(outcome_col) && outcome_col %in% names(event_rows)) {
+    ov               <- event_rows[[outcome_col]]
+    is_known_outcome <- !is.na(ov)
+    is_nonfatal      <- !is.na(ov) & (ov %in% nonfatal_values)
+  } else {
+    is_known_outcome <- rep(TRUE, N_ev)
+    is_nonfatal      <- rep(TRUE, N_ev)
+  }
+
+  # -- Hospital-pathogen eligible class sets ----------------------------------
+  hp_pairs <- unique(event_meta[, c(upper_re_col, pathogen_col), drop = FALSE])
+  hp_keys  <- paste(hp_pairs[[upper_re_col]], hp_pairs[[pathogen_col]], sep = "‖")
+
+  hp_class_d <- stats::setNames(lapply(seq_len(nrow(hp_pairs)), function(r) {
+    h_nm <- hp_pairs[[upper_re_col]][r]
+    k_nm <- hp_pairs[[pathogen_col]][r]
+    sub  <- event_meta[event_meta[[upper_re_col]] == h_nm &
+                         event_meta[[pathogen_col]]  == k_nm, class_cols, drop = FALSE]
+    which(vapply(class_cols, function(cc) any(!is.na(sub[[cc]])), logical(1L)))
+  }), hp_keys)
+
+  hp_ev_idx <- stats::setNames(lapply(hp_keys, function(key) {
+    parts <- strsplit(key, "‖", fixed = TRUE)[[1L]]
+    which(event_meta[[upper_re_col]] == parts[1L] &
+            event_meta[[pathogen_col]]  == parts[2L])
+  }), hp_keys)
+
+  # Storage: per-hp, per-draw profile labels matrix [N_hp × S]
+  hp_store <- stats::setNames(lapply(hp_keys, function(key) {
+    n_hp <- length(hp_ev_idx[[key]])
+    list(labels    = matrix(NA_character_, n_hp, S),
+         known_out = is_known_outcome[hp_ev_idx[[key]]],
+         nonfatal  = is_nonfatal[hp_ev_idx[[key]]])
+  }), hp_keys)
+
+  message(sprintf(
+    "[compute_event_profile_probabilities] %d draws | %d events | %d hp-pairs | %d RE level(s)",
+    S, N_ev, length(hp_keys), n_re_levels))
+
+  # -- Main simulation loop (vectorised over events within each hp pair) ------
+  for (s in seq_len(S)) {
+    beta_s  <- matrix(beta_arr[s, , ], nrow = K, ncol = D)
+    u_s     <- matrix(u_arr[s, , ],    nrow = H, ncol = D)
+    Omega_s <- matrix(omega_arr[s, , ], nrow = D, ncol = D)
+
+    mu_all <- X_event %*% beta_s + u_s[h_events, , drop = FALSE]
+    if (has_lower_re) {
+      v_s     <- matrix(v_arr[s, , ], nrow = Pt, ncol = D)
+      mu_all  <- mu_all + v_s[p_events, , drop = FALSE]
+    }
+
+    for (key in hp_keys) {
+      d_hp   <- hp_class_d[[key]]
+      ev_idx <- hp_ev_idx[[key]]
+      if (length(ev_idx) == 0L || length(d_hp) < 1L) next
+
+      mu_hp    <- mu_all[ev_idx, d_hp, drop = FALSE]
+      Omega_hp <- Omega_s[d_hp, d_hp, drop = FALSE]
+      Omega_hp <- (Omega_hp + t(Omega_hp)) / 2 + diag(1e-9, length(d_hp))
+
+      L_hp <- tryCatch(t(chol(Omega_hp)), error = function(e) NULL)
+      if (is.null(L_hp)) next
+
+      Z_std <- matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
+      Z_hp  <- mu_hp + Z_std %*% t(L_hp)
+
+      hp_store[[key]]$labels[, s] <- apply(
+        (Z_hp > 0) * 1L, 1L,
+        function(row) paste(ifelse(row == 1L, "R", "S"), collapse = "")
+      )
+    }
+  }
+
+  # -- Compute outputs --------------------------------------------------------
+  event_profile_rows  <- list()
+  aggregate_draw_rows <- list()
+
+  for (key in hp_keys) {
+    parts   <- strsplit(key, "‖", fixed = TRUE)[[1L]]
+    h_nm    <- parts[1L]; k_nm <- parts[2L]
+    d_hp    <- hp_class_d[[key]]
+    ev_idx  <- hp_ev_idx[[key]]
+    store   <- hp_store[[key]]
+    n_hp    <- nrow(store$labels)
+    if (n_hp == 0L) next
+
+    valid_s <- which(colSums(!is.na(store$labels)) == n_hp)
+    if (length(valid_s) == 0L) next
+    lbl_v   <- store$labels[, valid_s, drop = FALSE]
+
+    class_set <- paste(class_cols[d_hp], collapse = "|")
+    all_lbls  <- sort(unique(as.vector(lbl_v)))
+
+    # Event-level posterior means
+    for (ev_i in seq_len(n_hp)) {
+      ev_lbl <- lbl_v[ev_i, ]
+      for (lbl in all_lbls) {
+        event_profile_rows[[length(event_profile_rows) + 1L]] <- tibble::tibble(
+          !!upper_re_col   := h_nm,
+          !!pathogen_col   := k_nm,
+          event_id          = event_rows[[event_id_col]][ev_idx[ev_i]],
+          profile_class_set = class_set,
+          profile_delta     = lbl,
+          profile_probability = mean(ev_lbl == lbl, na.rm = TRUE)
+        )
+      }
+    }
+
+    # Draw-level aggregates
+    for (s in seq_along(valid_s)) {
+      s_lbl <- lbl_v[, s]
+      for (lbl in all_lbls) {
+        aggregate_draw_rows[[length(aggregate_draw_rows) + 1L]] <- tibble::tibble(
+          !!upper_re_col   := h_nm,
+          !!pathogen_col   := k_nm,
+          profile_class_set = class_set,
+          profile_delta     = lbl,
+          draw_s            = valid_s[s],
+          R_ALL_s = if (any(store$known_out)) mean(s_lbl[store$known_out] == lbl, na.rm = TRUE) else NA_real_,
+          R_NF_s  = if (any(store$nonfatal))  mean(s_lbl[store$nonfatal]  == lbl, na.rm = TRUE) else NA_real_
+        )
+      }
+    }
+  }
+
+  message(sprintf(
+    "[compute_event_profile_probabilities] Done. %d event-profile rows | %d draw-aggregate rows.",
+    length(event_profile_rows), length(aggregate_draw_rows)))
+
+  list(
+    event_profiles  = dplyr::bind_rows(event_profile_rows),
+    aggregate_draws = dplyr::bind_rows(aggregate_draw_rows)
+  )
+}
+
+aggregate_profiles_for_daly <- function(
+    profile_output,
+    event_class_data  = NULL,
+    hospital_col      = "hospital",
+    patient_col       = "patient_id",
+    admission_col     = "admission_id",
+    pathogen_col      = "pathogen",
+    weighting         = c("equal_event", "patient_admission"),
+    ci_level          = 0.95
+) {
+  weighting <- match.arg(weighting)
+  lo_q <- (1 - ci_level) / 2
+  hi_q <- 1 - lo_q
+
+  if (!is.list(profile_output) ||
+      !all(c("aggregate_draws", "event_profiles") %in% names(profile_output)))
+    stop("`profile_output` must be the list returned by compute_event_profile_probabilities().",
+         call. = FALSE)
+
+  agg_draws <- profile_output$aggregate_draws
+
+  if (nrow(agg_draws) == 0L) {
+    warning("aggregate_draws is empty. Returning empty tibble.", call. = FALSE)
+    return(tibble::tibble())
+  }
+
+  # Compute per-event admission weights if requested
+  if (weighting == "patient_admission") {
+    if (is.null(event_class_data))
+      stop("`event_class_data` must be supplied when weighting = 'patient_admission'.",
+           call. = FALSE)
+    adm_present <- !is.null(admission_col) && admission_col %in% names(event_class_data)
+    adm_key_col <- if (adm_present) admission_col else patient_col
+    # For each admission, weight = 1 / n_events_in_admission — applied in aggregate_draws
+    # (draw-level R values already aggregate over events; re-weighting would require
+    #  event-level draw storage; here we apply equal_event and note the limitation)
+    warning(paste0("patient_admission weighting at the draw level requires event-level draw storage. ",
+                   "Falling back to equal_event weighting. ",
+                   "To use patient_admission weighting, re-aggregate from event_profiles directly."),
+            call. = FALSE)
+    weighting <- "equal_event"
+  }
+
+  # Summarise draw-level R_ALL and R_NF to posterior mean + CI
+  result <- agg_draws %>%
+    dplyr::group_by(
+      .data[[hospital_col]],
+      .data[[pathogen_col]],
+      .data$profile_class_set,
+      .data$profile_delta
+    ) %>%
+    dplyr::summarise(
+      R_ALL_mean  = mean(.data$R_ALL_s,  na.rm = TRUE),
+      R_ALL_lower = stats::quantile(.data$R_ALL_s, lo_q, na.rm = TRUE),
+      R_ALL_upper = stats::quantile(.data$R_ALL_s, hi_q, na.rm = TRUE),
+      R_NF_mean   = mean(.data$R_NF_s,   na.rm = TRUE),
+      R_NF_lower  = stats::quantile(.data$R_NF_s,  lo_q, na.rm = TRUE),
+      R_NF_upper  = stats::quantile(.data$R_NF_s,  hi_q, na.rm = TRUE),
+      n_draws_used = dplyr::n(),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(
+      profile_label        = .data$profile_delta,
+      profile_set_type     = "facility_bayesian_probit",
+      used_for_YLL         = TRUE,
+      used_for_YLD         = TRUE,
+      estimator            = "bayesian_multivariate_probit",
+      identifiability_flag = n_draws_used < 100L,
+      dplyr::across(dplyr::starts_with("R_"), ~ round(.x, 6L))
+    ) %>%
+    dplyr::select(
+      dplyr::all_of(c(hospital_col, pathogen_col)),
+      profile_set_type, profile_class_set, profile_delta, profile_label,
+      R_ALL_mean, R_ALL_lower, R_ALL_upper,
+      R_NF_mean,  R_NF_lower,  R_NF_upper,
+      used_for_YLL, used_for_YLD, estimator, identifiability_flag
+    )
+
+  message(sprintf(
+    "[aggregate_profiles_for_daly] %d hospital-pathogen-profile rows | weighting: %s",
+    nrow(result), weighting))
+
+  result
+}
+
+
+# ---------------------------------------------------------------------------
+# estimate_resistance_profiles()  — top-level dispatcher for both pathways
+# ---------------------------------------------------------------------------
+
+#' Estimate Resistance Profiles: Pathway 1 (Convex) or Pathway 2 (Bayesian)
+#'
+#' Top-level dispatcher. Runs either the convex optimisation pathway
+#' (Pathway 1, aggregate surveillance data) or the Bayesian hierarchical
+#' multivariate probit pathway (Pathway 2, facility-level AST data) and
+#' returns a standardised named list compatible with the DALY burden pipeline.
+#'
+#' The caller is responsible for all upstream decisions: which antibiotic
+#' classes to include for each hospital-pathogen pair, which events are
+#' eligible, and which events to exclude. These are dataset-specific analysis
+#' choices that belong in the calling script, not in this function.
+#' This function receives a pre-prepared dataset and performs estimation only.
+#'
+#' @param data For Pathway 1: marginals tibble from
+#'   \code{compute_marginals_from_data()} or a validated aggregate table.
+#'   For Pathway 2: wide-format event-level tibble. One row per organism-event;
+#'   antibiotic class columns hold 0 (susceptible), 1 (resistant), or
+#'   \code{NA} (not tested). Only eligible classes and events should be
+#'   present — subsetting is the caller's responsibility.
+#' @param method Character. \code{"convex"} or \code{"bayesian"}.
+#' @param pairwise Tibble or \code{NULL}. Pathway 1 only. Pairwise
+#'   co-resistance rates from \code{compute_pairwise_from_data()}.
+#' @param panel_map Named list or \code{NULL}. Pathway 1 only.
+#' @param class_cols Character vector. Pathway 2 only. Names of the antibiotic
+#'   class columns in \code{data}. Required — no default.
+#' @param fixed_effects Character vector. Pathway 2 only. Event-level covariate
+#'   column names (e.g. age, ICU/ward, HAI/CAI, specimen type, year).
+#'   Required — no default.
+#' @param random_effects Character vector (1 or 2 elements). Pathway 2 only.
+#'   Grouping column names (e.g. \code{c("hospital", "patient_id")}).
+#'   Required — no default.
+#' @param pathogen_col Character. Column identifying the pathogen.
+#'   Default \code{"pathogen"}.
+#' @param eligible_pairs Tibble or \code{NULL}. Pathway 2 only. When supplied,
+#'   restricts fitting to these hospital x pathogen combinations. Must contain
+#'   the upper random-effect column and \code{pathogen_col}.
+#' @param outcome_col Character or \code{NULL}. Pathway 2 only. Patient outcome
+#'   column used to split R_ALL and R_NF cohorts. Does not enter the
+#'   likelihood. Default \code{NULL}.
+#' @param nonfatal_values Character vector. Outcome values defining the
+#'   non-fatal cohort (R_NF). Ignored when \code{outcome_col = NULL}.
+#' @param prior_config Named list. Pathway 2 only. Any subset of
+#'   \code{beta_sd} (default 1.5), \code{tau_sd} (default 1.0),
+#'   \code{lkj_eta} (default 2.0). Missing entries use defaults.
+#' @param weighting Character. Pathway 2 aggregation weighting.
+#'   \code{"equal_event"} (default) or \code{"patient_admission"}.
+#' @param n_profile_simulations Integer. Pathway 2 posterior draws used for
+#'   MVN simulation. Default \code{2000L}.
+#' @param chains Integer. MCMC chains. Default \code{4L}.
+#' @param iter_warmup Integer. Warmup iterations per chain. Default \code{1000L}.
+#' @param iter_sampling Integer. Post-warmup iterations. Default \code{1000L}.
+#' @param seed Integer. Random seed. Default \code{123L}.
+#'
+#' @return Named list:
+#' \describe{
+#'   \item{\code{profiles}}{Profile probability tibble (Pathway 1) or
+#'     R_ALL / R_NF tibble (Pathway 2).}
+#'   \item{\code{eligibility}}{Hospital-level summary when
+#'     \code{eligible_pairs} is supplied; \code{NULL} otherwise.}
+#'   \item{\code{diagnostics}}{Constraint residual summary (Pathway 1) or
+#'     MCMC convergence diagnostics (Pathway 2).}
+#'   \item{\code{fitted_models}}{The raw fitted model object(s).}
+#'   \item{\code{config_used}}{Named list of all resolved configuration values.}
+#' }
+#' @export
+estimate_resistance_profiles <- function(
+    data,
+    method                = c("convex", "bayesian"),
+    # Pathway 1
+    pairwise              = NULL,
+    panel_map             = NULL,
+    # Pathway 2 — required with no defaults
+    class_cols            = NULL,
+    fixed_effects         = NULL,
+    random_effects        = NULL,
+    pathogen_col          = "pathogen",
+    eligible_pairs        = NULL,
+    outcome_col           = NULL,
+    nonfatal_values       = c("Discharged", "Survived", "Alive",
+                              "discharged", "survived", "alive"),
+    prior_config          = list(),
+    weighting             = c("equal_event", "patient_admission"),
+    n_profile_simulations = 2000L,
+    chains                = 4L,
+    iter_warmup           = 1000L,
+    iter_sampling         = 1000L,
+    seed                  = 123L
+) {
+  method    <- match.arg(method)
+  weighting <- match.arg(weighting)
+
+  config_used <- list(
+    method                = method,
+    pathogen_col          = pathogen_col,
+    seed                  = seed,
+    n_profile_simulations = n_profile_simulations,
+    weighting             = weighting,
+    chains                = chains,
+    iter_warmup           = iter_warmup,
+    iter_sampling         = iter_sampling,
+    prior_config          = prior_config
+  )
+
+  # ---- Pathway 1 -----------------------------------------------------------
+  if (method == "convex") {
+    message("[estimate_resistance_profiles] Running Pathway 1 (convex optimisation)...")
+
+    profiles_tbl <- estimate_profiles_convex(
+      marginals    = data,
+      pairwise     = pairwise,
+      panel_map    = panel_map,
+      pathogen_col = pathogen_col
+    )
+
+    diag_tbl <- profiles_tbl %>%
+      dplyr::group_by(.data[[pathogen_col]]) %>%
+      dplyr::summarise(
+        n_profiles          = dplyr::n(),
+        pct_converged       = mean(.data$convergence_flag,    na.rm = TRUE),
+        max_abs_residual    = max(.data$max_abs_residual,     na.rm = TRUE),
+        any_underdetermined = any(.data$identifiability_flag, na.rm = TRUE),
+        .groups             = "drop"
+      )
+
+    return(list(
+      profiles      = profiles_tbl,
+      eligibility   = NULL,
+      diagnostics   = diag_tbl,
+      fitted_models = list(convex_profiles = profiles_tbl),
+      config_used   = config_used
+    ))
+  }
+
+  # ---- Pathway 2 -----------------------------------------------------------
+  message("[estimate_resistance_profiles] Running Pathway 2 (Bayesian multivariate probit)...")
+
+  if (is.null(class_cols))
+    stop("`class_cols` is required for method = 'bayesian'.", call. = FALSE)
+  if (is.null(fixed_effects))
+    stop(paste0("`fixed_effects` is required for method = 'bayesian'.\n",
+                "  Supply a character vector of covariate column names."), call. = FALSE)
+  if (is.null(random_effects))
+    stop(paste0("`random_effects` is required for method = 'bayesian'.\n",
+                "  Supply 1 or 2 grouping column names."), call. = FALSE)
+
+  fitted_mod <- fit_bayesian_multivariate_probit(
+    event_class_data = data,
+    class_cols       = class_cols,
+    fixed_effects    = fixed_effects,
+    random_effects   = random_effects,
+    pathogen_col     = pathogen_col,
+    eligible_pairs   = eligible_pairs,
+    outcome_col      = outcome_col,
+    prior_config     = prior_config,
+    chains           = chains,
+    iter_warmup      = iter_warmup,
+    iter_sampling    = iter_sampling,
+    seed             = seed
+  )
+
+  profile_probs <- compute_event_profile_probabilities(
+    fitted_model          = fitted_mod,
+    n_profile_simulations = as.integer(n_profile_simulations),
+    outcome_col           = outcome_col,
+    nonfatal_values       = nonfatal_values,
+    seed                  = seed
+  )
+
+  profiles_tbl <- aggregate_profiles_for_daly(
+    profile_output   = profile_probs,
+    event_class_data = data,
+    hospital_col     = fitted_mod$upper_re_col,
+    patient_col      = if (!is.null(fitted_mod$lower_re_col))
+                         fitted_mod$lower_re_col
+                       else
+                         fitted_mod$upper_re_col,
+    pathogen_col     = pathogen_col,
+    weighting        = weighting
+  )
+
+  eligibility_tbl <- if (!is.null(eligible_pairs)) {
+    eligible_pairs %>%
+      dplyr::count(.data[[fitted_mod$upper_re_col]], name = "n_eligible_pathogens") %>%
+      dplyr::left_join(
+        profiles_tbl %>%
+          dplyr::group_by(.data[[fitted_mod$upper_re_col]]) %>%
+          dplyr::summarise(n_profiles_estimated = dplyr::n(), .groups = "drop"),
+        by = fitted_mod$upper_re_col
+      )
+  } else NULL
+
+  message("[estimate_resistance_profiles] Pathway 2 complete.")
+
+  list(
+    profiles      = profiles_tbl,
+    eligibility   = eligibility_tbl,
+    diagnostics   = fitted_mod$diagnostics,
+    fitted_models = list(bayesian_probit = fitted_mod),
+    config_used   = config_used
+  )
 }
