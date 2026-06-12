@@ -3915,6 +3915,32 @@ prioritize_resistance <- function(data,
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+#' Check pairwise co-testing overlap per hospital x class-pair
+#' @keywords internal
+.check_pairwise_cotesting <- function(event_class_data, class_cols, upper_re_col,
+                                       min_pairwise_cotested = 30L) {
+  rows <- list()
+  hospitals <- sort(unique(event_class_data[[upper_re_col]]))
+  for (h in hospitals) {
+    sub <- event_class_data[event_class_data[[upper_re_col]] == h, class_cols,
+                             drop = FALSE]
+    pairs <- utils::combn(class_cols, 2L, simplify = FALSE)
+    for (pr in pairs) {
+      c1 <- pr[1L]; c2 <- pr[2L]
+      n_cotested <- sum(!is.na(sub[[c1]]) & !is.na(sub[[c2]]))
+      rows[[length(rows) + 1L]] <- tibble::tibble(
+        !!upper_re_col   := h,
+        class_1           = c1,
+        class_2           = c2,
+        n_cotested        = n_cotested,
+        sufficient        = n_cotested >= min_pairwise_cotested
+      )
+    }
+  }
+  dplyr::bind_rows(rows)
+}
+
+
 #' Check panel eligibility thresholds per hospital x class cell
 #' @keywords internal
 .validate_panel_eligibility <- function(
@@ -3977,20 +4003,31 @@ prioritize_resistance <- function(data,
 
 .amr_probit_stan_1re <- function() {
   r"(
-// Multivariate probit — one grouping level (hospital only)
-// L_Omega enters the likelihood via per-event latent noise eta.
-// Hospital effects are correlated across classes via L_corr_hospital.
+// Multivariate probit with data augmentation — one grouping level (hospital)
+//
+// Correct implementation: z_aug[e] ~ MVN(mu_e, Omega).
+// Sign constraints on observed outcomes are imposed via an exp-transformation
+// of the unconstrained z_free parameters. The Jacobian correction accounts for
+// the change-of-variables from z_free to z_aug. There is NO additional
+// Bernoulli/probit residual — the MVN supplies the entire residual covariance.
 data {
-  int<lower=1> N;
-  int<lower=1> N_events;
-  int<lower=2> D;
-  int<lower=1> H;
-  int<lower=1> K;
-  array[N] int<lower=0,upper=1> y;
-  matrix[N, K] X;
-  array[N] int<lower=1,upper=D> d_idx;
-  array[N] int<lower=1,upper=H> h_idx;
+  int<lower=1> N;                               // observed (event x class) pairs
+  int<lower=1> N_events;                        // unique events
+  int<lower=2> D;                               // antibiotic classes
+  int<lower=1> H;                               // hospitals
+  int<lower=1> K;                               // FE columns (including intercept)
+
+  matrix[N_events, K] X_event;                  // event-level FE design matrix
+  array[N_events] int<lower=1,upper=H> h_ev;    // hospital index per event
+
+  // Wide AST arrays for data augmentation
+  array[N_events, D] int<lower=0,upper=1> obs_mask; // 1 = tested, 0 = not tested
+  array[N_events, D] int<lower=0,upper=1> y_mat;    // outcome if tested, else 0
+
+  // Long-format indices (for Jacobian only)
   array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+
   real<lower=0> prior_beta_sd;
   real<lower=0> prior_tau_sd;
   real<lower=1> lkj_eta;
@@ -4001,11 +4038,31 @@ parameters {
   vector<lower=0>[D] tau_hospital;
   cholesky_factor_corr[D] L_corr_hospital;
   cholesky_factor_corr[D] L_Omega;
-  matrix[N_events, D] eta;
+  matrix[N_events, D] z_free; // unconstrained; sign-constrained in TP block
 }
 transformed parameters {
   matrix[D, H] hospital_effect =
     diag_pre_multiply(tau_hospital, L_corr_hospital) * z_hospital;
+
+  // Sign-constrained latent utilities
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  // Event-level linear predictor (N_events x D)
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      mu_mat[e, d] += hospital_effect[d, h_ev[e]];
+    }
+  }
 }
 model {
   to_vector(beta)         ~ normal(0, prior_beta_sd);
@@ -4013,18 +4070,15 @@ model {
   to_vector(z_hospital)   ~ std_normal();
   L_corr_hospital         ~ lkj_corr_cholesky(lkj_eta);
   L_Omega                 ~ lkj_corr_cholesky(lkj_eta);
-  to_vector(eta)          ~ std_normal();
-  {
-    vector[N] z_obs;
-    for (n in 1:N) {
-      int d = d_idx[n];
-      int h = h_idx[n];
-      int e = ev_idx[n];
-      z_obs[n] = dot_product(X[n], beta[, d])
-                 + hospital_effect[d, h]
-                 + dot_product(L_Omega[d], eta[e]);
-    }
-    y ~ bernoulli(Phi(z_obs));
+
+  // Multivariate-probit data augmentation: z_aug[e] ~ MVN(mu_mat[e], Omega)
+  for (e in 1:N_events) {
+    target += multi_normal_cholesky_lpdf(z_aug[e]' | mu_mat[e]', L_Omega);
+  }
+
+  // Jacobian for sign-constrained observations: log|dz_aug/dz_free| = z_free
+  for (n in 1:N) {
+    target += z_free[ev_idx[n], d_idx[n]];
   }
 }
 generated quantities {
@@ -4036,7 +4090,8 @@ generated quantities {
 
 .amr_probit_stan_2re <- function() {
   r"(
-// Multivariate probit — two grouping levels (hospital + patient/admission)
+// Multivariate probit with data augmentation — two grouping levels
+// (hospital + patient or admission)
 data {
   int<lower=1> N;
   int<lower=1> N_events;
@@ -4044,12 +4099,17 @@ data {
   int<lower=1> H;
   int<lower=1> Pt;
   int<lower=1> K;
-  array[N] int<lower=0,upper=1> y;
-  matrix[N, K] X;
-  array[N] int<lower=1,upper=D> d_idx;
-  array[N] int<lower=1,upper=H> h_idx;
-  array[N] int<lower=1,upper=Pt> p_idx;
+
+  matrix[N_events, K] X_event;
+  array[N_events] int<lower=1,upper=H>  h_ev;
+  array[N_events] int<lower=1,upper=Pt> p_ev;
+
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+
   array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+
   real<lower=0> prior_beta_sd;
   real<lower=0> prior_tau_sd;
   real<lower=1> lkj_eta;
@@ -4063,13 +4123,31 @@ parameters {
   vector<lower=0>[D] tau_patient;
   cholesky_factor_corr[D] L_corr_patient;
   cholesky_factor_corr[D] L_Omega;
-  matrix[N_events, D] eta;
+  matrix[N_events, D] z_free;
 }
 transformed parameters {
-  matrix[D, H] hospital_effect =
+  matrix[D, H]  hospital_effect =
     diag_pre_multiply(tau_hospital, L_corr_hospital) * z_hospital;
-  matrix[D, Pt] patient_effect =
-    diag_pre_multiply(tau_patient, L_corr_patient) * z_patient;
+  matrix[D, Pt] patient_effect  =
+    diag_pre_multiply(tau_patient,  L_corr_patient)  * z_patient;
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      mu_mat[e, d] += hospital_effect[d, h_ev[e]] + patient_effect[d, p_ev[e]];
+    }
+  }
 }
 model {
   to_vector(beta)        ~ normal(0, prior_beta_sd);
@@ -4080,20 +4158,12 @@ model {
   L_corr_hospital        ~ lkj_corr_cholesky(lkj_eta);
   L_corr_patient         ~ lkj_corr_cholesky(lkj_eta);
   L_Omega                ~ lkj_corr_cholesky(lkj_eta);
-  to_vector(eta)         ~ std_normal();
-  {
-    vector[N] z_obs;
-    for (n in 1:N) {
-      int d = d_idx[n];
-      int h = h_idx[n];
-      int p = p_idx[n];
-      int e = ev_idx[n];
-      z_obs[n] = dot_product(X[n], beta[, d])
-                 + hospital_effect[d, h]
-                 + patient_effect[d, p]
-                 + dot_product(L_Omega[d], eta[e]);
-    }
-    y ~ bernoulli(Phi(z_obs));
+
+  for (e in 1:N_events) {
+    target += multi_normal_cholesky_lpdf(z_aug[e]' | mu_mat[e]', L_Omega);
+  }
+  for (n in 1:N) {
+    target += z_free[ev_idx[n], d_idx[n]];
   }
 }
 generated quantities {
@@ -4106,7 +4176,8 @@ generated quantities {
 
 .amr_probit_stan_3re <- function() {
   r"(
-// Multivariate probit — three grouping levels (hospital + patient + admission)
+// Multivariate probit with data augmentation — three grouping levels
+// (hospital + patient + admission)
 data {
   int<lower=1> N;
   int<lower=1> N_events;
@@ -4115,38 +4186,63 @@ data {
   int<lower=1> Pt;
   int<lower=1> Adm;
   int<lower=1> K;
-  array[N] int<lower=0,upper=1> y;
-  matrix[N, K] X;
-  array[N] int<lower=1,upper=D> d_idx;
-  array[N] int<lower=1,upper=H> h_idx;
-  array[N] int<lower=1,upper=Pt> p_idx;
-  array[N] int<lower=1,upper=Adm> a_idx;
+
+  matrix[N_events, K] X_event;
+  array[N_events] int<lower=1,upper=H>   h_ev;
+  array[N_events] int<lower=1,upper=Pt>  p_ev;
+  array[N_events] int<lower=1,upper=Adm> a_ev;
+
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+
   array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+
   real<lower=0> prior_beta_sd;
   real<lower=0> prior_tau_sd;
   real<lower=1> lkj_eta;
 }
 parameters {
   matrix[K, D] beta;
-  matrix[D, H] z_hospital;
+  matrix[D, H]   z_hospital;
   vector<lower=0>[D] tau_hospital;
   cholesky_factor_corr[D] L_corr_hospital;
-  matrix[D, Pt] z_patient;
+  matrix[D, Pt]  z_patient;
   vector<lower=0>[D] tau_patient;
   cholesky_factor_corr[D] L_corr_patient;
   matrix[D, Adm] z_admission;
   vector<lower=0>[D] tau_admission;
   cholesky_factor_corr[D] L_corr_admission;
   cholesky_factor_corr[D] L_Omega;
-  matrix[N_events, D] eta;
+  matrix[N_events, D] z_free;
 }
 transformed parameters {
-  matrix[D, H] hospital_effect =
-    diag_pre_multiply(tau_hospital, L_corr_hospital) * z_hospital;
-  matrix[D, Pt] patient_effect =
-    diag_pre_multiply(tau_patient, L_corr_patient) * z_patient;
+  matrix[D, H]   hospital_effect  =
+    diag_pre_multiply(tau_hospital,  L_corr_hospital)  * z_hospital;
+  matrix[D, Pt]  patient_effect   =
+    diag_pre_multiply(tau_patient,   L_corr_patient)   * z_patient;
   matrix[D, Adm] admission_effect =
     diag_pre_multiply(tau_admission, L_corr_admission) * z_admission;
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      mu_mat[e, d] += hospital_effect[d, h_ev[e]]
+                    + patient_effect[d, p_ev[e]]
+                    + admission_effect[d, a_ev[e]];
+    }
+  }
 }
 model {
   to_vector(beta)          ~ normal(0, prior_beta_sd);
@@ -4160,22 +4256,12 @@ model {
   L_corr_patient           ~ lkj_corr_cholesky(lkj_eta);
   L_corr_admission         ~ lkj_corr_cholesky(lkj_eta);
   L_Omega                  ~ lkj_corr_cholesky(lkj_eta);
-  to_vector(eta)           ~ std_normal();
-  {
-    vector[N] z_obs;
-    for (n in 1:N) {
-      int d = d_idx[n];
-      int h = h_idx[n];
-      int p = p_idx[n];
-      int a = a_idx[n];
-      int e = ev_idx[n];
-      z_obs[n] = dot_product(X[n], beta[, d])
-                 + hospital_effect[d, h]
-                 + patient_effect[d, p]
-                 + admission_effect[d, a]
-                 + dot_product(L_Omega[d], eta[e]);
-    }
-    y ~ bernoulli(Phi(z_obs));
+
+  for (e in 1:N_events) {
+    target += multi_normal_cholesky_lpdf(z_aug[e]' | mu_mat[e]', L_Omega);
+  }
+  for (n in 1:N) {
+    target += z_free[ev_idx[n], d_idx[n]];
   }
 }
 generated quantities {
@@ -4281,6 +4367,7 @@ fit_bayesian_multivariate_probit <- function(
     random_effects,
     pathogen          = NULL,
     pathogen_col      = "pathogen",
+    event_id_col      = "event_id",
     eligible_pairs    = NULL,
     outcome_col       = NULL,
     reserve_drug_cols = NULL,
@@ -4355,6 +4442,14 @@ fit_bayesian_multivariate_probit <- function(
                     pathogen, nrow(event_data)))
   }
 
+  # -- Enforce single-pathogen fit (mandatory) --------------------------------
+  n_pathogens <- dplyr::n_distinct(event_data[[pathogen_col]])
+  if (n_pathogens != 1L)
+    stop(sprintf(
+      paste0("Bayesian multivariate-probit fitting requires exactly one pathogen ",
+             "(found %d). Supply `pathogen = '<name>'` or pre-filter event_class_data."),
+      n_pathogens), call. = FALSE)
+
   # -- Resolve prior_config ---------------------------------------------------
   pc <- list(beta_sd = 1.5, tau_sd = 1.0, lkj_eta = 2.0)
   for (nm in names(prior_config)) pc[[nm]] <- prior_config[[nm]]
@@ -4400,7 +4495,8 @@ fit_bayesian_multivariate_probit <- function(
   }
 
   # -- Panel eligibility report (warn, do not filter) -------------------------
-  pe <- list(min_tested = 30L, min_resistant = 5L, min_susceptible = 5L)
+  pe <- list(min_tested = 30L, min_resistant = 5L, min_susceptible = 5L,
+             min_pairwise_cotested = 30L)
   for (nm in names(panel_eligibility)) pe[[nm]] <- panel_eligibility[[nm]]
 
   eligibility_report <- .validate_panel_eligibility(
@@ -4408,13 +4504,30 @@ fit_bayesian_multivariate_probit <- function(
     min_tested = pe$min_tested, min_resistant = pe$min_resistant,
     min_susceptible = pe$min_susceptible
   )
+
+  # Pairwise co-testing overlap check
+  elig_action <- .null_default(panel_eligibility$eligibility_action, "warn")
+  co_test_report <- .check_pairwise_cotesting(
+    event_data, class_cols, upper_re_col,
+    min_pairwise_cotested = pe$min_pairwise_cotested
+  )
+  n_low_cotested <- sum(!co_test_report$sufficient, na.rm = TRUE)
+  if (n_low_cotested > 0L) {
+    msg <- sprintf(
+      paste0("%d hospital x class-pair combination(s) have fewer than %d co-tested events. ",
+             "Omega_{jk} for these pairs will be informed mainly by the LKJ prior. ",
+             "See $eligibility_report$pairwise. Consider dropping classes with low overlap."),
+      n_low_cotested, pe$min_pairwise_cotested)
+    if (elig_action == "stop") stop(msg, call. = FALSE) else warning(msg, call. = FALSE)
+  }
+
   n_ineligible <- sum(!eligibility_report$eligible)
   if (n_ineligible > 0L)
     warning(sprintf(
-      "%d hospital x class cell(s) below eligibility thresholds. ",
-      n_ineligible,
-      "Results for these cells may be driven by the prior. ",
-      "See $eligibility_report. Increase data or relax thresholds."),
+      paste0("%d hospital x class cell(s) below marginal eligibility thresholds ",
+             "(min_tested=%d, min_resistant=%d, min_susceptible=%d). ",
+             "Results for these cells may be prior-dominated. See $eligibility_report."),
+      n_ineligible, pe$min_tested, pe$min_resistant, pe$min_susceptible),
       call. = FALSE)
 
   # -- Build globally unique composite keys for nested RE --------------------
@@ -4431,16 +4544,30 @@ fit_bayesian_multivariate_probit <- function(
     )
   }
 
+  # -- Validate event identifier (real uniqueness check, not seq_len trick) ---
+  if (!event_id_col %in% names(event_data)) {
+    # No external event ID: assign a warning-level fallback.
+    warning(sprintf(
+      paste0("event_id_col '%s' not found. Using row position as event key. ",
+             "Ensure event_class_data has one row per organism-event — no duplicates."),
+      event_id_col), call. = FALSE)
+    event_data[[event_id_col]] <- seq_len(nrow(event_data))
+  } else {
+    if (anyDuplicated(event_data[[event_id_col]]))
+      stop(sprintf(
+        paste0("event_id_col '%s' contains duplicate values. ",
+               "Each row must correspond to exactly one organism-event."),
+        event_id_col), call. = FALSE)
+  }
+
   # -- Canonical event index (assigned BEFORE pivoting to long) ---------------
-  # This is the single source of truth for ev_idx in Stan.
   event_data$.event_idx <- seq_len(nrow(event_data))
   N_events <- nrow(event_data)
 
   if (N_events > 1000L)
     warning(sprintf(
-      paste0("N_events = %d with D = %d classes adds %d latent parameters (eta). ",
-             "Sampling may be slow. Consider subsampling events or using ",
-             "parallel_chains in sampler_config."),
+      paste0("N_events = %d with D = %d classes adds %d latent parameters (z_free). ",
+             "Sampling may be slow. Use parallel_chains in sampler_config."),
       N_events, length(class_cols), N_events * length(class_cols)), call. = FALSE)
 
   # -- Columns to carry into long format ---------------------------------------
@@ -4468,19 +4595,21 @@ fit_bayesian_multivariate_probit <- function(
   if (nrow(data_long) == 0L)
     stop("No observed (event x class) pairs after removing NAs.", call. = FALSE)
 
-  # -- Warn about fixed-effect missingness (do NOT impute silently) -----------
+  # -- Fail on fixed-effect missingness (do NOT impute; stop with clear msg) --
   fe_df_check <- data_long[, fixed_effects, drop = FALSE]
-  for (cc in fixed_effects) {
-    n_na <- sum(is.na(fe_df_check[[cc]]))
-    if (n_na > 0L)
-      warning(sprintf(
-        "Fixed effect '%s' has %d NA value(s) in data_long. ",
-        cc, n_na,
-        "Impute before calling fit_bayesian_multivariate_probit(), or Stan will fail."),
-        call. = FALSE)
-    if (is.character(fe_df_check[[cc]]))
-      fe_df_check[[cc]] <- factor(fe_df_check[[cc]])
+  na_cols <- vapply(fixed_effects, function(cc) sum(is.na(fe_df_check[[cc]])), integer(1L))
+  if (any(na_cols > 0L)) {
+    bad <- paste(sprintf("'%s' (%d NA)", names(na_cols)[na_cols > 0L], na_cols[na_cols > 0L]),
+                 collapse = ", ")
+    stop(sprintf(
+      paste0("Fixed-effect column(s) contain NA values: %s. ",
+             "Resolve missingness before calling fit_bayesian_multivariate_probit(). ",
+             "Options: complete-case filter, median + indicator, explicit 'Unknown' level, ",
+             "or multiple imputation — but the decision belongs in the analysis config."),
+      bad), call. = FALSE)
   }
+  for (cc in fixed_effects)
+    if (is.character(fe_df_check[[cc]])) fe_df_check[[cc]] <- factor(fe_df_check[[cc]])
 
   # -- Build integer index maps -----------------------------------------------
   class_levels <- class_cols
@@ -4520,12 +4649,29 @@ fit_bayesian_multivariate_probit <- function(
   stopifnot(all(data_long$ev_idx >= 1L & data_long$ev_idx <= N_events))
   stopifnot(!anyDuplicated(event_data$.event_idx))
 
-  # -- Fixed-effects design matrix --------------------------------------------
-  X <- stats::model.matrix(~ ., data = fe_df_check)
+  # -- Fixed-effects design matrix (event-level, not observation-level) -------
+  X_long <- stats::model.matrix(~ ., data = fe_df_check)
 
   D <- length(class_levels)
   H <- length(upper_levels)
-  K <- ncol(X)
+  K <- ncol(X_long)
+
+  # Derive event-level arrays from the observation-level long table.
+  # ev_idx in data_long is 1-based; one unique row per event.
+  first_obs_per_event <- match(seq_len(N_events), data_long$ev_idx)
+  stopifnot(!anyNA(first_obs_per_event))
+  X_event_mat <- X_long[first_obs_per_event, , drop = FALSE]   # N_events x K
+  h_ev_arr    <- as.integer(data_long$h_idx[first_obs_per_event])
+
+  # Build wide AST arrays for multivariate-probit data augmentation
+  obs_mask_mat <- matrix(0L, nrow = N_events, ncol = D)
+  y_mat_mat    <- matrix(0L, nrow = N_events, ncol = D)
+  for (i in seq_len(nrow(data_long))) {
+    e <- data_long$ev_idx[i]
+    d <- data_long$d_idx[i]
+    obs_mask_mat[e, d] <- 1L
+    y_mat_mat[e, d]    <- as.integer(data_long$resistance_binary[i])
+  }
 
   message(sprintf(
     "[fit_bayesian_multivariate_probit] %d obs | %d events | D=%d | H=%d | RE levels=%d",
@@ -4533,27 +4679,30 @@ fit_bayesian_multivariate_probit <- function(
 
   # -- Build Stan data list ---------------------------------------------------
   stan_data <- list(
-    N             = nrow(data_long),
+    N             = nrow(data_long),         # observation pairs (for Jacobian)
     N_events      = N_events,
     D             = D,
     H             = H,
     K             = K,
-    y             = as.integer(data_long$resistance_binary),
-    X             = unname(X),
-    d_idx         = as.integer(data_long$d_idx),
-    h_idx         = as.integer(data_long$h_idx),
+    X_event       = unname(X_event_mat),     # N_events x K
+    h_ev          = h_ev_arr,                # N_events
+    obs_mask      = obs_mask_mat,            # N_events x D
+    y_mat         = y_mat_mat,               # N_events x D
     ev_idx        = as.integer(data_long$ev_idx),
+    d_idx         = as.integer(data_long$d_idx),
     prior_beta_sd = as.numeric(pc$beta_sd),
     prior_tau_sd  = as.numeric(pc$tau_sd),
     lkj_eta       = as.numeric(pc$lkj_eta)
   )
   if (n_re_levels >= 2L) {
-    stan_data$Pt    <- as.integer(Pt)
-    stan_data$p_idx <- as.integer(data_long$p_idx)
+    p_ev_arr     <- as.integer(data_long$p_idx[first_obs_per_event])
+    stan_data$Pt  <- as.integer(Pt)
+    stan_data$p_ev <- p_ev_arr
   }
   if (n_re_levels == 3L) {
-    stan_data$Adm   <- as.integer(Adm)
-    stan_data$a_idx <- as.integer(data_long$a_idx)
+    a_ev_arr     <- as.integer(data_long$a_idx[first_obs_per_event])
+    stan_data$Adm <- as.integer(Adm)
+    stan_data$a_ev <- a_ev_arr
   }
 
   # -- Select and compile Stan model ------------------------------------------
@@ -4588,7 +4737,7 @@ fit_bayesian_multivariate_probit <- function(
     sc$chains, sc$iter_warmup, sc$iter_sampling))
   fit <- do.call(mod$sample, sample_args)
 
-  # -- Extract draws (exclude eta to save memory; it is not needed downstream)
+  # -- Extract draws (exclude z_free; it is large and not needed downstream) --
   keep_vars <- c("beta", "hospital_effect",
                  if (n_re_levels >= 2L) "patient_effect",
                  if (n_re_levels == 3L) "admission_effect",
@@ -4611,27 +4760,37 @@ fit_bayesian_multivariate_probit <- function(
   ess_tbl   <- fit$summary(variables = NULL, "ess_bulk", "ess_tail")
   samp_diag <- fit$sampler_diagnostics(format = "matrix")
 
-  n_divergent   <- sum(samp_diag[, "divergent__"],  na.rm = TRUE)
-  n_treedepth   <- if ("treedepth__" %in% colnames(samp_diag))
-                     sum(samp_diag[, "treedepth__"] >= 10L, na.rm = TRUE)
-                   else NA_integer_
+  n_divergent         <- sum(samp_diag[, "divergent__"], na.rm = TRUE)
+  effective_max_td    <- as.integer(.null_default(sc$max_treedepth, 10L))
+  n_treedepth         <- if ("treedepth__" %in% colnames(samp_diag))
+                           sum(samp_diag[, "treedepth__"] >= effective_max_td,
+                               na.rm = TRUE)
+                         else NA_integer_
   max_rhat      <- max(rhat_tbl$rhat,     na.rm = TRUE)
   min_ess_bulk  <- min(ess_tbl$ess_bulk,  na.rm = TRUE)
   min_ess_tail  <- if ("ess_tail" %in% names(ess_tbl))
                      min(ess_tbl$ess_tail, na.rm = TRUE)
                    else NA_real_
 
-  # E-BFMI per chain
+  # E-BFMI per chain (robust to missing chain__ column)
   ebfmi <- tryCatch({
-    e_vals <- samp_diag[, "energy__"]
-    chain_col <- samp_diag[, "chain__"]
-    chain_ids <- unique(chain_col)
-    mean(vapply(chain_ids, function(ch) {
-      e_ch <- e_vals[chain_col == ch]
-      diff_sq <- diff(e_ch)^2
-      if (stats::var(e_ch) < .Machine$double.eps) return(NA_real_)
-      mean(diff_sq) / stats::var(e_ch)
-    }, numeric(1L)), na.rm = TRUE)
+    if (!"energy__" %in% colnames(samp_diag)) return(NA_real_)
+    e_vals   <- samp_diag[, "energy__"]
+    n_chains <- as.integer(sc$chains)
+    chain_id <- if ("chain__" %in% colnames(samp_diag)) {
+      samp_diag[, "chain__"]
+    } else {
+      n_per_chain <- length(e_vals) %/% n_chains
+      rep(seq_len(n_chains), each = n_per_chain)[seq_along(e_vals)]
+    }
+    ebfmi_vals <- vapply(unique(chain_id), function(ch) {
+      e_ch <- e_vals[chain_id == ch]
+      if (length(e_ch) < 2L) return(NA_real_)
+      var_e <- stats::var(e_ch)
+      if (is.na(var_e) || var_e < .Machine$double.eps) return(NA_real_)
+      mean(diff(e_ch)^2) / var_e
+    }, numeric(1L))
+    mean(ebfmi_vals, na.rm = TRUE)
   }, error = function(e) NA_real_)
 
   if (max_rhat > 1.01)
@@ -4675,6 +4834,11 @@ fit_bayesian_multivariate_probit <- function(
     "[fit_bayesian_multivariate_probit] Done. max_Rhat=%.3f | min_ESS_bulk=%.0f | divergent=%d",
     max_rhat, min_ess_bulk, n_divergent))
 
+  # Store event-level arrays needed by compute_event_profile_probabilities()
+  event_re_idx <- list(h_ev = h_ev_arr)
+  if (n_re_levels >= 2L) event_re_idx$p_ev <- p_ev_arr
+  if (n_re_levels == 3L) event_re_idx$a_ev <- a_ev_arr
+
   list(
     draws              = draws_arr,
     diagnostics        = diag_tbl,
@@ -4686,7 +4850,9 @@ fit_bayesian_multivariate_probit <- function(
       patient_levels    = patient_levels,
       admission_levels  = admission_levels
     ),
-    X_design           = X,
+    X_design           = X_long,   # kept for back-compat; same as X_event aligned to obs
+    X_event            = X_event_mat,   # N_events x K (use this in simulation)
+    event_re_idx       = event_re_idx,  # h_ev, p_ev, a_ev per event
     class_cols         = class_cols,
     event_metadata     = tibble::as_tibble(event_data),
     n_re_levels        = n_re_levels,
@@ -4700,7 +4866,10 @@ fit_bayesian_multivariate_probit <- function(
     estimand           = estimand,
     prior_config_used  = pc,
     sampler_config_used = sc,
-    eligibility_report = eligibility_report
+    eligibility_report = list(
+      marginal  = eligibility_report,
+      pairwise  = co_test_report
+    )
   )
 }
 
@@ -4766,7 +4935,14 @@ compute_event_profile_probabilities <- function(
 
   D <- length(idx_maps$class_levels)
   H <- length(idx_maps$upper_levels)
-  K <- ncol(X_long)
+
+  # Prefer event-level arrays stored by fit function; fall back to deriving them
+  X_event_sim  <- if (!is.null(fitted_model$X_event))
+                    fitted_model$X_event
+                  else fitted_model$X_design  # legacy fallback
+  event_re_idx <- fitted_model$event_re_idx   # list: h_ev, [p_ev], [a_ev]
+
+  K <- ncol(X_event_sim)
 
   # -- Thin draws to n_profile_simulations ------------------------------------
   draws_mat <- posterior::as_draws_matrix(draws)
@@ -4782,16 +4958,10 @@ compute_event_profile_probabilities <- function(
     array(draws_mat[, cols, drop = FALSE], dim = c(S, d1, d2))
   }
 
-  # beta[K, D] → S x K x D
-  beta_arr <- .arr("beta", K, D)
+  beta_arr     <- .arr("beta", K, D)                 # S x K x D
+  hosp_eff_arr <- .arr("hospital_effect", D, H)      # S x D x H
+  L_omega_arr  <- .arr("L_Omega", D, D)              # S x D x D (lower triangular)
 
-  # hospital_effect[D, H] → S x D x H
-  hosp_eff_arr <- .arr("hospital_effect", D, H)
-
-  # L_Omega[D, D] → S x D x D  (lower triangular Cholesky factor)
-  L_omega_arr <- .arr("L_Omega", D, D)
-
-  # Optional lower-level random effects
   has_patient   <- n_re_levels >= 2L
   has_admission <- n_re_levels == 3L
   Pt  <- if (has_patient)   length(idx_maps$patient_levels)   else 0L
@@ -4800,29 +4970,21 @@ compute_event_profile_probabilities <- function(
   if (has_patient)   pt_eff_arr  <- .arr("patient_effect",   D, Pt)
   if (has_admission) adm_eff_arr <- .arr("admission_effect", D, Adm)
 
-  # -- Canonical event table (one row per event, from the pre-pivot data) -----
-  # event_meta has .event_idx assigned in fit_bayesian_multivariate_probit()
-  # Use it as the canonical source for event-level indices and covariates.
+  # -- Canonical event table --------------------------------------------------
   stopifnot(".event_idx" %in% names(event_meta))
   stopifnot(!anyDuplicated(event_meta$.event_idx))
 
-  # Align X_design rows with canonical event indices
-  # data_long$ev_idx gives Stan's 1-based event index for each obs
-  # X_design was built row-by-row from data_long, not from event_meta directly
-  # We extract one design-matrix row per event (same for all classes of that event)
-  event_long_idx <- match(seq_len(nrow(event_meta)), data_long$ev_idx)
-  # Some events may have all NAs — they won't appear in data_long
-  has_obs <- !is.na(event_long_idx)
-  X_event <- X_long[event_long_idx[has_obs], , drop = FALSE]
+  # Use event_meta to identify which events appear in data_long (have observations)
+  has_obs       <- event_meta$.event_idx %in% data_long$ev_idx
   event_meta_obs <- event_meta[has_obs, , drop = FALSE]
-  N_ev <- nrow(event_meta_obs)
+  N_ev           <- nrow(event_meta_obs)
 
-  # h_idx and optional lower RE indices per event (from data_long)
-  ev_idx_obs <- event_meta_obs$.event_idx
-  first_obs  <- match(ev_idx_obs, data_long$ev_idx)
-  h_events   <- as.integer(data_long$h_idx[first_obs])
-  p_events   <- if (has_patient)   as.integer(data_long$p_idx[first_obs])   else NULL
-  a_events   <- if (has_admission) as.integer(data_long$a_idx[first_obs])   else NULL
+  # Event-level design matrix and RE indices (from stored event_re_idx)
+  ev_row_idx <- event_meta_obs$.event_idx           # 1-based canonical event indices
+  X_event    <- X_event_sim[ev_row_idx, , drop = FALSE]    # N_ev x K
+  h_events   <- as.integer(event_re_idx$h_ev[ev_row_idx])
+  p_events   <- if (has_patient)   as.integer(event_re_idx$p_ev[ev_row_idx])   else NULL
+  a_events   <- if (has_admission) as.integer(event_re_idx$a_ev[ev_row_idx])   else NULL
 
   # -- Outcome flags per event ------------------------------------------------
   oc_col_use <- if (!is.null(outcome_col) && outcome_col %in% names(event_meta_obs))
@@ -4896,15 +5058,24 @@ compute_event_profile_probabilities <- function(
         mu_all[ev_i, ] <- mu_all[ev_i, ] + adm_eff_s[, a_events[ev_i]]
     }
 
+    # Reconstruct full Omega for this draw (needed for arbitrary class subsets)
+    Omega_s_full <- tcrossprod(L_omega_s)   # D x D
+
     for (key in hp_keys) {
       d_hp   <- hp_class_d[[key]]
       ev_idx <- hp_ev_idx[[key]]
       if (length(ev_idx) == 0L || length(d_hp) < 1L) next
 
       mu_hp   <- mu_all[ev_idx, d_hp, drop = FALSE]   # N_hp x |d_hp|
-      L_hp    <- L_omega_s[d_hp, d_hp, drop = FALSE]  # |d_hp| x |d_hp| lower tri
 
-      # Z = mu + epsilon %*% t(L)  where epsilon ~ N(0, I)
+      # Extract the correct correlation sub-matrix and its Cholesky factor.
+      # A submatrix of L_Omega is NOT generally the Cholesky factor of Omega[d_hp, d_hp].
+      Omega_hp <- Omega_s_full[d_hp, d_hp, drop = FALSE]
+      Omega_hp <- (Omega_hp + t(Omega_hp)) / 2 + diag(1e-9, length(d_hp))
+      L_hp <- tryCatch(t(chol(Omega_hp)), error = function(e) NULL)
+      if (is.null(L_hp)) next
+
+      # Z = mu + epsilon %*% t(L_hp)  where epsilon ~ N(0, I)
       Z_std <- matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
       Z_hp  <- mu_hp + Z_std %*% t(L_hp)
 
