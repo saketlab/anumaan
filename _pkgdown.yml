@@ -215,7 +215,10 @@ reference:
     from facility-level or aggregate surveillance data via convex optimisation (GBD
     equation 7.5.1.3). Supports geography, year, and outcome stratification;
     optional override with externally modelled marginals (e.g. GBD ST-GPR).
+    Use \code{estimate_resistance_profiles(method = "convex")} as the top-level
+    dispatcher for both Pathway 1 and Pathway 2.
   contents:
+  - estimate_resistance_profiles
   - validate_profile_inputs
   - preprocess_for_profiles
   - validate_aggregate_inputs
@@ -224,6 +227,21 @@ reference:
   - estimate_profiles_convex
   - check_profile_constraints
   - bootstrap_profiles_convex
+
+- title: "Pathway 2: Bayesian Profile Estimation"
+  desc: >
+    Bayesian hierarchical multivariate probit model for estimating resistance-profile
+    distributions from facility-level AST data. Fits a Stan model (via cmdstanr)
+    with correlated random effects at up to three grouping levels (e.g. hospital,
+    patient, admission). Two residual structures are supported: identity (default,
+    no residual correlation) and correlated (full LKJ-Cholesky residual covariance).
+    Run once per pathogen; orchestrate across pathogens in the analysis repository.
+    Use \code{estimate_resistance_profiles(method = "bayesian")} as the top-level
+    entry point.
+  contents:
+  - fit_bayesian_multivariate_probit
+  - compute_event_profile_probabilities
+  - aggregate_profiles_for_daly
 
 - title: "Burden estimation (YLL/YLD/DALY)"
   desc: "GBD-methodology burden calculations"

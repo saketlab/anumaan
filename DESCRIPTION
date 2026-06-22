@@ -1,7 +1,7 @@
 Package: anumaan
 Type: Package
 Title: Antimicrobial Resistance Surveillance Preprocessing and Burden Estimation
-Version: 0.1.0.9012
+Version: 0.1.0.9013
 Authors@R: c(
     person(
       "Nilanjana", "Dey",
@@ -53,6 +53,8 @@ Imports:
 SystemRequirements: Python (>= 3.8) with the 'alethia' package for
     ICD-10 semantic embedding (optional; only needed when
     prep_map_diagnosis_to_icd() is called with method = "python_embedding").
+    CmdStan (>= 2.33) for Pathway 2 Bayesian estimation (optional; install via
+    cmdstanr::install_cmdstan() after installing the 'cmdstanr' package).
 Suggests:
     testthat (>= 3.0.0),
     knitr,
@@ -60,7 +62,6 @@ Suggests:
     pkgdown,
     ggpubr (>= 0.4.0),
     reticulate (>= 1.28),
-    lme4 (>= 1.1.0),
     sf,
     leaflet,
     spdep,
@@ -69,8 +70,7 @@ Suggests:
     osqp,
     quadprog,
     cmdstanr (>= 0.5.0),
-    posterior (>= 1.0.0),
-    mvtnorm (>= 1.1.0)
+    posterior (>= 1.0.0)
 VignetteBuilder: knitr
 URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
 BugReports: https://github.com/saketlab/anumaan/issues
