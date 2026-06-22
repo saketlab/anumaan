@@ -69,7 +69,6 @@ Suggests:
     Matrix,
     osqp,
     quadprog,
-    cmdstanr (>= 0.5.0),
     posterior (>= 1.0.0)
 Additional_repositories: https://mc-stan.org/r-packages/
 VignetteBuilder: knitr
