@@ -3892,20 +3892,27 @@ prioritize_resistance <- function(data,
 #    distribution over the actual event case-mix in the data. Standardised
 #    estimands require a reference covariate distribution and are for later.
 #
-# 6. Complete profile enumeration: all 2^D profiles appear in output;
-#    unobserved profiles receive posterior probability 0.
+# 6. Complete profile enumeration: all 2^D profiles appear in output. Profiles
+#    not sampled in finite Monte Carlo receive an estimated probability of 0,
+#    which may reflect simulation error for rare profiles rather than true
+#    structural zero probability.
 #
 # 7. Strengthened diagnostics: Rhat < 1.01; tail ESS; tree-depth saturation;
 #    E-BFMI; data-volume summary per relevant parameter block.
 #
-# Missing-AST assumption: observed-likelihood only (drop NA cells). This
-# assumes conditional ignorability of testing. The package does not model
-# the AST cascade-testing process.
+# Missing-AST handling: Observed AST cells impose sign constraints on the latent
+# variables z_aug; untested cells (NA) impose no sign constraint and are
+# represented as unconstrained latent values. This is NOT equivalent to dropping
+# NA cells: the full N_events x D latent matrix is always estimated. The model
+# assumes testing is conditionally ignorable given included covariates and random
+# effects and does NOT correct for selective testing bias or model the AST
+# cascade-testing process.
 #
 # Estimand: "observed_stewardship_event_mix" — the joint resistance-profile
 # distribution characterising the events recorded in the monitored beds.
 # This is NOT the whole-hospital profile distribution unless the stewardship
-# beds are a census of all infection events.
+# beds are a census of all infection events. This distinction is essential for
+# the AMR burden pipeline.
 # ===========================================================================
 
 
@@ -4275,6 +4282,244 @@ generated quantities {
 
 
 # ---------------------------------------------------------------------------
+# Stan model variants — identity residual structure
+# Classes are conditionally independent given fixed and random effects.
+# L_Omega is NOT estimated; residual covariance = I_D.
+# ---------------------------------------------------------------------------
+
+.amr_probit_stan_1re_identity <- function() {
+  r"(
+// Multivariate probit — one grouping level — identity residual structure
+// Classes are conditionally independent; L_Omega is not estimated.
+data {
+  int<lower=1> N;
+  int<lower=1> N_events;
+  int<lower=2> D;
+  int<lower=1> H;
+  int<lower=1> K;
+  matrix[N_events, K] X_event;
+  array[N_events] int<lower=1,upper=H> h_ev;
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+  array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[D, H] z_hospital;
+  vector<lower=0>[D] tau_hospital;
+  cholesky_factor_corr[D] L_corr_hospital;
+  matrix[N_events, D] z_free;
+}
+transformed parameters {
+  matrix[D, H] hospital_effect =
+    diag_pre_multiply(tau_hospital, L_corr_hospital) * z_hospital;
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events)
+    for (d in 1:D)
+      mu_mat[e, d] += hospital_effect[d, h_ev[e]];
+}
+model {
+  to_vector(beta)         ~ normal(0, prior_beta_sd);
+  tau_hospital            ~ normal(0, prior_tau_sd);
+  to_vector(z_hospital)   ~ std_normal();
+  L_corr_hospital         ~ lkj_corr_cholesky(lkj_eta);
+
+  for (e in 1:N_events)
+    for (d in 1:D)
+      target += normal_lpdf(z_aug[e, d] | mu_mat[e, d], 1.0);
+
+  for (n in 1:N)
+    target += z_free[ev_idx[n], d_idx[n]];
+}
+generated quantities {
+  corr_matrix[D] R_hospital = multiply_lower_tri_self_transpose(L_corr_hospital);
+}
+)"
+}
+
+.amr_probit_stan_2re_identity <- function() {
+  r"(
+// Multivariate probit — two grouping levels — identity residual structure
+data {
+  int<lower=1> N;
+  int<lower=1> N_events;
+  int<lower=2> D;
+  int<lower=1> H;
+  int<lower=1> Pt;
+  int<lower=1> K;
+  matrix[N_events, K] X_event;
+  array[N_events] int<lower=1,upper=H>  h_ev;
+  array[N_events] int<lower=1,upper=Pt> p_ev;
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+  array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[D, H] z_hospital;
+  vector<lower=0>[D] tau_hospital;
+  cholesky_factor_corr[D] L_corr_hospital;
+  matrix[D, Pt] z_patient;
+  vector<lower=0>[D] tau_patient;
+  cholesky_factor_corr[D] L_corr_patient;
+  matrix[N_events, D] z_free;
+}
+transformed parameters {
+  matrix[D, H]  hospital_effect =
+    diag_pre_multiply(tau_hospital, L_corr_hospital) * z_hospital;
+  matrix[D, Pt] patient_effect  =
+    diag_pre_multiply(tau_patient,  L_corr_patient)  * z_patient;
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events)
+    for (d in 1:D)
+      mu_mat[e, d] += hospital_effect[d, h_ev[e]] + patient_effect[d, p_ev[e]];
+}
+model {
+  to_vector(beta)        ~ normal(0, prior_beta_sd);
+  tau_hospital           ~ normal(0, prior_tau_sd);
+  tau_patient            ~ normal(0, prior_tau_sd);
+  to_vector(z_hospital)  ~ std_normal();
+  to_vector(z_patient)   ~ std_normal();
+  L_corr_hospital        ~ lkj_corr_cholesky(lkj_eta);
+  L_corr_patient         ~ lkj_corr_cholesky(lkj_eta);
+
+  for (e in 1:N_events)
+    for (d in 1:D)
+      target += normal_lpdf(z_aug[e, d] | mu_mat[e, d], 1.0);
+
+  for (n in 1:N)
+    target += z_free[ev_idx[n], d_idx[n]];
+}
+generated quantities {
+  corr_matrix[D] R_hospital = multiply_lower_tri_self_transpose(L_corr_hospital);
+  corr_matrix[D] R_patient  = multiply_lower_tri_self_transpose(L_corr_patient);
+}
+)"
+}
+
+.amr_probit_stan_3re_identity <- function() {
+  r"(
+// Multivariate probit — three grouping levels — identity residual structure
+data {
+  int<lower=1> N;
+  int<lower=1> N_events;
+  int<lower=2> D;
+  int<lower=1> H;
+  int<lower=1> Pt;
+  int<lower=1> Adm;
+  int<lower=1> K;
+  matrix[N_events, K] X_event;
+  array[N_events] int<lower=1,upper=H>   h_ev;
+  array[N_events] int<lower=1,upper=Pt>  p_ev;
+  array[N_events] int<lower=1,upper=Adm> a_ev;
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+  array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[D, H]   z_hospital;
+  vector<lower=0>[D] tau_hospital;
+  cholesky_factor_corr[D] L_corr_hospital;
+  matrix[D, Pt]  z_patient;
+  vector<lower=0>[D] tau_patient;
+  cholesky_factor_corr[D] L_corr_patient;
+  matrix[D, Adm] z_admission;
+  vector<lower=0>[D] tau_admission;
+  cholesky_factor_corr[D] L_corr_admission;
+  matrix[N_events, D] z_free;
+}
+transformed parameters {
+  matrix[D, H]   hospital_effect  =
+    diag_pre_multiply(tau_hospital,  L_corr_hospital)  * z_hospital;
+  matrix[D, Pt]  patient_effect   =
+    diag_pre_multiply(tau_patient,   L_corr_patient)   * z_patient;
+  matrix[D, Adm] admission_effect =
+    diag_pre_multiply(tau_admission, L_corr_admission) * z_admission;
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events)
+    for (d in 1:D)
+      mu_mat[e, d] += hospital_effect[d, h_ev[e]]
+                    + patient_effect[d, p_ev[e]]
+                    + admission_effect[d, a_ev[e]];
+}
+model {
+  to_vector(beta)          ~ normal(0, prior_beta_sd);
+  tau_hospital             ~ normal(0, prior_tau_sd);
+  tau_patient              ~ normal(0, prior_tau_sd);
+  tau_admission            ~ normal(0, prior_tau_sd);
+  to_vector(z_hospital)    ~ std_normal();
+  to_vector(z_patient)     ~ std_normal();
+  to_vector(z_admission)   ~ std_normal();
+  L_corr_hospital          ~ lkj_corr_cholesky(lkj_eta);
+  L_corr_patient           ~ lkj_corr_cholesky(lkj_eta);
+  L_corr_admission         ~ lkj_corr_cholesky(lkj_eta);
+
+  for (e in 1:N_events)
+    for (d in 1:D)
+      target += normal_lpdf(z_aug[e, d] | mu_mat[e, d], 1.0);
+
+  for (n in 1:N)
+    target += z_free[ev_idx[n], d_idx[n]];
+}
+generated quantities {
+  corr_matrix[D] R_hospital   = multiply_lower_tri_self_transpose(L_corr_hospital);
+  corr_matrix[D] R_patient    = multiply_lower_tri_self_transpose(L_corr_patient);
+  corr_matrix[D] R_admission  = multiply_lower_tri_self_transpose(L_corr_admission);
+}
+)"
+}
+
+
+# ---------------------------------------------------------------------------
 # fit_bayesian_multivariate_probit()
 # ---------------------------------------------------------------------------
 
@@ -4303,12 +4548,21 @@ generated quantities {
 #' Run once per pathogen and orchestrate in the analysis repository.
 #'
 #' \strong{Random effects} (\code{random_effects}): 1, 2, or 3 grouping column
-#' names (hospital; hospital + patient; hospital + patient + admission). Nested
-#' levels receive globally unique composite keys built internally.
+#' names defining the clustering hierarchy (e.g. hospital; hospital + patient;
+#' hospital + patient + admission). The first element is the upper-most level;
+#' subsequent elements are nested within it. Nested levels receive globally unique
+#' composite keys built internally. Any hierarchical grouping variable can occupy
+#' any slot — the labels hospital/patient/admission are semantic conventions, not
+#' constraints. Isolate- or sample-event-level effects can be passed as the second
+#' or third element, but note the returned object uses generic level names
+#' (\code{upper_re_col}, \code{middle_re_col}, \code{lower_re_col}).
 #'
-#' \strong{Missing-AST assumption:} observed-likelihood only (drop NA cells).
-#' This assumes testing is conditionally ignorable given covariates. The package
-#' does not model the AST cascade-testing process.
+#' \strong{Missing-AST handling:} Observed AST cells impose sign constraints on
+#' the latent variables; untested cells impose no sign constraint and are
+#' represented as unconstrained latent values. The model assumes testing is
+#' conditionally ignorable given included covariates and random effects. It does
+#' NOT correct for selective testing bias. See \code{residual_structure} for
+#' control over residual covariance complexity.
 #'
 #' \strong{Fixed-effect missingness:} the function warns but does NOT silently
 #' impute covariates. Imputation is the caller's responsibility; columns with
@@ -4340,6 +4594,13 @@ generated quantities {
 #'   hospital x class cell: \code{min_tested} (default 30),
 #'   \code{min_resistant} (default 5), \code{min_susceptible} (default 5).
 #'   Cells not meeting thresholds are reported but fitting still proceeds.
+#' @param residual_structure Character. Controls the residual covariance structure.
+#'   \code{"identity"} (default): classes are conditionally independent given
+#'   fixed and random effects — residual covariance = I_D. \code{"correlated"}:
+#'   estimates a full residual correlation matrix \eqn{\Omega} via LKJCholesky
+#'   prior. Use \code{"correlated"} only when panel co-testing overlap is adequate
+#'   (check \code{$eligibility_report$pairwise}); otherwise \eqn{\Omega} is driven
+#'   mainly by the LKJ prior and adds identifiability risk.
 #' @param estimand Character. Identifies the target quantity. Only
 #'   \code{"observed_stewardship_event_mix"} is currently supported.
 #' @param prior_config Named list. Any subset of \code{beta_sd} (default 1.5),
@@ -4348,7 +4609,9 @@ generated quantities {
 #'   \code{cmdstanr::sample()}: \code{chains} (4), \code{iter_warmup} (1000),
 #'   \code{iter_sampling} (1000), \code{adapt_delta} (NULL, uses Stan default),
 #'   \code{max_treedepth} (NULL), \code{seed} (123), \code{parallel_chains}
-#'   (NULL). Any additional entries are forwarded via \code{...}.
+#'   (NULL), \code{max_param_count} (NULL — set to a positive integer to stop
+#'   if approximate parameter count exceeds the threshold). Any additional entries
+#'   are forwarded via \code{...}.
 #' @param show_messages Logical. Print sampling progress. Default \code{TRUE}.
 #' @param ... Additional arguments forwarded to \code{cmdstanr::sample()}.
 #'
@@ -4365,19 +4628,22 @@ fit_bayesian_multivariate_probit <- function(
     class_cols,
     fixed_effects,
     random_effects,
-    pathogen          = NULL,
-    pathogen_col      = "pathogen",
-    event_id_col      = "event_id",
-    eligible_pairs    = NULL,
-    outcome_col       = NULL,
-    reserve_drug_cols = NULL,
-    panel_eligibility = list(),
-    estimand          = "observed_stewardship_event_mix",
-    prior_config      = list(),
-    sampler_config    = list(),
-    show_messages     = TRUE,
+    pathogen            = NULL,
+    pathogen_col        = "pathogen",
+    event_id_col        = "event_id",
+    eligible_pairs      = NULL,
+    outcome_col         = NULL,
+    reserve_drug_cols   = NULL,
+    panel_eligibility   = list(),
+    residual_structure  = c("identity", "correlated"),
+    estimand            = "observed_stewardship_event_mix",
+    prior_config        = list(),
+    sampler_config      = list(),
+    show_messages       = TRUE,
     ...
 ) {
+  residual_structure <- match.arg(residual_structure)
+
   # -- Package checks ---------------------------------------------------------
   if (!requireNamespace("cmdstanr", quietly = TRUE))
     stop(paste0("Package 'cmdstanr' is required for Pathway 2.\n",
@@ -4463,7 +4729,7 @@ fit_bayesian_multivariate_probit <- function(
   # -- Resolve sampler_config -------------------------------------------------
   sc_defaults <- list(chains = 4L, iter_warmup = 1000L, iter_sampling = 1000L,
                       seed = 123L, adapt_delta = NULL, max_treedepth = NULL,
-                      parallel_chains = NULL)
+                      parallel_chains = NULL, max_param_count = NULL)
   for (nm in names(sampler_config)) sc_defaults[[nm]] <- sampler_config[[nm]]
   sc <- sc_defaults
 
@@ -4491,6 +4757,22 @@ fit_bayesian_multivariate_probit <- function(
     if (nrow(event_data) == 0L)
       stop("No events remain after filtering to eligible_pairs.", call. = FALSE)
     message(sprintf("[fit_bayesian_multivariate_probit] %d events after eligible_pairs filter.",
+                    nrow(event_data)))
+  }
+
+  # -- Drop all-NA event rows (events with no observed AST in any class_col) --
+  has_any_obs <- rowSums(!is.na(event_data[, class_cols, drop = FALSE])) > 0L
+  n_all_na <- sum(!has_any_obs)
+  if (n_all_na > 0L) {
+    warning(sprintf(
+      paste0("%d event(s) have no observed AST values across all selected class ",
+             "columns and will be removed before model construction. Ensure this ",
+             "is expected (e.g. events with only reserve-drug results)."),
+      n_all_na), call. = FALSE)
+    event_data <- event_data[has_any_obs, , drop = FALSE]
+    if (nrow(event_data) == 0L)
+      stop("No events remain after removing all-NA event rows.", call. = FALSE)
+    message(sprintf("[fit_bayesian_multivariate_probit] %d events remain after all-NA filter.",
                     nrow(event_data)))
   }
 
@@ -4705,12 +4987,54 @@ fit_bayesian_multivariate_probit <- function(
     stan_data$a_ev <- a_ev_arr
   }
 
+  # -- Parameter-count preflight -----------------------------------------------
+  n_z_free    <- N_events * D
+  n_hosp_raw  <- H * D
+  n_pt_raw    <- if (n_re_levels >= 2L) Pt * D else 0L
+  n_adm_raw   <- if (n_re_levels == 3L) Adm * D else 0L
+  n_beta      <- K * D
+  n_tau       <- D * n_re_levels
+  n_L_corr    <- (D * (D - 1L) %/% 2L) * n_re_levels
+  n_L_omega   <- if (residual_structure == "correlated") D * (D - 1L) %/% 2L else 0L
+  n_param_approx <- n_z_free + n_hosp_raw + n_pt_raw + n_adm_raw +
+                    n_beta + n_tau + n_L_corr + n_L_omega
+  message(sprintf(paste0(
+    "[fit_bayesian_multivariate_probit] Approximate parameter count:\n",
+    "  N_events=%d x D=%d z_free              = %d\n",
+    "  H=%d x D=%d hospital RE               = %d\n",
+    "  %s\n",
+    "  %s\n",
+    "  beta(%dx%d) + tau(%d) + L_corr(%d) + L_Omega(%d)\n",
+    "  Total approx: %d"),
+    N_events, D, n_z_free,
+    H, D, n_hosp_raw,
+    if (n_re_levels >= 2L)
+      sprintf("Pt=%d x D=%d level-2 RE              = %d", Pt, D, n_pt_raw)
+    else "level-2 RE                            = 0 (not used)",
+    if (n_re_levels == 3L)
+      sprintf("Adm=%d x D=%d level-3 RE             = %d", Adm, D, n_adm_raw)
+    else "level-3 RE                            = 0 (not used)",
+    K, D, n_tau, n_L_corr, n_L_omega,
+    n_param_approx
+  ))
+  if (!is.null(sc$max_param_count) && n_param_approx > as.integer(sc$max_param_count))
+    stop(sprintf(
+      paste0("Approximate parameter count (%d) exceeds sampler_config$max_param_count (%d). ",
+             "Reduce N_events, D, or number of RE groups, or increase the threshold."),
+      n_param_approx, as.integer(sc$max_param_count)), call. = FALSE)
+
   # -- Select and compile Stan model ------------------------------------------
-  stan_code <- switch(as.character(n_re_levels),
-    "1" = .amr_probit_stan_1re(),
-    "2" = .amr_probit_stan_2re(),
-    "3" = .amr_probit_stan_3re()
+  stan_code <- switch(paste0(n_re_levels, "_", residual_structure),
+    "1_correlated" = .amr_probit_stan_1re(),
+    "2_correlated" = .amr_probit_stan_2re(),
+    "3_correlated" = .amr_probit_stan_3re(),
+    "1_identity"   = .amr_probit_stan_1re_identity(),
+    "2_identity"   = .amr_probit_stan_2re_identity(),
+    "3_identity"   = .amr_probit_stan_3re_identity()
   )
+  if (is.null(stan_code))
+    stop(sprintf("Unsupported combination: n_re_levels=%d, residual_structure='%s'.",
+                 n_re_levels, residual_structure), call. = FALSE)
   stan_file <- cmdstanr::write_stan_file(stan_code)
   message(sprintf("[fit_bayesian_multivariate_probit] Compiling %d-RE Stan model...",
                   n_re_levels))
@@ -4741,7 +5065,7 @@ fit_bayesian_multivariate_probit <- function(
   keep_vars <- c("beta", "hospital_effect",
                  if (n_re_levels >= 2L) "patient_effect",
                  if (n_re_levels == 3L) "admission_effect",
-                 "L_Omega", "Omega",
+                 if (residual_structure == "correlated") c("L_Omega", "Omega"),
                  if (n_re_levels >= 1L) "R_hospital",
                  if (n_re_levels >= 2L) "R_patient",
                  if (n_re_levels == 3L) "R_admission",
@@ -4861,12 +5185,13 @@ fit_bayesian_multivariate_probit <- function(
     lower_re_col       = lower_re_col,
     patient_key_col    = patient_col_use,
     admission_key_col  = admission_col_use,
-    pathogen_col       = pathogen_col,
-    pathogen_fitted    = pathogen_fitted,
-    estimand           = estimand,
-    prior_config_used  = pc,
+    pathogen_col        = pathogen_col,
+    pathogen_fitted     = pathogen_fitted,
+    residual_structure  = residual_structure,
+    estimand            = estimand,
+    prior_config_used   = pc,
     sampler_config_used = sc,
-    eligibility_report = list(
+    eligibility_report  = list(
       marginal  = eligibility_report,
       pairwise  = co_test_report
     )
@@ -4894,8 +5219,12 @@ fit_bayesian_multivariate_probit <- function(
 #' as the data). This is labelled \code{"observed_stewardship_event_mix"}.
 #'
 #' @param fitted_model List returned by \code{fit_bayesian_multivariate_probit()}.
-#' @param n_profile_simulations Integer. Number of posterior draws to use.
-#'   Subsampled without replacement when total draws exceed this value.
+#' @param n_posterior_draws_for_profiles Integer. Number of posterior draws to
+#'   use for profile simulation. Subsampled without replacement when total draws
+#'   exceed this value. Each draw generates one simulated latent profile per
+#'   event; rare profiles may be underestimated when this is small. For finer
+#'   Monte Carlo resolution of rare profiles, consider increasing this value or
+#'   adding \code{n_predictive_replicates_per_draw} in a future extension.
 #'   Default \code{2000L}.
 #' @param outcome_col Character or \code{NULL}. Patient outcome column in
 #'   \code{fitted_model$event_metadata}. When \code{NULL}, all events are
@@ -4912,26 +5241,27 @@ fit_bayesian_multivariate_probit <- function(
 #' @export
 compute_event_profile_probabilities <- function(
     fitted_model,
-    n_profile_simulations = 2000L,
-    outcome_col           = NULL,
-    nonfatal_values       = c("Discharged", "Survived", "Alive",
-                              "discharged", "survived", "alive"),
-    seed                  = 123L
+    n_posterior_draws_for_profiles = 2000L,
+    outcome_col                    = NULL,
+    nonfatal_values                = c("Discharged", "Survived", "Alive",
+                                       "discharged", "survived", "alive"),
+    seed                           = 123L
 ) {
   if (!requireNamespace("posterior", quietly = TRUE))
     stop("Package 'posterior' is required (installed with cmdstanr).", call. = FALSE)
 
   set.seed(as.integer(seed))
 
-  draws        <- fitted_model$draws
-  class_cols   <- fitted_model$class_cols
-  idx_maps     <- fitted_model$index_maps
-  X_long       <- fitted_model$X_design
-  data_long    <- fitted_model$data_long
-  event_meta   <- fitted_model$event_metadata
-  n_re_levels  <- fitted_model$n_re_levels
-  upper_re_col <- fitted_model$upper_re_col
-  pathogen_col <- fitted_model$pathogen_col
+  draws               <- fitted_model$draws
+  class_cols          <- fitted_model$class_cols
+  idx_maps            <- fitted_model$index_maps
+  X_long              <- fitted_model$X_design
+  data_long           <- fitted_model$data_long
+  event_meta          <- fitted_model$event_metadata
+  n_re_levels         <- fitted_model$n_re_levels
+  upper_re_col        <- fitted_model$upper_re_col
+  pathogen_col        <- fitted_model$pathogen_col
+  residual_structure  <- .null_default(fitted_model$residual_structure, "identity")
 
   D <- length(idx_maps$class_levels)
   H <- length(idx_maps$upper_levels)
@@ -4944,10 +5274,10 @@ compute_event_profile_probabilities <- function(
 
   K <- ncol(X_event_sim)
 
-  # -- Thin draws to n_profile_simulations ------------------------------------
+  # -- Thin draws to n_posterior_draws_for_profiles ---------------------------
   draws_mat <- posterior::as_draws_matrix(draws)
   n_total   <- nrow(draws_mat)
-  S         <- min(as.integer(n_profile_simulations), n_total)
+  S         <- min(as.integer(n_posterior_draws_for_profiles), n_total)
   draw_idx  <- if (S < n_total) sort(sample.int(n_total, S)) else seq_len(n_total)
   draws_mat <- draws_mat[draw_idx, , drop = FALSE]
 
@@ -4960,7 +5290,9 @@ compute_event_profile_probabilities <- function(
 
   beta_arr     <- .arr("beta", K, D)                 # S x K x D
   hosp_eff_arr <- .arr("hospital_effect", D, H)      # S x D x H
-  L_omega_arr  <- .arr("L_Omega", D, D)              # S x D x D (lower triangular)
+  L_omega_arr  <- if (residual_structure == "correlated")
+                    .arr("L_Omega", D, D)             # S x D x D (lower triangular)
+                  else NULL
 
   has_patient   <- n_re_levels >= 2L
   has_admission <- n_re_levels == 3L
@@ -5002,7 +5334,7 @@ compute_event_profile_probabilities <- function(
 
   # -- Hospital-pathogen eligible class sets ----------------------------------
   hp_pairs <- unique(event_meta_obs[, c(upper_re_col, pathogen_col), drop = FALSE])
-  hp_keys  <- paste(hp_pairs[[upper_re_col]], hp_pairs[[pathogen_col]], sep = "‖")
+  hp_keys  <- paste(hp_pairs[[upper_re_col]], hp_pairs[[pathogen_col]], sep = "||")
 
   hp_class_d <- stats::setNames(lapply(seq_len(nrow(hp_pairs)), function(r) {
     h_nm <- hp_pairs[[upper_re_col]][r]
@@ -5019,7 +5351,7 @@ compute_event_profile_probabilities <- function(
 
   # Map hp_keys → row indices in event_meta_obs (canonical, not event_meta!)
   hp_ev_idx <- stats::setNames(lapply(hp_keys, function(key) {
-    parts <- strsplit(key, "‖", fixed = TRUE)[[1L]]
+    parts <- strsplit(key, "||", fixed = TRUE)[[1L]]
     which(event_meta_obs[[upper_re_col]] == parts[1L] &
           event_meta_obs[[pathogen_col]]  == parts[2L])
   }), hp_keys)
@@ -5040,7 +5372,6 @@ compute_event_profile_probabilities <- function(
   for (s in seq_len(S)) {
     beta_s     <- matrix(beta_arr[s, , ],     nrow = K, ncol = D)
     hosp_eff_s <- matrix(hosp_eff_arr[s, , ], nrow = D, ncol = H)
-    L_omega_s  <- matrix(L_omega_arr[s, , ],  nrow = D, ncol = D)
 
     # mu_all: N_ev x D
     mu_all <- X_event %*% beta_s          # N_ev x D (fixed effects)
@@ -5058,26 +5389,32 @@ compute_event_profile_probabilities <- function(
         mu_all[ev_i, ] <- mu_all[ev_i, ] + adm_eff_s[, a_events[ev_i]]
     }
 
-    # Reconstruct full Omega for this draw (needed for arbitrary class subsets)
-    Omega_s_full <- tcrossprod(L_omega_s)   # D x D
+    # Reconstruct full Omega for this draw (only needed for correlated structure)
+    Omega_s_full <- if (residual_structure == "correlated") {
+      L_omega_s <- matrix(L_omega_arr[s, , ], nrow = D, ncol = D)
+      tcrossprod(L_omega_s)
+    } else NULL
 
     for (key in hp_keys) {
       d_hp   <- hp_class_d[[key]]
       ev_idx <- hp_ev_idx[[key]]
       if (length(ev_idx) == 0L || length(d_hp) < 1L) next
 
-      mu_hp   <- mu_all[ev_idx, d_hp, drop = FALSE]   # N_hp x |d_hp|
+      mu_hp <- mu_all[ev_idx, d_hp, drop = FALSE]   # N_hp x |d_hp|
 
-      # Extract the correct correlation sub-matrix and its Cholesky factor.
-      # A submatrix of L_Omega is NOT generally the Cholesky factor of Omega[d_hp, d_hp].
-      Omega_hp <- Omega_s_full[d_hp, d_hp, drop = FALSE]
-      Omega_hp <- (Omega_hp + t(Omega_hp)) / 2 + diag(1e-9, length(d_hp))
-      L_hp <- tryCatch(t(chol(Omega_hp)), error = function(e) NULL)
-      if (is.null(L_hp)) next
-
-      # Z = mu + epsilon %*% t(L_hp)  where epsilon ~ N(0, I)
-      Z_std <- matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
-      Z_hp  <- mu_hp + Z_std %*% t(L_hp)
+      if (residual_structure == "correlated") {
+        # Extract the correct correlation sub-matrix and its Cholesky factor.
+        # A submatrix of L_Omega is NOT the Cholesky factor of Omega[d_hp, d_hp].
+        Omega_hp <- Omega_s_full[d_hp, d_hp, drop = FALSE]
+        Omega_hp <- (Omega_hp + t(Omega_hp)) / 2 + diag(1e-9, length(d_hp))
+        L_hp <- tryCatch(t(chol(Omega_hp)), error = function(e) NULL)
+        if (is.null(L_hp)) next
+        Z_std <- matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
+        Z_hp  <- mu_hp + Z_std %*% t(L_hp)
+      } else {
+        # Identity residual structure: classes are conditionally independent
+        Z_hp <- mu_hp + matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
+      }
 
       hp_store[[key]]$labels[, s] <- apply(
         (Z_hp > 0) * 1L, 1L,
@@ -5086,13 +5423,15 @@ compute_event_profile_probabilities <- function(
     }
   }
 
-  # -- Enumerate all 2^|d_hp| profiles per hp pair (issue #8) ----------------
-  # Ensures all profiles appear in output even if never simulated.
+  # -- Enumerate all 2^|d_hp| profiles per hp pair ----------------------------
+  # All profiles appear in the output. Profiles not sampled in finite Monte Carlo
+  # receive an estimated probability of 0, which may reflect simulation error
+  # for rare profiles rather than true structural zero probability.
   event_profile_rows  <- list()
   aggregate_draw_rows <- list()
 
   for (key in hp_keys) {
-    parts  <- strsplit(key, "‖", fixed = TRUE)[[1L]]
+    parts  <- strsplit(key, "||", fixed = TRUE)[[1L]]
     h_nm   <- parts[1L]; k_nm <- parts[2L]
     d_hp   <- hp_class_d[[key]]
     ev_idx <- hp_ev_idx[[key]]
@@ -5301,44 +5640,49 @@ aggregate_profiles_for_daly <- function(
 #'   settings: \code{chains} (4), \code{iter_warmup} (1000),
 #'   \code{iter_sampling} (1000), \code{seed} (123), \code{adapt_delta},
 #'   \code{max_treedepth}, \code{parallel_chains}.
-#' @param n_profile_simulations Integer. Pathway 2. Posterior draws for
-#'   MVN simulation. Default \code{2000L}.
+#' @param residual_structure Character. Pathway 2. \code{"identity"} (default)
+#'   or \code{"correlated"}. See \code{fit_bayesian_multivariate_probit()}.
+#' @param n_posterior_draws_for_profiles Integer. Pathway 2. Number of posterior
+#'   draws used for MVN simulation of profiles. Default \code{2000L}.
 #'
 #' @return Named list: \code{profiles}, \code{eligibility}, \code{diagnostics},
 #'   \code{fitted_models}, \code{config_used}.
 #' @export
 estimate_resistance_profiles <- function(
     data,
-    method                = c("convex", "bayesian"),
+    method                         = c("convex", "bayesian"),
     # Pathway 1
-    pairwise              = NULL,
-    panel_map             = NULL,
+    pairwise                       = NULL,
+    panel_map                      = NULL,
     # Pathway 2 — required with no defaults
-    class_cols            = NULL,
-    fixed_effects         = NULL,
-    random_effects        = NULL,
-    pathogen              = NULL,
-    pathogen_col          = "pathogen",
-    eligible_pairs        = NULL,
-    outcome_col           = NULL,
-    nonfatal_values       = c("Discharged", "Survived", "Alive",
-                              "discharged", "survived", "alive"),
-    panel_eligibility     = list(),
-    estimand              = "observed_stewardship_event_mix",
-    prior_config          = list(),
-    sampler_config        = list(),
-    n_profile_simulations = 2000L
+    class_cols                     = NULL,
+    fixed_effects                  = NULL,
+    random_effects                 = NULL,
+    pathogen                       = NULL,
+    pathogen_col                   = "pathogen",
+    eligible_pairs                 = NULL,
+    outcome_col                    = NULL,
+    nonfatal_values                = c("Discharged", "Survived", "Alive",
+                                       "discharged", "survived", "alive"),
+    panel_eligibility              = list(),
+    residual_structure             = c("identity", "correlated"),
+    estimand                       = "observed_stewardship_event_mix",
+    prior_config                   = list(),
+    sampler_config                 = list(),
+    n_posterior_draws_for_profiles = 2000L
 ) {
-  method <- match.arg(method)
+  method             <- match.arg(method)
+  residual_structure <- match.arg(residual_structure)
 
   config_used <- list(
-    method                = method,
-    pathogen_col          = pathogen_col,
-    pathogen              = pathogen,
-    estimand              = estimand,
-    n_profile_simulations = n_profile_simulations,
-    prior_config          = prior_config,
-    sampler_config        = sampler_config
+    method                         = method,
+    pathogen_col                   = pathogen_col,
+    pathogen                       = pathogen,
+    residual_structure             = residual_structure,
+    estimand                       = estimand,
+    n_posterior_draws_for_profiles = n_posterior_draws_for_profiles,
+    prior_config                   = prior_config,
+    sampler_config                 = sampler_config
   )
 
   # ---- Pathway 1 -----------------------------------------------------------
@@ -5385,26 +5729,27 @@ estimate_resistance_profiles <- function(
     stop("`random_effects` is required for method = 'bayesian'.", call. = FALSE)
 
   fitted_mod <- fit_bayesian_multivariate_probit(
-    event_class_data  = data,
-    class_cols        = class_cols,
-    fixed_effects     = fixed_effects,
-    random_effects    = random_effects,
-    pathogen          = pathogen,
-    pathogen_col      = pathogen_col,
-    eligible_pairs    = eligible_pairs,
-    outcome_col       = outcome_col,
-    panel_eligibility = panel_eligibility,
-    estimand          = estimand,
-    prior_config      = prior_config,
-    sampler_config    = sampler_config
+    event_class_data   = data,
+    class_cols         = class_cols,
+    fixed_effects      = fixed_effects,
+    random_effects     = random_effects,
+    pathogen           = pathogen,
+    pathogen_col       = pathogen_col,
+    eligible_pairs     = eligible_pairs,
+    outcome_col        = outcome_col,
+    panel_eligibility  = panel_eligibility,
+    residual_structure = residual_structure,
+    estimand           = estimand,
+    prior_config       = prior_config,
+    sampler_config     = sampler_config
   )
 
   profile_probs <- compute_event_profile_probabilities(
-    fitted_model          = fitted_mod,
-    n_profile_simulations = as.integer(n_profile_simulations),
-    outcome_col           = outcome_col,
-    nonfatal_values       = nonfatal_values,
-    seed                  = .null_default(sampler_config$seed, 123L)
+    fitted_model                   = fitted_mod,
+    n_posterior_draws_for_profiles = as.integer(n_posterior_draws_for_profiles),
+    outcome_col                    = outcome_col,
+    nonfatal_values                = nonfatal_values,
+    seed                           = .null_default(sampler_config$seed, 123L)
   )
 
   profiles_tbl <- aggregate_profiles_for_daly(
