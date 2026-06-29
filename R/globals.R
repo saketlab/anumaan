@@ -1,6 +1,7 @@
 # globals.R
 # Package-level imports and NSE variable declarations
 
+#' @importFrom grDevices dev.off pdf
 #' @importFrom magrittr %>%
 #' @importFrom rlang .data .env := %||%
 #' @importFrom stats cor density median na.omit pnorm profile quantile rbinom reorder setNames
@@ -151,5 +152,11 @@ utils::globalVariables(c(
 
   # estimate_resistance_profiles() diagnostics
   "pct_converged", "any_underdetermined", "n_profiles_estimated",
-  "n_eligible_pathogens", "n_profiles"
+  "n_eligible_pathogens", "n_profiles",
+
+  # aggregate_profiles_for_daly() -- created via dplyr::mutate then selected
+  "low_draws_flag",
+
+  # plot_probit_diagnostics() -- ggplot2 aes() column references
+  "rhat", "ess", "metric"
 ))

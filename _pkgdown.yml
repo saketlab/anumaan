@@ -242,6 +242,7 @@ reference:
   - fit_bayesian_multivariate_probit
   - compute_event_profile_probabilities
   - aggregate_profiles_for_daly
+  - plot_probit_diagnostics
 
 - title: "Burden estimation (YLL/YLD/DALY)"
   desc: "GBD-methodology burden calculations"

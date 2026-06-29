@@ -1,7 +1,7 @@
 Package: anumaan
 Type: Package
 Title: Antimicrobial Resistance Surveillance Preprocessing and Burden Estimation
-Version: 0.1.0.9013
+Version: 0.1.0.9014
 Authors@R: c(
     person(
       "Nilanjana", "Dey",
@@ -29,8 +29,6 @@ Description: anumaan provides a preprocessing pipeline for antimicrobial resista
     estimation calculations.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
-RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
@@ -56,6 +54,9 @@ SystemRequirements: Python (>= 3.8) with the 'alethia' package for
     CmdStan (>= 2.33) for Pathway 2 Bayesian estimation (optional; install via
     cmdstanr::install_cmdstan() after installing the 'cmdstanr' package).
 Suggests:
+    bayesplot (>= 1.10.0),
+    cmdstanr (>= 0.7.0),
+    lme4 (>= 1.1.0),
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,
@@ -74,3 +75,4 @@ Additional_repositories: https://mc-stan.org/r-packages/
 VignetteBuilder: knitr
 URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
 BugReports: https://github.com/saketlab/anumaan/issues
+Config/roxygen2/version: 8.0.0
