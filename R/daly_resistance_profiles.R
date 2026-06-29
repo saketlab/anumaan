@@ -4,7 +4,7 @@
 # All profile probability distributions produced by either pathway feed directly
 # into the DALY burden pipeline (YLL and YLD calculations).
 #
-# Pathway 1 — Convex optimisation (aggregate surveillance or GBD-style data)
+# Pathway 1 -- Convex optimisation (aggregate surveillance or GBD-style data)
 #   Accepts marginal resistance prevalences and optional pairwise co-resistance
 #   rates per pathogen, enumerates all 2^n binary resistance profiles, and
 #   recovers a valid probability distribution over those profiles by solving a
@@ -28,7 +28,7 @@
 #     compute_resistance_profiles()   QP profile estimation from isolate-level inputs
 #     select_resistance_class()       selects one resistance class per event for attribution
 #
-# Pathway 2 — Bayesian hierarchical modelling (facility-level AST data)
+# Pathway 2 -- Bayesian hierarchical modelling (facility-level AST data)
 #   Fits a multivariate probit model to event-level AST records, accounting for
 #   partial and selective testing, hospital-level heterogeneity, patient-admission
 #   clustering, and correlated resistance outcomes across antibiotic classes.
@@ -2141,7 +2141,7 @@ compute_marginals_from_data <- function(
 #'   \item{\code{pathogen}, \code{antibiotic_class_1}, \code{antibiotic_class_2}}{Keys.}
 #'   \item{\code{n_co_tested}}{Isolates tested for both classes.}
 #'   \item{\code{rho}}{Pearson correlation between binary resistance indicators.}
-#'   \item{\code{pairwise_prevalence}}{Back-calculated P(A∩B), capped and floored.}
+#'   \item{\code{pairwise_prevalence}}{Back-calculated P(AnB), capped and floored.}
 #'   \item{\code{method}}{\code{"pearson_back_calc"} or \code{"independence_fallback"}.}
 #' }
 #'
@@ -2571,7 +2571,7 @@ estimate_profiles_convex <- function(
 
 
 # ===========================================================================
-# Pathway 1 — Isolate-level engine
+# Pathway 1 -- Isolate-level engine
 #
 # Computes resistance profiles directly from line-level isolate data in a
 # three-step pipeline. This engine serves the DALY YLL and YLD calculations
@@ -3867,7 +3867,7 @@ prioritize_resistance <- function(data,
 
 
 # ===========================================================================
-# Pathway 2 — Bayesian hierarchical multivariate probit (revised)
+# Pathway 2 -- Bayesian hierarchical multivariate probit (revised)
 #
 # Key design decisions in this implementation:
 #
@@ -3888,7 +3888,7 @@ prioritize_resistance <- function(data,
 #    (hospital; hospital + patient; hospital + patient + admission).
 #    Nested RE groups receive globally unique composite keys built here.
 #
-# 5. Explicit estimand: "observed_stewardship_event_mix" — the profile
+# 5. Explicit estimand: "observed_stewardship_event_mix" -- the profile
 #    distribution over the actual event case-mix in the data. Standardised
 #    estimands require a reference covariate distribution and are for later.
 #
@@ -3908,7 +3908,7 @@ prioritize_resistance <- function(data,
 # effects and does NOT correct for selective testing bias or model the AST
 # cascade-testing process.
 #
-# Estimand: "observed_stewardship_event_mix" — the joint resistance-profile
+# Estimand: "observed_stewardship_event_mix" -- the joint resistance-profile
 # distribution characterising the events recorded in the monitored beds.
 # This is NOT the whole-hospital profile distribution unless the stewardship
 # beds are a census of all infection events. This distinction is essential for
@@ -3995,7 +3995,7 @@ prioritize_resistance <- function(data,
 
 
 # ---------------------------------------------------------------------------
-# Internal: Stan model code — three variants by number of RE levels
+# Internal: Stan model code -- three variants by number of RE levels
 # ---------------------------------------------------------------------------
 # Priors are passed as data so the model compiles once and prior values
 # can be changed freely between runs without recompilation.
@@ -4010,13 +4010,13 @@ prioritize_resistance <- function(data,
 
 .amr_probit_stan_1re <- function() {
   r"(
-// Multivariate probit with data augmentation — one grouping level (hospital)
+// Multivariate probit with data augmentation -- one grouping level (hospital)
 //
 // Correct implementation: z_aug[e] ~ MVN(mu_e, Omega).
 // Sign constraints on observed outcomes are imposed via an exp-transformation
 // of the unconstrained z_free parameters. The Jacobian correction accounts for
 // the change-of-variables from z_free to z_aug. There is NO additional
-// Bernoulli/probit residual — the MVN supplies the entire residual covariance.
+// Bernoulli/probit residual -- the MVN supplies the entire residual covariance.
 data {
   int<lower=1> N;                               // observed (event x class) pairs
   int<lower=1> N_events;                        // unique events
@@ -4097,7 +4097,7 @@ generated quantities {
 
 .amr_probit_stan_2re <- function() {
   r"(
-// Multivariate probit with data augmentation — two grouping levels
+// Multivariate probit with data augmentation -- two grouping levels
 // (hospital + patient or admission)
 data {
   int<lower=1> N;
@@ -4183,7 +4183,7 @@ generated quantities {
 
 .amr_probit_stan_3re <- function() {
   r"(
-// Multivariate probit with data augmentation — three grouping levels
+// Multivariate probit with data augmentation -- three grouping levels
 // (hospital + patient + admission)
 data {
   int<lower=1> N;
@@ -4282,14 +4282,14 @@ generated quantities {
 
 
 # ---------------------------------------------------------------------------
-# Stan model variants — identity residual structure
+# Stan model variants -- identity residual structure
 # Classes are conditionally independent given fixed and random effects.
 # L_Omega is NOT estimated; residual covariance = I_D.
 # ---------------------------------------------------------------------------
 
 .amr_probit_stan_1re_identity <- function() {
   r"(
-// Multivariate probit — one grouping level — identity residual structure
+// Multivariate probit -- one grouping level -- identity residual structure
 // Classes are conditionally independent; L_Omega is not estimated.
 data {
   int<lower=1> N;
@@ -4355,7 +4355,7 @@ generated quantities {
 
 .amr_probit_stan_2re_identity <- function() {
   r"(
-// Multivariate probit — two grouping levels — identity residual structure
+// Multivariate probit -- two grouping levels -- identity residual structure
 data {
   int<lower=1> N;
   int<lower=1> N_events;
@@ -4431,7 +4431,7 @@ generated quantities {
 
 .amr_probit_stan_3re_identity <- function() {
   r"(
-// Multivariate probit — three grouping levels — identity residual structure
+// Multivariate probit -- three grouping levels -- identity residual structure
 data {
   int<lower=1> N;
   int<lower=1> N_events;
@@ -4552,7 +4552,7 @@ generated quantities {
 #' hospital + patient + admission). The first element is the upper-most level;
 #' subsequent elements are nested within it. Nested levels receive globally unique
 #' composite keys built internally. Any hierarchical grouping variable can occupy
-#' any slot — the labels hospital/patient/admission are semantic conventions, not
+#' any slot -- the labels hospital/patient/admission are semantic conventions, not
 #' constraints. Isolate- or sample-event-level effects can be passed as the second
 #' or third element, but note the returned object uses generic level names
 #' (\code{upper_re_col}, \code{middle_re_col}, \code{lower_re_col}).
@@ -4583,10 +4583,12 @@ generated quantities {
 #'   value before fitting. Recommended: fit one pathogen at a time.
 #' @param pathogen_col Character. Column identifying the pathogen.
 #'   Default \code{"pathogen"}.
+#' @param event_id_col Character. Column in \code{event_class_data} holding
+#'   unique event identifiers. Default \code{"event_id"}.
 #' @param eligible_pairs Tibble or \code{NULL}. Hospital x pathogen pairs to
 #'   include. \code{NULL} uses all pairs present in the data.
 #' @param outcome_col Character or \code{NULL}. Patient outcome column. Only
-#'   used downstream to split R_ALL and R_NF cohorts — does not enter the
+#'   used downstream to split R_ALL and R_NF cohorts -- does not enter the
 #'   probit likelihood. Default \code{NULL}.
 #' @param reserve_drug_cols Character vector or \code{NULL}. Class columns to
 #'   exclude from the main model.
@@ -4596,7 +4598,7 @@ generated quantities {
 #'   Cells not meeting thresholds are reported but fitting still proceeds.
 #' @param residual_structure Character. Controls the residual covariance structure.
 #'   \code{"identity"} (default): classes are conditionally independent given
-#'   fixed and random effects — residual covariance = I_D. \code{"correlated"}:
+#'   fixed and random effects -- residual covariance = I_D. \code{"correlated"}:
 #'   estimates a full residual correlation matrix \eqn{\Omega} via LKJCholesky
 #'   prior. Use \code{"correlated"} only when panel co-testing overlap is adequate
 #'   (check \code{$eligibility_report$pairwise}); otherwise \eqn{\Omega} is driven
@@ -4609,7 +4611,7 @@ generated quantities {
 #'   \code{cmdstanr::sample()}: \code{chains} (4), \code{iter_warmup} (1000),
 #'   \code{iter_sampling} (1000), \code{adapt_delta} (NULL, uses Stan default),
 #'   \code{max_treedepth} (NULL), \code{seed} (123), \code{parallel_chains}
-#'   (NULL), \code{max_param_count} (NULL — set to a positive integer to stop
+#'   (NULL), \code{max_param_count} (NULL -- set to a positive integer to stop
 #'   if approximate parameter count exceeds the threshold). Any additional entries
 #'   are forwarded via \code{...}.
 #' @param show_messages Logical. Print sampling progress. Default \code{TRUE}.
@@ -4831,7 +4833,7 @@ fit_bayesian_multivariate_probit <- function(
     # No external event ID: assign a warning-level fallback.
     warning(sprintf(
       paste0("event_id_col '%s' not found. Using row position as event key. ",
-             "Ensure event_class_data has one row per organism-event — no duplicates."),
+             "Ensure event_class_data has one row per organism-event -- no duplicates."),
       event_id_col), call. = FALSE)
     event_data[[event_id_col]] <- seq_len(nrow(event_data))
   } else {
@@ -4887,7 +4889,7 @@ fit_bayesian_multivariate_probit <- function(
       paste0("Fixed-effect column(s) contain NA values: %s. ",
              "Resolve missingness before calling fit_bayesian_multivariate_probit(). ",
              "Options: complete-case filter, median + indicator, explicit 'Unknown' level, ",
-             "or multiple imputation — but the decision belongs in the analysis config."),
+             "or multiple imputation -- but the decision belongs in the analysis config."),
       bad), call. = FALSE)
   }
   for (cc in fixed_effects)
@@ -5214,7 +5216,7 @@ fit_bayesian_multivariate_probit <- function(
 #' observed in simulation receive probability 0.
 #'
 #' \strong{Estimand:} The posterior predictive distribution over the observed
-#' event case-mix — the profile distribution you would see if you drew a new
+#' event case-mix -- the profile distribution you would see if you drew a new
 #' event uniformly from the set of observed events (same covariate distribution
 #' as the data). This is labelled \code{"observed_stewardship_event_mix"}.
 #'
@@ -5349,7 +5351,7 @@ compute_event_profile_probabilities <- function(
     }, logical(1L)))
   }), hp_keys)
 
-  # Map hp_keys → row indices in event_meta_obs (canonical, not event_meta!)
+  # Map hp_keys -> row indices in event_meta_obs (canonical, not event_meta!)
   hp_ev_idx <- stats::setNames(lapply(hp_keys, function(key) {
     parts <- strsplit(key, "||", fixed = TRUE)[[1L]]
     which(event_meta_obs[[upper_re_col]] == parts[1L] &
@@ -5601,7 +5603,7 @@ aggregate_profiles_for_daly <- function(
 
 
 # ---------------------------------------------------------------------------
-# estimate_resistance_profiles()  — top-level dispatcher for both pathways
+# estimate_resistance_profiles()  -- top-level dispatcher for both pathways
 # ---------------------------------------------------------------------------
 
 #' Estimate Resistance Profiles: Pathway 1 (Convex) or Pathway 2 (Bayesian)
@@ -5610,7 +5612,7 @@ aggregate_profiles_for_daly <- function(
 #' (Pathway 1, aggregate surveillance data) or the Bayesian hierarchical
 #' multivariate probit pathway (Pathway 2, facility-level AST data).
 #'
-#' For Pathway 2, pass \code{pathogen} to fit one pathogen at a time — the
+#' For Pathway 2, pass \code{pathogen} to fit one pathogen at a time -- the
 #' recommended workflow. Run this function once per pathogen and collect the
 #' results in the analysis repository.
 #'
@@ -5622,7 +5624,7 @@ aggregate_profiles_for_daly <- function(
 #' @param panel_map Named list or \code{NULL}. Pathway 1 only.
 #' @param class_cols Character vector. Pathway 2 only. Required.
 #' @param fixed_effects Character vector. Pathway 2 only. Required.
-#' @param random_effects Character vector (1–3 elements). Pathway 2 only.
+#' @param random_effects Character vector (1-3 elements). Pathway 2 only.
 #'   Required. Elements: hospital; [+patient]; [+admission].
 #' @param pathogen Character or \code{NULL}. Pathway 2 only. When supplied,
 #'   filters data to a single pathogen before fitting.
@@ -5654,7 +5656,7 @@ estimate_resistance_profiles <- function(
     # Pathway 1
     pairwise                       = NULL,
     panel_map                      = NULL,
-    # Pathway 2 — required with no defaults
+    # Pathway 2 -- required with no defaults
     class_cols                     = NULL,
     fixed_effects                  = NULL,
     random_effects                 = NULL,
