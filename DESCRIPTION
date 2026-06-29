@@ -71,7 +71,7 @@ Suggests:
     osqp,
     quadprog,
     posterior (>= 1.0.0)
-Additional_repositories: https://mc-stan.org/r-packages/
+Additional_repositories: https://stan-dev.r-universe.dev
 VignetteBuilder: knitr
 URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
 BugReports: https://github.com/saketlab/anumaan/issues
