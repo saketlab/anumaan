@@ -1,7 +1,7 @@
 Package: anumaan
 Type: Package
 Title: Antimicrobial Resistance Surveillance Preprocessing and Burden Estimation
-Version: 0.1.0.9015
+Version: 0.1.0.9016
 Authors@R: c(
     person(
       "Nilanjana", "Dey",
@@ -76,4 +76,3 @@ VignetteBuilder: knitr
 URL: https://saketlab.github.io/anumaan/, https://github.com/saketlab/anumaan
 BugReports: https://github.com/saketlab/anumaan/issues
 Config/roxygen2/version: 8.0.0
-RoxygenNote: 7.3.3
