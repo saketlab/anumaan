@@ -141,6 +141,7 @@ reference:
   contents:
   - prep_fill_age
   - prep_assign_age_bins
+  - prep_assign_facility_type
   - prep_infer_department
   - prep_clean_optional_columns
   - prep_derive_los_from_dates
