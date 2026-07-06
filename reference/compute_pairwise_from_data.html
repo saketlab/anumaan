@@ -53,7 +53,7 @@ Caps the result to \(\min(P(A), P(B))\) and floors it to 0.
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9012</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9016</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,7 +89,7 @@ Caps the result to \(\min(P(A), P(B))\) and floors it to 0.
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Compute Pairwise Co-resistance Using Pearson Back-calculation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/R/profile_convex.R" class="external-link"><code>R/profile_convex.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/R/daly_resistance_profiles.R" class="external-link"><code>R/daly_resistance_profiles.R</code></a></small>
       <div class="d-none name"><code>compute_pairwise_from_data.Rd</code></div>
     </div>
 
@@ -165,7 +165,7 @@ reported with <code>method = "independence_fallback"</code>. Default <code>10L</
 <dd><p>Pearson correlation between binary resistance indicators.</p></dd>
 
   <dt><code>pairwise_prevalence</code></dt>
-<dd><p>Back-calculated P(A∩B), capped and floored.</p></dd>
+<dd><p>Back-calculated P(AnB), capped and floored.</p></dd>
 
   <dt><code>method</code></dt>
 <dd><p><code>"pearson_back_calc"</code> or <code>"independence_fallback"</code>.</p></dd>

@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9012</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9016</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -355,6 +355,13 @@
 
         </dt>
         <dd>Assign Age Bins</dd>
+
+        <dt>
+
+          <code><a href="prep_assign_facility_type.html">prep_assign_facility_type()</a></code>
+
+        </dt>
+        <dd>Assign a facility type / sector column from a user-supplied mapping</dd>
 
         <dt>
 
@@ -718,7 +725,7 @@
       </dl></div><div class="section level2">
       <h2 id="pathway-convex-profile-estimation">Pathway 1: Convex Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-convex-profile-estimation"></a></h2>
 
-      <div class="section-desc"><p>End-to-end pipeline for estimating resistance-profile probability distributions from facility-level or aggregate surveillance data via convex optimisation (GBD equation 7.5.1.3). Supports geography, year, and outcome stratification; optional override with externally modelled marginals (e.g. GBD ST-GPR).</p></div>
+      <div class="section-desc"><p>End-to-end pipeline for estimating resistance-profile probability distributions from facility-level or aggregate surveillance data via convex optimisation (GBD equation 7.5.1.3). Supports geography, year, and outcome stratification; optional override with externally modelled marginals (e.g. GBD ST-GPR). Use  as the top-level dispatcher for both Pathway 1 and Pathway 2.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -726,6 +733,13 @@
 
 
       <dl><dt>
+
+          <code><a href="estimate_resistance_profiles.html">estimate_resistance_profiles()</a></code>
+
+        </dt>
+        <dd>Estimate Resistance Profiles: Pathway 1 (Convex) or Pathway 2 (Bayesian)</dd>
+
+        <dt>
 
           <code><a href="validate_profile_inputs.html">validate_profile_inputs()</a></code>
 
@@ -780,6 +794,43 @@
 
         </dt>
         <dd>Bootstrap Uncertainty Intervals for Resistance Profile Probabilities</dd>
+      </dl></div><div class="section level2">
+      <h2 id="pathway-bayesian-profile-estimation">Pathway 2: Bayesian Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-bayesian-profile-estimation"></a></h2>
+
+      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with correlated random effects at up to three grouping levels (e.g. hospital, patient, admission). Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). Run once per pathogen; orchestrate across pathogens in the analysis repository. Use  as the top-level entry point.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code>
+
+        </dt>
+        <dd>Fit Bayesian Hierarchical Multivariate Probit Model for Resistance Profiles</dd>
+
+        <dt>
+
+          <code><a href="compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>
+
+        </dt>
+        <dd>Compute Posterior Resistance Profile Probabilities via MVN Simulation</dd>
+
+        <dt>
+
+          <code><a href="aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code>
+
+        </dt>
+        <dd>Aggregate Posterior Profile Draws into R_ALL and R_NF Summaries</dd>
+
+        <dt>
+
+          <code><a href="plot_probit_diagnostics.html">plot_probit_diagnostics()</a></code>
+
+        </dt>
+        <dd>Generate diagnostic plots for a fitted Bayesian multivariate probit model</dd>
       </dl></div><div class="section level2">
       <h2 id="burden-estimation-yll-yld-daly-">Burden estimation (YLL/YLD/DALY)<a class="anchor" aria-label="anchor" href="#burden-estimation-yll-yld-daly-"></a></h2>
 

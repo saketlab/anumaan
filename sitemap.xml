@@ -8,6 +8,7 @@
 <url><loc>https://saketlab.github.io/anumaan/articles/preprocessing-workflow.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/authors.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/index.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/amr_config.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/amr_theme.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/bootstrap_profiles_convex.html</loc></url>
@@ -17,6 +18,7 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/calculate_spatial_metrics.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/check_profile_constraints.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compare_distribution_aic.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_hospital_daly.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/compute_marginals_from_data.html</loc></url>
@@ -63,16 +65,20 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-build_class_resistance_wide.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-check_cols.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-check_hai_icu_collinearity.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/dot-check_pairwise_cotesting.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-derive_icu_binary.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-encode_comorbidity_mortality.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/dot-validate_panel_eligibility.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/eda_theme.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/estimate_resistance_profiles.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report_html.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report_pdf.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/export_report_txt.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/find_raw_column.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/fit_distributions.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/generate_preprocessing_report.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/get_age_bins.html</loc></url>
@@ -104,6 +110,7 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/plot_outcome_by_year.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/plot_outcome_distribution.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/plot_patients_by_hospital.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/plot_proportion.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/plot_resistance_by_agebin.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/plot_resistance_by_organism.html</loc></url>
@@ -117,6 +124,7 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_apply_column_map.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_assert_standard_names.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_assign_age_bins.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/prep_assign_facility_type.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_assign_organism_group.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_assign_patient_syndrome.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prep_attrition_flow.html</loc></url>

@@ -117,6 +117,8 @@ Derive missing variables from existing data
   : Fill Missing Age Values
 - [`prep_assign_age_bins()`](https://saketlab.github.io/anumaan/reference/prep_assign_age_bins.md)
   : Assign Age Bins
+- [`prep_assign_facility_type()`](https://saketlab.github.io/anumaan/reference/prep_assign_facility_type.md)
+  : Assign a facility type / sector column from a user-supplied mapping
 - [`prep_infer_department()`](https://saketlab.github.io/anumaan/reference/prep_infer_department.md)
   : Infer Hospital Department
 - [`prep_clean_optional_columns()`](https://saketlab.github.io/anumaan/reference/prep_clean_optional_columns.md)
@@ -243,8 +245,12 @@ End-to-end pipeline for estimating resistance-profile probability
 distributions from facility-level or aggregate surveillance data via
 convex optimisation (GBD equation 7.5.1.3). Supports geography, year,
 and outcome stratification; optional override with externally modelled
-marginals (e.g. GBD ST-GPR).
+marginals (e.g. GBD ST-GPR). Use as the top-level dispatcher for both
+Pathway 1 and Pathway 2.
 
+- [`estimate_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/estimate_resistance_profiles.md)
+  : Estimate Resistance Profiles: Pathway 1 (Convex) or Pathway 2
+  (Bayesian)
 - [`validate_profile_inputs()`](https://saketlab.github.io/anumaan/reference/validate_profile_inputs.md)
   : Validate Inputs for Resistance Profile Estimation (Pathway 1)
 - [`preprocess_for_profiles()`](https://saketlab.github.io/anumaan/reference/preprocess_for_profiles.md)
@@ -261,6 +267,29 @@ marginals (e.g. GBD ST-GPR).
   : Formally Check Resistance Profile Probability Constraints
 - [`bootstrap_profiles_convex()`](https://saketlab.github.io/anumaan/reference/bootstrap_profiles_convex.md)
   : Bootstrap Uncertainty Intervals for Resistance Profile Probabilities
+
+## Pathway 2: Bayesian Profile Estimation
+
+Bayesian hierarchical multivariate probit model for estimating
+resistance-profile distributions from facility-level AST data. Fits a
+Stan model (via cmdstanr) with correlated random effects at up to three
+grouping levels (e.g. hospital, patient, admission). Two residual
+structures are supported: identity (default, no residual correlation)
+and correlated (full LKJ-Cholesky residual covariance). Run once per
+pathogen; orchestrate across pathogens in the analysis repository. Use
+as the top-level entry point.
+
+- [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
+  : Fit Bayesian Hierarchical Multivariate Probit Model for Resistance
+  Profiles
+- [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md)
+  : Compute Posterior Resistance Profile Probabilities via MVN
+  Simulation
+- [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md)
+  : Aggregate Posterior Profile Draws into R_ALL and R_NF Summaries
+- [`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md)
+  : Generate diagnostic plots for a fitted Bayesian multivariate probit
+  model
 
 ## Burden estimation (YLL/YLD/DALY)
 

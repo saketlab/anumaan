@@ -80,7 +80,7 @@ Tibble with one row per pathogen x class-pair \[x stratum\]:
 
 - `pairwise_prevalence`:
 
-  Back-calculated P(A∩B), capped and floored.
+  Back-calculated P(AnB), capped and floored.
 
 - `method`:
 
