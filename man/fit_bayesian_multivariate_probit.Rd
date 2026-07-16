@@ -98,6 +98,31 @@ Named list with elements: \code{draws}, \code{diagnostics},
   \code{pathogen_col}, \code{pathogen_fitted}, \code{estimand},
   \code{prior_config_used}, \code{sampler_config_used},
   \code{eligibility_report}.
+
+  \code{diagnostics} is a one-row tibble reported in \strong{two scopes},
+  because the model has \code{N_events * D} latent \code{z_free} nuisance
+  parameters (probit data augmentation) that are excluded from
+  \code{draws}, \code{draws_summary.csv}, and \code{plot_probit_diagnostics()}
+  but are still part of the Stan fit:
+  \itemize{
+    \item \code{max_rhat_structural}, \code{min_ess_bulk_structural},
+      \code{min_ess_tail_structural}, \code{converged_structural} --
+      computed only over the retained structural parameters (\code{beta},
+      \code{hospital_effect}/\code{patient_effect}/\code{admission_effect},
+      \code{tau_*}, \code{R_*}, \code{Omega}, \code{lp__}). This is the
+      scope that matches what \code{draws} and the diagnostic plots show,
+      and is the recommended pass/fail signal for the resistance-profile
+      model.
+    \item \code{max_rhat_full}, \code{min_ess_bulk_full},
+      \code{min_ess_tail_full}, \code{latent_z_warning} -- computed over
+      every Stan parameter, including \code{z_free}. A handful of the
+      tens of thousands of \code{z_free} entries landing above the Rhat
+      1.01 / ESS 100 thresholds is expected even in a well-converged fit;
+      \code{latent_z_warning} flags this for visibility but should not by
+      itself be read as "the model failed to converge."
+    \item \code{n_divergent}, \code{n_treedepth_sat}, \code{ebfmi} --
+      sampler-health diagnostics (not parameter-scope dependent).
+  }
 }
 \description{
 Accepts wide-format event-level AST data (one row per organism-event, one

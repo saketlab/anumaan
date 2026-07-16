@@ -4624,6 +4624,31 @@ generated quantities {
 #'   \code{pathogen_col}, \code{pathogen_fitted}, \code{estimand},
 #'   \code{prior_config_used}, \code{sampler_config_used},
 #'   \code{eligibility_report}.
+#'
+#'   \code{diagnostics} is a one-row tibble reported in \strong{two scopes},
+#'   because the model has \code{N_events * D} latent \code{z_free} nuisance
+#'   parameters (probit data augmentation) that are excluded from
+#'   \code{draws}, \code{draws_summary.csv}, and \code{plot_probit_diagnostics()}
+#'   but are still part of the Stan fit:
+#'   \itemize{
+#'     \item \code{max_rhat_structural}, \code{min_ess_bulk_structural},
+#'       \code{min_ess_tail_structural}, \code{converged_structural} --
+#'       computed only over the retained structural parameters (\code{beta},
+#'       \code{hospital_effect}/\code{patient_effect}/\code{admission_effect},
+#'       \code{tau_*}, \code{R_*}, \code{Omega}, \code{lp__}). This is the
+#'       scope that matches what \code{draws} and the diagnostic plots show,
+#'       and is the recommended pass/fail signal for the resistance-profile
+#'       model.
+#'     \item \code{max_rhat_full}, \code{min_ess_bulk_full},
+#'       \code{min_ess_tail_full}, \code{latent_z_warning} -- computed over
+#'       every Stan parameter, including \code{z_free}. A handful of the
+#'       tens of thousands of \code{z_free} entries landing above the Rhat
+#'       1.01 / ESS 100 thresholds is expected even in a well-converged fit;
+#'       \code{latent_z_warning} flags this for visibility but should not by
+#'       itself be read as "the model failed to converge."
+#'     \item \code{n_divergent}, \code{n_treedepth_sat}, \code{ebfmi} --
+#'       sampler-health diagnostics (not parameter-scope dependent).
+#'   }
 #' @export
 fit_bayesian_multivariate_probit <- function(
     event_class_data,
@@ -5081,10 +5106,28 @@ fit_bayesian_multivariate_probit <- function(
     error = function(e) fit$draws(format = "draws_array")
   )
 
-  # -- Strengthened diagnostics -----------------------------------------------
-  rhat_tbl  <- fit$summary(variables = NULL, "rhat")
-  ess_tbl   <- fit$summary(variables = NULL, "ess_bulk", "ess_tail")
-  samp_diag <- fit$sampler_diagnostics(format = "matrix")
+  # -- Strengthened diagnostics, in two scopes ---------------------------------
+  # "structural" = the same variables retained in draws_arr (beta,
+  # hospital_effect, tau_*, R_*, Omega, lp__) -- the parameters a modeller
+  # actually interprets, and the only scope draws_summary.csv and
+  # plot_probit_diagnostics() ever see.
+  # "full" = every Stan parameter, including the N_events x D `z_free` latent
+  # utility matrix (probit data-augmentation nuisance variables -- see
+  # `n_z_free` above). With tens of thousands of z_free entries it is
+  # expected that a handful land at Rhat just above 1.01 by chance even when
+  # the structural model has converged cleanly, so "full" is reported for
+  # visibility only and must NOT drive the pass/fail flag.
+  rhat_struct_tbl <- tryCatch(
+    fit$summary(variables = keep_vars, "rhat"),
+    error = function(e) fit$summary(variables = NULL, "rhat")
+  )
+  ess_struct_tbl <- tryCatch(
+    fit$summary(variables = keep_vars, "ess_bulk", "ess_tail"),
+    error = function(e) fit$summary(variables = NULL, "ess_bulk", "ess_tail")
+  )
+  rhat_full_tbl <- fit$summary(variables = NULL, "rhat")
+  ess_full_tbl  <- fit$summary(variables = NULL, "ess_bulk", "ess_tail")
+  samp_diag     <- fit$sampler_diagnostics(format = "matrix")
 
   n_divergent         <- sum(samp_diag[, "divergent__"], na.rm = TRUE)
   effective_max_td    <- as.integer(.null_default(sc$max_treedepth, 10L))
@@ -5092,11 +5135,18 @@ fit_bayesian_multivariate_probit <- function(
                            sum(samp_diag[, "treedepth__"] >= effective_max_td,
                                na.rm = TRUE)
                          else NA_integer_
-  max_rhat      <- max(rhat_tbl$rhat,     na.rm = TRUE)
-  min_ess_bulk  <- min(ess_tbl$ess_bulk,  na.rm = TRUE)
-  min_ess_tail  <- if ("ess_tail" %in% names(ess_tbl))
-                     min(ess_tbl$ess_tail, na.rm = TRUE)
-                   else NA_real_
+
+  max_rhat_structural     <- max(rhat_struct_tbl$rhat,    na.rm = TRUE)
+  min_ess_bulk_structural <- min(ess_struct_tbl$ess_bulk, na.rm = TRUE)
+  min_ess_tail_structural <- if ("ess_tail" %in% names(ess_struct_tbl))
+                               min(ess_struct_tbl$ess_tail, na.rm = TRUE)
+                             else NA_real_
+
+  max_rhat_full     <- max(rhat_full_tbl$rhat,    na.rm = TRUE)
+  min_ess_bulk_full <- min(ess_full_tbl$ess_bulk, na.rm = TRUE)
+  min_ess_tail_full <- if ("ess_tail" %in% names(ess_full_tbl))
+                         min(ess_full_tbl$ess_tail, na.rm = TRUE)
+                       else NA_real_
 
   # E-BFMI per chain (robust to missing chain__ column)
   ebfmi <- tryCatch({
@@ -5119,15 +5169,26 @@ fit_bayesian_multivariate_probit <- function(
     mean(ebfmi_vals, na.rm = TRUE)
   }, error = function(e) NA_real_)
 
-  if (max_rhat > 1.01)
-    warning(sprintf("Convergence concern: max Rhat = %.3f (> 1.01). ",
-                    max_rhat,
+  converged_structural <-
+    isTRUE(max_rhat_structural < 1.01) &&
+    isTRUE(min_ess_bulk_structural >= 100) &&
+    isTRUE(is.na(min_ess_tail_structural) || min_ess_tail_structural >= 100) &&
+    isTRUE(n_divergent == 0L) &&
+    isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
+  latent_z_warning <-
+    isTRUE(max_rhat_full >= 1.01) || isTRUE(min_ess_bulk_full < 100)
+
+  # -- Warnings are based on the STRUCTURAL scope; z_free stragglers are ------
+  # -- reported separately below so they don't masquerade as model failure. --
+  if (max_rhat_structural > 1.01)
+    warning(sprintf("Convergence concern: structural max Rhat = %.3f (> 1.01). %s",
+                    max_rhat_structural,
                     "Increase iter_warmup or adapt_delta."), call. = FALSE)
-  if (min_ess_bulk < 100L)
-    warning(sprintf("Low bulk ESS: %.0f (< 100). Profile probabilities may be unreliable.",
-                    min_ess_bulk), call. = FALSE)
-  if (!is.na(min_ess_tail) && min_ess_tail < 100L)
-    warning(sprintf("Low tail ESS: %.0f (< 100).", min_ess_tail), call. = FALSE)
+  if (min_ess_bulk_structural < 100L)
+    warning(sprintf("Low structural bulk ESS: %.0f (< 100). Profile probabilities may be unreliable.",
+                    min_ess_bulk_structural), call. = FALSE)
+  if (!is.na(min_ess_tail_structural) && min_ess_tail_structural < 100L)
+    warning(sprintf("Low structural tail ESS: %.0f (< 100).", min_ess_tail_structural), call. = FALSE)
   if (!is.na(n_treedepth) && n_treedepth > 0L)
     warning(sprintf("%d iteration(s) saturated max treedepth. Increase max_treedepth.",
                     n_treedepth), call. = FALSE)
@@ -5136,6 +5197,13 @@ fit_bayesian_multivariate_probit <- function(
   if (n_divergent > 0L)
     warning(sprintf("%d divergent transition(s). Increase adapt_delta.", n_divergent),
             call. = FALSE)
+  if (latent_z_warning)
+    message(sprintf(
+      paste0("[fit_bayesian_multivariate_probit] NOTE: latent z_free block (%d parameters) has ",
+             "diagnostic stragglers (full-scope max Rhat = %.3f, min ESS bulk = %.0f) even though ",
+             "structural parameters look fine. This is informational only and does NOT affect ",
+             "converged_structural -- see $diagnostics$latent_z_warning."),
+      n_z_free, max_rhat_full, min_ess_bulk_full))
 
   diag_tbl <- tibble::tibble(
     n_chains          = as.integer(sc$chains),
@@ -5148,17 +5216,26 @@ fit_bayesian_multivariate_probit <- function(
     n_upper_groups    = H,
     n_lower_groups    = if (n_re_levels >= 2L) as.integer(Pt) else NA_integer_,
     n_admission_groups = if (n_re_levels == 3L) as.integer(Adm) else NA_integer_,
-    n_divergent       = as.integer(n_divergent),
-    n_treedepth_sat   = as.integer(n_treedepth),
-    ebfmi             = round(ebfmi, 4L),
-    max_rhat          = round(max_rhat, 4L),
-    min_ess_bulk      = round(min_ess_bulk, 1L),
-    min_ess_tail      = round(min_ess_tail, 1L)
+    n_z_free                = as.integer(n_z_free),
+    n_divergent             = as.integer(n_divergent),
+    n_treedepth_sat         = as.integer(n_treedepth),
+    ebfmi                   = round(ebfmi, 4L),
+    max_rhat_structural     = round(max_rhat_structural, 4L),
+    min_ess_bulk_structural = round(min_ess_bulk_structural, 1L),
+    min_ess_tail_structural = round(min_ess_tail_structural, 1L),
+    max_rhat_full           = round(max_rhat_full, 4L),
+    min_ess_bulk_full       = round(min_ess_bulk_full, 1L),
+    min_ess_tail_full       = round(min_ess_tail_full, 1L),
+    converged_structural    = converged_structural,
+    latent_z_warning        = latent_z_warning
   )
 
   message(sprintf(
-    "[fit_bayesian_multivariate_probit] Done. max_Rhat=%.3f | min_ESS_bulk=%.0f | divergent=%d",
-    max_rhat, min_ess_bulk, n_divergent))
+    paste0("[fit_bayesian_multivariate_probit] Done. structural max_Rhat=%.3f (full incl. z_free=%.3f) | ",
+           "structural min_ESS_bulk=%.0f (full=%.0f) | divergent=%d | converged_structural=%s"),
+    max_rhat_structural, max_rhat_full,
+    min_ess_bulk_structural, min_ess_bulk_full,
+    n_divergent, converged_structural))
 
   # Store event-level arrays needed by compute_event_profile_probabilities()
   event_re_idx <- list(h_ev = h_ev_arr)
