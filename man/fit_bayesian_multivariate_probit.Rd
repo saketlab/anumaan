@@ -114,12 +114,19 @@ Named list with elements: \code{draws}, \code{diagnostics},
       and is the recommended pass/fail signal for the resistance-profile
       model.
     \item \code{max_rhat_full}, \code{min_ess_bulk_full},
-      \code{min_ess_tail_full}, \code{latent_z_warning} -- computed over
-      every Stan parameter, including \code{z_free}. A handful of the
-      tens of thousands of \code{z_free} entries landing above the Rhat
-      1.01 / ESS 100 thresholds is expected even in a well-converged fit;
-      \code{latent_z_warning} flags this for visibility but should not by
-      itself be read as "the model failed to converge."
+      \code{min_ess_tail_full}, \code{converged_full} -- the same
+      computation, but over every Stan parameter, including \code{z_free}.
+      A handful of the tens of thousands of \code{z_free} entries landing
+      above the Rhat 1.01 / ESS 100 thresholds is expected even in a
+      well-converged fit, so \code{converged_full} being \code{FALSE}
+      while \code{converged_structural} is \code{TRUE} is normal and
+      should NOT by itself be read as "the model failed to converge."
+    \item \code{latent_diagnostic_warning} -- \code{TRUE} only when
+      \code{converged_structural} is \code{TRUE} but \code{converged_full}
+      is not, i.e. the structural (interpretable) parameters converged
+      cleanly while the \code{z_free} latent-utility block specifically
+      has diagnostic stragglers. Informational metadata, not a failure
+      signal.
     \item \code{n_divergent}, \code{n_treedepth_sat}, \code{ebfmi} --
       sampler-health diagnostics (not parameter-scope dependent).
   }

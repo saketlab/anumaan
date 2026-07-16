@@ -17,7 +17,7 @@
 # fit_bayesian_multivariate_probit()'s `diagnostics_structural` vs
 # `diagnostics_full`. This PDF shows the structural-parameter scope only;
 # it will NOT reflect Rhat/ESS stragglers confined to z_free. Check
-# `fit_obj$diagnostics$latent_z_warning` for that.
+# `fit_obj$diagnostics$latent_diagnostic_warning` for that.
 #
 # Called once per pathogen per experiment, after sampling completes.
 # Runtime: ~1-2 minutes. Has no effect on sampling speed.

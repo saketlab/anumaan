@@ -4640,12 +4640,19 @@ generated quantities {
 #'       and is the recommended pass/fail signal for the resistance-profile
 #'       model.
 #'     \item \code{max_rhat_full}, \code{min_ess_bulk_full},
-#'       \code{min_ess_tail_full}, \code{latent_z_warning} -- computed over
-#'       every Stan parameter, including \code{z_free}. A handful of the
-#'       tens of thousands of \code{z_free} entries landing above the Rhat
-#'       1.01 / ESS 100 thresholds is expected even in a well-converged fit;
-#'       \code{latent_z_warning} flags this for visibility but should not by
-#'       itself be read as "the model failed to converge."
+#'       \code{min_ess_tail_full}, \code{converged_full} -- the same
+#'       computation, but over every Stan parameter, including \code{z_free}.
+#'       A handful of the tens of thousands of \code{z_free} entries landing
+#'       above the Rhat 1.01 / ESS 100 thresholds is expected even in a
+#'       well-converged fit, so \code{converged_full} being \code{FALSE}
+#'       while \code{converged_structural} is \code{TRUE} is normal and
+#'       should NOT by itself be read as "the model failed to converge."
+#'     \item \code{latent_diagnostic_warning} -- \code{TRUE} only when
+#'       \code{converged_structural} is \code{TRUE} but \code{converged_full}
+#'       is not, i.e. the structural (interpretable) parameters converged
+#'       cleanly while the \code{z_free} latent-utility block specifically
+#'       has diagnostic stragglers. Informational metadata, not a failure
+#'       signal.
 #'     \item \code{n_divergent}, \code{n_treedepth_sat}, \code{ebfmi} --
 #'       sampler-health diagnostics (not parameter-scope dependent).
 #'   }
@@ -5175,8 +5182,26 @@ fit_bayesian_multivariate_probit <- function(
     isTRUE(is.na(min_ess_tail_structural) || min_ess_tail_structural >= 100) &&
     isTRUE(n_divergent == 0L) &&
     isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
-  latent_z_warning <-
-    isTRUE(max_rhat_full >= 1.01) || isTRUE(min_ess_bulk_full < 100)
+  # Full-scope analogue of converged_structural (includes z_free). Reported
+  # for visibility -- with tens of thousands of z_free parameters this will
+  # often be FALSE even when converged_structural is TRUE, which is expected,
+  # not a failure. converged_structural remains the recommended pass/fail
+  # flag for the resistance-profile model.
+  converged_full <-
+    isTRUE(max_rhat_full < 1.01) &&
+    isTRUE(min_ess_bulk_full >= 100) &&
+    isTRUE(is.na(min_ess_tail_full) || min_ess_tail_full >= 100) &&
+    isTRUE(n_divergent == 0L) &&
+    isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
+  # Narrower, more diagnostic signal than "converged_full is FALSE": TRUE only
+  # when the structural parameters have converged cleanly AND the full scope
+  # (i.e. the z_free latent block specifically) has not -- isolating "the
+  # augmented-data nuisance variables mix less well" from "the model itself
+  # has not converged" (the latter already shows up as converged_structural
+  # = FALSE and needs no separate flag).
+  latent_diagnostic_warning <-
+    isTRUE(converged_structural) &&
+    (isTRUE(max_rhat_full > 1.01) || isTRUE(min_ess_bulk_full < 100))
 
   # -- Warnings are based on the STRUCTURAL scope; z_free stragglers are ------
   # -- reported separately below so they don't masquerade as model failure. --
@@ -5197,12 +5222,12 @@ fit_bayesian_multivariate_probit <- function(
   if (n_divergent > 0L)
     warning(sprintf("%d divergent transition(s). Increase adapt_delta.", n_divergent),
             call. = FALSE)
-  if (latent_z_warning)
+  if (latent_diagnostic_warning)
     message(sprintf(
       paste0("[fit_bayesian_multivariate_probit] NOTE: latent z_free block (%d parameters) has ",
              "diagnostic stragglers (full-scope max Rhat = %.3f, min ESS bulk = %.0f) even though ",
-             "structural parameters look fine. This is informational only and does NOT affect ",
-             "converged_structural -- see $diagnostics$latent_z_warning."),
+             "structural parameters converged cleanly. This is informational only and does NOT ",
+             "affect converged_structural -- see $diagnostics$latent_diagnostic_warning."),
       n_z_free, max_rhat_full, min_ess_bulk_full))
 
   diag_tbl <- tibble::tibble(
@@ -5227,7 +5252,8 @@ fit_bayesian_multivariate_probit <- function(
     min_ess_bulk_full       = round(min_ess_bulk_full, 1L),
     min_ess_tail_full       = round(min_ess_tail_full, 1L),
     converged_structural    = converged_structural,
-    latent_z_warning        = latent_z_warning
+    converged_full          = converged_full,
+    latent_diagnostic_warning = latent_diagnostic_warning
   )
 
   message(sprintf(
