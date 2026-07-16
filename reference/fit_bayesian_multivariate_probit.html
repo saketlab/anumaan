@@ -33,7 +33,7 @@ hierarchical Bayesian multivariate probit model via cmdstanr."><link rel="styles
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9016</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9017</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -214,7 +214,35 @@ are forwarded via <code>...</code>.</p></dd>
   <code>pathogen_col</code>, <code>pathogen_fitted</code>, <code>estimand</code>,
   <code>prior_config_used</code>, <code>sampler_config_used</code>,
   <code>eligibility_report</code>.</p>
-    </div>
+<p><code>diagnostics</code> is a one-row tibble reported in <strong>two scopes</strong>,
+  because the model has <code>N_events * D</code> latent <code>z_free</code> nuisance
+  parameters (probit data augmentation) that are excluded from
+  <code>draws</code>, <code>draws_summary.csv</code>, and <code><a href="plot_probit_diagnostics.html">plot_probit_diagnostics()</a></code>
+  but are still part of the Stan fit:</p><ul><li><p><code>max_rhat_structural</code>, <code>min_ess_bulk_structural</code>,
+      <code>min_ess_tail_structural</code>, <code>converged_structural</code> –
+      computed only over the retained structural parameters (<code>beta</code>,
+      <code>hospital_effect</code>/<code>patient_effect</code>/<code>admission_effect</code>,
+      <code>tau_*</code>, <code>R_*</code>, <code>Omega</code>, <code>lp__</code>). This is the
+      scope that matches what <code>draws</code> and the diagnostic plots show,
+      and is the recommended pass/fail signal for the resistance-profile
+      model.</p></li>
+<li><p><code>max_rhat_full</code>, <code>min_ess_bulk_full</code>,
+      <code>min_ess_tail_full</code>, <code>converged_full</code> – the same
+      computation, but over every Stan parameter, including <code>z_free</code>.
+      A handful of the tens of thousands of <code>z_free</code> entries landing
+      above the Rhat 1.01 / ESS 100 thresholds is expected even in a
+      well-converged fit, so <code>converged_full</code> being <code>FALSE</code>
+      while <code>converged_structural</code> is <code>TRUE</code> is normal and
+      should NOT by itself be read as "the model failed to converge."</p></li>
+<li><p><code>latent_diagnostic_warning</code> – <code>TRUE</code> only when
+      <code>converged_structural</code> is <code>TRUE</code> but <code>converged_full</code>
+      is not, i.e. the structural (interpretable) parameters converged
+      cleanly while the <code>z_free</code> latent-utility block specifically
+      has diagnostic stragglers. Informational metadata, not a failure
+      signal.</p></li>
+<li><p><code>n_divergent</code>, <code>n_treedepth_sat</code>, <code>ebfmi</code> –
+      sampler-health diagnostics (not parameter-scope dependent).</p></li>
+</ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Model (per pathogen):</strong>

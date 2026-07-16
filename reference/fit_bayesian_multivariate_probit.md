@@ -135,6 +135,38 @@ Named list with elements: `draws`, `diagnostics`, `fit`, `data_long`,
 `pathogen_fitted`, `estimand`, `prior_config_used`,
 `sampler_config_used`, `eligibility_report`.
 
+`diagnostics` is a one-row tibble reported in **two scopes**, because
+the model has `N_events * D` latent `z_free` nuisance parameters (probit
+data augmentation) that are excluded from `draws`, `draws_summary.csv`,
+and
+[`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md)
+but are still part of the Stan fit:
+
+- `max_rhat_structural`, `min_ess_bulk_structural`,
+  `min_ess_tail_structural`, `converged_structural` – computed only over
+  the retained structural parameters (`beta`,
+  `hospital_effect`/`patient_effect`/`admission_effect`, `tau_*`, `R_*`,
+  `Omega`, `lp__`). This is the scope that matches what `draws` and the
+  diagnostic plots show, and is the recommended pass/fail signal for the
+  resistance-profile model.
+
+- `max_rhat_full`, `min_ess_bulk_full`, `min_ess_tail_full`,
+  `converged_full` – the same computation, but over every Stan
+  parameter, including `z_free`. A handful of the tens of thousands of
+  `z_free` entries landing above the Rhat 1.01 / ESS 100 thresholds is
+  expected even in a well-converged fit, so `converged_full` being
+  `FALSE` while `converged_structural` is `TRUE` is normal and should
+  NOT by itself be read as "the model failed to converge."
+
+- `latent_diagnostic_warning` – `TRUE` only when `converged_structural`
+  is `TRUE` but `converged_full` is not, i.e. the structural
+  (interpretable) parameters converged cleanly while the `z_free`
+  latent-utility block specifically has diagnostic stragglers.
+  Informational metadata, not a failure signal.
+
+- `n_divergent`, `n_treedepth_sat`, `ebfmi` – sampler-health diagnostics
+  (not parameter-scope dependent).
+
 ## Details
 
 **Model (per pathogen):** \$\$Y\_{ed} = \mathbf{1}(Z\_{ed} \> 0)\$\$

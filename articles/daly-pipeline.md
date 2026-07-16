@@ -598,18 +598,18 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9016
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9017
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    Rcpp_1.1.1-1.1   
+#>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    Rcpp_1.1.2       
 #>  [5] tidyselect_1.2.1  tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2
 #>  [9] textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0     lattice_0.22-9   
 #> [13] R6_2.6.1          generics_0.1.4    knitr_1.51        htmlwidgets_1.6.4
 #> [17] tibble_3.3.1      desc_1.4.3        osqp_1.0.0        bslib_0.11.0     
-#> [21] pillar_1.11.1     rlang_1.2.0       utf8_1.2.6        cachem_1.1.0     
-#> [25] xfun_0.59         quadprog_1.5-8    fs_2.1.0          sass_0.4.10      
+#> [21] pillar_1.11.1     rlang_1.3.0       utf8_1.2.6        cachem_1.1.0     
+#> [25] xfun_0.60         quadprog_1.5-8    fs_2.1.0          sass_0.4.10      
 #> [29] S7_0.2.2          otel_0.2.0        cli_3.6.6         withr_3.0.3      
-#> [33] pkgdown_2.2.0     magrittr_2.0.5    digest_0.6.39     grid_4.6.1       
+#> [33] pkgdown_2.2.1     magrittr_2.0.5    digest_0.6.39     grid_4.6.1       
 #> [37] lifecycle_1.0.5   vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1       
 #> [41] ragg_1.5.2        purrr_1.2.2       rmarkdown_2.31    tools_4.6.1      
 #> [45] pkgconfig_2.0.3   htmltools_0.5.9
