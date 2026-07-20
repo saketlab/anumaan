@@ -92,12 +92,14 @@ are forwarded via \code{...}.}
 }
 \value{
 Named list with elements: \code{draws}, \code{diagnostics},
-  \code{fit}, \code{data_long}, \code{index_maps}, \code{X_design},
-  \code{class_cols}, \code{event_metadata}, \code{n_re_levels},
-  \code{upper_re_col}, \code{middle_re_col}, \code{lower_re_col},
-  \code{pathogen_col}, \code{pathogen_fitted}, \code{estimand},
-  \code{prior_config_used}, \code{sampler_config_used},
-  \code{eligibility_report}.
+  \code{diagnostics_detail}, \code{fit}, \code{data_long}, \code{index_maps},
+  \code{X_design}, \code{class_cols}, \code{event_metadata},
+  \code{n_re_levels}, \code{upper_re_col}, \code{middle_re_col},
+  \code{lower_re_col}, \code{pathogen_col}, \code{pathogen_fitted},
+  \code{estimand}, \code{prior_config_used}, \code{sampler_config_used},
+  \code{eligibility_report}. \code{diagnostics} is a one-row monitored
+  summary; \code{diagnostics_detail} contains monitored-parameter,
+  all-parameter, and chain-level diagnostic tables.
 }
 \description{
 Accepts wide-format event-level AST data (one row per organism-event, one
