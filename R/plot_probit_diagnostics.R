@@ -3,7 +3,7 @@
 # fit_bayesian_multivariate_probit().
 #
 # Pages produced (each skipped gracefully if data unavailable):
-#   1. Sampling trace plots      -- key params (beta, tau_*, lp__)
+#   1. Sampling trace plots      -- selected monitored parameters
 #   2. Warmup + sampling traces  -- requires CmdStanMCMC CSV files still on disk
 #   3. Rank plots                -- chain mixing diagnostic
 #   4. Beta posterior densities  -- 89% / 95% credible intervals
@@ -29,7 +29,9 @@
 #' @param experiment_id  Character. Experiment identifier (used in filename and titles).
 #' @param pathogen   Character. Pathogen name (used in plot titles).
 #' @param max_params Integer. Maximum number of parameters shown in trace/rank plots.
-#'   Defaults to 20. Only \code{beta}, \code{tau_*}, and \code{lp__} are ever included.
+#'   Defaults to 30. Includes \code{lp__}, all \code{tau_*}, and controlled
+#'   subsets of \code{beta}, random-effect terms, random-effect correlations,
+#'   and residual-correlation terms when available.
 #'
 #' @return Invisibly returns the path to the saved PDF, or \code{NULL} if skipped.
 #' @export
@@ -38,7 +40,7 @@ plot_probit_diagnostics <- function(
     output_dir,
     experiment_id,
     pathogen,
-    max_params  = 20L
+    max_params  = 30L
 ) {
 
   if (!requireNamespace("bayesplot", quietly = TRUE)) {
@@ -71,14 +73,32 @@ plot_probit_diagnostics <- function(
   pdf_path   <- file.path(output_dir, paste0(experiment_id, "_diagnostics.pdf"))
   title_base <- sprintf("%s\n%s", experiment_id, pathogen)
 
-  # -- Select key parameters (exclude z_free / RE arrays which are huge) ------
+  # -- Select key parameters (exclude z_free; sample large arrays sparingly) ---
   all_vars <- dimnames(draws)[[3]]
+  lp_vars <- grep("^lp__$", all_vars, value = TRUE)
+  tau_vars <- grep("^tau_", all_vars, value = TRUE)
+  beta_vars <- grep("^beta\\[", all_vars, value = TRUE)
+  re_vars <- c(
+    grep("^hospital_effect\\[", all_vars, value = TRUE),
+    grep("^patient_effect\\[", all_vars, value = TRUE),
+    grep("^admission_effect\\[", all_vars, value = TRUE)
+  )
+  corr_vars <- c(
+    grep("^R_hospital\\[", all_vars, value = TRUE),
+    grep("^R_patient\\[", all_vars, value = TRUE),
+    grep("^R_admission\\[", all_vars, value = TRUE)
+  )
+  omega_vars <- c(
+    grep("^Omega\\[", all_vars, value = TRUE),
+    grep("^L_Omega\\[", all_vars, value = TRUE)
+  )
   priority <- unique(c(
-    grep("^lp__$",            all_vars, value = TRUE),
-    grep("^beta\\[",          all_vars, value = TRUE),
-    grep("^tau_hospital\\[",  all_vars, value = TRUE),
-    grep("^tau_patient\\[",   all_vars, value = TRUE),
-    grep("^tau_admission\\[", all_vars, value = TRUE)
+    lp_vars,
+    tau_vars,
+    head(beta_vars, 10L),
+    head(re_vars, 6L),
+    head(corr_vars, 6L),
+    head(omega_vars, 6L)
   ))
   if (length(priority) > max_params) priority <- priority[seq_len(max_params)]
 

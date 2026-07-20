@@ -27,7 +27,9 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::pkgdown
+          extra-packages: |
+            stan-dev/cmdstanr
+            any::pkgdown
           needs: website
 
       - name: Build site
