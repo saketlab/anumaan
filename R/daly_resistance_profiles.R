@@ -4618,12 +4618,14 @@ generated quantities {
 #' @param ... Additional arguments forwarded to \code{cmdstanr::sample()}.
 #'
 #' @return Named list with elements: \code{draws}, \code{diagnostics},
-#'   \code{fit}, \code{data_long}, \code{index_maps}, \code{X_design},
-#'   \code{class_cols}, \code{event_metadata}, \code{n_re_levels},
-#'   \code{upper_re_col}, \code{middle_re_col}, \code{lower_re_col},
-#'   \code{pathogen_col}, \code{pathogen_fitted}, \code{estimand},
-#'   \code{prior_config_used}, \code{sampler_config_used},
-#'   \code{eligibility_report}.
+#'   \code{diagnostics_detail}, \code{fit}, \code{data_long}, \code{index_maps},
+#'   \code{X_design}, \code{class_cols}, \code{event_metadata},
+#'   \code{n_re_levels}, \code{upper_re_col}, \code{middle_re_col},
+#'   \code{lower_re_col}, \code{pathogen_col}, \code{pathogen_fitted},
+#'   \code{estimand}, \code{prior_config_used}, \code{sampler_config_used},
+#'   \code{eligibility_report}. \code{diagnostics} is a one-row monitored
+#'   summary; \code{diagnostics_detail} contains monitored-parameter,
+#'   all-parameter, and chain-level diagnostic tables.
 #' @export
 fit_bayesian_multivariate_probit <- function(
     event_class_data,
@@ -4797,11 +4799,20 @@ fit_bayesian_multivariate_probit <- function(
   )
   n_low_cotested <- sum(!co_test_report$sufficient, na.rm = TRUE)
   if (n_low_cotested > 0L) {
-    msg <- sprintf(
-      paste0("%d hospital x class-pair combination(s) have fewer than %d co-tested events. ",
-             "Omega_{jk} for these pairs will be informed mainly by the LKJ prior. ",
-             "See $eligibility_report$pairwise. Consider dropping classes with low overlap."),
-      n_low_cotested, pe$min_pairwise_cotested)
+    if (identical(residual_structure, "correlated")) {
+      msg <- sprintf(
+        paste0("%d hospital x class-pair combination(s) have fewer than %d co-tested events. ",
+               "Omega_{jk} for these pairs may be informed mainly by the LKJ prior. ",
+               "See $eligibility_report$pairwise. Consider identity residuals or dropping classes with low overlap."),
+        n_low_cotested, pe$min_pairwise_cotested)
+    } else {
+      msg <- sprintf(
+        paste0("%d hospital x class-pair combination(s) have fewer than %d co-tested events. ",
+               "Residual Omega is not estimated because residual_structure='identity'. ",
+               "Joint profile estimates for weakly co-tested class pairs may be less data-supported. ",
+               "See $eligibility_report$pairwise."),
+        n_low_cotested, pe$min_pairwise_cotested)
+    }
     if (elig_action == "stop") stop(msg, call. = FALSE) else warning(msg, call. = FALSE)
   }
 
@@ -5081,9 +5092,55 @@ fit_bayesian_multivariate_probit <- function(
     error = function(e) fit$draws(format = "draws_array")
   )
 
+  .probit_parameter_group <- function(parameter) {
+    out <- rep("other", length(parameter))
+    out[grepl("^beta(\\[|$)", parameter)] <- "beta"
+    out[grepl("^hospital_effect(\\[|$)", parameter)] <- "hospital_effect"
+    out[grepl("^patient_effect(\\[|$)", parameter)] <- "patient_effect"
+    out[grepl("^admission_effect(\\[|$)", parameter)] <- "admission_effect"
+    out[grepl("^R_hospital(\\[|$)", parameter)] <- "R_hospital"
+    out[grepl("^R_patient(\\[|$)", parameter)] <- "R_patient"
+    out[grepl("^R_admission(\\[|$)", parameter)] <- "R_admission"
+    out[grepl("^(Omega|L_Omega)(\\[|$)", parameter)] <- "Omega"
+    out[grepl("^tau_hospital(\\[|$)", parameter)] <- "tau_hospital"
+    out[grepl("^tau_patient(\\[|$)", parameter)] <- "tau_patient"
+    out[grepl("^tau_admission(\\[|$)", parameter)] <- "tau_admission"
+    out[grepl("^z_free(\\[|$)", parameter)] <- "z_free"
+    out[parameter == "lp__"] <- "lp__"
+    out
+  }
+  .combine_diag_tables <- function(rhat_tbl, ess_tbl) {
+    out <- merge(rhat_tbl, ess_tbl, by = "variable", all = TRUE)
+    out$parameter_group <- .probit_parameter_group(out$variable)
+    out[, c("variable", "parameter_group",
+            setdiff(names(out), c("variable", "parameter_group"))),
+        drop = FALSE]
+  }
+  .diag_extreme <- function(tbl, value_col, direction = c("max", "min")) {
+    direction <- match.arg(direction)
+    if (is.null(tbl) || !value_col %in% names(tbl))
+      return(list(value = NA_real_, parameter = NA_character_, group = NA_character_))
+    vals <- suppressWarnings(as.numeric(tbl[[value_col]]))
+    ok <- !is.na(vals)
+    if (!any(ok))
+      return(list(value = NA_real_, parameter = NA_character_, group = NA_character_))
+    idx <- base::which(ok)[if (identical(direction, "max")) which.max(vals[ok]) else which.min(vals[ok])]
+    list(
+      value = vals[[idx]],
+      parameter = tbl$variable[[idx]],
+      group = tbl$parameter_group[[idx]]
+    )
+  }
+
   # -- Strengthened diagnostics -----------------------------------------------
-  rhat_tbl  <- fit$summary(variables = NULL, "rhat")
-  ess_tbl   <- fit$summary(variables = NULL, "ess_bulk", "ess_tail")
+  # Primary diagnostics use the same monitored parameter set saved in draws_arr.
+  # Full diagnostics include z_free and are reported separately for visibility.
+  rhat_tbl_monitored <- fit$summary(variables = keep_vars, "rhat")
+  ess_tbl_monitored  <- fit$summary(variables = keep_vars, "ess_bulk", "ess_tail")
+  rhat_tbl_all       <- fit$summary(variables = NULL, "rhat")
+  ess_tbl_all        <- fit$summary(variables = NULL, "ess_bulk", "ess_tail")
+  monitored_diag_tbl <- .combine_diag_tables(rhat_tbl_monitored, ess_tbl_monitored)
+  all_diag_tbl       <- .combine_diag_tables(rhat_tbl_all, ess_tbl_all)
   samp_diag <- fit$sampler_diagnostics(format = "matrix")
 
   n_divergent         <- sum(samp_diag[, "divergent__"], na.rm = TRUE)
@@ -5092,32 +5149,52 @@ fit_bayesian_multivariate_probit <- function(
                            sum(samp_diag[, "treedepth__"] >= effective_max_td,
                                na.rm = TRUE)
                          else NA_integer_
-  max_rhat      <- max(rhat_tbl$rhat,     na.rm = TRUE)
-  min_ess_bulk  <- min(ess_tbl$ess_bulk,  na.rm = TRUE)
-  min_ess_tail  <- if ("ess_tail" %in% names(ess_tbl))
-                     min(ess_tbl$ess_tail, na.rm = TRUE)
-                   else NA_real_
+  max_rhat_monitored <- .diag_extreme(monitored_diag_tbl, "rhat", "max")
+  min_bulk_monitored <- .diag_extreme(monitored_diag_tbl, "ess_bulk", "min")
+  min_tail_monitored <- .diag_extreme(monitored_diag_tbl, "ess_tail", "min")
+  max_rhat_all <- .diag_extreme(all_diag_tbl, "rhat", "max")
+  min_bulk_all <- .diag_extreme(all_diag_tbl, "ess_bulk", "min")
+  min_tail_all <- .diag_extreme(all_diag_tbl, "ess_tail", "min")
+
+  max_rhat     <- max_rhat_monitored$value
+  min_ess_bulk <- min_bulk_monitored$value
+  min_ess_tail <- min_tail_monitored$value
 
   # E-BFMI per chain (robust to missing chain__ column)
-  ebfmi <- tryCatch({
-    if (!"energy__" %in% colnames(samp_diag)) return(NA_real_)
-    e_vals   <- samp_diag[, "energy__"]
-    n_chains <- as.integer(sc$chains)
-    chain_id <- if ("chain__" %in% colnames(samp_diag)) {
-      samp_diag[, "chain__"]
+  ebfmi_vals <- tryCatch({
+    if (!"energy__" %in% colnames(samp_diag)) {
+      NA_real_
     } else {
-      n_per_chain <- length(e_vals) %/% n_chains
-      rep(seq_len(n_chains), each = n_per_chain)[seq_along(e_vals)]
+      e_vals   <- samp_diag[, "energy__"]
+      n_chains <- as.integer(sc$chains)
+      chain_id <- if ("chain__" %in% colnames(samp_diag)) {
+        samp_diag[, "chain__"]
+      } else {
+        n_per_chain <- length(e_vals) %/% n_chains
+        rep(seq_len(n_chains), each = n_per_chain)[seq_along(e_vals)]
+      }
+      vapply(unique(chain_id), function(ch) {
+        e_ch <- e_vals[chain_id == ch]
+        if (length(e_ch) < 2L) return(NA_real_)
+        var_e <- stats::var(e_ch)
+        if (is.na(var_e) || var_e < .Machine$double.eps) return(NA_real_)
+        mean(diff(e_ch)^2) / var_e
+      }, numeric(1L))
     }
-    ebfmi_vals <- vapply(unique(chain_id), function(ch) {
-      e_ch <- e_vals[chain_id == ch]
-      if (length(e_ch) < 2L) return(NA_real_)
-      var_e <- stats::var(e_ch)
-      if (is.na(var_e) || var_e < .Machine$double.eps) return(NA_real_)
-      mean(diff(e_ch)^2) / var_e
-    }, numeric(1L))
-    mean(ebfmi_vals, na.rm = TRUE)
   }, error = function(e) NA_real_)
+  ebfmi_min <- min(ebfmi_vals, na.rm = TRUE)
+  ebfmi_mean <- mean(ebfmi_vals, na.rm = TRUE)
+  if (is.infinite(ebfmi_min)) ebfmi_min <- NA_real_
+  if (is.nan(ebfmi_mean)) ebfmi_mean <- NA_real_
+  ebfmi_by_chain <- if (all(is.na(ebfmi_vals))) {
+    NA_character_
+  } else {
+    paste(sprintf("chain%s=%.3f", seq_along(ebfmi_vals), ebfmi_vals), collapse = "; ")
+  }
+  chain_diag_tbl <- tibble::tibble(
+    chain = seq_along(ebfmi_vals),
+    ebfmi = as.numeric(ebfmi_vals)
+  )
 
   if (max_rhat > 1.01)
     warning(sprintf("Convergence concern: max Rhat = %.3f (> 1.01). ",
@@ -5131,8 +5208,9 @@ fit_bayesian_multivariate_probit <- function(
   if (!is.na(n_treedepth) && n_treedepth > 0L)
     warning(sprintf("%d iteration(s) saturated max treedepth. Increase max_treedepth.",
                     n_treedepth), call. = FALSE)
-  if (!is.na(ebfmi) && ebfmi < 0.3)
-    warning(sprintf("Low E-BFMI = %.3f (< 0.3). Possible poor geometry.", ebfmi), call. = FALSE)
+  if (!is.na(ebfmi_min) && ebfmi_min < 0.3)
+    warning(sprintf("Low minimum chain E-BFMI = %.3f (< 0.3). Possible poor geometry.",
+                    ebfmi_min), call. = FALSE)
   if (n_divergent > 0L)
     warning(sprintf("%d divergent transition(s). Increase adapt_delta.", n_divergent),
             call. = FALSE)
@@ -5150,10 +5228,25 @@ fit_bayesian_multivariate_probit <- function(
     n_admission_groups = if (n_re_levels == 3L) as.integer(Adm) else NA_integer_,
     n_divergent       = as.integer(n_divergent),
     n_treedepth_sat   = as.integer(n_treedepth),
-    ebfmi             = round(ebfmi, 4L),
+    ebfmi             = round(ebfmi_min, 4L),
+    ebfmi_min         = round(ebfmi_min, 4L),
+    ebfmi_mean        = round(ebfmi_mean, 4L),
+    ebfmi_by_chain    = ebfmi_by_chain,
     max_rhat          = round(max_rhat, 4L),
     min_ess_bulk      = round(min_ess_bulk, 1L),
-    min_ess_tail      = round(min_ess_tail, 1L)
+    min_ess_tail      = round(min_ess_tail, 1L),
+    parameter_with_max_rhat = max_rhat_monitored$parameter,
+    parameter_group_with_max_rhat = max_rhat_monitored$group,
+    parameter_with_min_ess_bulk = min_bulk_monitored$parameter,
+    parameter_group_with_min_ess_bulk = min_bulk_monitored$group,
+    parameter_with_min_ess_tail = min_tail_monitored$parameter,
+    parameter_group_with_min_ess_tail = min_tail_monitored$group,
+    max_rhat_monitored     = round(max_rhat_monitored$value, 4L),
+    min_ess_bulk_monitored = round(min_bulk_monitored$value, 1L),
+    min_ess_tail_monitored = round(min_tail_monitored$value, 1L),
+    max_rhat_all           = round(max_rhat_all$value, 4L),
+    min_ess_bulk_all       = round(min_bulk_all$value, 1L),
+    min_ess_tail_all       = round(min_tail_all$value, 1L)
   )
 
   message(sprintf(
@@ -5168,6 +5261,11 @@ fit_bayesian_multivariate_probit <- function(
   list(
     draws              = draws_arr,
     diagnostics        = diag_tbl,
+    diagnostics_detail = list(
+      monitored_parameters = tibble::as_tibble(monitored_diag_tbl),
+      all_parameters       = tibble::as_tibble(all_diag_tbl),
+      chains               = chain_diag_tbl
+    ),
     fit                = fit,
     data_long          = tibble::as_tibble(data_long),
     index_maps         = list(
