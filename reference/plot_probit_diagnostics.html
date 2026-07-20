@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9017</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9018</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@
 <span>  <span class="va">output_dir</span>,</span>
 <span>  <span class="va">experiment_id</span>,</span>
 <span>  <span class="va">pathogen</span>,</span>
-<span>  max_params <span class="op">=</span> <span class="fl">20L</span></span>
+<span>  max_params <span class="op">=</span> <span class="fl">30L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -106,7 +106,9 @@
 
 <dt id="arg-max-params">max_params<a class="anchor" aria-label="anchor" href="#arg-max-params"></a></dt>
 <dd><p>Integer. Maximum number of parameters shown in trace/rank plots.
-Defaults to 20. Only <code>beta</code>, <code>tau_*</code>, and <code>lp__</code> are ever included.</p></dd>
+Defaults to 30. Includes <code>lp__</code>, all <code>tau_*</code>, and controlled
+subsets of <code>beta</code>, random-effect terms, random-effect correlations,
+and residual-correlation terms when available.</p></dd>
 
 </dl></div>
     <div class="section level2">

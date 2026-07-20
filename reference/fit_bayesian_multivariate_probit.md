@@ -129,43 +129,44 @@ fit_bayesian_multivariate_probit(
 
 ## Value
 
-Named list with elements: `draws`, `diagnostics`, `fit`, `data_long`,
-`index_maps`, `X_design`, `class_cols`, `event_metadata`, `n_re_levels`,
-`upper_re_col`, `middle_re_col`, `lower_re_col`, `pathogen_col`,
-`pathogen_fitted`, `estimand`, `prior_config_used`,
-`sampler_config_used`, `eligibility_report`.
+Named list with elements: `draws`, `diagnostics`, `diagnostics_detail`,
+`fit`, `data_long`, `index_maps`, `X_design`, `class_cols`,
+`event_metadata`, `n_re_levels`, `upper_re_col`, `middle_re_col`,
+`lower_re_col`, `pathogen_col`, `pathogen_fitted`, `estimand`,
+`prior_config_used`, `sampler_config_used`, `eligibility_report`.
 
 `diagnostics` is a one-row tibble reported in **two scopes**, because
-the model has `N_events * D` latent `z_free` nuisance parameters (probit
-data augmentation) that are excluded from `draws`, `draws_summary.csv`,
-and
-[`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md)
+the model has `N_events * D` latent `z_free` nuisance parameters from
+probit data augmentation. These latent variables are excluded from
+`draws`, `draws_summary.csv`, and
+[`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md),
 but are still part of the Stan fit:
 
 - `max_rhat_structural`, `min_ess_bulk_structural`,
   `min_ess_tail_structural`, `converged_structural` – computed only over
-  the retained structural parameters (`beta`,
-  `hospital_effect`/`patient_effect`/`admission_effect`, `tau_*`, `R_*`,
-  `Omega`, `lp__`). This is the scope that matches what `draws` and the
-  diagnostic plots show, and is the recommended pass/fail signal for the
-  resistance-profile model.
+  the retained structural parameters such as `beta`, random-effect
+  terms, `tau_*`, `R_*`, `Omega` when present, and `lp__`. This is the
+  scope that matches `draws` and diagnostic plots, and is the
+  recommended pass/fail signal for the resistance-profile model.
 
 - `max_rhat_full`, `min_ess_bulk_full`, `min_ess_tail_full`,
-  `converged_full` – the same computation, but over every Stan
-  parameter, including `z_free`. A handful of the tens of thousands of
-  `z_free` entries landing above the Rhat 1.01 / ESS 100 thresholds is
-  expected even in a well-converged fit, so `converged_full` being
-  `FALSE` while `converged_structural` is `TRUE` is normal and should
-  NOT by itself be read as "the model failed to converge."
+  `converged_full` – the same computation over every Stan parameter,
+  including `z_free`. A small number of `z_free` entries crossing the
+  Rhat 1.01 or ESS 100 thresholds can occur even when the structural
+  parameters are well behaved. Therefore, `converged_full = FALSE` while
+  `converged_structural = TRUE` should not by itself be read as model
+  failure.
 
-- `latent_diagnostic_warning` – `TRUE` only when `converged_structural`
-  is `TRUE` but `converged_full` is not, i.e. the structural
-  (interpretable) parameters converged cleanly while the `z_free`
-  latent-utility block specifically has diagnostic stragglers.
-  Informational metadata, not a failure signal.
+- `latent_diagnostic_warning` – `TRUE` when `converged_structural` is
+  `TRUE` but `converged_full` is `FALSE`. This is informational
+  metadata, not a failure signal.
 
-- `n_divergent`, `n_treedepth_sat`, `ebfmi` – sampler-health diagnostics
-  (not parameter-scope dependent).
+- `n_divergent`, `n_treedepth_sat`, `ebfmi_min`, `ebfmi_mean`, and
+  `ebfmi_by_chain` – sampler-health diagnostics, not parameter-scope
+  dependent.
+
+`diagnostics_detail` contains structural-parameter, full-parameter, and
+chain-level diagnostic tables.
 
 ## Details
 

@@ -11,7 +11,7 @@ plot_probit_diagnostics(
   output_dir,
   experiment_id,
   pathogen,
-  max_params = 20L
+  max_params = 30L
 )
 ```
 
@@ -37,7 +37,9 @@ plot_probit_diagnostics(
 - max_params:
 
   Integer. Maximum number of parameters shown in trace/rank plots.
-  Defaults to 20. Only `beta`, `tau_*`, and `lp__` are ever included.
+  Defaults to 30. Includes `lp__`, all `tau_*`, and controlled subsets
+  of `beta`, random-effect terms, random-effect correlations, and
+  residual-correlation terms when available.
 
 ## Value
 
