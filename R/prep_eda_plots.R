@@ -198,8 +198,8 @@ plot_top_organisms <- function(data,
         size      = 3.8,
         fontface  = "bold"
       ) +
-      ggplot2::coord_flip() +
-      ggplot2::expand_limits(y = max(top_org$patients) * 1.25) +
+      ggplot2::coord_flip(clip = "off") +
+      ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
       ggplot2::labs(
         x     = "Organism",
         y     = "Number of Unique Patients",
@@ -282,8 +282,8 @@ plot_top_organisms <- function(data,
         size     = 3.8,
         fontface = "bold"
       ) +
-      ggplot2::coord_flip() +
-      ggplot2::expand_limits(y = max(top_org$patients) * 1.25) +
+      ggplot2::coord_flip(clip = "off") +
+      ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
       ggplot2::labs(
         x     = "Organism",
         y     = "Number of Unique Patients",
@@ -314,10 +314,10 @@ plot_top_organisms <- function(data,
       size     = 3.8,
       fontface = "bold"
     ) +
-    ggplot2::coord_flip() +
+    ggplot2::coord_flip(clip = "off") +
     tidytext::scale_x_reordered() +
-    ggplot2::facet_wrap(~facet_label, ncol = ncol, scales = "free_y") +
-    ggplot2::expand_limits(y = max(top_org$patients) * 1.25) +
+    ggplot2::facet_wrap(~facet_label, ncol = ncol, scales = "free") +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0.02, 0.18))) +
     ggplot2::labs(
       x     = "Organism",
       y     = "Number of Unique Patients",

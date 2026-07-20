@@ -4619,13 +4619,26 @@ generated quantities {
 #'
 #' @return Named list with elements: \code{draws}, \code{diagnostics},
 #'   \code{diagnostics_detail}, \code{fit}, \code{data_long}, \code{index_maps},
-#'   \code{X_design}, \code{class_cols}, \code{event_metadata},
-#'   \code{n_re_levels}, \code{upper_re_col}, \code{middle_re_col},
-#'   \code{lower_re_col}, \code{pathogen_col}, \code{pathogen_fitted},
-#'   \code{estimand}, \code{prior_config_used}, \code{sampler_config_used},
-#'   \code{eligibility_report}. \code{diagnostics} is a one-row monitored
-#'   summary; \code{diagnostics_detail} contains monitored-parameter,
-#'   all-parameter, and chain-level diagnostic tables.
+#'   \code{X_design}, \code{X_event}, \code{event_re_idx}, \code{class_cols},
+#'   \code{event_metadata}, \code{n_re_levels}, \code{upper_re_col},
+#'   \code{middle_re_col}, \code{lower_re_col}, \code{patient_key_col},
+#'   \code{admission_key_col}, \code{pathogen_col}, \code{pathogen_fitted},
+#'   \code{residual_structure}, \code{estimand}, \code{prior_config_used},
+#'   \code{sampler_config_used}, and \code{eligibility_report}.
+#'
+#'   \code{diagnostics} is a one-row monitored summary. The main diagnostic
+#'   fields \code{max_rhat}, \code{min_ess_bulk}, and \code{min_ess_tail}
+#'   are computed over the monitored parameters retained in \code{draws}.
+#'   These exclude the latent \code{z_free} nuisance parameters used for
+#'   probit data augmentation.
+#'
+#'   Full-fit diagnostic fields, including \code{max_rhat_all},
+#'   \code{min_ess_bulk_all}, and \code{min_ess_tail_all}, are reported
+#'   separately for visibility and include all Stan parameters, including
+#'   \code{z_free}.
+#'
+#'   \code{diagnostics_detail} contains monitored-parameter, all-parameter,
+#'   and chain-level diagnostic tables for detailed inspection.
 #' @export
 fit_bayesian_multivariate_probit <- function(
     event_class_data,
@@ -5196,15 +5209,44 @@ fit_bayesian_multivariate_probit <- function(
     ebfmi = as.numeric(ebfmi_vals)
   )
 
-  if (max_rhat > 1.01)
-    warning(sprintf("Convergence concern: max Rhat = %.3f (> 1.01). ",
-                    max_rhat,
+  converged_structural <-
+    isTRUE(max_rhat_structural < 1.01) &&
+    isTRUE(min_ess_bulk_structural >= 100) &&
+    isTRUE(is.na(min_ess_tail_structural) || min_ess_tail_structural >= 100) &&
+    isTRUE(n_divergent == 0L) &&
+    isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
+  # Full-scope analogue of converged_structural (includes z_free). Reported
+  # for visibility -- with tens of thousands of z_free parameters this will
+  # often be FALSE even when converged_structural is TRUE, which is expected,
+  # not a failure. converged_structural remains the recommended pass/fail
+  # flag for the resistance-profile model.
+  converged_full <-
+    isTRUE(max_rhat_full < 1.01) &&
+    isTRUE(min_ess_bulk_full >= 100) &&
+    isTRUE(is.na(min_ess_tail_full) || min_ess_tail_full >= 100) &&
+    isTRUE(n_divergent == 0L) &&
+    isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
+  # Narrower, more diagnostic signal than "converged_full is FALSE": TRUE only
+  # when the structural parameters have converged cleanly AND the full scope
+  # (i.e. the z_free latent block specifically) has not -- isolating "the
+  # augmented-data nuisance variables mix less well" from "the model itself
+  # has not converged" (the latter already shows up as converged_structural
+  # = FALSE and needs no separate flag).
+  latent_diagnostic_warning <-
+    isTRUE(converged_structural) &&
+    (isTRUE(max_rhat_full > 1.01) || isTRUE(min_ess_bulk_full < 100))
+
+  # -- Warnings are based on the STRUCTURAL scope; z_free stragglers are ------
+  # -- reported separately below so they don't masquerade as model failure. --
+  if (max_rhat_structural > 1.01)
+    warning(sprintf("Convergence concern: structural max Rhat = %.3f (> 1.01). %s",
+                    max_rhat_structural,
                     "Increase iter_warmup or adapt_delta."), call. = FALSE)
-  if (min_ess_bulk < 100L)
-    warning(sprintf("Low bulk ESS: %.0f (< 100). Profile probabilities may be unreliable.",
-                    min_ess_bulk), call. = FALSE)
-  if (!is.na(min_ess_tail) && min_ess_tail < 100L)
-    warning(sprintf("Low tail ESS: %.0f (< 100).", min_ess_tail), call. = FALSE)
+  if (min_ess_bulk_structural < 100L)
+    warning(sprintf("Low structural bulk ESS: %.0f (< 100). Profile probabilities may be unreliable.",
+                    min_ess_bulk_structural), call. = FALSE)
+  if (!is.na(min_ess_tail_structural) && min_ess_tail_structural < 100L)
+    warning(sprintf("Low structural tail ESS: %.0f (< 100).", min_ess_tail_structural), call. = FALSE)
   if (!is.na(n_treedepth) && n_treedepth > 0L)
     warning(sprintf("%d iteration(s) saturated max treedepth. Increase max_treedepth.",
                     n_treedepth), call. = FALSE)
@@ -5214,6 +5256,13 @@ fit_bayesian_multivariate_probit <- function(
   if (n_divergent > 0L)
     warning(sprintf("%d divergent transition(s). Increase adapt_delta.", n_divergent),
             call. = FALSE)
+  if (latent_diagnostic_warning)
+    message(sprintf(
+      paste0("[fit_bayesian_multivariate_probit] NOTE: latent z_free block (%d parameters) has ",
+             "diagnostic stragglers (full-scope max Rhat = %.3f, min ESS bulk = %.0f) even though ",
+             "structural parameters converged cleanly. This is informational only and does NOT ",
+             "affect converged_structural -- see $diagnostics$latent_diagnostic_warning."),
+      n_z_free, max_rhat_full, min_ess_bulk_full))
 
   diag_tbl <- tibble::tibble(
     n_chains          = as.integer(sc$chains),
@@ -5250,8 +5299,11 @@ fit_bayesian_multivariate_probit <- function(
   )
 
   message(sprintf(
-    "[fit_bayesian_multivariate_probit] Done. max_Rhat=%.3f | min_ESS_bulk=%.0f | divergent=%d",
-    max_rhat, min_ess_bulk, n_divergent))
+    paste0("[fit_bayesian_multivariate_probit] Done. structural max_Rhat=%.3f (full incl. z_free=%.3f) | ",
+           "structural min_ESS_bulk=%.0f (full=%.0f) | divergent=%d | converged_structural=%s"),
+    max_rhat_structural, max_rhat_full,
+    min_ess_bulk_structural, min_ess_bulk_full,
+    n_divergent, converged_structural))
 
   # Store event-level arrays needed by compute_event_profile_probabilities()
   event_re_idx <- list(h_ev = h_ev_arr)

@@ -9,8 +9,15 @@
 #   4. Beta posterior densities  -- 89% / 95% credible intervals
 #   5. NUTS energy (E-BFMI)      -- geometry health check
 #   6. NUTS step size & acceptance rate
-#   7. Rhat histogram            -- convergence across all parameters
-#   8. ESS histogram             -- sampling efficiency across all parameters
+#   7. Rhat histogram            -- convergence across retained structural parameters
+#   8. ESS histogram             -- sampling efficiency across retained structural parameters
+#
+# NOTE: `fit_obj$draws` (and therefore every page in this PDF) deliberately
+# excludes the N_events x D `z_free` latent probit-utility matrix -- see
+# fit_bayesian_multivariate_probit()'s `diagnostics_structural` vs
+# `diagnostics_full`. This PDF shows the structural-parameter scope only;
+# it will NOT reflect Rhat/ESS stragglers confined to z_free. Check
+# `fit_obj$diagnostics$latent_diagnostic_warning` for that.
 #
 # Called once per pathogen per experiment, after sampling completes.
 # Runtime: ~1-2 minutes. Has no effect on sampling speed.
@@ -224,9 +231,10 @@ plot_probit_diagnostics <- function(
                           label = " Rhat = 1.01", hjust = 0, vjust = 1.5,
                           colour = "red", size = 3.5) +
         ggplot2::labs(
-          title    = paste(title_base, "-- Rhat Distribution"),
-          subtitle = sprintf("max Rhat = %.3f | %d parameters | red line at 1.01",
-                             max_rhat, nrow(rhat_df)),
+          title    = paste(title_base, "-- Rhat Distribution (structural parameters)"),
+          subtitle = sprintf(
+            "max Rhat = %.3f | %d structural parameters | red line at 1.01 | excludes z_free latent utilities",
+            max_rhat, nrow(rhat_df)),
           x = "Rhat", y = "Count"
         ) +
         ggplot2::theme_minimal(base_size = 12) +
@@ -258,9 +266,10 @@ plot_probit_diagnostics <- function(
         ggplot2::scale_fill_manual(
           values = c("ESS bulk" = "#2166AC", "ESS tail" = "#74ADD1")) +
         ggplot2::labs(
-          title    = paste(title_base, "-- ESS Distribution"),
-          subtitle = sprintf("min ESS bulk = %d | min ESS tail = %d | red line at 100",
-                             min_bulk, min_tail),
+          title    = paste(title_base, "-- ESS Distribution (structural parameters)"),
+          subtitle = sprintf(
+            "min ESS bulk = %d | min ESS tail = %d | red line at 100 | excludes z_free latent utilities",
+            min_bulk, min_tail),
           x = "Effective Sample Size", y = "Count", fill = NULL
         ) +
         ggplot2::theme_minimal(base_size = 12) +
