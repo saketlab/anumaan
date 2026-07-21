@@ -4921,6 +4921,109 @@ plot_resistance_by_organism <- function(
 }
 
 
+#' Plot Infection Type (HAI/CAI) by Location (ICU/Ward), Faceted by Hospital
+#'
+#' 100%-stacked bar chart showing, for each hospital, the share of infection
+#' types (e.g. HAI vs CAI) among patients in each location (e.g. ICU vs Ward).
+#' Each bar is normalised \emph{within} its location, so the two bars in a
+#' panel directly compare \eqn{P(\text{infection type} \mid \text{location})}
+#' -- i.e. whether infection type is associated with location, per hospital.
+#'
+#' \strong{Deduplication:} unique patients per centre x location x infection
+#' type. Only the requested \code{location_levels} and \code{infection_levels}
+#' are kept (other/blank/compound values are dropped).
+#'
+#' @param data             Data frame. Long-format AMR / cleaned stewardship data.
+#' @param patient_col      Character. Patient ID column.
+#'   Default \code{"PatientInformation_id"}.
+#' @param center_col       Character. Centre/facility column.
+#'   Default \code{"center_name"}.
+#' @param location_col     Character. Location column. Default \code{"location"}.
+#' @param infection_col    Character. Infection-type column.
+#'   Default \code{"infection_type"}.
+#' @param location_levels  Character vector. Location values to keep (become the
+#'   x-axis bars). Default \code{c("ICU", "Ward")}.
+#' @param infection_levels Character vector. Infection-type values to keep
+#'   (become the stacked fills). Default \code{c("HAI", "CAI")}.
+#' @param colours          Named character vector of fill colours keyed by
+#'   \code{infection_levels}. Auto-generated if \code{NULL}.
+#' @param ncol             Integer. Number of facet columns. Default \code{5}.
+#' @param base_size        Numeric. Base font size. Default \code{12}.
+#' @param show_counts      Logical. Print unique-patient counts inside each
+#'   segment. Default \code{TRUE}.
+#' @param title            Character. Custom title. Auto-generated if \code{NULL}.
+#'
+#' @return A \code{ggplot} object (one panel per centre).
+#' @export
+plot_infection_type_by_location <- function(data,
+                                            patient_col      = "PatientInformation_id",
+                                            center_col       = "center_name",
+                                            location_col     = "location",
+                                            infection_col    = "infection_type",
+                                            location_levels  = c("ICU", "Ward"),
+                                            infection_levels = c("HAI", "CAI"),
+                                            colours          = NULL,
+                                            ncol             = 5,
+                                            base_size        = 12,
+                                            show_counts      = TRUE,
+                                            title            = NULL) {
+
+  required_cols <- c(patient_col, center_col, location_col, infection_col)
+  missing_cols  <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0)
+    stop(sprintf("Column(s) not found in data: %s", paste(missing_cols, collapse = ", ")))
+
+  if (is.null(colours)) {
+    pal <- c("#d73027", "#4575b4", "#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3")
+    colours <- stats::setNames(pal[seq_along(infection_levels)], infection_levels)
+  }
+
+  loc <- trimws(as.character(data[[location_col]]))
+  inf <- trimws(as.character(data[[infection_col]]))
+  keep <- loc %in% location_levels & inf %in% infection_levels & !is.na(data[[patient_col]])
+
+  df <- data.frame(
+    center = as.character(data[[center_col]])[keep],
+    pid    = data[[patient_col]][keep],
+    loc    = loc[keep],
+    inf    = inf[keep],
+    stringsAsFactors = FALSE)
+  if (nrow(df) == 0L)
+    stop("No rows after filtering to the requested location_levels / infection_levels.")
+
+  df <- unique(df)  # one row per patient x centre x location x infection type
+
+  agg <- stats::aggregate(pid ~ center + loc + inf, data = df,
+                          FUN = function(x) length(unique(x)))
+  names(agg)[names(agg) == "pid"] <- "n"
+  tot <- stats::aggregate(n ~ center + loc, data = agg, FUN = sum)
+  names(tot)[names(tot) == "n"] <- "total"
+  agg <- merge(agg, tot, by = c("center", "loc"))
+  agg$prop <- agg$n / agg$total
+
+  agg$loc <- factor(agg$loc, levels = location_levels)
+  agg$inf <- factor(agg$inf, levels = infection_levels)
+
+  p <- ggplot2::ggplot(agg, ggplot2::aes(x = .data$loc, y = .data$prop, fill = .data$inf)) +
+    ggplot2::geom_col(width = 0.7, colour = "white", linewidth = 0.2) +
+    ggplot2::facet_wrap(~ center, ncol = ncol) +
+    ggplot2::scale_y_continuous(labels = scales::percent_format(),
+                                expand = ggplot2::expansion(mult = c(0, 0.02))) +
+    ggplot2::scale_fill_manual(values = colours) +
+    ggplot2::labs(
+      x = "Location", y = "% of patients (within location)", fill = "Infection type",
+      title = title %||% "Infection type by location, per hospital") +
+    eda_theme(base_size = base_size) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+  if (isTRUE(show_counts))
+    p <- p + ggplot2::geom_text(
+      ggplot2::aes(label = .data$n),
+      position = ggplot2::position_stack(vjust = 0.5), size = 2.4)
+
+  p
+}
+
 # -- NULL coalescing operator (internal) --------------------------------------
 # Used as: title %||% "default title"
 `%||%` <- function(x, y) if (!is.null(x)) x else y

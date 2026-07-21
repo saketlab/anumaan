@@ -284,6 +284,7 @@ reference:
   - plot_mono_poly_by_facility
   - plot_hai_cai_by_facility
   - plot_location_by_facility
+  - plot_infection_type_by_location
   - plot_los_ridge
   - plot_age_ridge
   - plot_los_by_agebin
