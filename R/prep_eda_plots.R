@@ -5031,7 +5031,7 @@ plot_infection_type_by_location <- function(data,
                                     name = "Within-hospital %", na.value = "grey90") +
       ggplot2::labs(
         x = "Location", y = "Infection type",
-        title = title %||% "Infection type × location, per hospital") +
+        title = title %||% "Infection type \u00d7 location, per hospital") +
       eda_theme(base_size = base_size) +
       ggplot2::theme(panel.grid = ggplot2::element_blank(),
                      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
