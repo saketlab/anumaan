@@ -92,12 +92,47 @@ are forwarded via \code{...}.}
 }
 \value{
 Named list with elements: \code{draws}, \code{diagnostics},
-  \code{fit}, \code{data_long}, \code{index_maps}, \code{X_design},
-  \code{class_cols}, \code{event_metadata}, \code{n_re_levels},
-  \code{upper_re_col}, \code{middle_re_col}, \code{lower_re_col},
-  \code{pathogen_col}, \code{pathogen_fitted}, \code{estimand},
-  \code{prior_config_used}, \code{sampler_config_used},
-  \code{eligibility_report}.
+\code{diagnostics_detail}, \code{fit}, \code{data_long}, \code{index_maps},
+\code{X_design}, \code{class_cols}, \code{event_metadata},
+\code{n_re_levels}, \code{upper_re_col}, \code{middle_re_col},
+\code{lower_re_col}, \code{pathogen_col}, \code{pathogen_fitted},
+\code{estimand}, \code{prior_config_used}, \code{sampler_config_used},
+\code{eligibility_report}.
+
+\code{diagnostics} is a one-row tibble reported in \strong{two scopes},
+because the model has \code{N_events * D} latent \code{z_free} nuisance
+parameters from probit data augmentation. These latent variables are
+excluded from \code{draws}, \code{draws_summary.csv}, and
+\code{plot_probit_diagnostics()}, but are still part of the Stan fit:
+\itemize{
+  \item \code{max_rhat_structural}, \code{min_ess_bulk_structural},
+    \code{min_ess_tail_structural}, \code{converged_structural} --
+    computed only over the retained structural parameters such as
+    \code{beta}, random-effect terms, \code{tau_*}, \code{R_*},
+    \code{Omega} when present, and \code{lp__}. This is the scope that
+    matches \code{draws} and diagnostic plots, and is the recommended
+    pass/fail signal for the resistance-profile model.
+
+  \item \code{max_rhat_full}, \code{min_ess_bulk_full},
+    \code{min_ess_tail_full}, \code{converged_full} -- the same
+    computation over every Stan parameter, including \code{z_free}.
+    A small number of \code{z_free} entries crossing the Rhat 1.01 or
+    ESS 100 thresholds can occur even when the structural parameters
+    are well behaved. Therefore, \code{converged_full = FALSE} while
+    \code{converged_structural = TRUE} should not by itself be read as
+    model failure.
+
+  \item \code{latent_diagnostic_warning} -- \code{TRUE} when
+    \code{converged_structural} is \code{TRUE} but \code{converged_full}
+    is \code{FALSE}. This is informational metadata, not a failure signal.
+
+  \item \code{n_divergent}, \code{n_treedepth_sat}, \code{ebfmi_min},
+    \code{ebfmi_mean}, and \code{ebfmi_by_chain} -- sampler-health
+    diagnostics, not parameter-scope dependent.
+}
+
+\code{diagnostics_detail} contains structural-parameter,
+full-parameter, and chain-level diagnostic tables.
 }
 \description{
 Accepts wide-format event-level AST data (one row per organism-event, one

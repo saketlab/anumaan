@@ -3,14 +3,21 @@
 # fit_bayesian_multivariate_probit().
 #
 # Pages produced (each skipped gracefully if data unavailable):
-#   1. Sampling trace plots      -- key params (beta, tau_*, lp__)
+#   1. Sampling trace plots      -- selected monitored parameters
 #   2. Warmup + sampling traces  -- requires CmdStanMCMC CSV files still on disk
 #   3. Rank plots                -- chain mixing diagnostic
 #   4. Beta posterior densities  -- 89% / 95% credible intervals
 #   5. NUTS energy (E-BFMI)      -- geometry health check
 #   6. NUTS step size & acceptance rate
-#   7. Rhat histogram            -- convergence across all parameters
-#   8. ESS histogram             -- sampling efficiency across all parameters
+#   7. Rhat histogram            -- convergence across retained structural parameters
+#   8. ESS histogram             -- sampling efficiency across retained structural parameters
+#
+# NOTE: `fit_obj$draws` (and therefore every page in this PDF) deliberately
+# excludes the N_events x D `z_free` latent probit-utility matrix -- see
+# fit_bayesian_multivariate_probit()'s `diagnostics_structural` vs
+# `diagnostics_full`. This PDF shows the structural-parameter scope only;
+# it will NOT reflect Rhat/ESS stragglers confined to z_free. Check
+# `fit_obj$diagnostics$latent_diagnostic_warning` for that.
 #
 # Called once per pathogen per experiment, after sampling completes.
 # Runtime: ~1-2 minutes. Has no effect on sampling speed.
@@ -22,7 +29,9 @@
 #' @param experiment_id  Character. Experiment identifier (used in filename and titles).
 #' @param pathogen   Character. Pathogen name (used in plot titles).
 #' @param max_params Integer. Maximum number of parameters shown in trace/rank plots.
-#'   Defaults to 20. Only \code{beta}, \code{tau_*}, and \code{lp__} are ever included.
+#'   Defaults to 30. Includes \code{lp__}, all \code{tau_*}, and controlled
+#'   subsets of \code{beta}, random-effect terms, random-effect correlations,
+#'   and residual-correlation terms when available.
 #'
 #' @return Invisibly returns the path to the saved PDF, or \code{NULL} if skipped.
 #' @export
@@ -31,7 +40,7 @@ plot_probit_diagnostics <- function(
     output_dir,
     experiment_id,
     pathogen,
-    max_params  = 20L
+    max_params  = 30L
 ) {
 
   if (!requireNamespace("bayesplot", quietly = TRUE)) {
@@ -64,14 +73,32 @@ plot_probit_diagnostics <- function(
   pdf_path   <- file.path(output_dir, paste0(experiment_id, "_diagnostics.pdf"))
   title_base <- sprintf("%s\n%s", experiment_id, pathogen)
 
-  # -- Select key parameters (exclude z_free / RE arrays which are huge) ------
+  # -- Select key parameters (exclude z_free; sample large arrays sparingly) ---
   all_vars <- dimnames(draws)[[3]]
+  lp_vars <- grep("^lp__$", all_vars, value = TRUE)
+  tau_vars <- grep("^tau_", all_vars, value = TRUE)
+  beta_vars <- grep("^beta\\[", all_vars, value = TRUE)
+  re_vars <- c(
+    grep("^hospital_effect\\[", all_vars, value = TRUE),
+    grep("^patient_effect\\[", all_vars, value = TRUE),
+    grep("^admission_effect\\[", all_vars, value = TRUE)
+  )
+  corr_vars <- c(
+    grep("^R_hospital\\[", all_vars, value = TRUE),
+    grep("^R_patient\\[", all_vars, value = TRUE),
+    grep("^R_admission\\[", all_vars, value = TRUE)
+  )
+  omega_vars <- c(
+    grep("^Omega\\[", all_vars, value = TRUE),
+    grep("^L_Omega\\[", all_vars, value = TRUE)
+  )
   priority <- unique(c(
-    grep("^lp__$",            all_vars, value = TRUE),
-    grep("^beta\\[",          all_vars, value = TRUE),
-    grep("^tau_hospital\\[",  all_vars, value = TRUE),
-    grep("^tau_patient\\[",   all_vars, value = TRUE),
-    grep("^tau_admission\\[", all_vars, value = TRUE)
+    lp_vars,
+    tau_vars,
+    head(beta_vars, 10L),
+    head(re_vars, 6L),
+    head(corr_vars, 6L),
+    head(omega_vars, 6L)
   ))
   if (length(priority) > max_params) priority <- priority[seq_len(max_params)]
 
@@ -204,9 +231,10 @@ plot_probit_diagnostics <- function(
                           label = " Rhat = 1.01", hjust = 0, vjust = 1.5,
                           colour = "red", size = 3.5) +
         ggplot2::labs(
-          title    = paste(title_base, "-- Rhat Distribution"),
-          subtitle = sprintf("max Rhat = %.3f | %d parameters | red line at 1.01",
-                             max_rhat, nrow(rhat_df)),
+          title    = paste(title_base, "-- Rhat Distribution (structural parameters)"),
+          subtitle = sprintf(
+            "max Rhat = %.3f | %d structural parameters | red line at 1.01 | excludes z_free latent utilities",
+            max_rhat, nrow(rhat_df)),
           x = "Rhat", y = "Count"
         ) +
         ggplot2::theme_minimal(base_size = 12) +
@@ -238,9 +266,10 @@ plot_probit_diagnostics <- function(
         ggplot2::scale_fill_manual(
           values = c("ESS bulk" = "#2166AC", "ESS tail" = "#74ADD1")) +
         ggplot2::labs(
-          title    = paste(title_base, "-- ESS Distribution"),
-          subtitle = sprintf("min ESS bulk = %d | min ESS tail = %d | red line at 100",
-                             min_bulk, min_tail),
+          title    = paste(title_base, "-- ESS Distribution (structural parameters)"),
+          subtitle = sprintf(
+            "min ESS bulk = %d | min ESS tail = %d | red line at 100 | excludes z_free latent utilities",
+            min_bulk, min_tail),
           x = "Effective Sample Size", y = "Count", fill = NULL
         ) +
         ggplot2::theme_minimal(base_size = 12) +

@@ -9,7 +9,7 @@ plot_probit_diagnostics(
   output_dir,
   experiment_id,
   pathogen,
-  max_params = 20L
+  max_params = 30L
 )
 }
 \arguments{
@@ -22,7 +22,9 @@ plot_probit_diagnostics(
 \item{pathogen}{Character. Pathogen name (used in plot titles).}
 
 \item{max_params}{Integer. Maximum number of parameters shown in trace/rank plots.
-Defaults to 20. Only \code{beta}, \code{tau_*}, and \code{lp__} are ever included.}
+Defaults to 30. Includes \code{lp__}, all \code{tau_*}, and controlled
+subsets of \code{beta}, random-effect terms, random-effect correlations,
+and residual-correlation terms when available.}
 }
 \value{
 Invisibly returns the path to the saved PDF, or \code{NULL} if skipped.
