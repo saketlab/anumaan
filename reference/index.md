@@ -388,6 +388,9 @@ Exploratory plots for AMR surveillance data
   : Plot HAI vs CAI Infection Distribution by Facility
 - [`plot_location_by_facility()`](https://saketlab.github.io/anumaan/reference/plot_location_by_facility.md)
   : Plot Patient Distribution by Location Type Across Facilities
+- [`plot_infection_type_by_location()`](https://saketlab.github.io/anumaan/reference/plot_infection_type_by_location.md)
+  : Plot Infection Type (HAI/CAI) by Location (ICU/Ward), Faceted by
+  Hospital
 - [`plot_los_ridge()`](https://saketlab.github.io/anumaan/reference/plot_los_ridge.md)
   : Ridge / Density Plot of Length of Stay (LOS)
 - [`plot_age_ridge()`](https://saketlab.github.io/anumaan/reference/plot_age_ridge.md)
