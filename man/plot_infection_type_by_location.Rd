@@ -12,6 +12,7 @@ plot_infection_type_by_location(
   infection_col = "infection_type",
   location_levels = c("ICU", "Ward"),
   infection_levels = c("HAI", "CAI"),
+  style = c("bar", "heatmap"),
   colours = NULL,
   ncol = 5,
   base_size = 12,
@@ -38,6 +39,11 @@ x-axis bars). Default \code{c("ICU", "Ward")}.}
 
 \item{infection_levels}{Character vector. Infection-type values to keep
 (become the stacked fills). Default \code{c("HAI", "CAI")}.}
+
+\item{style}{Character. \code{"bar"} (default) draws a 100%-stacked
+bar per hospital (x = location, fill = infection type, normalised within
+location). \code{"heatmap"} draws a tile grid per hospital (x = location,
+y = infection type, fill = within-hospital joint proportion).}
 
 \item{colours}{Named character vector of fill colours keyed by
 \code{infection_levels}. Auto-generated if \code{NULL}.}
