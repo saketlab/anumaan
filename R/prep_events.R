@@ -35,6 +35,15 @@
 #' @param antibiotic_col Antibiotic name column. Default "antibiotic_name".
 #' @param value_col    Susceptibility result column (S/I/R). Default "antibiotic_value".
 #' @param gap_days     Days threshold: gap > gap_days triggers a new event. Default 14.
+#' @param culture_col Culture/isolate identifier column. When present, same-day
+#'   cultures from the same site and organism are evaluated separately before
+#'   duplicate culture removal. Default \code{"id_organisminfo"}.
+#' @param admission_col Admission date column. Used when \code{keep_event_culture}
+#'   is \code{"closest_to_admission"}. Default \code{"date_of_admission"}.
+#' @param keep_event_culture Character. \code{"all"} keeps all culture rows after
+#'   assigning event IDs. \code{"closest_to_admission"} keeps all antibiotic rows
+#'   from only the culture date closest to admission within each event/organism/site.
+#'   Default \code{"all"}.
 #'
 #' @return Original data frame with \code{event_id} column added.
 #' @export
@@ -45,18 +54,27 @@ prep_create_event_ids <- function(data,
                                    specimen_col   = "specimen_type",
                                    antibiotic_col = "antibiotic_name",
                                    value_col      = "antibiotic_value",
-                                   gap_days       = 14) {
+                                   gap_days       = 14,
+                                   culture_col    = "id_organisminfo",
+                                   admission_col  = "date_of_admission",
+                                   keep_event_culture = c("all", "closest_to_admission")) {
+  keep_event_culture <- match.arg(keep_event_culture)
   missing_cols <- setdiff(c(patient_col, date_col, organism_col), names(data))
   if (length(missing_cols) > 0)
     stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
 
   use_specimen   <- specimen_col   %in% names(data)
   use_antibiogram <- antibiotic_col %in% names(data) && value_col %in% names(data)
+  use_culture <- culture_col %in% names(data)
+  use_admission <- admission_col %in% names(data)
 
   if (!use_specimen)
     message(sprintf("Column '%s' not found -- events created without specimen matching.", specimen_col))
   if (!use_antibiogram)
     message("Antibiotic columns not found -- events created without antibiogram comparison.")
+  if (keep_event_culture == "closest_to_admission" && !use_admission)
+    stop(sprintf("Column '%s' not found -- required when keep_event_culture = 'closest_to_admission'.",
+                 admission_col), call. = FALSE)
 
   message(sprintf("Creating events (gap threshold: >%d days) ...", gap_days))
 
@@ -64,10 +82,23 @@ prep_create_event_ids <- function(data,
   data$.dt  <- as.Date(data[[date_col]])
   data$.org <- trimws(tolower(as.character(data[[organism_col]])))
   data$.spc <- if (use_specimen) trimws(tolower(as.character(data[[specimen_col]]))) else "unknown"
+  data$.culture_key <- if (use_culture) {
+    trimws(as.character(data[[culture_col]]))
+  } else {
+    paste(data$.pt, data$.dt, data$.spc, data$.org, sep = "||")
+  }
 
   data$.pt[is.na(data$.pt)]   <- "__NA__"
   data$.org[is.na(data$.org)] <- "__NA__"
   data$.spc[is.na(data$.spc)] <- "__NA__"
+  missing_culture_key <- is.na(data$.culture_key) | !nzchar(data$.culture_key)
+  data$.culture_key[missing_culture_key] <- paste(
+    data$.pt[missing_culture_key],
+    data$.dt[missing_culture_key],
+    data$.spc[missing_culture_key],
+    data$.org[missing_culture_key],
+    sep = "||"
+  )
 
   if (use_antibiogram) {
     data$.abx <- trimws(as.character(data[[antibiotic_col]]))
@@ -75,8 +106,8 @@ prep_create_event_ids <- function(data,
 
     df_abg <- data %>%
       dplyr::filter(.val %in% c("S", "I", "R")) %>%
-      dplyr::distinct(.pt, .dt, .spc, .org, .abx, .val) %>%
-      dplyr::group_by(.pt, .dt, .spc, .org) %>%
+      dplyr::distinct(.pt, .dt, .spc, .org, .culture_key, .abx, .val) %>%
+      dplyr::group_by(.pt, .dt, .spc, .org, .culture_key) %>%
       dplyr::summarise(
         .abg_key = paste(sort(paste0(.abx, ":", .val)), collapse = "|"),
         .groups  = "drop"
@@ -84,12 +115,12 @@ prep_create_event_ids <- function(data,
   }
 
   df_isolates <- data %>%
-    dplyr::distinct(.pt, .dt, .spc, .org) %>%
+    dplyr::distinct(.pt, .dt, .spc, .org, .culture_key) %>%
     dplyr::arrange(.pt, .dt, .org, .spc)
 
   if (use_antibiogram) {
     df_isolates <- df_isolates %>%
-      dplyr::left_join(df_abg, by = c(".pt", ".dt", ".spc", ".org"))
+      dplyr::left_join(df_abg, by = c(".pt", ".dt", ".spc", ".org", ".culture_key"))
   } else {
     df_isolates$.abg_key <- NA_character_
   }
@@ -139,12 +170,50 @@ prep_create_event_ids <- function(data,
 
   df_isolates_with_id <- df_isolates_grouped %>%
     dplyr::left_join(patient_event_index, by = ".prov_key") %>%
-    dplyr::select(.pt, .dt, .spc, .org, event_id)
+    dplyr::select(.pt, .dt, .spc, .org, .culture_key, event_id)
 
   if ("event_id" %in% names(data)) data <- data %>% dplyr::select(-event_id)
 
   data <- data %>%
-    dplyr::left_join(df_isolates_with_id, by = c(".pt", ".dt", ".spc", ".org"))
+    dplyr::left_join(df_isolates_with_id, by = c(".pt", ".dt", ".spc", ".org", ".culture_key"))
+
+  if (keep_event_culture == "closest_to_admission") {
+    data$.adm_dt <- as.Date(data[[admission_col]])
+    data <- data %>%
+      dplyr::group_by(event_id, .org, .spc) %>%
+      dplyr::mutate(
+        .culture_distance = abs(as.numeric(difftime(.dt, .adm_dt, units = "days"))),
+        .event_keep_culture = {
+          candidate_cultures <- .culture_key[!is.na(.culture_distance)]
+          candidate_dist <- .culture_distance[!is.na(.culture_distance)]
+          candidate_dates <- .dt[!is.na(.culture_distance)]
+          if (length(candidate_cultures) == 0L) {
+            candidate_cultures <- .culture_key[!is.na(.dt)]
+            candidate_dates <- .dt[!is.na(.dt)]
+            if (length(candidate_cultures) == 0L) {
+              NA_character_
+            } else {
+              candidate_cultures[order(candidate_dates, candidate_cultures)][[1L]]
+            }
+          } else {
+            keep_idx <- candidate_dist == min(candidate_dist)
+            candidate_cultures[keep_idx][order(candidate_dates[keep_idx], candidate_cultures[keep_idx])][[1L]]
+          }
+        },
+        .event_keep_date = {
+          candidate_dates <- .dt[!is.na(.culture_distance)]
+          candidate_dist <- .culture_distance[!is.na(.culture_distance)]
+          if (length(candidate_dates) == 0L) {
+            candidate_dates <- .dt[!is.na(.dt)]
+            if (length(candidate_dates) == 0L) as.Date(NA_character_) else min(candidate_dates)
+          } else {
+            min(candidate_dates[candidate_dist == min(candidate_dist)], na.rm = TRUE)
+          }
+        }
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::filter(is.na(event_id) | is.na(.event_keep_culture) | .culture_key == .event_keep_culture)
+  }
 
   n_patients  <- dplyr::n_distinct(data[[patient_col]], na.rm = TRUE)
   n_events    <- dplyr::n_distinct(data[["event_id"]], na.rm = TRUE)
@@ -155,7 +224,9 @@ prep_create_event_ids <- function(data,
   if (n_unmatched > 0)
     message(sprintf("Warning: %d rows have no event_id (join miss).", n_unmatched))
 
-  tmp_cols <- intersect(names(data), c(".pt", ".dt", ".spc", ".org", ".abx", ".val"))
+  tmp_cols <- intersect(names(data), c(".pt", ".dt", ".spc", ".org", ".abx", ".val",
+                                       ".culture_key", ".adm_dt", ".culture_distance",
+                                       ".event_keep_culture", ".event_keep_date"))
   if (length(tmp_cols) > 0)
     data <- data %>% dplyr::select(-dplyr::all_of(tmp_cols))
 
