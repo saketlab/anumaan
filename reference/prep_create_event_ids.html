@@ -31,7 +31,7 @@ cultures from the same infection episode."><link rel="stylesheet" href="extra.cs
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9019</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9020</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,7 +86,10 @@ cultures from the same infection episode.</p>
 <span>  specimen_col <span class="op">=</span> <span class="st">"specimen_type"</span>,</span>
 <span>  antibiotic_col <span class="op">=</span> <span class="st">"antibiotic_name"</span>,</span>
 <span>  value_col <span class="op">=</span> <span class="st">"antibiotic_value"</span>,</span>
-<span>  gap_days <span class="op">=</span> <span class="fl">14</span></span>
+<span>  gap_days <span class="op">=</span> <span class="fl">14</span>,</span>
+<span>  culture_col <span class="op">=</span> <span class="st">"id_organisminfo"</span>,</span>
+<span>  admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
+<span>  keep_event_culture <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"all"</span>, <span class="st">"closest_to_admission"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -124,6 +127,24 @@ cultures from the same infection episode.</p>
 
 <dt id="arg-gap-days">gap_days<a class="anchor" aria-label="anchor" href="#arg-gap-days"></a></dt>
 <dd><p>Days threshold: gap &gt; gap_days triggers a new event. Default 14.</p></dd>
+
+
+<dt id="arg-culture-col">culture_col<a class="anchor" aria-label="anchor" href="#arg-culture-col"></a></dt>
+<dd><p>Culture/isolate identifier column. When present, same-day
+cultures from the same site and organism are evaluated separately before
+duplicate culture removal. Default <code>"id_organisminfo"</code>.</p></dd>
+
+
+<dt id="arg-admission-col">admission_col<a class="anchor" aria-label="anchor" href="#arg-admission-col"></a></dt>
+<dd><p>Admission date column. Used when <code>keep_event_culture</code>
+is <code>"closest_to_admission"</code>. Default <code>"date_of_admission"</code>.</p></dd>
+
+
+<dt id="arg-keep-event-culture">keep_event_culture<a class="anchor" aria-label="anchor" href="#arg-keep-event-culture"></a></dt>
+<dd><p>Character. <code>"all"</code> keeps all culture rows after
+assigning event IDs. <code>"closest_to_admission"</code> keeps all antibiotic rows
+from only the culture date closest to admission within each event/organism/site.
+Default <code>"all"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -14,7 +14,10 @@ prep_create_event_ids(
   specimen_col = "specimen_type",
   antibiotic_col = "antibiotic_name",
   value_col = "antibiotic_value",
-  gap_days = 14
+  gap_days = 14,
+  culture_col = "id_organisminfo",
+  admission_col = "date_of_admission",
+  keep_event_culture = c("all", "closest_to_admission")
 )
 ```
 
@@ -51,6 +54,24 @@ prep_create_event_ids(
 - gap_days:
 
   Days threshold: gap \> gap_days triggers a new event. Default 14.
+
+- culture_col:
+
+  Culture/isolate identifier column. When present, same-day cultures
+  from the same site and organism are evaluated separately before
+  duplicate culture removal. Default `"id_organisminfo"`.
+
+- admission_col:
+
+  Admission date column. Used when `keep_event_culture` is
+  `"closest_to_admission"`. Default `"date_of_admission"`.
+
+- keep_event_culture:
+
+  Character. `"all"` keeps all culture rows after assigning event IDs.
+  `"closest_to_admission"` keeps all antibiotic rows from only the
+  culture date closest to admission within each event/organism/site.
+  Default `"all"`.
 
 ## Value
 
