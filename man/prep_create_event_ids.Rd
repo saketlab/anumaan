@@ -12,7 +12,10 @@ prep_create_event_ids(
   specimen_col = "specimen_type",
   antibiotic_col = "antibiotic_name",
   value_col = "antibiotic_value",
-  gap_days = 14
+  gap_days = 14,
+  culture_col = "id_organisminfo",
+  admission_col = "date_of_admission",
+  keep_event_culture = c("all", "closest_to_admission")
 )
 }
 \arguments{
@@ -31,6 +34,18 @@ prep_create_event_ids(
 \item{value_col}{Susceptibility result column (S/I/R). Default "antibiotic_value".}
 
 \item{gap_days}{Days threshold: gap > gap_days triggers a new event. Default 14.}
+
+\item{culture_col}{Culture/isolate identifier column. When present, same-day
+cultures from the same site and organism are evaluated separately before
+duplicate culture removal. Default \code{"id_organisminfo"}.}
+
+\item{admission_col}{Admission date column. Used when \code{keep_event_culture}
+is \code{"closest_to_admission"}. Default \code{"date_of_admission"}.}
+
+\item{keep_event_culture}{Character. \code{"all"} keeps all culture rows after
+assigning event IDs. \code{"closest_to_admission"} keeps all antibiotic rows
+from only the culture date closest to admission within each event/organism/site.
+Default \code{"all"}.}
 }
 \value{
 Original data frame with \code{event_id} column added.

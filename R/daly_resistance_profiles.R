@@ -66,6 +66,56 @@
   results
 }
 
+# Resolve antibiotic-class and metadata columns from a wide data frame.
+# Used by compute_marginals_from_data() and compute_pairwise_from_data().
+.resolve_class_cols <- function(data_wide, col_map, panel_map, outcome_col = NULL) {
+  pathogen_col  <- .null_default(col_map$pathogen_col,  "pathogen")
+  geography_col <- .null_default(col_map$geography_col, "state")
+  isolate_col   <- .null_default(col_map$isolate_col,   "isolate_id")
+
+  meta_cols <- unique(c(
+    isolate_col, pathogen_col,
+    col_map$patient_col, col_map$date_col, geography_col,
+    col_map$specimen_col, col_map$age_col, col_map$dob_col,
+    col_map$location_col, outcome_col, "year"
+  ))
+  meta_cols  <- meta_cols[!is.null(meta_cols) & meta_cols %in% names(data_wide)]
+  class_cols <- setdiff(names(data_wide), meta_cols)
+  class_cols <- class_cols[class_cols %in% unlist(panel_map)]
+
+  list(
+    pathogen_col  = pathogen_col,
+    geography_col = geography_col,
+    isolate_col   = isolate_col,
+    meta_cols     = meta_cols,
+    class_cols    = class_cols
+  )
+}
+
+# Build the stratification column vector from stratify_by flags.
+# Used by compute_marginals_from_data() and compute_pairwise_from_data().
+.build_strat_cols <- function(stratify_by = NULL,
+                              outcome_col  = NULL,
+                              geography_col = "state",
+                              data) {
+  strat_cols <- character(0)
+  if ("geography" %in% stratify_by && geography_col %in% names(data))
+    strat_cols <- c(strat_cols, geography_col)
+  if ("year" %in% stratify_by && "year" %in% names(data))
+    strat_cols <- c(strat_cols, "year")
+  if (!is.null(outcome_col) && outcome_col %in% names(data))
+    strat_cols <- c(strat_cols, outcome_col)
+  unique(strat_cols)
+}
+
+# Validate that paired arguments are both supplied or both NULL.
+.check_paired_args <- function(col, val, col_arg, val_arg) {
+  if (xor(is.null(col), is.null(val)))
+    stop(sprintf("Both %s and %s must be provided together, or both NULL.",
+                 col_arg, val_arg), call. = FALSE)
+  invisible(TRUE)
+}
+
 
 # ---------------------------------------------------------------------------
 # validate_profile_inputs()
@@ -2003,32 +2053,16 @@ compute_marginals_from_data <- function(
       rate_col      = "resistance_prevalence"
     )
 ) {
-  pathogen_col  <- .null_default(col_map$pathogen_col,  "pathogen")
-  geography_col <- .null_default(col_map$geography_col, "state")
-  isolate_col   <- .null_default(col_map$isolate_col,   "isolate_id")
-
-  # Identify antibiotic-class columns: all columns that are not known metadata
-  meta_cols <- unique(c(
-    isolate_col, pathogen_col,
-    col_map$patient_col, col_map$date_col, geography_col,
-    col_map$specimen_col, col_map$age_col, col_map$dob_col,
-    col_map$location_col, outcome_col, "year"
-  ))
-  meta_cols  <- meta_cols[!is.null(meta_cols) & meta_cols %in% names(data_wide)]
-  class_cols <- setdiff(names(data_wide), meta_cols)
-  class_cols <- class_cols[class_cols %in% unlist(panel_map)]   # keep only panel classes
+  cols         <- .resolve_class_cols(data_wide, col_map, panel_map, outcome_col)
+  pathogen_col  <- cols$pathogen_col
+  geography_col <- cols$geography_col
+  isolate_col   <- cols$isolate_col
+  class_cols    <- cols$class_cols
 
   if (length(class_cols) == 0L)
     stop("No antibiotic-class columns found in data_wide matching panel_map. Check panel_map class names.", call. = FALSE)
 
-  # Build stratification grouping columns
-  strat_cols <- character(0)
-  if ("geography" %in% stratify_by && geography_col %in% names(data_wide))
-    strat_cols <- c(strat_cols, geography_col)
-  if ("year" %in% stratify_by && "year" %in% names(data_wide))
-    strat_cols <- c(strat_cols, "year")
-  if (!is.null(outcome_col) && outcome_col %in% names(data_wide))
-    strat_cols <- c(strat_cols, outcome_col)
+  strat_cols <- .build_strat_cols(stratify_by, outcome_col, geography_col, data_wide)
 
   group_vars <- c(strat_cols, pathogen_col)
 
@@ -2155,27 +2189,13 @@ compute_pairwise_from_data <- function(
     outcome_col  = NULL,
     min_co_tested = 10L
 ) {
-  pathogen_col  <- .null_default(col_map$pathogen_col,  "pathogen")
-  geography_col <- .null_default(col_map$geography_col, "state")
-  isolate_col   <- .null_default(col_map$isolate_col,   "isolate_id")
+  cols          <- .resolve_class_cols(data_wide, col_map, panel_map, outcome_col)
+  pathogen_col  <- cols$pathogen_col
+  geography_col <- cols$geography_col
+  isolate_col   <- cols$isolate_col
+  class_cols    <- cols$class_cols
 
-  meta_cols <- unique(c(
-    isolate_col, pathogen_col,
-    col_map$patient_col, col_map$date_col, geography_col,
-    col_map$specimen_col, col_map$age_col, col_map$dob_col,
-    col_map$location_col, outcome_col, "year"
-  ))
-  meta_cols  <- meta_cols[!is.null(meta_cols) & meta_cols %in% names(data_wide)]
-  class_cols <- setdiff(names(data_wide), meta_cols)
-  class_cols <- class_cols[class_cols %in% unlist(panel_map)]
-
-  strat_cols <- character(0)
-  if ("geography" %in% stratify_by && geography_col %in% names(data_wide))
-    strat_cols <- c(strat_cols, geography_col)
-  if ("year" %in% stratify_by && "year" %in% names(data_wide))
-    strat_cols <- c(strat_cols, "year")
-  if (!is.null(outcome_col) && outcome_col %in% names(data_wide))
-    strat_cols <- c(strat_cols, outcome_col)
+  strat_cols <- .build_strat_cols(stratify_by, outcome_col, geography_col, data_wide)
 
   group_key_cols <- c(strat_cols, pathogen_col)
 
@@ -2727,10 +2747,8 @@ compute_marginal_resistance <- function(
 
   # -- Optional facility filter ----------------------------------------------
 
-  if (!is.null(facility_col) || !is.null(facility_name)) {
-    if (is.null(facility_col) || is.null(facility_name)) {
-      stop("Both facility_col and facility_name must be provided together, or both NULL.")
-    }
+  .check_paired_args(facility_col, facility_name, "facility_col", "facility_name")
+  if (!is.null(facility_col)) {
     .check_cols(data, facility_col)
     n_before <- nrow(data)
     data <- data[data[[facility_col]] == facility_name, , drop = FALSE]
@@ -2745,10 +2763,8 @@ compute_marginal_resistance <- function(
 
   # -- Optional outcome filter -----------------------------------------------
 
-  if (!is.null(outcome_col) || !is.null(outcome_value)) {
-    if (is.null(outcome_col) || is.null(outcome_value)) {
-      stop("Both outcome_col and outcome_value must be provided together, or both NULL.")
-    }
+  .check_paired_args(outcome_col, outcome_value, "outcome_col", "outcome_value")
+  if (!is.null(outcome_col)) {
     .check_cols(data, outcome_col)
     n_before <- nrow(data)
     data <- data[data[[outcome_col]] == outcome_value, , drop = FALSE]
@@ -2983,10 +2999,8 @@ compute_pairwise_coresistance <- function(
 
   # -- Optional facility filter ----------------------------------------------
 
-  if (!is.null(facility_col) || !is.null(facility_name)) {
-    if (is.null(facility_col) || is.null(facility_name)) {
-      stop("Both facility_col and facility_name must be provided together, or both NULL.")
-    }
+  .check_paired_args(facility_col, facility_name, "facility_col", "facility_name")
+  if (!is.null(facility_col)) {
     if (!facility_col %in% names(class_long)) {
       stop(sprintf(
         paste0(
@@ -3010,10 +3024,8 @@ compute_pairwise_coresistance <- function(
 
   # -- Optional outcome filter -----------------------------------------------
 
-  if (!is.null(outcome_col) || !is.null(outcome_value)) {
-    if (is.null(outcome_col) || is.null(outcome_value)) {
-      stop("Both outcome_col and outcome_value must be provided together, or both NULL.")
-    }
+  .check_paired_args(outcome_col, outcome_value, "outcome_col", "outcome_value")
+  if (!is.null(outcome_col)) {
     if (!outcome_col %in% names(class_long)) {
       stop(sprintf(
         paste0(
@@ -3300,10 +3312,8 @@ compute_resistance_profiles <- function(
 
   # -- Optional facility filter ----------------------------------------------
 
-  if (!is.null(facility_col) || !is.null(facility_name)) {
-    if (is.null(facility_col) || is.null(facility_name)) {
-      stop("Both facility_col and facility_name must be provided together, or both NULL.")
-    }
+  .check_paired_args(facility_col, facility_name, "facility_col", "facility_name")
+  if (!is.null(facility_col)) {
     if (!facility_col %in% names(marginal_output$marginal)) {
       stop(sprintf(
         paste0(
@@ -3332,10 +3342,8 @@ compute_resistance_profiles <- function(
 
   # -- Optional outcome filter -----------------------------------------------
 
-  if (!is.null(outcome_col) || !is.null(outcome_value)) {
-    if (is.null(outcome_col) || is.null(outcome_value)) {
-      stop("Both outcome_col and outcome_value must be provided together, or both NULL.")
-    }
+  .check_paired_args(outcome_col, outcome_value, "outcome_col", "outcome_value")
+  if (!is.null(outcome_col)) {
     if (!outcome_col %in% names(marginal_output$marginal)) {
       stop(sprintf(
         paste0(
@@ -3493,87 +3501,30 @@ compute_resistance_profiles <- function(
     }
 
     # -- Enumerate 2^n resistance profiles ---------------------------------
-    profiles_mat <- matrix(
-      as.integer(
-        outer(0L:(n_profiles - 1L), 2L^(0L:(n - 1L)), bitwAnd) > 0L
-      ),
-      nrow = n_profiles, ncol = n,
-      dimnames = list(NULL, classes)
-    )
-
-    char_mat <- matrix("S", nrow = n_profiles, ncol = n)
-    char_mat[profiles_mat == 1L] <- "R"
-    profile_labels <- do.call(paste0, as.data.frame(char_mat))
+    profiles_enum  <- enumerate_binary_profiles(classes)
+    n_profiles     <- nrow(profiles_enum)
+    profile_labels <- profiles_enum$profile_delta
+    profiles_mat   <- as.matrix(profiles_enum[, classes, drop = FALSE])
 
     # -- Constraint matrix M (m x 2^n) and target vector v -----------------
-    M_marg <- t(profiles_mat)
-    v_marg <- r_marg
+    cm <- build_constraint_matrix(profiles_enum, r_marg, co_mat)
+    M  <- cm$M
+    v  <- cm$v
 
-    pairs_mat <- utils::combn(n, 2L)
-    n_pair <- ncol(pairs_mat)
-    d1_idx <- pairs_mat[1L, ]
-    d2_idx <- pairs_mat[2L, ]
-    c1_names <- classes[d1_idx]
-    c2_names <- classes[d2_idx]
-    pair_names <- paste0(c1_names, "_", c2_names)
-
-    M_pair <- t(
-      profiles_mat[, d1_idx, drop = FALSE] *
-        profiles_mat[, d2_idx, drop = FALSE]
-    )
-
-    r1 <- r_marg[c1_names]
-    r2 <- r_marg[c2_names]
-
-    if (!is.null(co_mat) &&
-      !is.null(rownames(co_mat)) && !is.null(colnames(co_mat))) {
-      in_rows <- c1_names %in% rownames(co_mat)
-      in_cols <- c2_names %in% colnames(co_mat)
-      can_look <- in_rows & in_cols
-      co_vals <- rep(NA_real_, n_pair)
-      if (any(can_look)) {
-        co_vals[can_look] <- co_mat[cbind(
-          c1_names[can_look],
-          c2_names[can_look]
-        )]
-      }
-    } else {
-      co_vals <- rep(NA_real_, n_pair)
-    }
-
-    cap_vals <- pmin(r1, r2)
-    has_co <- !is.na(co_vals)
-    capped_co <- pmin(co_vals, cap_vals)
-    was_capped <- has_co & !is.na(capped_co) & (capped_co < co_vals)
-    v_pair <- ifelse(has_co, capped_co, r1 * r2)
-
-    if (any(was_capped)) {
+    if (length(cm$capped_pairs) > 0L) {
       message(sprintf(
         "'%s': %d pairwise value(s) capped to min(marginal): %s",
-        path, sum(was_capped),
-        paste(
-          sprintf(
-            "(%s,%s) %.4f->%.4f",
-            c1_names[was_capped], c2_names[was_capped],
-            co_vals[was_capped], capped_co[was_capped]
-          ),
-          collapse = "; "
-        )
+        path, length(cm$capped_pairs),
+        paste(names(cm$capped_pairs), cm$capped_pairs, sep = " ", collapse = "; ")
       ))
     }
-    if (any(!has_co)) {
+    if (length(cm$fallback_pairs) > 0L) {
       message(sprintf(
         "'%s': %d pair(s) used independence fallback: %s",
-        path, sum(!has_co),
-        paste(sprintf("(%s,%s)", c1_names[!has_co], c2_names[!has_co]),
-          collapse = "; "
-        )
+        path, length(cm$fallback_pairs),
+        paste(cm$fallback_pairs, collapse = "; ")
       ))
     }
-
-    M <- rbind(M_marg, M_pair)
-    v <- c(v_marg, v_pair)
-    storage.mode(M) <- "double"
 
     # -- QP: simplex-constrained weighted least-squares ---------------------
     #
@@ -3640,10 +3591,7 @@ compute_resistance_profiles <- function(
 
     # -- Constraint residuals -----------------------------------------------
     residuals <- drop(M %*% p_hat) - v
-    names(residuals) <- c(
-      paste0("marg_", classes),
-      paste0("pair_", pair_names)
-    )
+    names(residuals) <- cm$constraint_names
 
     profiles_df <- data.frame(
       profile = profile_labels,
@@ -3665,8 +3613,8 @@ compute_resistance_profiles <- function(
         classes               = classes,
         n_classes             = n,
         constraint_residuals  = residuals,
-        constraint_targets    = setNames(v, names(residuals)),
-        constraint_names      = names(residuals)
+        constraint_targets    = setNames(cm$v, cm$constraint_names),
+        constraint_names      = cm$constraint_names
       )
     )
   }
@@ -5169,9 +5117,13 @@ fit_bayesian_multivariate_probit <- function(
   min_bulk_all <- .diag_extreme(all_diag_tbl, "ess_bulk", "min")
   min_tail_all <- .diag_extreme(all_diag_tbl, "ess_tail", "min")
 
-  max_rhat     <- max_rhat_monitored$value
-  min_ess_bulk <- min_bulk_monitored$value
-  min_ess_tail <- min_tail_monitored$value
+  max_rhat_structural     <- max_rhat_monitored$value
+  min_ess_bulk_structural <- min_bulk_monitored$value
+  min_ess_tail_structural <- min_tail_monitored$value
+
+  max_rhat_full     <- max_rhat_all$value
+  min_ess_bulk_full <- min_bulk_all$value
+  min_ess_tail_full <- min_tail_all$value
 
   # E-BFMI per chain (robust to missing chain__ column)
   ebfmi_vals <- tryCatch({
@@ -5214,7 +5166,7 @@ fit_bayesian_multivariate_probit <- function(
     isTRUE(min_ess_bulk_structural >= 100) &&
     isTRUE(is.na(min_ess_tail_structural) || min_ess_tail_structural >= 100) &&
     isTRUE(n_divergent == 0L) &&
-    isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
+    isTRUE(is.na(ebfmi_min) || ebfmi_min >= 0.3)
   # Full-scope analogue of converged_structural (includes z_free). Reported
   # for visibility -- with tens of thousands of z_free parameters this will
   # often be FALSE even when converged_structural is TRUE, which is expected,
@@ -5225,7 +5177,7 @@ fit_bayesian_multivariate_probit <- function(
     isTRUE(min_ess_bulk_full >= 100) &&
     isTRUE(is.na(min_ess_tail_full) || min_ess_tail_full >= 100) &&
     isTRUE(n_divergent == 0L) &&
-    isTRUE(is.na(ebfmi) || ebfmi >= 0.3)
+    isTRUE(is.na(ebfmi_min) || ebfmi_min >= 0.3)
   # Narrower, more diagnostic signal than "converged_full is FALSE": TRUE only
   # when the structural parameters have converged cleanly AND the full scope
   # (i.e. the z_free latent block specifically) has not -- isolating "the
@@ -5265,37 +5217,40 @@ fit_bayesian_multivariate_probit <- function(
       n_z_free, max_rhat_full, min_ess_bulk_full))
 
   diag_tbl <- tibble::tibble(
-    n_chains          = as.integer(sc$chains),
-    iter_warmup       = as.integer(sc$iter_warmup),
-    iter_sampling     = as.integer(sc$iter_sampling),
-    n_re_levels       = as.integer(n_re_levels),
-    n_observed_pairs  = nrow(data_long),
-    n_events          = N_events,
-    n_classes         = D,
-    n_upper_groups    = H,
-    n_lower_groups    = if (n_re_levels >= 2L) as.integer(Pt) else NA_integer_,
+    n_chains           = as.integer(sc$chains),
+    iter_warmup        = as.integer(sc$iter_warmup),
+    iter_sampling      = as.integer(sc$iter_sampling),
+    n_re_levels        = as.integer(n_re_levels),
+    n_observed_pairs   = nrow(data_long),
+    n_events           = N_events,
+    n_classes          = D,
+    n_upper_groups     = H,
+    n_lower_groups     = if (n_re_levels >= 2L) as.integer(Pt) else NA_integer_,
     n_admission_groups = if (n_re_levels == 3L) as.integer(Adm) else NA_integer_,
-    n_divergent       = as.integer(n_divergent),
-    n_treedepth_sat   = as.integer(n_treedepth),
-    ebfmi             = round(ebfmi_min, 4L),
-    ebfmi_min         = round(ebfmi_min, 4L),
-    ebfmi_mean        = round(ebfmi_mean, 4L),
-    ebfmi_by_chain    = ebfmi_by_chain,
-    max_rhat          = round(max_rhat, 4L),
-    min_ess_bulk      = round(min_ess_bulk, 1L),
-    min_ess_tail      = round(min_ess_tail, 1L),
-    parameter_with_max_rhat = max_rhat_monitored$parameter,
-    parameter_group_with_max_rhat = max_rhat_monitored$group,
-    parameter_with_min_ess_bulk = min_bulk_monitored$parameter,
+    n_divergent        = as.integer(n_divergent),
+    n_treedepth_sat    = as.integer(n_treedepth),
+    ebfmi_min          = round(ebfmi_min,  4L),
+    ebfmi_mean         = round(ebfmi_mean, 4L),
+    ebfmi_by_chain     = ebfmi_by_chain,
+    max_rhat_structural     = round(max_rhat_structural,     4L),
+    min_ess_bulk_structural = round(min_ess_bulk_structural, 1L),
+    min_ess_tail_structural = round(min_ess_tail_structural, 1L),
+    max_rhat_full           = round(max_rhat_full,     4L),
+    min_ess_bulk_full       = round(min_ess_bulk_full, 1L),
+    min_ess_tail_full       = round(min_ess_tail_full, 1L),
+    parameter_with_max_rhat           = max_rhat_monitored$parameter,
+    parameter_group_with_max_rhat     = max_rhat_monitored$group,
+    parameter_with_min_ess_bulk       = min_bulk_monitored$parameter,
     parameter_group_with_min_ess_bulk = min_bulk_monitored$group,
-    parameter_with_min_ess_tail = min_tail_monitored$parameter,
+    parameter_with_min_ess_tail       = min_tail_monitored$parameter,
     parameter_group_with_min_ess_tail = min_tail_monitored$group,
-    max_rhat_monitored     = round(max_rhat_monitored$value, 4L),
-    min_ess_bulk_monitored = round(min_bulk_monitored$value, 1L),
-    min_ess_tail_monitored = round(min_tail_monitored$value, 1L),
-    max_rhat_all           = round(max_rhat_all$value, 4L),
-    min_ess_bulk_all       = round(min_bulk_all$value, 1L),
-    min_ess_tail_all       = round(min_tail_all$value, 1L)
+    converged_structural      = converged_structural,
+    converged_full            = converged_full,
+    latent_diagnostic_warning = latent_diagnostic_warning,
+    # backward-compatible aliases (structural diagnostics)
+    max_rhat     = round(max_rhat_structural,     4L),
+    min_ess_bulk = round(min_ess_bulk_structural, 1L),
+    min_ess_tail = round(min_ess_tail_structural, 1L)
   )
 
   message(sprintf(

@@ -26,6 +26,68 @@ test_that("prep_create_event_ids: error handling", {
   expect_error(prep_create_event_ids(data.frame(x = 1)), "Missing required columns")
 })
 
+test_that("prep_create_event_ids: culture_col discriminates same-day isolates by ABG", {
+  dat <- data.frame(
+    patient_id          = c("p1", "p1", "p1"),
+    date_of_culture     = as.Date("2025-01-01"),
+    organism_normalized = "e coli",
+    specimen_type       = "blood",
+    antibiotic_name     = c("amikacin", "amikacin", "amikacin"),
+    antibiotic_value    = c("S", "S", "R"),
+    id_organisminfo     = c("cA", "cA", "cB"),
+    stringsAsFactors    = FALSE
+  )
+  out <- prep_create_event_ids(dat, culture_col = "id_organisminfo")
+  expect_true("event_id" %in% names(out))
+  # cA (amikacin:S) and cB (amikacin:R) differ in ABG → assigned to separate events
+  expect_gte(dplyr::n_distinct(out$event_id), 2L)
+  # temp column must not leak into output
+  expect_false(".culture_key" %in% names(out))
+})
+
+test_that("prep_create_event_ids: keep_event_culture='closest_to_admission' stops when admission_col absent", {
+  dat <- data.frame(
+    patient_id          = c("p1", "p1"),
+    date_of_culture     = as.Date(c("2025-01-01", "2025-01-05")),
+    organism_normalized = "e coli",
+    stringsAsFactors    = FALSE
+  )
+  expect_error(
+    prep_create_event_ids(dat, keep_event_culture = "closest_to_admission"),
+    "not found"
+  )
+})
+
+test_that("prep_create_event_ids: keep_event_culture='closest_to_admission' keeps only nearest culture rows", {
+  # p1 has two cultures within the same event window (same ABG, <14 days apart).
+  # Admission is on day 0; cA (day 0) is closer than cB (day 5).
+  dat <- data.frame(
+    patient_id          = rep("p1", 4),
+    date_of_culture     = as.Date(c("2025-01-01", "2025-01-01", "2025-01-06", "2025-01-06")),
+    date_of_admission   = as.Date("2025-01-01"),
+    organism_normalized = "e coli",
+    specimen_type       = "blood",
+    antibiotic_name     = c("amikacin", "ciprofloxacin", "amikacin", "ciprofloxacin"),
+    antibiotic_value    = c("S", "S", "S", "S"),
+    id_organisminfo     = c("cA", "cA", "cB", "cB"),
+    stringsAsFactors    = FALSE
+  )
+  out <- prep_create_event_ids(
+    dat,
+    organism_col       = "organism_normalized",
+    culture_col        = "id_organisminfo",
+    admission_col      = "date_of_admission",
+    keep_event_culture = "closest_to_admission"
+  )
+  expect_true("event_id" %in% names(out))
+  # only the 2 rows from cA (the closer culture) should remain
+  expect_equal(nrow(out), 2L)
+  expect_true(all(as.Date(out$date_of_culture) == as.Date("2025-01-01")))
+  # no temp columns may leak into output
+  expect_false(any(c(".culture_key", ".adm_dt", ".culture_distance",
+                     ".event_keep_culture", ".event_keep_date") %in% names(out)))
+})
+
 # prep_deduplicate_events ------------------------------------------------------
 
 test_that("prep_deduplicate_events: valid behavior", {
