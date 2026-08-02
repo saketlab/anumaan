@@ -7,6 +7,48 @@ test_that("prep_standardize_specimens: valid behavior", {
   out <- prep_standardize_specimens(dat)
   expect_equal(out$specimen_normalized, c("Blood", "Urine"))
   expect_true(all(c("sample_category", "sterile_classification") %in% names(out)))
+  expect_equal(out$sterile_classification, c("Sterile", "Non-Sterile"))
+})
+
+test_that("prep_standardize_specimens: sterile classification is collapsed", {
+  dat <- data.frame(
+    specimen_type = c(
+      "Blood", "Urine", "Bile", "Drain Fluid", "Fluid", "ICTD fluid",
+      "Pancreatic drain fluid", "Pigtail fluid", "PTBD fluid",
+      "Vascular Catheter tip", "Others"
+    ),
+    stringsAsFactors = FALSE
+  )
+  out <- prep_standardize_specimens(dat)
+  expect_equal(
+    out$sterile_classification,
+    c(
+      "Sterile", "Non-Sterile", "Non-Sterile", "Non-Sterile",
+      "Others/Ambiguous", "Sterile", "Non-Sterile", "Others/Ambiguous",
+      "Non-Sterile", "Non-Sterile", "Others/Ambiguous"
+    )
+  )
+})
+
+test_that("prep_standardize_specimens: stewardship specimen additions classify correctly", {
+  dat <- data.frame(
+    specimen_type = c(
+      "Instrument", "Lung aspirate", "Brain abscess",
+      "Superficial Biopsy", "Hair", "Lymph node"
+    ),
+    stringsAsFactors = FALSE
+  )
+  out <- prep_standardize_specimens(dat)
+  expect_equal(
+    out$specimen_normalized,
+    c("Instrument", "Lung aspirate", "Brain abscess",
+      "Superficial Biopsy", "Hair", "Lymph node")
+  )
+  expect_equal(
+    out$sterile_classification,
+    c("Others/Ambiguous", "Sterile", "Sterile",
+      "Others/Ambiguous", "Non-Sterile", "Sterile")
+  )
 })
 
 test_that("prep_standardize_specimens: edge cases", {
