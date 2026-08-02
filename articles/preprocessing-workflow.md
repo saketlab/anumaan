@@ -30,9 +30,9 @@ messy values that preprocessing is supposed to absorb.
 ``` r
 raw_alias <- data.frame(
   PID = c("pt_001", "pt_001", "pt_002", "pt_003", "pt_003", "pt_004"),
-  Date.of.admission = c("2025-01-01", "2025-01-01", "43831", "2025/01/10", "2025/01/10", "20201301"),
-  CultureDate = c("2025-01-03", "2025-01-03", "43833", "2025/01/11", "2025/01/11", "2025-01-15"),
-  Date.of.14.day.outcome = c("2025-01-08", "2025-01-08", "43840", "2025/01/18", "2025/01/18", "2025-01-25"),
+  Date.of.admission = c("2021-01-01", "2021-01-01", "43831", "2021/01/10", "2021/01/10", "20211301"),
+  CultureDate = c("2021-01-03", "2021-01-03", "43833", "2021/01/11", "2021/01/11", "2021-01-15"),
+  Date.of.14.day.outcome = c("2021-01-08", "2021-01-08", "43840", "2021/01/18", "2021/01/18", "2021-01-25"),
   Final.outcome = c("alive", "alive", "expired", "Discharged Alive", "Died/Expired", "LAMA"),
   Organism = c(
     "E. coli",
@@ -46,9 +46,9 @@ raw_alias <- data.frame(
     "blood culure",
     "blood culure",
     "Blood",
-    "Blood",
+    "Brain abscess",
     "ETA",
-    "Urine culture / sensitivity"
+    "Superficial Biopsy"
   ),
   Antibiotic = c("Amikacin", "Ciproflox", "Vancomycin", "Oxacillin", "Colistin", "UnknownDrugZZ"),
   Result = c("Resistant", "Susceptible", "S", "Intermediate", "1", ""),
@@ -60,19 +60,19 @@ raw_alias <- data.frame(
 
 raw_alias
 #>      PID Date.of.admission CultureDate Date.of.14.day.outcome    Final.outcome
-#> 1 pt_001        2025-01-01  2025-01-03             2025-01-08            alive
-#> 2 pt_001        2025-01-01  2025-01-03             2025-01-08            alive
+#> 1 pt_001        2021-01-01  2021-01-03             2021-01-08            alive
+#> 2 pt_001        2021-01-01  2021-01-03             2021-01-08            alive
 #> 3 pt_002             43831       43833                  43840          expired
-#> 4 pt_003        2025/01/10  2025/01/11             2025/01/18 Discharged Alive
-#> 5 pt_003        2025/01/10  2025/01/11             2025/01/18     Died/Expired
-#> 6 pt_004          20201301  2025-01-15             2025-01-25             LAMA
-#>                                            Organism           Sample_type1_name
-#> 1                                           E. coli                blood culure
-#> 2                                           E. coli                blood culure
-#> 3 MRSA(Methicillin resistant staphylococcus aureus)                       Blood
-#> 4           CONS (Coagulase Negative Staphylococci)                       Blood
-#> 5              Non fermenting Gram negative bacilli                         ETA
-#> 6                             No growth in culture. Urine culture / sensitivity
+#> 4 pt_003        2021/01/10  2021/01/11             2021/01/18 Discharged Alive
+#> 5 pt_003        2021/01/10  2021/01/11             2021/01/18     Died/Expired
+#> 6 pt_004          20211301  2021-01-15             2021-01-25             LAMA
+#>                                            Organism  Sample_type1_name
+#> 1                                           E. coli       blood culure
+#> 2                                           E. coli       blood culure
+#> 3 MRSA(Methicillin resistant staphylococcus aureus)              Blood
+#> 4           CONS (Coagulase Negative Staphylococci)      Brain abscess
+#> 5              Non fermenting Gram negative bacilli                ETA
+#> 6                             No growth in culture. Superficial Biopsy
 #>      Antibiotic       Result  Gender        DOB        infection_type
 #> 1      Amikacin    Resistant       M 1988-05-01     Hospital-Acquired
 #> 2     Ciproflox  Susceptible       M 1988-05-01     Hospital-Acquired
@@ -170,11 +170,11 @@ prep_assert_standard_names(
 
 ``` r
 prep_parse_date_column(
-  c("43831", "1577836800000", "20201301", "2025/01/05", "bad-date"),
+  c("43831", "1577836800000", "20211301", "2021/01/05", "bad-date"),
   col_name = "date_of_culture",
   table_label = "example_dates"
 )
-#> [1] "2020-01-01" "2020-01-01" "2020-01-13" "2025-01-05" NA
+#> [1] "2020-01-01" "2020-01-01" "2021-01-13" "2021-01-05" NA
 ```
 
 ### Validate and coerce the working table
@@ -195,12 +195,12 @@ validated <- prep_validate_table(
 prepped <- validated$data
 prepped[, c("patient_id", "date_of_admission", "date_of_culture", "date_of_final_outcome", "DOB")]
 #>   patient_id date_of_admission date_of_culture date_of_final_outcome        DOB
-#> 1     pt_001        2025-01-01      2025-01-03            2025-01-08 1988-05-01
-#> 2     pt_001        2025-01-01      2025-01-03            2025-01-08 1988-05-01
+#> 1     pt_001        2021-01-01      2021-01-03            2021-01-08 1988-05-01
+#> 2     pt_001        2021-01-01      2021-01-03            2021-01-08 1988-05-01
 #> 3     pt_002        2020-01-01      2020-01-03            2020-01-10 1975-03-12
-#> 4     pt_003        2025-01-10      2025-01-11            2025-01-18 1990-03-20
-#> 5     pt_003        2025-01-10      2025-01-11            2025-01-18 1988-01-13
-#> 6     pt_004        2020-01-13      2025-01-15            2025-01-25       <NA>
+#> 4     pt_003        2021-01-10      2021-01-11            2021-01-18 1990-03-20
+#> 5     pt_003        2021-01-10      2021-01-11            2021-01-18 1988-01-13
+#> 6     pt_004        2021-01-13      2021-01-15            2021-01-25       <NA>
 ```
 
 ### Validate chronology
@@ -262,6 +262,14 @@ prepped[, c(
 
 ### Specimen, sex, outcome, and infection type
 
+In version 0.1.0.9021, specimen standardisation keeps the detailed
+`sample_category` from the CSV reference but collapses sterile-site
+labels to three downstream analysis classes: `Sterile`, `Non-Sterile`,
+and `Others/Ambiguous`. The reference also includes stewardship labels
+that appear in 2021-era extracts, including `Brain abscess`,
+`Instrument`, `Lung aspirate`, `Lymph node`, `Hair`, and
+`Superficial Biopsy`.
+
 ``` r
 prepped <- prep_standardize_specimens(prepped, specimen_col = "specimen_type")
 prepped <- prep_standardize_sex(prepped, col = "gender")
@@ -283,20 +291,56 @@ prepped[, c(
   "outcome_std",
   "infection_type"
 )]
-#>                 specimen_type         specimen_normalized   sample_category
-#> 1                blood culure                       Blood             Blood
-#> 2                blood culure                       Blood             Blood
-#> 3                       Blood                       Blood             Blood
-#> 4                       Blood                       Blood             Blood
-#> 5                         ETA Endotracheal aspirate (ETA) Respiratory tract
-#> 6 Urine culture / sensitivity                       Urine             Urine
+#>        specimen_type         specimen_normalized   sample_category
+#> 1       blood culure                       Blood             Blood
+#> 2       blood culure                       Blood             Blood
+#> 3              Blood                       Blood             Blood
+#> 4      Brain abscess               Brain abscess        CNS/Ocular
+#> 5                ETA Endotracheal aspirate (ETA) Respiratory tract
+#> 6 Superficial Biopsy          Superficial Biopsy            Others
 #>   sterile_classification gender outcome_std infection_type
-#> 1           Sterile site      M    Survived            HAI
-#> 2           Sterile site      M    Survived            HAI
-#> 3           Sterile site      F        Died            CAI
-#> 4           Sterile site      F    Survived           <NA>
-#> 5       Non-sterile site      M        Died            HAI
-#> 6       Non-sterile site   <NA>        <NA>           <NA>
+#> 1                Sterile      M    Survived            HAI
+#> 2                Sterile      M    Survived            HAI
+#> 3                Sterile      F        Died            CAI
+#> 4                Sterile      F    Survived           <NA>
+#> 5            Non-Sterile      M        Died            HAI
+#> 6       Others/Ambiguous   <NA>        <NA>           <NA>
+```
+
+``` r
+specimen_9021 <- data.frame(
+  specimen_type = c(
+    "Instrument", "Lung aspirate", "Brain abscess",
+    "Superficial Biopsy", "Hair", "Lymph node",
+    "Drain Fluid", "Pigtail fluid"
+  ),
+  stringsAsFactors = FALSE
+)
+
+prep_standardize_specimens(specimen_9021)[, c(
+  "specimen_type",
+  "specimen_normalized",
+  "sample_category",
+  "sterile_classification"
+)]
+#>        specimen_type specimen_normalized   sample_category
+#> 1         Instrument          Instrument   Catheter/Device
+#> 2      Lung aspirate       Lung aspirate Respiratory tract
+#> 3      Brain abscess       Brain abscess        CNS/Ocular
+#> 4 Superficial Biopsy  Superficial Biopsy            Others
+#> 5               Hair                Hair  Skin/Soft tissue
+#> 6         Lymph node          Lymph node    Sterile tissue
+#> 7        Drain Fluid         Drain Fluid        Body fluid
+#> 8      Pigtail fluid       Pigtail fluid        Body fluid
+#>   sterile_classification
+#> 1       Others/Ambiguous
+#> 2                Sterile
+#> 3                Sterile
+#> 4       Others/Ambiguous
+#> 5            Non-Sterile
+#> 6                Sterile
+#> 7            Non-Sterile
+#> 8       Others/Ambiguous
 ```
 
 ### Antibiotics and AST values
@@ -368,18 +412,18 @@ prepped <- prep_assign_age_bins(prepped, age_col = "Age", bins = "GBD_standard")
 
 prepped[, c("patient_id", "DOB", "date_of_culture", "Age", "age_method", "age_confidence", "Age_bin")]
 #>   patient_id        DOB date_of_culture      Age          age_method
-#> 1     pt_001 1988-05-01      2025-01-03 36.67625 calculated_from_dob
-#> 2     pt_001 1988-05-01      2025-01-03 36.67625 calculated_from_dob
+#> 1     pt_001 1988-05-01      2021-01-03 32.67625 calculated_from_dob
+#> 2     pt_001 1988-05-01      2021-01-03 32.67625 calculated_from_dob
 #> 3     pt_002 1975-03-12      2020-01-03 44.81314 calculated_from_dob
-#> 4     pt_003 1990-03-20      2025-01-11 34.81451 calculated_from_dob
-#> 5     pt_003 1988-01-13      2025-01-11 36.99658 calculated_from_dob
-#> 6     pt_004       <NA>      2025-01-15       NA                <NA>
+#> 4     pt_003 1990-03-20      2021-01-11 30.81451 calculated_from_dob
+#> 5     pt_003 1988-01-13      2021-01-11 32.99658 calculated_from_dob
+#> 6     pt_004       <NA>      2021-01-15       NA                <NA>
 #>   age_confidence Age_bin
-#> 1           high   35-40
-#> 2           high   35-40
+#> 1           high   30-35
+#> 2           high   30-35
 #> 3           high   40-45
 #> 4           high   30-35
-#> 5           high   35-40
+#> 5           high   30-35
 #> 6           <NA>    <NA>
 ```
 
@@ -393,16 +437,16 @@ prepped <- prep_derive_los_from_dates(
   los_col = "los_days"
 )
 #>   mean_los median_los min_los max_los
-#> 1      313          8       7    1839
+#> 1      8.5          8       7      12
 
 prepped[, c("patient_id", "date_of_admission", "date_of_final_outcome", "los_days")]
 #>   patient_id date_of_admission date_of_final_outcome los_days
-#> 1     pt_001        2025-01-01            2025-01-08        7
-#> 2     pt_001        2025-01-01            2025-01-08        7
+#> 1     pt_001        2021-01-01            2021-01-08        7
+#> 2     pt_001        2021-01-01            2021-01-08        7
 #> 3     pt_002        2020-01-01            2020-01-10        9
-#> 4     pt_003        2025-01-10            2025-01-18        8
-#> 5     pt_003        2025-01-10            2025-01-18        8
-#> 6     pt_004        2020-01-13            2025-01-25     1839
+#> 4     pt_003        2021-01-10            2021-01-18        8
+#> 5     pt_003        2021-01-10            2021-01-18        8
+#> 6     pt_004        2021-01-13            2021-01-25       12
 ```
 
 ### Derive HAI/CAI and source flags
@@ -427,12 +471,12 @@ prepped <- prep_flag_hai_inferred(prepped)
 
 prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_type", "infection_type_method", "infection_type_src")]
 #>   patient_id date_of_admission date_of_culture infection_type
-#> 1     pt_001        2025-01-01      2025-01-03            HAI
-#> 2     pt_001        2025-01-01      2025-01-03            HAI
+#> 1     pt_001        2021-01-01      2021-01-03            HAI
+#> 2     pt_001        2021-01-01      2021-01-03            HAI
 #> 3     pt_002        2020-01-01      2020-01-03            CAI
-#> 4     pt_003        2025-01-10      2025-01-11            CAI
-#> 5     pt_003        2025-01-10      2025-01-11            HAI
-#> 6     pt_004        2020-01-13      2025-01-15            HAI
+#> 4     pt_003        2021-01-10      2021-01-11            CAI
+#> 5     pt_003        2021-01-10      2021-01-11            HAI
+#> 6     pt_004        2021-01-13      2021-01-15            HAI
 #>   infection_type_method infection_type_src
 #> 1  inferred_2day_cutoff           inferred
 #> 2  inferred_2day_cutoff           inferred
@@ -460,19 +504,19 @@ prepped <- prep_create_event_ids(
 
 prepped[, c("patient_id", "organism_normalized", "date_of_culture", "event_id")]
 #>   patient_id                  organism_normalized date_of_culture
-#> 1     pt_001                     escherichia coli      2025-01-03
-#> 2     pt_001                     escherichia coli      2025-01-03
+#> 1     pt_001                     escherichia coli      2021-01-03
+#> 2     pt_001                     escherichia coli      2021-01-03
 #> 3     pt_002                staphylococcus aureus      2020-01-03
-#> 4     pt_003     coagulase-negative staphylococci      2025-01-11
-#> 5     pt_003 non-fermenting gram-negative bacilli      2025-01-11
-#> 6     pt_004                                 <NA>      2025-01-15
+#> 4     pt_003     coagulase-negative staphylococci      2021-01-11
+#> 5     pt_003 non-fermenting gram-negative bacilli      2021-01-11
+#> 6     pt_004                                 <NA>      2021-01-15
 #>                                                                               event_id
-#> 1                                           pt_001_blood_20250103_escherichia coli_001
-#> 2                                           pt_001_blood_20250103_escherichia coli_001
+#> 1                                           pt_001_blood_20210103_escherichia coli_001
+#> 2                                           pt_001_blood_20210103_escherichia coli_001
 #> 3                                      pt_002_blood_20200103_staphylococcus aureus_001
-#> 4                           pt_003_blood_20250111_coagulase-negative staphylococci_001
-#> 5 pt_003_endotracheal aspirate (eta)_20250111_non-fermenting gram-negative bacilli_002
-#> 6                                                     pt_004_urine_20250115___NA___001
+#> 4                   pt_003_brain abscess_20210111_coagulase-negative staphylococci_001
+#> 5 pt_003_endotracheal aspirate (eta)_20210111_non-fermenting gram-negative bacilli_002
+#> 6                                        pt_004_superficial biopsy_20210115___NA___001
 ```
 
 ### Deduplicate event-level rows
@@ -540,7 +584,7 @@ runs in two sequential steps:
 ``` r
 ast_exact_dups <- data.frame(
   patient_id            = c("pt_030", "pt_030", "pt_031"),
-  culture_date          = as.Date(c("2025-02-01", "2025-02-01", "2025-02-01")),
+  culture_date          = as.Date(c("2021-02-01", "2021-02-01", "2021-02-01")),
   organism_normalized   = c("escherichia coli", "escherichia coli", "klebsiella pneumoniae"),
   antibiotic_normalized = c("amikacin", "amikacin", "ciprofloxacin"),
   ast_value_harmonized  = c("R", "R", "S"),
@@ -563,7 +607,7 @@ out_exact[, c("patient_id", "antibiotic_normalized", "ast_value_harmonized", "is
 ``` r
 ast_dups <- data.frame(
   patient_id            = c("pt_020", "pt_020", "pt_020"),
-  culture_date          = as.Date(c("2025-01-15", "2025-01-15", "2025-01-15")),
+  culture_date          = as.Date(c("2021-01-15", "2021-01-15", "2021-01-15")),
   organism_normalized   = c("escherichia coli", "escherichia coli", "escherichia coli"),
   antibiotic_normalized = c("amikacin", "amikacin", "cefotaxime"),
   antibiotic_name       = c("Amikacin", "Amikacin", "Cefotaxime"),
@@ -583,7 +627,7 @@ prep_deduplicate_ast(ast_dups, mode = "detect")[, c(
 #> # A tibble: 1 × 6
 #>   patient_id organism_normalized antibiotic_normalized culture_date
 #>   <chr>      <chr>               <chr>                 <date>      
-#> 1 pt_020     escherichia coli    amikacin              2025-01-15  
+#> 1 pt_020     escherichia coli    amikacin              2021-01-15  
 #> # ℹ 2 more variables: conflicting_values <chr>, n_rows <int>
 #>   patient_id antibiotic_normalized ast_value_harmonized is_ast_duplicate
 #> 1     pt_020              amikacin                    S             TRUE
@@ -599,7 +643,7 @@ prep_deduplicate_ast(ast_dups, mode = "remove", strategy = "resistant_wins")[, c
 #> # A tibble: 1 × 6
 #>   patient_id organism_normalized antibiotic_normalized culture_date
 #>   <chr>      <chr>               <chr>                 <date>      
-#> 1 pt_020     escherichia coli    amikacin              2025-01-15  
+#> 1 pt_020     escherichia coli    amikacin              2021-01-15  
 #> # ℹ 2 more variables: conflicting_values <chr>, n_rows <int>
 #> # A tibble: 2 × 3
 #>   patient_id antibiotic_normalized ast_value_harmonized
@@ -620,9 +664,9 @@ prepped[, c("organism_normalized", "specimen_normalized", "is_contaminant", "con
 #> 1                     escherichia coli                       Blood
 #> 2                     escherichia coli                       Blood
 #> 3                staphylococcus aureus                       Blood
-#> 4     coagulase-negative staphylococci                       Blood
+#> 4     coagulase-negative staphylococci               Brain abscess
 #> 5 non-fermenting gram-negative bacilli Endotracheal aspirate (ETA)
-#> 6                                 <NA>                       Urine
+#> 6                                 <NA>          Superficial Biopsy
 #>   is_contaminant contaminant_confidence contaminant_method
 #> 1          FALSE                    low          heuristic
 #> 2          FALSE                    low          heuristic

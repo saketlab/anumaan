@@ -19,7 +19,9 @@ data into an analysis-ready format. It covers:
 
 - Column name standardisation and schema alignment
 - Date parsing and chronological validation
-- Organism, specimen, antibiotic, and AST value cleaning
+- Organism, specimen, antibiotic, and AST value cleaning, including the
+  0.1.0.9021 specimen reference additions and collapsed sterile-site
+  classes
 - Demographic derivations (age, HAI/CAI, LOS)
 - Event creation, deduplication, and readmission classification
 - Contaminant detection and polymicrobial weighting
@@ -99,17 +101,22 @@ vignette](https://saketlab.github.io/anumaan/articles/daly-pipeline.md).
 ``` r
 # From GitHub
 remotes::install_github("saketlab/anumaan")
+
+# Build vignettes locally when you want the full article set
+remotes::install_github("saketlab/anumaan", build_vignettes = TRUE)
 ```
 
 ### Optional dependencies
 
-| Feature                        | Packages                 |
-|--------------------------------|--------------------------|
-| Convex QP solver (recommended) | `osqp`, `Matrix`         |
-| Convex QP solver (fallback)    | `quadprog`               |
-| Mixed-effects LOS modelling    | `lme4`, `glmmTMB`        |
-| Spatial analysis               | `sf`, `spdep`, `leaflet` |
-| Python ICD-10 embedding        | `reticulate` + `alethia` |
+| Feature                        | Packages                                                                                                                |
+|--------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| Convex QP solver (recommended) | `osqp`, `Matrix`                                                                                                        |
+| Convex QP solver (fallback)    | `quadprog`                                                                                                              |
+| Mixed-effects LOS modelling    | `lme4`, `glmmTMB`                                                                                                       |
+| Spatial analysis               | `sf`, `spdep`, `leaflet`                                                                                                |
+| Python ICD-10 embedding        | `reticulate` + `alethia`                                                                                                |
+| pkgdown site build             | `pkgdown`                                                                                                               |
+| Enhanced EDA theme             | `ggpubr` (plots fall back to [`ggplot2::theme_bw()`](https://ggplot2.tidyverse.org/reference/ggtheme.html) when absent) |
 
 ------------------------------------------------------------------------
 
@@ -131,6 +138,12 @@ antibiotic combination:
 Optional but used when present: `date_of_admission`,
 `date_of_final_outcome`, `DOB`, `Age`, `gender`, `final_outcome`,
 `infection_type`, `state`.
+
+[`prep_standardize_specimens()`](https://saketlab.github.io/anumaan/reference/prep_standardize_specimens.md)
+now returns `sterile_classification` collapsed to `Sterile`,
+`Non-Sterile`, or `Others/Ambiguous`. The 0.1.0.9021 reference also adds
+stewardship specimen labels such as `Brain abscess`, `Instrument`,
+`Lung aspirate`, `Lymph node`, `Hair`, and `Superficial Biopsy`.
 
 ------------------------------------------------------------------------
 

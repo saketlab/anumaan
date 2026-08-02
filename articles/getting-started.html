@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9020</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -104,7 +104,7 @@
 
       <h1>Getting Started with anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-07-22</h4>
+            <h4 data-toc-skip class="date">2026-08-02</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -130,7 +130,9 @@ data into an analysis-ready format. It covers:</p>
 <ul>
 <li>Column name standardisation and schema alignment</li>
 <li>Date parsing and chronological validation</li>
-<li>Organism, specimen, antibiotic, and AST value cleaning</li>
+<li>Organism, specimen, antibiotic, and AST value cleaning, including
+the 0.1.0.9021 specimen reference additions and collapsed sterile-site
+classes</li>
 <li>Demographic derivations (age, HAI/CAI, LOS)</li>
 <li>Event creation, deduplication, and readmission classification</li>
 <li>Contaminant detection and polymicrobial weighting</li>
@@ -203,11 +205,18 @@ Burden Estimation vignette</a>.</p>
 </h2>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># From GitHub</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Build vignettes locally when you want the full article set</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span>, build_vignettes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="optional-dependencies">Optional dependencies<a class="anchor" aria-label="anchor" href="#optional-dependencies"></a>
 </h3>
 <table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
 <thead><tr class="header">
 <th>Feature</th>
 <th>Packages</th>
@@ -240,6 +249,16 @@ Burden Estimation vignette</a>.</p>
 <td>
 <code>reticulate</code> + <code>alethia</code>
 </td>
+</tr>
+<tr class="even">
+<td>pkgdown site build</td>
+<td><code>pkgdown</code></td>
+</tr>
+<tr class="odd">
+<td>Enhanced EDA theme</td>
+<td>
+<code>ggpubr</code> (plots fall back to
+<code><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">ggplot2::theme_bw()</a></code> when absent)</td>
 </tr>
 </tbody>
 </table>
@@ -295,6 +314,13 @@ per isolate × antibiotic combination:</p>
 <code>date_of_final_outcome</code>, <code>DOB</code>, <code>Age</code>,
 <code>gender</code>, <code>final_outcome</code>,
 <code>infection_type</code>, <code>state</code>.</p>
+<p><code><a href="../reference/prep_standardize_specimens.html">prep_standardize_specimens()</a></code> now returns
+<code>sterile_classification</code> collapsed to <code>Sterile</code>,
+<code>Non-Sterile</code>, or <code>Others/Ambiguous</code>. The
+0.1.0.9021 reference also adds stewardship specimen labels such as
+<code>Brain abscess</code>, <code>Instrument</code>,
+<code>Lung aspirate</code>, <code>Lymph node</code>, <code>Hair</code>,
+and <code>Superficial Biopsy</code>.</p>
 <hr>
 </div>
 <div class="section level2">
