@@ -50,9 +50,9 @@ values that preprocessing is supposed to absorb.
 ```{r raw-data}
 raw_alias <- data.frame(
   PID = c("pt_001", "pt_001", "pt_002", "pt_003", "pt_003", "pt_004"),
-  Date.of.admission = c("2025-01-01", "2025-01-01", "43831", "2025/01/10", "2025/01/10", "20201301"),
-  CultureDate = c("2025-01-03", "2025-01-03", "43833", "2025/01/11", "2025/01/11", "2025-01-15"),
-  Date.of.14.day.outcome = c("2025-01-08", "2025-01-08", "43840", "2025/01/18", "2025/01/18", "2025-01-25"),
+  Date.of.admission = c("2021-01-01", "2021-01-01", "43831", "2021/01/10", "2021/01/10", "20211301"),
+  CultureDate = c("2021-01-03", "2021-01-03", "43833", "2021/01/11", "2021/01/11", "2021-01-15"),
+  Date.of.14.day.outcome = c("2021-01-08", "2021-01-08", "43840", "2021/01/18", "2021/01/18", "2021-01-25"),
   Final.outcome = c("alive", "alive", "expired", "Discharged Alive", "Died/Expired", "LAMA"),
   Organism = c(
     "E. coli",
@@ -66,9 +66,9 @@ raw_alias <- data.frame(
     "blood culure",
     "blood culure",
     "Blood",
-    "Blood",
+    "Brain abscess",
     "ETA",
-    "Urine culture / sensitivity"
+    "Superficial Biopsy"
   ),
   Antibiotic = c("Amikacin", "Ciproflox", "Vancomycin", "Oxacillin", "Colistin", "UnknownDrugZZ"),
   Result = c("Resistant", "Susceptible", "S", "Intermediate", "1", ""),
@@ -151,7 +151,7 @@ prep_assert_standard_names(
 
 ```{r parse-single-date-column}
 prep_parse_date_column(
-  c("43831", "1577836800000", "20201301", "2025/01/05", "bad-date"),
+  c("43831", "1577836800000", "20211301", "2021/01/05", "bad-date"),
   col_name = "date_of_culture",
   table_label = "example_dates"
 )
@@ -210,6 +210,13 @@ prepped[, c(
 
 ## Specimen, sex, outcome, and infection type
 
+In version 0.1.0.9021, specimen standardisation keeps the detailed
+`sample_category` from the CSV reference but collapses sterile-site labels to
+three downstream analysis classes: `Sterile`, `Non-Sterile`, and
+`Others/Ambiguous`. The reference also includes stewardship labels that appear
+in 2021-era extracts, including `Brain abscess`, `Instrument`,
+`Lung aspirate`, `Lymph node`, `Hair`, and `Superficial Biopsy`.
+
 ```{r types}
 prepped <- prep_standardize_specimens(prepped, specimen_col = "specimen_type")
 prepped <- prep_standardize_sex(prepped, col = "gender")
@@ -224,6 +231,24 @@ prepped[, c(
   "gender",
   "outcome_std",
   "infection_type"
+)]
+```
+
+```{r specimen-9021-examples}
+specimen_9021 <- data.frame(
+  specimen_type = c(
+    "Instrument", "Lung aspirate", "Brain abscess",
+    "Superficial Biopsy", "Hair", "Lymph node",
+    "Drain Fluid", "Pigtail fluid"
+  ),
+  stringsAsFactors = FALSE
+)
+
+prep_standardize_specimens(specimen_9021)[, c(
+  "specimen_type",
+  "specimen_normalized",
+  "sample_category",
+  "sterile_classification"
 )]
 ```
 
@@ -376,7 +401,7 @@ ast_long
 ```{r exact-dedup}
 ast_exact_dups <- data.frame(
   patient_id            = c("pt_030", "pt_030", "pt_031"),
-  culture_date          = as.Date(c("2025-02-01", "2025-02-01", "2025-02-01")),
+  culture_date          = as.Date(c("2021-02-01", "2021-02-01", "2021-02-01")),
   organism_normalized   = c("escherichia coli", "escherichia coli", "klebsiella pneumoniae"),
   antibiotic_normalized = c("amikacin", "amikacin", "ciprofloxacin"),
   ast_value_harmonized  = c("R", "R", "S"),
@@ -395,7 +420,7 @@ out_exact[, c("patient_id", "antibiotic_normalized", "ast_value_harmonized", "is
 ```{r deduplicate-ast}
 ast_dups <- data.frame(
   patient_id            = c("pt_020", "pt_020", "pt_020"),
-  culture_date          = as.Date(c("2025-01-15", "2025-01-15", "2025-01-15")),
+  culture_date          = as.Date(c("2021-01-15", "2021-01-15", "2021-01-15")),
   organism_normalized   = c("escherichia coli", "escherichia coli", "escherichia coli"),
   antibiotic_normalized = c("amikacin", "amikacin", "cefotaxime"),
   antibiotic_name       = c("Amikacin", "Amikacin", "Cefotaxime"),

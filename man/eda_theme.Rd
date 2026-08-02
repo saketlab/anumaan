@@ -17,5 +17,6 @@ A ggplot2 theme object.
 }
 \description{
 Consistent theme used across all EDA plot functions in this file.
-Built on top of \code{ggpubr::theme_pubr()}.
+Uses \code{ggpubr::theme_pubr()} when ggpubr is installed and falls back to
+\code{ggplot2::theme_bw()} otherwise.
 }

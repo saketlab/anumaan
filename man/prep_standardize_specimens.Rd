@@ -16,14 +16,16 @@ prep_standardize_specimens(
 \item{specimen_col}{Character. Specimen column name. Default "specimen_type".}
 
 \item{add_categories}{Logical. Add sample_category and sterile_classification.
-Default TRUE.}
+sterile_classification is collapsed to Sterile, Non-Sterile, or
+Others/Ambiguous using specimen-specific rules for body-fluid,
+drain/device-associated, and unspecified samples. Default TRUE.}
 }
 \value{
 Data frame with specimen_normalized, sample_category, and
   sterile_classification columns.
 }
 \description{
-Normalizes specimen/sample type names and adds sample_category and
+Normalizes specimen/sample type names and adds sample_category and a collapsed
 sterile_classification from the reference CSV file. Includes rule-based text
 cleaning and fuzzy matching for common shorthand and minor misspellings.
 }

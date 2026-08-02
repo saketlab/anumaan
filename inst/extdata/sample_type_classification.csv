@@ -9,6 +9,7 @@ Blood-central catheter,Blood,Sterile site
 Blood-peripheral,Blood,Sterile site
 Bone,Sterile tissue,Sterile site
 Bone Marrow,Blood,Sterile site
+Brain abscess,CNS/Ocular,Sterile site
 Cervical Swab,Genital tract,Non-sterile site
 CSF (Cerebrospinal fluid),CNS/Ocular,Sterile site
 Deep Biopsy,Sterile tissue,Sterile site
@@ -23,13 +24,17 @@ Fluid from sterile site,Sterile tissue,Sterile site
 FNAC (Fine Needle Aspiration),Others,Sterile site
 Gastric fluid,Intestinal tract,Non-sterile site
 Genital tract,Genital tract,Non-sterile site
+Hair,Skin/Soft tissue,Non-sterile site
 ICTD fluid,Body fluid,Body fluid
+Instrument,Catheter/Device,Device-associated
 Intestinal fluid,Intestinal tract,Non-sterile site
 Intra operative bile,Body fluid,Body fluid
 Intra operative fluid,Body fluid,Sterile site
 Intracostal tube fluid,Body fluid,Body fluid
 Iobectomy tissue,Sterile tissue,Sterile site
 Joint Fluid,Body fluid,Sterile site
+Lung aspirate,Respiratory tract,Sterile site
+Lymph node,Sterile tissue,Sterile site
 Nasal scrapping,ENT/Head & Neck,Non-sterile site
 Nasal tissue,ENT/Head & Neck,Non-sterile site
 Necrosum,Abscess/Wound/Pus,Non-sterile site
@@ -52,6 +57,7 @@ Sinus mass,ENT/Head & Neck,Non-sterile site
 Skin and Soft Tissue,Abscess/Wound/Pus,Non-sterile site
 Skin biopsy,Abscess/Wound/Pus,Non-sterile site
 Sputum,Respiratory tract,Non-sterile site
+Superficial Biopsy,Others,Others
 Superficial Tissue,Abscess/Wound/Pus,Non-sterile site
 Throat swab,Respiratory tract,Non-sterile site
 Vaginal swab,Genital tract,Non-sterile site

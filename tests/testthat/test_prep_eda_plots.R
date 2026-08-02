@@ -39,6 +39,10 @@ make_amr_data <- function() {
   )
 }
 
+test_that("eda_theme returns a ggplot2 theme without requiring ggpubr", {
+  expect_s3_class(eda_theme(), "theme")
+})
+
 test_that("plot_top_organisms returns ggplot and errors on missing column", {
   expect_s3_class(plot_top_organisms(make_amr_data(), mode = "overall"), "ggplot")
   bad <- make_amr_data(); bad$organism_name <- NULL

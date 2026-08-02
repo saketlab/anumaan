@@ -8,7 +8,8 @@
 #' EDA ggplot2 Theme
 #'
 #' Consistent theme used across all EDA plot functions in this file.
-#' Built on top of \code{ggpubr::theme_pubr()}.
+#' Uses \code{ggpubr::theme_pubr()} when ggpubr is installed and falls back to
+#' \code{ggplot2::theme_bw()} otherwise.
 #'
 #' @param base_size Numeric. Base font size. Default 14.
 #' @param legend_position Character. Legend position ("top", "bottom",
@@ -17,10 +18,13 @@
 #' @return A ggplot2 theme object.
 #' @export
 eda_theme <- function(base_size = 14, legend_position = "top") {
-  if (!requireNamespace("ggpubr", quietly = TRUE))
-    stop("Package 'ggpubr' is required for eda_theme(). Install with: install.packages('ggpubr')",
-         call. = FALSE)
-  ggpubr::theme_pubr(base_size = base_size) +
+  base_theme <- if (requireNamespace("ggpubr", quietly = TRUE)) {
+    ggpubr::theme_pubr(base_size = base_size)
+  } else {
+    ggplot2::theme_bw(base_size = base_size)
+  }
+
+  base_theme +
     ggplot2::theme(
       strip.text       = ggplot2::element_text(face = "bold"),
       strip.background = ggplot2::element_rect(fill = "grey92", color = "black",

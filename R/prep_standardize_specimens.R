@@ -9,14 +9,16 @@
 
 #' Normalize Specimen/Sample Type
 #'
-#' Normalizes specimen/sample type names and adds sample_category and
+#' Normalizes specimen/sample type names and adds sample_category and a collapsed
 #' sterile_classification from the reference CSV file. Includes rule-based text
 #' cleaning and fuzzy matching for common shorthand and minor misspellings.
 #'
 #' @param data Data frame with specimen column.
 #' @param specimen_col Character. Specimen column name. Default "specimen_type".
 #' @param add_categories Logical. Add sample_category and sterile_classification.
-#'   Default TRUE.
+#'   sterile_classification is collapsed to Sterile, Non-Sterile, or
+#'   Others/Ambiguous using specimen-specific rules for body-fluid,
+#'   drain/device-associated, and unspecified samples. Default TRUE.
 #'
 #' @return Data frame with specimen_normalized, sample_category, and
 #'   sterile_classification columns.
@@ -42,6 +44,48 @@ prep_standardize_specimens <- function(data,
   }
 
   specimen_ref <- readr::read_csv(csv_path, show_col_types = FALSE)
+
+  collapse_sterile_classification <- function(specimen_name, sterile_classification) {
+    specimen_key <- tolower(trimws(as.character(specimen_name)))
+    class_key <- tolower(trimws(as.character(sterile_classification)))
+    out <- rep(NA_character_, length(class_key))
+
+    sterile_specimens <- c(
+      "abdominal fluid", "blood", "blood-peripheral", "bone", "bone marrow",
+      "brain abscess", "csf", "deep biopsy", "deep tissue", "fnac",
+      "intra operative fluid", "joint fluid", "lung aspirate", "lymph node",
+      "ocular-deep", "pericardial fluid", "peritoneal fluid", "pleural fluid",
+      "vitreous fluid",
+      # Intercostal/chest-drain fluid is treated as sterile-leaning because it
+      # generally reflects pleural-space sampling in this reference table.
+      "ictd fluid", "intracostal tube fluid"
+    )
+    nonsterile_specimens <- c(
+      "abscess aspirate", "bal (bronchoalveolar lavage)", "bile",
+      "cervical swab", "drain fluid", "ear swab", "endometrium",
+      "endotracheal aspirate (eta)", "ethmoidal tissue", "faeces",
+      "gastric fluid", "genital tract", "hair", "intestinal fluid",
+      "intra operative bile", "nasal scrapping", "necrosum",
+      "ocular-superficial", "palatal mucosa", "pancreatic drain fluid",
+      "ptbd fluid", "pus", "sinus mass", "skin and soft tissue",
+      "skin biopsy", "sputum", "superficial tissue", "throat swab",
+      "urine", "vaginal swab", "vascular catheter tip", "wound swab"
+    )
+    ambiguous_specimens <- c("fluid", "instrument", "others", "pigtail fluid",
+                             "superficial biopsy")
+
+    out[specimen_key %in% sterile_specimens] <- "Sterile"
+    out[specimen_key %in% nonsterile_specimens] <- "Non-Sterile"
+    out[specimen_key %in% ambiguous_specimens] <- "Others/Ambiguous"
+
+    out[is.na(out) & class_key %in% c("sterile", "sterile site")] <- "Sterile"
+    out[is.na(out) & class_key %in% c("non-sterile", "non sterile",
+                                      "non-sterile site", "non sterile site")] <- "Non-Sterile"
+    out[is.na(out) & class_key %in% c("body fluid", "device-associated",
+                                      "device associated", "others", "other",
+                                      "others/ambiguous", "ambiguous")] <- "Others/Ambiguous"
+    out
+  }
 
   data$temp_spec_input <- tolower(trimws(data[[specimen_col]]))
   data$temp_spec_clean <- data$temp_spec_input
@@ -135,7 +179,10 @@ prep_standardize_specimens <- function(data,
     )
     lookup_df$specimen_normalized    <- specimen_ref$specimen_name[lookup_df$ref_idx]
     lookup_df$sample_category        <- specimen_ref$sample_category[lookup_df$ref_idx]
-    lookup_df$sterile_classification <- specimen_ref$sterile_classification[lookup_df$ref_idx]
+    lookup_df$sterile_classification <- collapse_sterile_classification(
+      specimen_ref$specimen_name[lookup_df$ref_idx],
+      specimen_ref$sterile_classification[lookup_df$ref_idx]
+    )
     lookup_df$ref_idx <- NULL
 
     data$specimen_normalized    <- NULL
@@ -153,9 +200,13 @@ prep_standardize_specimens <- function(data,
                   n_matched, nrow(data), 100 * n_matched / nrow(data)))
 
   if (add_categories) {
-    n_sterile    <- sum(data$sterile_classification == "Sterile site",     na.rm = TRUE)
-    n_nonsterile <- sum(data$sterile_classification == "Non-sterile site", na.rm = TRUE)
-    message(sprintf("Sterile classification: %d sterile, %d non-sterile", n_sterile, n_nonsterile))
+    n_sterile    <- sum(data$sterile_classification == "Sterile", na.rm = TRUE)
+    n_nonsterile <- sum(data$sterile_classification == "Non-Sterile", na.rm = TRUE)
+    n_ambiguous  <- sum(data$sterile_classification == "Others/Ambiguous", na.rm = TRUE)
+    message(sprintf(
+      "Sterile classification: %d sterile, %d non-sterile, %d others/ambiguous",
+      n_sterile, n_nonsterile, n_ambiguous
+    ))
   }
 
   return(data)
