@@ -21,6 +21,7 @@ fit_bayesian_multivariate_probit(
   prior_config = list(),
   sampler_config = list(),
   show_messages = TRUE,
+  save_full_latent_diagnostics = FALSE,
   ...
 )
 }
@@ -88,51 +89,57 @@ are forwarded via \code{...}.}
 
 \item{show_messages}{Logical. Print sampling progress. Default \code{TRUE}.}
 
+\item{save_full_latent_diagnostics}{Logical. When \code{FALSE} (default),
+\code{diagnostics_detail$all_parameters} (per-parameter Rhat/ESS
+including the \code{N_events * D} latent \code{z_free} nuisance
+parameters -- tens of thousands of rows for realistic data) is returned
+with 0 rows to keep the fitted object small; the full-scope summary
+scalars (\code{max_rhat_full}, \code{min_ess_bulk_full},
+\code{min_ess_tail_full}, \code{n_params_full},
+\code{pct_rhat_full_above_1_01}, \code{pct_ess_bulk_full_below_100}) are
+always populated in \code{diagnostics} regardless. Set \code{TRUE} to
+retain the full per-parameter table for debugging.}
+
 \item{...}{Additional arguments forwarded to \code{cmdstanr::sample()}.}
 }
 \value{
 Named list with elements: \code{draws}, \code{diagnostics},
-\code{diagnostics_detail}, \code{fit}, \code{data_long}, \code{index_maps},
-\code{X_design}, \code{class_cols}, \code{event_metadata},
-\code{n_re_levels}, \code{upper_re_col}, \code{middle_re_col},
-\code{lower_re_col}, \code{pathogen_col}, \code{pathogen_fitted},
-\code{estimand}, \code{prior_config_used}, \code{sampler_config_used},
-\code{eligibility_report}.
+  \code{diagnostics_detail}, \code{fit}, \code{data_long}, \code{index_maps},
+  \code{X_design}, \code{X_event}, \code{event_re_idx}, \code{class_cols},
+  \code{event_metadata}, \code{n_re_levels}, \code{upper_re_col},
+  \code{middle_re_col}, \code{lower_re_col}, \code{patient_key_col},
+  \code{admission_key_col}, \code{pathogen_col}, \code{pathogen_fitted},
+  \code{residual_structure}, \code{estimand}, \code{prior_config_used},
+  \code{sampler_config_used}, and \code{eligibility_report}.
 
-\code{diagnostics} is a one-row tibble reported in \strong{two scopes},
-because the model has \code{N_events * D} latent \code{z_free} nuisance
-parameters from probit data augmentation. These latent variables are
-excluded from \code{draws}, \code{draws_summary.csv}, and
-\code{plot_probit_diagnostics()}, but are still part of the Stan fit:
-\itemize{
-  \item \code{max_rhat_structural}, \code{min_ess_bulk_structural},
-    \code{min_ess_tail_structural}, \code{converged_structural} --
-    computed only over the retained structural parameters such as
-    \code{beta}, random-effect terms, \code{tau_*}, \code{R_*},
-    \code{Omega} when present, and \code{lp__}. This is the scope that
-    matches \code{draws} and diagnostic plots, and is the recommended
-    pass/fail signal for the resistance-profile model.
+  \code{diagnostics} is a one-row monitored summary. The main diagnostic
+  fields \code{max_rhat}, \code{min_ess_bulk}, and \code{min_ess_tail}
+  are computed over the monitored parameters retained in \code{draws}.
+  These exclude the latent \code{z_free} nuisance parameters used for
+  probit data augmentation. \code{converged_structural}/\code{converged_full}
+  incorporate tree-depth saturation as well as R-hat/ESS/divergences/E-BFMI
+  (a run that repeatedly saturates \code{max_treedepth} is not reported as
+  converged). \code{diagnostic_status} is a canonical multi-level status --
+  one of \code{"pass"}, \code{"warning_rhat"}, \code{"warning_low_bulk_ess"},
+  \code{"warning_low_tail_ess"}, \code{"warning_treedepth"},
+  \code{"fail_rhat"}, \code{"fail_energy"}, or \code{"fail_divergent"} (most
+  severe first) -- intended as the single authoritative status field for
+  callers, replacing ad hoc re-derivations downstream.
 
-  \item \code{max_rhat_full}, \code{min_ess_bulk_full},
-    \code{min_ess_tail_full}, \code{converged_full} -- the same
-    computation over every Stan parameter, including \code{z_free}.
-    A small number of \code{z_free} entries crossing the Rhat 1.01 or
-    ESS 100 thresholds can occur even when the structural parameters
-    are well behaved. Therefore, \code{converged_full = FALSE} while
-    \code{converged_structural = TRUE} should not by itself be read as
-    model failure.
+  Full-fit diagnostic fields, including \code{max_rhat_all},
+  \code{min_ess_bulk_all}, and \code{min_ess_tail_all}, are reported
+  separately for visibility and include all Stan parameters, including
+  \code{z_free}.
 
-  \item \code{latent_diagnostic_warning} -- \code{TRUE} when
-    \code{converged_structural} is \code{TRUE} but \code{converged_full}
-    is \code{FALSE}. This is informational metadata, not a failure signal.
-
-  \item \code{n_divergent}, \code{n_treedepth_sat}, \code{ebfmi_min},
-    \code{ebfmi_mean}, and \code{ebfmi_by_chain} -- sampler-health
-    diagnostics, not parameter-scope dependent.
-}
-
-\code{diagnostics_detail} contains structural-parameter,
-full-parameter, and chain-level diagnostic tables.
+  \code{diagnostics_detail} contains \code{monitored_parameters},
+  \code{all_parameters} (per-parameter Rhat/ESS with \code{parameter_group}),
+  \code{grouped} (per-\code{parameter_group} Rhat/ESS quantiles and
+  percentage-over-threshold, not only the single worst parameter), and
+  \code{chains} (per-chain \code{n_sampling}, \code{n_divergent},
+  \code{n_treedepth_sat}, \code{ebfmi}, \code{mean_accept_stat},
+  \code{mean_stepsize}, \code{mean_treedepth}, \code{max_treedepth}) -- the
+  canonical diagnostic tables; callers should not recompute these
+  independently from \code{fit$fit$sampler_diagnostics()}.
 }
 \description{
 Accepts wide-format event-level AST data (one row per organism-event, one

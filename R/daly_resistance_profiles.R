@@ -3871,9 +3871,17 @@ prioritize_resistance <- function(data,
 # ---------------------------------------------------------------------------
 
 #' Check pairwise co-testing overlap per hospital x class-pair
+#'
+#' Reports the full 2x2 co-testing breakdown (n_RR/n_RS/n_SR/n_SS), not just
+#' the total co-tested count. A pair can clear \code{min_pairwise_cotested}
+#' while showing no variation at all (e.g. 100 co-tested events that are all
+#' resistant-resistant) -- such a pair carries no information about residual
+#' cross-class correlation, so \code{sufficient} additionally requires all
+#' four cells to have at least \code{min_pairwise_cell} observations.
 #' @keywords internal
 .check_pairwise_cotesting <- function(event_class_data, class_cols, upper_re_col,
-                                       min_pairwise_cotested = 30L) {
+                                       min_pairwise_cotested = 30L,
+                                       min_pairwise_cell = 1L) {
   rows <- list()
   hospitals <- sort(unique(event_class_data[[upper_re_col]]))
   for (h in hospitals) {
@@ -3882,13 +3890,27 @@ prioritize_resistance <- function(data,
     pairs <- utils::combn(class_cols, 2L, simplify = FALSE)
     for (pr in pairs) {
       c1 <- pr[1L]; c2 <- pr[2L]
-      n_cotested <- sum(!is.na(sub[[c1]]) & !is.na(sub[[c2]]))
+      v1 <- sub[[c1]]; v2 <- sub[[c2]]
+      both_tested <- !is.na(v1) & !is.na(v2)
+      n_cotested  <- sum(both_tested)
+      n_RR <- sum(both_tested & v1 == 1L & v2 == 1L)
+      n_RS <- sum(both_tested & v1 == 1L & v2 == 0L)
+      n_SR <- sum(both_tested & v1 == 0L & v2 == 1L)
+      n_SS <- sum(both_tested & v1 == 0L & v2 == 0L)
+      has_full_cell_variation <-
+        n_RR >= min_pairwise_cell && n_RS >= min_pairwise_cell &&
+        n_SR >= min_pairwise_cell && n_SS >= min_pairwise_cell
       rows[[length(rows) + 1L]] <- tibble::tibble(
         !!upper_re_col   := h,
         class_1           = c1,
         class_2           = c2,
         n_cotested        = n_cotested,
-        sufficient        = n_cotested >= min_pairwise_cotested
+        n_RR              = n_RR,
+        n_RS              = n_RS,
+        n_SR              = n_SR,
+        n_SS              = n_SS,
+        has_full_cell_variation = has_full_cell_variation,
+        sufficient        = (n_cotested >= min_pairwise_cotested) && has_full_cell_variation
       )
     }
   }
@@ -3938,6 +3960,180 @@ prioritize_resistance <- function(data,
       }
     }
   }
+  dplyr::bind_rows(rows)
+}
+
+
+#' Resolve the antibiotic-class panel used for profile enumeration
+#'
+#' Defines the set of classes entering the \eqn{2^D} profile enumeration for
+#' one hospital x pathogen pair from the fit-time eligibility report
+#' (\code{fitted_model$eligibility_report}), rather than "tested at least
+#' once". A class is included only if its marginal
+#' n_tested/n_resistant/n_susceptible thresholds were met at that hospital for
+#' that pathogen -- this applies to \strong{every} residual structure,
+#' including identity, so an identity-residual panel is never narrowed for
+#' reasons that only matter for estimating a correlated residual matrix. For
+#' correlated-residual fits specifically, classes that lack sufficient
+#' pairwise co-testing with every other candidate class at that hospital are
+#' additionally dropped iteratively (the class involved in the most
+#' insufficient pairs is dropped first, repeated until all remaining pairs
+#' clear the threshold), since \eqn{\Omega} for an under-co-tested pair would
+#' otherwise be prior-dominated.
+#'
+#' The eligibility report passed in is computed by
+#' \code{fit_bayesian_multivariate_probit()} on \code{event_data} \emph{after}
+#' all experiment-specific filtering (pathogen filter, \code{eligible_pairs}
+#' semi-join, all-NA-event drop) -- i.e. on the exact row population that was
+#' fitted, not on an earlier unfiltered wide table. See the eligibility-report
+#' construction in \code{fit_bayesian_multivariate_probit()}.
+#'
+#' @return List with:
+#'   \item{classes}{Character vector of \code{class_cols} entering the panel,
+#'     in \code{class_cols} order.}
+#'   \item{excluded}{Character vector of \code{class_cols} NOT entering the
+#'     panel (empty if none).}
+#'   \item{method}{Character; \code{"marginal_only"} (identity residual, or no
+#'     pairwise report available), \code{"marginal_plus_pairwise"} (correlated
+#'     residual), or \code{"no_eligibility_report_available"} (defensive
+#'     fallback for fit objects built some other way).}
+#'   \item{reason}{Character or \code{NA}; \code{NA} when nothing was
+#'     excluded, otherwise a human-readable breakdown of which classes were
+#'     excluded and why (insufficient marginal support vs. insufficient
+#'     pairwise co-testing).}
+#' @keywords internal
+.resolve_profile_class_panel <- function(
+    class_cols,
+    hospital,
+    pathogen,
+    eligibility_report,
+    upper_re_col,
+    pathogen_col,
+    residual_structure = "identity"
+) {
+  marginal <- eligibility_report$marginal
+  pairwise <- eligibility_report$pairwise
+
+  if (is.null(marginal) || nrow(marginal) == 0L) {
+    # No eligibility report available (fit_bayesian_multivariate_probit() always
+    # computes one; this only fires for fit objects built some other way).
+    # Fall back to the full class set rather than silently treating untested
+    # classes as eligible.
+    return(list(classes = class_cols, excluded = character(0L),
+                method = "no_eligibility_report_available", reason = NA_character_))
+  }
+
+  sub <- marginal[marginal[[upper_re_col]] == hospital &
+                   marginal[[pathogen_col]]  == pathogen, , drop = FALSE]
+  elig_classes <- sub$antibiotic_class[sub$eligible]
+  elig_classes <- intersect(class_cols, elig_classes)   # preserve class_cols order
+  marginal_excluded <- setdiff(class_cols, elig_classes)
+
+  use_pairwise <- identical(residual_structure, "correlated") &&
+    !is.null(pairwise) && nrow(pairwise) > 0L
+  method <- if (use_pairwise) "marginal_plus_pairwise" else "marginal_only"
+
+  if (length(elig_classes) == 0L) {
+    reason <- sprintf("insufficient_marginal_support: %s", paste(marginal_excluded, collapse = ", "))
+    return(list(classes = character(0L), excluded = marginal_excluded, method = method, reason = reason))
+  }
+
+  if (!use_pairwise) {
+    reason <- if (length(marginal_excluded) == 0L) NA_character_ else
+      sprintf("insufficient_marginal_support: %s", paste(marginal_excluded, collapse = ", "))
+    return(list(classes = elig_classes, excluded = marginal_excluded, method = method, reason = reason))
+  }
+
+  # Correlated residual only: iteratively drop the class most often paired
+  # with an insufficiently co-tested partner, until every remaining pair
+  # clears the pairwise co-testing threshold (or fewer than 2 classes remain).
+  psub <- pairwise[pairwise[[upper_re_col]] == hospital, , drop = FALSE]
+  current <- elig_classes
+  repeat {
+    if (length(current) < 2L) break
+    pr  <- psub[psub$class_1 %in% current & psub$class_2 %in% current, , drop = FALSE]
+    bad <- pr[!pr$sufficient, , drop = FALSE]
+    if (nrow(bad) == 0L) break
+    offender_counts <- table(c(bad$class_1, bad$class_2))
+    worst <- names(offender_counts)[which.max(offender_counts)]
+    current <- setdiff(current, worst)
+  }
+  pairwise_excluded <- setdiff(elig_classes, current)
+  all_excluded      <- union(marginal_excluded, pairwise_excluded)
+
+  reason_parts <- c(
+    if (length(marginal_excluded) > 0L)
+      sprintf("insufficient_marginal_support: %s", paste(marginal_excluded, collapse = ", ")),
+    if (length(pairwise_excluded) > 0L)
+      sprintf("insufficient_pairwise_cotesting: %s", paste(pairwise_excluded, collapse = ", "))
+  )
+  reason <- if (length(reason_parts) == 0L) NA_character_ else paste(reason_parts, collapse = "; ")
+
+  list(classes = current, excluded = all_excluded, method = method, reason = reason)
+}
+
+
+#' Summarize a posterior D x D correlation matrix from stored fit draws
+#'
+#' Extracts posterior mean/median/CI for each off-diagonal cell of a named
+#' correlation-matrix generated quantity (e.g. "Omega", "R_hospital",
+#' "R_patient", "R_admission"). These are three distinct quantities and must
+#' not be combined into one table: Omega is the event-level residual
+#' cross-class correlation (only estimated when residual_structure ==
+#' "correlated"); R_hospital/R_patient/R_admission are the correlation, across
+#' antibiotic classes, of that random effect's own tendencies (estimated
+#' regardless of residual_structure, since the hospital/patient/admission
+#' random effects always use a diag_pre_multiply(tau, L_corr) parameterisation).
+#' Returns NULL if the requested matrix_var is not present in fit$draws (e.g.
+#' Omega on an identity-residual fit, or R_admission on a 1- or 2-RE fit).
+#'
+#' @param fit A fitted_model object (or its lightweight saved form) with a
+#'   \code{$draws} posterior::draws_array retaining the requested matrix_var.
+#' @param matrix_var Character. One of "Omega", "R_hospital", "R_patient",
+#'   "R_admission".
+#' @param class_cols Character vector of antibiotic class column names, in
+#'   the same order used to fit the model (dimension order of matrix_var).
+#' @param ci_level Numeric credible-interval level. Default 0.95.
+#' @return A tibble with one row per off-diagonal class pair, or NULL if
+#'   matrix_var was not estimated for this fit.
+#' @export
+#' @param block_index Integer or NULL. When the fit used the generic
+#'   random-effect architecture (Stage 1), per-block correlation matrices are
+#'   emitted as \code{R_block[r,i,j]} (block index r as the FIRST subscript),
+#'   not \code{R_hospital[i,j]}/\code{R_patient[i,j]}/etc. Pass
+#'   \code{matrix_var = "R_block"} and the 1-based block index here to look up
+#'   a specific block's correlation matrix; leave NULL for 2-index variables
+#'   (\code{Omega}, or legacy \code{R_hospital} etc. from a fit made with the
+#'   old hardcoded 1re/2re/3re Stan models).
+#' @export
+summarize_fit_correlation_matrix <- function(fit, matrix_var, class_cols, ci_level = 0.95,
+                                              block_index = NULL) {
+  draws_arr <- fit$draws
+  if (is.null(draws_arr)) return(NULL)
+  var_names <- posterior::variables(draws_arr)
+  D <- length(class_cols)
+  alpha <- (1 - ci_level) / 2
+  rows <- list()
+  for (i in seq_len(D)) {
+    for (j in seq_len(D)) {
+      if (i >= j) next  # off-diagonal, upper triangle only (matrix is symmetric)
+      vname <- if (is.null(block_index))
+        sprintf("%s[%d,%d]", matrix_var, i, j)
+      else
+        sprintf("%s[%d,%d,%d]", matrix_var, block_index, i, j)
+      if (!vname %in% var_names) next
+      draws_ij <- as.numeric(posterior::extract_variable(draws_arr, vname))
+      rows[[length(rows) + 1L]] <- tibble::tibble(
+        class_1             = class_cols[i],
+        class_2             = class_cols[j],
+        correlation_mean    = mean(draws_ij),
+        correlation_median  = stats::median(draws_ij),
+        correlation_lower   = stats::quantile(draws_ij, probs = alpha, names = FALSE),
+        correlation_upper   = stats::quantile(draws_ij, probs = 1 - alpha, names = FALSE)
+      )
+    }
+  }
+  if (length(rows) == 0L) return(NULL)
   dplyr::bind_rows(rows)
 }
 
@@ -4468,6 +4664,201 @@ generated quantities {
 
 
 # ---------------------------------------------------------------------------
+# Generic Stan models -- arbitrary number (R) of random-intercept blocks
+# (Stage 1 of the generic random-effect refactor). Replaces the six
+# hardcoded 1re/2re/3re x identity/correlated variants above with two
+# variants (identity/correlated residual only), looping over blocks via the
+# flattened total_re_levels/n_levels/level_start/re_idx representation built
+# by prepare_random_effects(). The legacy six-variant functions above are
+# kept temporarily (not deleted) so old and new code paths can be run
+# side-by-side for equivalence testing before the old path is retired.
+#
+# Random-effect parameterisation per block r, exactly matching the legacy
+# per-level diag_pre_multiply(tau, L_corr) * z convention:
+#   re_effect[, level_start[r]:(level_start[r]+n_levels[r]-1)] =
+#     diag_pre_multiply(tau_re[r], L_corr_re[r]) * z_re[, <same slice>]
+# Each event's total random-effect contribution is the SUM across all R
+# blocks of that block's effect at the event's level in that block:
+#   mu_mat[e] = X_event[e] * beta + sum_r re_effect[, re_idx[e, r]]'
+# re_idx[e, r] is already the FLATTENED (global) level index for block r,
+# so R-side code only needs one generic column lookup per block, not a
+# separate hardcoded h_ev/p_ev/a_ev array per level.
+# ---------------------------------------------------------------------------
+
+.amr_probit_stan_generic_correlated <- function() {
+  r"(
+// Multivariate probit with data augmentation -- generic number (R) of
+// random-intercept blocks, correlated residual (Omega estimated).
+data {
+  int<lower=1> N;
+  int<lower=1> N_events;
+  int<lower=2> D;
+  int<lower=1> K;
+  int<lower=1> R;
+  int<lower=1> total_re_levels;
+  array[R] int<lower=1> n_levels;
+  array[R] int<lower=1> level_start;
+  array[N_events, R] int<lower=1, upper=total_re_levels> re_idx;
+
+  matrix[N_events, K] X_event;
+
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+
+  array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[D, total_re_levels] z_re;
+  array[R] vector<lower=0>[D] tau_re;
+  array[R] cholesky_factor_corr[D] L_corr_re;
+  cholesky_factor_corr[D] L_Omega;
+  matrix[N_events, D] z_free;
+}
+transformed parameters {
+  matrix[D, total_re_levels] re_effect;
+  for (r in 1:R) {
+    int lo = level_start[r];
+    int hi = level_start[r] + n_levels[r] - 1;
+    re_effect[, lo:hi] = diag_pre_multiply(tau_re[r], L_corr_re[r]) * z_re[, lo:hi];
+  }
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events) {
+    for (r in 1:R) {
+      mu_mat[e] += re_effect[, re_idx[e, r]]';
+    }
+  }
+}
+model {
+  to_vector(beta) ~ normal(0, prior_beta_sd);
+  for (r in 1:R) {
+    int lo = level_start[r];
+    int hi = level_start[r] + n_levels[r] - 1;
+    tau_re[r]                    ~ normal(0, prior_tau_sd);
+    to_vector(z_re[, lo:hi])     ~ std_normal();
+    L_corr_re[r]                 ~ lkj_corr_cholesky(lkj_eta);
+  }
+  L_Omega ~ lkj_corr_cholesky(lkj_eta);
+
+  for (e in 1:N_events) {
+    target += multi_normal_cholesky_lpdf(z_aug[e]' | mu_mat[e]', L_Omega);
+  }
+  for (n in 1:N) {
+    target += z_free[ev_idx[n], d_idx[n]];
+  }
+}
+generated quantities {
+  corr_matrix[D] Omega = multiply_lower_tri_self_transpose(L_Omega);
+  array[R] corr_matrix[D] R_block;
+  for (r in 1:R) R_block[r] = multiply_lower_tri_self_transpose(L_corr_re[r]);
+}
+)"
+}
+
+.amr_probit_stan_generic_identity <- function() {
+  r"(
+// Multivariate probit -- generic number (R) of random-intercept blocks,
+// identity residual (classes conditionally independent; L_Omega not
+// estimated, residual covariance = I_D).
+data {
+  int<lower=1> N;
+  int<lower=1> N_events;
+  int<lower=2> D;
+  int<lower=1> K;
+  int<lower=1> R;
+  int<lower=1> total_re_levels;
+  array[R] int<lower=1> n_levels;
+  array[R] int<lower=1> level_start;
+  array[N_events, R] int<lower=1, upper=total_re_levels> re_idx;
+
+  matrix[N_events, K] X_event;
+
+  array[N_events, D] int<lower=0,upper=1> obs_mask;
+  array[N_events, D] int<lower=0,upper=1> y_mat;
+
+  array[N] int<lower=1,upper=N_events> ev_idx;
+  array[N] int<lower=1,upper=D> d_idx;
+
+  real<lower=0> prior_beta_sd;
+  real<lower=0> prior_tau_sd;
+  real<lower=1> lkj_eta;
+}
+parameters {
+  matrix[K, D] beta;
+  matrix[D, total_re_levels] z_re;
+  array[R] vector<lower=0>[D] tau_re;
+  array[R] cholesky_factor_corr[D] L_corr_re;
+  matrix[N_events, D] z_free;
+}
+transformed parameters {
+  matrix[D, total_re_levels] re_effect;
+  for (r in 1:R) {
+    int lo = level_start[r];
+    int hi = level_start[r] + n_levels[r] - 1;
+    re_effect[, lo:hi] = diag_pre_multiply(tau_re[r], L_corr_re[r]) * z_re[, lo:hi];
+  }
+
+  matrix[N_events, D] z_aug;
+  for (e in 1:N_events) {
+    for (d in 1:D) {
+      if (obs_mask[e, d] == 1) {
+        z_aug[e, d] = (y_mat[e, d] == 1) ? exp(z_free[e, d]) : -exp(z_free[e, d]);
+      } else {
+        z_aug[e, d] = z_free[e, d];
+      }
+    }
+  }
+
+  matrix[N_events, D] mu_mat = X_event * beta;
+  for (e in 1:N_events) {
+    for (r in 1:R) {
+      mu_mat[e] += re_effect[, re_idx[e, r]]';
+    }
+  }
+}
+model {
+  to_vector(beta) ~ normal(0, prior_beta_sd);
+  for (r in 1:R) {
+    int lo = level_start[r];
+    int hi = level_start[r] + n_levels[r] - 1;
+    tau_re[r]                    ~ normal(0, prior_tau_sd);
+    to_vector(z_re[, lo:hi])     ~ std_normal();
+    L_corr_re[r]                 ~ lkj_corr_cholesky(lkj_eta);
+  }
+
+  for (e in 1:N_events)
+    for (d in 1:D)
+      target += normal_lpdf(z_aug[e, d] | mu_mat[e, d], 1.0);
+
+  for (n in 1:N)
+    target += z_free[ev_idx[n], d_idx[n]];
+}
+generated quantities {
+  array[R] corr_matrix[D] R_block;
+  for (r in 1:R) R_block[r] = multiply_lower_tri_self_transpose(L_corr_re[r]);
+}
+)"
+}
+
+
+# ---------------------------------------------------------------------------
 # fit_bayesian_multivariate_probit()
 # ---------------------------------------------------------------------------
 
@@ -4563,6 +4954,16 @@ generated quantities {
 #'   if approximate parameter count exceeds the threshold). Any additional entries
 #'   are forwarded via \code{...}.
 #' @param show_messages Logical. Print sampling progress. Default \code{TRUE}.
+#' @param save_full_latent_diagnostics Logical. When \code{FALSE} (default),
+#'   \code{diagnostics_detail$all_parameters} (per-parameter Rhat/ESS
+#'   including the \code{N_events * D} latent \code{z_free} nuisance
+#'   parameters -- tens of thousands of rows for realistic data) is returned
+#'   with 0 rows to keep the fitted object small; the full-scope summary
+#'   scalars (\code{max_rhat_full}, \code{min_ess_bulk_full},
+#'   \code{min_ess_tail_full}, \code{n_params_full},
+#'   \code{pct_rhat_full_above_1_01}, \code{pct_ess_bulk_full_below_100}) are
+#'   always populated in \code{diagnostics} regardless. Set \code{TRUE} to
+#'   retain the full per-parameter table for debugging.
 #' @param ... Additional arguments forwarded to \code{cmdstanr::sample()}.
 #'
 #' @return Named list with elements: \code{draws}, \code{diagnostics},
@@ -4578,15 +4979,30 @@ generated quantities {
 #'   fields \code{max_rhat}, \code{min_ess_bulk}, and \code{min_ess_tail}
 #'   are computed over the monitored parameters retained in \code{draws}.
 #'   These exclude the latent \code{z_free} nuisance parameters used for
-#'   probit data augmentation.
+#'   probit data augmentation. \code{converged_structural}/\code{converged_full}
+#'   incorporate tree-depth saturation as well as R-hat/ESS/divergences/E-BFMI
+#'   (a run that repeatedly saturates \code{max_treedepth} is not reported as
+#'   converged). \code{diagnostic_status} is a canonical multi-level status --
+#'   one of \code{"pass"}, \code{"warning_rhat"}, \code{"warning_low_bulk_ess"},
+#'   \code{"warning_low_tail_ess"}, \code{"warning_treedepth"},
+#'   \code{"fail_rhat"}, \code{"fail_energy"}, or \code{"fail_divergent"} (most
+#'   severe first) -- intended as the single authoritative status field for
+#'   callers, replacing ad hoc re-derivations downstream.
 #'
 #'   Full-fit diagnostic fields, including \code{max_rhat_all},
 #'   \code{min_ess_bulk_all}, and \code{min_ess_tail_all}, are reported
 #'   separately for visibility and include all Stan parameters, including
 #'   \code{z_free}.
 #'
-#'   \code{diagnostics_detail} contains monitored-parameter, all-parameter,
-#'   and chain-level diagnostic tables for detailed inspection.
+#'   \code{diagnostics_detail} contains \code{monitored_parameters},
+#'   \code{all_parameters} (per-parameter Rhat/ESS with \code{parameter_group}),
+#'   \code{grouped} (per-\code{parameter_group} Rhat/ESS quantiles and
+#'   percentage-over-threshold, not only the single worst parameter), and
+#'   \code{chains} (per-chain \code{n_sampling}, \code{n_divergent},
+#'   \code{n_treedepth_sat}, \code{ebfmi}, \code{mean_accept_stat},
+#'   \code{mean_stepsize}, \code{mean_treedepth}, \code{max_treedepth}) -- the
+#'   canonical diagnostic tables; callers should not recompute these
+#'   independently from \code{fit$fit$sampler_diagnostics()}.
 #' @export
 fit_bayesian_multivariate_probit <- function(
     event_class_data,
@@ -4605,6 +5021,7 @@ fit_bayesian_multivariate_probit <- function(
     prior_config        = list(),
     sampler_config      = list(),
     show_messages       = TRUE,
+    save_full_latent_diagnostics = FALSE,
     ...
 ) {
   residual_structure <- match.arg(residual_structure)
@@ -4639,22 +5056,28 @@ fit_bayesian_multivariate_probit <- function(
     stop(sprintf("fixed_effects column(s) not found: %s",
                  paste(miss_fe, collapse = ", ")), call. = FALSE)
 
-  # -- Validate random_effects ------------------------------------------------
+  # -- Validate random_effects --------------------------------------------------
+  # Accepts EITHER the legacy character vector (c("center_name", "readmission_id"))
+  # or the generic list-of-blocks spec (list(list(name=, group_col=, terms=), ...));
+  # see .normalize_random_effects_spec(). Arbitrarily many blocks are allowed now
+  # (Stage 1 generic random-effect architecture) -- the old "1, 2, or 3 levels"
+  # ceiling was an artefact of the six hardcoded Stan variants, not a real
+  # statistical limit. Composite-key safety (e.g. ensuring a patient/admission ID
+  # is scoped within the right parent level) is the CALLER's responsibility --
+  # prepare_random_effects() below detects nested-vs-crossed from the actual data
+  # rather than assuming it, so an accidentally-non-unique group_col shows up as
+  # "crossed_with_previous" rather than silently merging distinct groups.
   if (missing(random_effects) || is.null(random_effects) || length(random_effects) == 0L)
-    stop("`random_effects` is required (no default). Supply 1-3 grouping column names.",
+    stop("`random_effects` is required (no default). Supply a character vector of grouping columns, or a list of blocks (name/group_col/terms).",
          call. = FALSE)
-  if (length(random_effects) > 3L)
-    stop("`random_effects` accepts 1, 2, or 3 grouping columns (hospital; +patient; +admission).",
-         call. = FALSE)
-  miss_re <- setdiff(random_effects, names(event_class_data))
+  .re_blocks_early <- .normalize_random_effects_spec(random_effects)
+  .re_group_cols_early <- vapply(.re_blocks_early, function(b) b$group_col, character(1L))
+  miss_re <- setdiff(.re_group_cols_early, names(event_class_data))
   if (length(miss_re) > 0L)
-    stop(sprintf("random_effects column(s) not found: %s",
+    stop(sprintf("random_effects group_col(s) not found: %s",
                  paste(miss_re, collapse = ", ")), call. = FALSE)
 
-  n_re_levels  <- length(random_effects)
-  upper_re_col <- random_effects[1L]
-  middle_re_col <- if (n_re_levels >= 2L) random_effects[2L] else NULL
-  lower_re_col  <- if (n_re_levels == 3L) random_effects[3L] else NULL
+  upper_re_col <- .re_group_cols_early[1L]
 
   # -- Validate pathogen_col and optionally filter to one pathogen -----------
   if (!pathogen_col %in% names(event_class_data))
@@ -4743,7 +5166,7 @@ fit_bayesian_multivariate_probit <- function(
 
   # -- Panel eligibility report (warn, do not filter) -------------------------
   pe <- list(min_tested = 30L, min_resistant = 5L, min_susceptible = 5L,
-             min_pairwise_cotested = 30L)
+             min_pairwise_cotested = 30L, min_pairwise_cell = 1L)
   for (nm in names(panel_eligibility)) pe[[nm]] <- panel_eligibility[[nm]]
 
   eligibility_report <- .validate_panel_eligibility(
@@ -4752,11 +5175,16 @@ fit_bayesian_multivariate_probit <- function(
     min_susceptible = pe$min_susceptible
   )
 
-  # Pairwise co-testing overlap check
+  # Pairwise co-testing overlap check. min_pairwise_cell requires nonzero
+  # (or user-raised) observations in every one of the 2x2 RR/RS/SR/SS cells,
+  # not just an adequate total n_cotested -- a pair can clear the total
+  # threshold while showing no variation at all, which carries no
+  # information about residual cross-class correlation.
   elig_action <- .null_default(panel_eligibility$eligibility_action, "warn")
   co_test_report <- .check_pairwise_cotesting(
     event_data, class_cols, upper_re_col,
-    min_pairwise_cotested = pe$min_pairwise_cotested
+    min_pairwise_cotested = pe$min_pairwise_cotested,
+    min_pairwise_cell = pe$min_pairwise_cell
   )
   n_low_cotested <- sum(!co_test_report$sufficient, na.rm = TRUE)
   if (n_low_cotested > 0L) {
@@ -4786,19 +5214,15 @@ fit_bayesian_multivariate_probit <- function(
       n_ineligible, pe$min_tested, pe$min_resistant, pe$min_susceptible),
       call. = FALSE)
 
-  # -- Build globally unique composite keys for nested RE --------------------
-  # Prevents patient ID collisions across hospitals.
-  if (n_re_levels >= 2L) {
-    event_data$.patient_key <- paste(
-      event_data[[upper_re_col]], event_data[[middle_re_col]], sep = "::"
-    )
-  }
-  if (n_re_levels == 3L) {
-    event_data$.admission_key <- paste(
-      event_data[[upper_re_col]], event_data[[middle_re_col]],
-      event_data[[lower_re_col]], sep = "::"
-    )
-  }
+  # -- Prepare the generic random-effect representation -----------------------
+  # Builds flattened level indices for an arbitrary number of blocks (Stage 1:
+  # random-intercept-only). Composite-key scoping (e.g. ensuring a patient ID
+  # doesn't collide across hospitals) is the CALLER's responsibility -- passing
+  # an already-scoped column (or verifying global uniqueness beforehand, as
+  # anumaan-analysis does) -- prepare_random_effects() detects the resulting
+  # nested/crossed relationship from the data rather than assuming it.
+  re_prep <- prepare_random_effects(event_data, random_effects)
+  n_re_levels <- re_prep$R   # kept as a field name for backward-compat call sites
 
   # -- Validate event identifier (real uniqueness check, not seq_len trick) ---
   if (!event_id_col %in% names(event_data)) {
@@ -4827,11 +5251,8 @@ fit_bayesian_multivariate_probit <- function(
       N_events, length(class_cols), N_events * length(class_cols)), call. = FALSE)
 
   # -- Columns to carry into long format ---------------------------------------
-  patient_col_use   <- if (n_re_levels >= 2L) ".patient_key"   else NULL
-  admission_col_use <- if (n_re_levels == 3L) ".admission_key" else NULL
-
   meta_carry <- unique(c(
-    ".event_idx", upper_re_col, patient_col_use, admission_col_use, pathogen_col,
+    ".event_idx", re_prep$group_cols, pathogen_col,
     if (!is.null(outcome_col) && outcome_col %in% names(event_data)) outcome_col,
     fixed_effects
   ))
@@ -4868,38 +5289,26 @@ fit_bayesian_multivariate_probit <- function(
     if (is.character(fe_df_check[[cc]])) fe_df_check[[cc]] <- factor(fe_df_check[[cc]])
 
   # -- Build integer index maps -----------------------------------------------
+  # Per-block level indices were already computed once, generically, by
+  # prepare_random_effects() above (re_prep$group_index / $flat_group_index,
+  # one row per event in event_data's original row order == .event_idx). No
+  # need to re-derive per-block indices through the long-format pivot.
   class_levels <- class_cols
-  upper_levels <- sort(unique(data_long[[upper_re_col]]))
+
+  for (r in seq_len(re_prep$R)) {
+    n_params_block <- re_prep$n_levels[r] * length(class_levels)
+    if (n_params_block > 10000L)
+      warning(sprintf(
+        "Large random-effect block '%s': %d levels x %d classes = %d parameters.",
+        re_prep$block_names[r], re_prep$n_levels[r], length(class_levels), n_params_block),
+        call. = FALSE)
+  }
 
   data_long <- data_long %>%
     dplyr::mutate(
       d_idx  = match(.data$antibiotic_class, class_levels),
-      h_idx  = match(.data[[upper_re_col]],  upper_levels),
       ev_idx = as.integer(.data$.event_idx)
     )
-
-  patient_levels   <- NULL
-  admission_levels <- NULL
-  Pt  <- NULL
-  Adm <- NULL
-
-  if (n_re_levels >= 2L) {
-    patient_levels <- sort(unique(data_long[[patient_col_use]]))
-    data_long <- data_long %>%
-      dplyr::mutate(p_idx = match(.data[[patient_col_use]], patient_levels))
-    Pt <- length(patient_levels)
-    if (Pt * length(class_levels) > 10000L)
-      warning(sprintf(
-        "Large patient-RE block: %d patients x %d classes = %d parameters.",
-        Pt, length(class_levels), Pt * length(class_levels)), call. = FALSE)
-  }
-
-  if (n_re_levels == 3L) {
-    admission_levels <- sort(unique(data_long[[admission_col_use]]))
-    data_long <- data_long %>%
-      dplyr::mutate(a_idx = match(.data[[admission_col_use]], admission_levels))
-    Adm <- length(admission_levels)
-  }
 
   # -- Validate ev_idx (must span 1..N_events without gaps) -------------------
   stopifnot(all(data_long$ev_idx >= 1L & data_long$ev_idx <= N_events))
@@ -4909,7 +5318,6 @@ fit_bayesian_multivariate_probit <- function(
   X_long <- stats::model.matrix(~ ., data = fe_df_check)
 
   D <- length(class_levels)
-  H <- length(upper_levels)
   K <- ncol(X_long)
 
   # Derive event-level arrays from the observation-level long table.
@@ -4917,7 +5325,7 @@ fit_bayesian_multivariate_probit <- function(
   first_obs_per_event <- match(seq_len(N_events), data_long$ev_idx)
   stopifnot(!anyNA(first_obs_per_event))
   X_event_mat <- X_long[first_obs_per_event, , drop = FALSE]   # N_events x K
-  h_ev_arr    <- as.integer(data_long$h_idx[first_obs_per_event])
+  re_idx_mat  <- re_prep$flat_group_index                      # N_events x R, already event-ordered
 
   # Build wide AST arrays for multivariate-probit data augmentation
   obs_mask_mat <- matrix(0L, nrow = N_events, ncol = D)
@@ -4930,64 +5338,49 @@ fit_bayesian_multivariate_probit <- function(
   }
 
   message(sprintf(
-    "[fit_bayesian_multivariate_probit] %d obs | %d events | D=%d | H=%d | RE levels=%d",
-    nrow(data_long), N_events, D, H, n_re_levels))
+    "[fit_bayesian_multivariate_probit] %d obs | %d events | D=%d | RE blocks=%s",
+    nrow(data_long), N_events, D, paste(sprintf("%s(%d)", re_prep$block_names, re_prep$n_levels), collapse = "+")))
 
-  # -- Build Stan data list ---------------------------------------------------
+  # -- Build Stan data list -----------------------------------------------------
   stan_data <- list(
-    N             = nrow(data_long),         # observation pairs (for Jacobian)
-    N_events      = N_events,
-    D             = D,
-    H             = H,
-    K             = K,
-    X_event       = unname(X_event_mat),     # N_events x K
-    h_ev          = h_ev_arr,                # N_events
-    obs_mask      = obs_mask_mat,            # N_events x D
-    y_mat         = y_mat_mat,               # N_events x D
-    ev_idx        = as.integer(data_long$ev_idx),
-    d_idx         = as.integer(data_long$d_idx),
-    prior_beta_sd = as.numeric(pc$beta_sd),
-    prior_tau_sd  = as.numeric(pc$tau_sd),
-    lkj_eta       = as.numeric(pc$lkj_eta)
+    N               = nrow(data_long),       # observation pairs (for Jacobian)
+    N_events        = N_events,
+    D               = D,
+    K               = K,
+    R               = re_prep$R,
+    total_re_levels = re_prep$total_re_levels,
+    n_levels        = as.array(as.integer(re_prep$n_levels)),
+    level_start     = as.array(as.integer(re_prep$level_start)),
+    re_idx          = matrix(as.integer(re_idx_mat), nrow = N_events),  # N_events x R
+    X_event         = unname(X_event_mat),   # N_events x K
+    obs_mask        = obs_mask_mat,          # N_events x D
+    y_mat           = y_mat_mat,             # N_events x D
+    ev_idx          = as.integer(data_long$ev_idx),
+    d_idx           = as.integer(data_long$d_idx),
+    prior_beta_sd   = as.numeric(pc$beta_sd),
+    prior_tau_sd    = as.numeric(pc$tau_sd),
+    lkj_eta         = as.numeric(pc$lkj_eta)
   )
-  if (n_re_levels >= 2L) {
-    p_ev_arr     <- as.integer(data_long$p_idx[first_obs_per_event])
-    stan_data$Pt  <- as.integer(Pt)
-    stan_data$p_ev <- p_ev_arr
-  }
-  if (n_re_levels == 3L) {
-    a_ev_arr     <- as.integer(data_long$a_idx[first_obs_per_event])
-    stan_data$Adm <- as.integer(Adm)
-    stan_data$a_ev <- a_ev_arr
-  }
 
   # -- Parameter-count preflight -----------------------------------------------
   n_z_free    <- N_events * D
-  n_hosp_raw  <- H * D
-  n_pt_raw    <- if (n_re_levels >= 2L) Pt * D else 0L
-  n_adm_raw   <- if (n_re_levels == 3L) Adm * D else 0L
+  n_re_raw    <- re_prep$total_re_levels * D
   n_beta      <- K * D
-  n_tau       <- D * n_re_levels
-  n_L_corr    <- (D * (D - 1L) %/% 2L) * n_re_levels
+  n_tau       <- D * re_prep$R
+  n_L_corr    <- (D * (D - 1L) %/% 2L) * re_prep$R
   n_L_omega   <- if (residual_structure == "correlated") D * (D - 1L) %/% 2L else 0L
-  n_param_approx <- n_z_free + n_hosp_raw + n_pt_raw + n_adm_raw +
-                    n_beta + n_tau + n_L_corr + n_L_omega
+  n_param_approx <- n_z_free + n_re_raw + n_beta + n_tau + n_L_corr + n_L_omega
   message(sprintf(paste0(
     "[fit_bayesian_multivariate_probit] Approximate parameter count:\n",
-    "  N_events=%d x D=%d z_free              = %d\n",
-    "  H=%d x D=%d hospital RE               = %d\n",
+    "  N_events=%d x D=%d z_free                    = %d\n",
     "  %s\n",
-    "  %s\n",
+    "  total_re_levels=%d x D=%d random-effect raw   = %d\n",
     "  beta(%dx%d) + tau(%d) + L_corr(%d) + L_Omega(%d)\n",
     "  Total approx: %d"),
     N_events, D, n_z_free,
-    H, D, n_hosp_raw,
-    if (n_re_levels >= 2L)
-      sprintf("Pt=%d x D=%d level-2 RE              = %d", Pt, D, n_pt_raw)
-    else "level-2 RE                            = 0 (not used)",
-    if (n_re_levels == 3L)
-      sprintf("Adm=%d x D=%d level-3 RE             = %d", Adm, D, n_adm_raw)
-    else "level-3 RE                            = 0 (not used)",
+    paste(sprintf("  block '%s': %d levels x %d classes = %d params",
+                  re_prep$block_names, re_prep$n_levels, D, re_prep$n_levels * D), collapse = "\n"),
+    re_prep$total_re_levels, D, n_re_raw,
     K, D, n_tau, n_L_corr, n_L_omega,
     n_param_approx
   ))
@@ -4997,21 +5390,17 @@ fit_bayesian_multivariate_probit <- function(
              "Reduce N_events, D, or number of RE groups, or increase the threshold."),
       n_param_approx, as.integer(sc$max_param_count)), call. = FALSE)
 
-  # -- Select and compile Stan model ------------------------------------------
-  stan_code <- switch(paste0(n_re_levels, "_", residual_structure),
-    "1_correlated" = .amr_probit_stan_1re(),
-    "2_correlated" = .amr_probit_stan_2re(),
-    "3_correlated" = .amr_probit_stan_3re(),
-    "1_identity"   = .amr_probit_stan_1re_identity(),
-    "2_identity"   = .amr_probit_stan_2re_identity(),
-    "3_identity"   = .amr_probit_stan_3re_identity()
-  )
-  if (is.null(stan_code))
-    stop(sprintf("Unsupported combination: n_re_levels=%d, residual_structure='%s'.",
-                 n_re_levels, residual_structure), call. = FALSE)
+  # -- Select and compile Stan model --------------------------------------------
+  # Stage 1 of the generic random-effect architecture: TWO variants
+  # (identity/correlated residual), regardless of how many RE blocks (R) were
+  # declared -- replaces the old six hardcoded 1re/2re/3re x identity/correlated
+  # variants (still defined above, unused by this function, kept only for
+  # equivalence testing against this generic path).
+  stan_code <- if (identical(residual_structure, "correlated"))
+    .amr_probit_stan_generic_correlated() else .amr_probit_stan_generic_identity()
   stan_file <- cmdstanr::write_stan_file(stan_code)
-  message(sprintf("[fit_bayesian_multivariate_probit] Compiling %d-RE Stan model...",
-                  n_re_levels))
+  message(sprintf("[fit_bayesian_multivariate_probit] Compiling generic %d-block Stan model...",
+                  re_prep$R))
   mod <- cmdstanr::cmdstan_model(stan_file, compile = TRUE)
 
   # -- Build sample() call args -----------------------------------------------
@@ -5036,16 +5425,8 @@ fit_bayesian_multivariate_probit <- function(
   fit <- do.call(mod$sample, sample_args)
 
   # -- Extract draws (exclude z_free; it is large and not needed downstream) --
-  keep_vars <- c("beta", "hospital_effect",
-                 if (n_re_levels >= 2L) "patient_effect",
-                 if (n_re_levels == 3L) "admission_effect",
+  keep_vars <- c("beta", "re_effect", "tau_re", "R_block",
                  if (residual_structure == "correlated") c("L_Omega", "Omega"),
-                 if (n_re_levels >= 1L) "R_hospital",
-                 if (n_re_levels >= 2L) "R_patient",
-                 if (n_re_levels == 3L) "R_admission",
-                 "tau_hospital",
-                 if (n_re_levels >= 2L) "tau_patient",
-                 if (n_re_levels == 3L) "tau_admission",
                  "lp__")
   keep_vars <- unique(keep_vars[!is.null(keep_vars)])
   draws_arr <- tryCatch(
@@ -5053,21 +5434,35 @@ fit_bayesian_multivariate_probit <- function(
     error = function(e) fit$draws(format = "draws_array")
   )
 
+  # Canonical parameter grouping, generic over an arbitrary number of
+  # declared RE blocks: re_effect[d, level] and R_block[r][i,j] are grouped
+  # by the DECLARED BLOCK NAME (via re_prep$level_start/level_end for
+  # re_effect's flattened level index, and the literal block index r for
+  # R_block/tau_re) rather than a hardcoded hospital/patient/admission regex.
   .probit_parameter_group <- function(parameter) {
     out <- rep("other", length(parameter))
     out[grepl("^beta(\\[|$)", parameter)] <- "beta"
-    out[grepl("^hospital_effect(\\[|$)", parameter)] <- "hospital_effect"
-    out[grepl("^patient_effect(\\[|$)", parameter)] <- "patient_effect"
-    out[grepl("^admission_effect(\\[|$)", parameter)] <- "admission_effect"
-    out[grepl("^R_hospital(\\[|$)", parameter)] <- "R_hospital"
-    out[grepl("^R_patient(\\[|$)", parameter)] <- "R_patient"
-    out[grepl("^R_admission(\\[|$)", parameter)] <- "R_admission"
     out[grepl("^(Omega|L_Omega)(\\[|$)", parameter)] <- "Omega"
-    out[grepl("^tau_hospital(\\[|$)", parameter)] <- "tau_hospital"
-    out[grepl("^tau_patient(\\[|$)", parameter)] <- "tau_patient"
-    out[grepl("^tau_admission(\\[|$)", parameter)] <- "tau_admission"
     out[grepl("^z_free(\\[|$)", parameter)] <- "z_free"
     out[parameter == "lp__"] <- "lp__"
+
+    re_effect_hits <- grep("^re_effect\\[", parameter)
+    if (length(re_effect_hits) > 0L) {
+      level_num <- suppressWarnings(as.integer(
+        sub("^re_effect\\[\\d+,(\\d+)\\]$", "\\1", parameter[re_effect_hits])))
+      block_of_level <- vapply(level_num, function(lv) {
+        if (is.na(lv)) return(NA_integer_)
+        hit <- which(lv >= re_prep$level_start & lv <= re_prep$level_end)
+        if (length(hit) == 0L) NA_integer_ else hit[1L]
+      }, integer(1L))
+      out[re_effect_hits] <- ifelse(is.na(block_of_level), "re_effect",
+                                     re_prep$block_names[block_of_level])
+    }
+
+    for (r in seq_len(re_prep$R)) {
+      pat <- sprintf("^(tau_re|R_block)\\[%d(,|\\])", r)
+      out[grepl(pat, parameter)] <- re_prep$block_names[r]
+    }
     out
   }
   .combine_diag_tables <- function(rhat_tbl, ess_tbl) {
@@ -5125,28 +5520,52 @@ fit_bayesian_multivariate_probit <- function(
   min_ess_bulk_full <- min_bulk_all$value
   min_ess_tail_full <- min_tail_all$value
 
-  # E-BFMI per chain (robust to missing chain__ column)
-  ebfmi_vals <- tryCatch({
-    if (!"energy__" %in% colnames(samp_diag)) {
-      NA_real_
-    } else {
-      e_vals   <- samp_diag[, "energy__"]
-      n_chains <- as.integer(sc$chains)
-      chain_id <- if ("chain__" %in% colnames(samp_diag)) {
-        samp_diag[, "chain__"]
-      } else {
-        n_per_chain <- length(e_vals) %/% n_chains
-        rep(seq_len(n_chains), each = n_per_chain)[seq_along(e_vals)]
+  # -- Canonical per-chain diagnostics table -----------------------------------
+  # This is the single source of chain-level diagnostics (chain id, sampling
+  # count, divergences, tree-depth saturation, E-BFMI, and HMC tuning summary).
+  # anumaan-analysis previously recomputed an equivalent table independently
+  # from `fit$fit$sampler_diagnostics()` (including re-deriving E-BFMI with the
+  # same formula); that duplicate should be replaced with this table.
+  n_chains_used <- as.integer(sc$chains)
+  chain_id <- if ("chain__" %in% colnames(samp_diag)) {
+    samp_diag[, "chain__"]
+  } else {
+    n_per_chain <- nrow(samp_diag) %/% n_chains_used
+    rep(seq_len(n_chains_used), each = n_per_chain)[seq_len(nrow(samp_diag))]
+  }
+  chain_ids <- sort(unique(chain_id))
+
+  .safe_col <- function(name) if (name %in% colnames(samp_diag)) samp_diag[, name] else rep(NA_real_, nrow(samp_diag))
+  energy_col     <- .safe_col("energy__")
+  divergent_col  <- .safe_col("divergent__")
+  treedepth_col  <- .safe_col("treedepth__")
+  accept_col     <- .safe_col("accept_stat__")
+  stepsize_col   <- .safe_col("stepsize__")
+
+  chain_diag_tbl <- dplyr::bind_rows(lapply(chain_ids, function(ch) {
+    idx   <- chain_id == ch
+    e_ch  <- suppressWarnings(as.numeric(energy_col[idx]))
+    ebfmi_ch <- tryCatch({
+      if (sum(!is.na(e_ch)) < 2L) NA_real_ else {
+        var_e <- stats::var(e_ch, na.rm = TRUE)
+        if (is.na(var_e) || var_e < .Machine$double.eps) NA_real_
+        else mean(diff(e_ch)^2, na.rm = TRUE) / var_e
       }
-      vapply(unique(chain_id), function(ch) {
-        e_ch <- e_vals[chain_id == ch]
-        if (length(e_ch) < 2L) return(NA_real_)
-        var_e <- stats::var(e_ch)
-        if (is.na(var_e) || var_e < .Machine$double.eps) return(NA_real_)
-        mean(diff(e_ch)^2) / var_e
-      }, numeric(1L))
-    }
-  }, error = function(e) NA_real_)
+    }, error = function(e) NA_real_)
+    tibble::tibble(
+      chain               = ch,
+      n_sampling          = sum(idx),
+      n_divergent         = sum(suppressWarnings(as.numeric(divergent_col[idx])) > 0, na.rm = TRUE),
+      n_treedepth_sat     = sum(suppressWarnings(as.numeric(treedepth_col[idx])) >= effective_max_td, na.rm = TRUE),
+      ebfmi               = ebfmi_ch,
+      mean_accept_stat    = mean(suppressWarnings(as.numeric(accept_col[idx])), na.rm = TRUE),
+      mean_stepsize       = mean(suppressWarnings(as.numeric(stepsize_col[idx])), na.rm = TRUE),
+      mean_treedepth      = mean(suppressWarnings(as.numeric(treedepth_col[idx])), na.rm = TRUE),
+      max_treedepth       = suppressWarnings(max(as.numeric(treedepth_col[idx]), na.rm = TRUE))
+    )
+  }))
+
+  ebfmi_vals <- chain_diag_tbl$ebfmi
   ebfmi_min <- min(ebfmi_vals, na.rm = TRUE)
   ebfmi_mean <- mean(ebfmi_vals, na.rm = TRUE)
   if (is.infinite(ebfmi_min)) ebfmi_min <- NA_real_
@@ -5154,18 +5573,21 @@ fit_bayesian_multivariate_probit <- function(
   ebfmi_by_chain <- if (all(is.na(ebfmi_vals))) {
     NA_character_
   } else {
-    paste(sprintf("chain%s=%.3f", seq_along(ebfmi_vals), ebfmi_vals), collapse = "; ")
+    paste(sprintf("chain%s=%.3f", chain_diag_tbl$chain, ebfmi_vals), collapse = "; ")
   }
-  chain_diag_tbl <- tibble::tibble(
-    chain = seq_along(ebfmi_vals),
-    ebfmi = as.numeric(ebfmi_vals)
-  )
+
+  # Tree-depth saturation is included here (it was previously computed and
+  # warned about below but silently excluded from the pass/fail flags, which
+  # meant a run that repeatedly saturated max_treedepth could still report
+  # converged_structural = TRUE).
+  treedepth_ok <- isTRUE(is.na(n_treedepth) || n_treedepth == 0L)
 
   converged_structural <-
     isTRUE(max_rhat_structural < 1.01) &&
     isTRUE(min_ess_bulk_structural >= 100) &&
     isTRUE(is.na(min_ess_tail_structural) || min_ess_tail_structural >= 100) &&
     isTRUE(n_divergent == 0L) &&
+    treedepth_ok &&
     isTRUE(is.na(ebfmi_min) || ebfmi_min >= 0.3)
   # Full-scope analogue of converged_structural (includes z_free). Reported
   # for visibility -- with tens of thousands of z_free parameters this will
@@ -5177,6 +5599,7 @@ fit_bayesian_multivariate_probit <- function(
     isTRUE(min_ess_bulk_full >= 100) &&
     isTRUE(is.na(min_ess_tail_full) || min_ess_tail_full >= 100) &&
     isTRUE(n_divergent == 0L) &&
+    treedepth_ok &&
     isTRUE(is.na(ebfmi_min) || ebfmi_min >= 0.3)
   # Narrower, more diagnostic signal than "converged_full is FALSE": TRUE only
   # when the structural parameters have converged cleanly AND the full scope
@@ -5187,6 +5610,24 @@ fit_bayesian_multivariate_probit <- function(
   latent_diagnostic_warning <-
     isTRUE(converged_structural) &&
     (isTRUE(max_rhat_full > 1.01) || isTRUE(min_ess_bulk_full < 100))
+
+  # Canonical multi-level status (supersedes the separate, duplicated
+  # `.probit_diagnostic_status()` previously computed in anumaan-analysis from
+  # a re-derived chain-diagnostics table). Severity order: divergences and
+  # poor energy exploration are the least recoverable (fail); tree-depth
+  # saturation and elevated Rhat/low ESS are recoverable with more
+  # warmup/sampling/adapt_delta (warning). This is computed on the STRUCTURAL
+  # scope, consistent with converged_structural.
+  diagnostic_status <- dplyr::case_when(
+    isTRUE(n_divergent > 0L) ~ "fail_divergent",
+    isTRUE(!is.na(ebfmi_min) && ebfmi_min < 0.3) ~ "fail_energy",
+    isTRUE(!is.na(max_rhat_structural) && max_rhat_structural > 1.05) ~ "fail_rhat",
+    isTRUE(!is.na(n_treedepth) && n_treedepth > 0L) ~ "warning_treedepth",
+    isTRUE(!is.na(min_ess_bulk_structural) && min_ess_bulk_structural < 100) ~ "warning_low_bulk_ess",
+    isTRUE(!is.na(min_ess_tail_structural) && min_ess_tail_structural < 100) ~ "warning_low_tail_ess",
+    isTRUE(!is.na(max_rhat_structural) && max_rhat_structural > 1.01) ~ "warning_rhat",
+    TRUE ~ "pass"
+  )
 
   # -- Warnings are based on the STRUCTURAL scope; z_free stragglers are ------
   # -- reported separately below so they don't masquerade as model failure. --
@@ -5220,13 +5661,14 @@ fit_bayesian_multivariate_probit <- function(
     n_chains           = as.integer(sc$chains),
     iter_warmup        = as.integer(sc$iter_warmup),
     iter_sampling      = as.integer(sc$iter_sampling),
-    n_re_levels        = as.integer(n_re_levels),
+    n_re_levels        = as.integer(re_prep$R),
     n_observed_pairs   = nrow(data_long),
     n_events           = N_events,
     n_classes          = D,
-    n_upper_groups     = H,
-    n_lower_groups     = if (n_re_levels >= 2L) as.integer(Pt) else NA_integer_,
-    n_admission_groups = if (n_re_levels == 3L) as.integer(Adm) else NA_integer_,
+    # n_upper_groups: backward-compatible alias for "the first declared RE
+    # block's level count" (by convention the hospital-equivalent level).
+    n_upper_groups     = as.integer(re_prep$n_levels[1L]),
+    re_block_levels    = paste(sprintf("%s=%d", re_prep$block_names, re_prep$n_levels), collapse = "; "),
     n_divergent        = as.integer(n_divergent),
     n_treedepth_sat    = as.integer(n_treedepth),
     ebfmi_min          = round(ebfmi_min,  4L),
@@ -5238,6 +5680,13 @@ fit_bayesian_multivariate_probit <- function(
     max_rhat_full           = round(max_rhat_full,     4L),
     min_ess_bulk_full       = round(min_ess_bulk_full, 1L),
     min_ess_tail_full       = round(min_ess_tail_full, 1L),
+    # Full scope (incl. z_free) is summarised by these scalars regardless of
+    # save_full_latent_diagnostics; the per-parameter table itself (tens of
+    # thousands of rows for realistic N_events x D) is only ever returned in
+    # diagnostics_detail$all_parameters when that flag is TRUE.
+    n_params_full                 = nrow(all_diag_tbl),
+    pct_rhat_full_above_1_01      = round(100 * mean(suppressWarnings(as.numeric(all_diag_tbl$rhat)) > 1.01, na.rm = TRUE), 2L),
+    pct_ess_bulk_full_below_100   = round(100 * mean(suppressWarnings(as.numeric(all_diag_tbl$ess_bulk)) < 100, na.rm = TRUE), 2L),
     parameter_with_max_rhat           = max_rhat_monitored$parameter,
     parameter_group_with_max_rhat     = max_rhat_monitored$group,
     parameter_with_min_ess_bulk       = min_bulk_monitored$parameter,
@@ -5247,11 +5696,40 @@ fit_bayesian_multivariate_probit <- function(
     converged_structural      = converged_structural,
     converged_full            = converged_full,
     latent_diagnostic_warning = latent_diagnostic_warning,
+    diagnostic_status         = diagnostic_status,
     # backward-compatible aliases (structural diagnostics)
     max_rhat     = round(max_rhat_structural,     4L),
     min_ess_bulk = round(min_ess_bulk_structural, 1L),
     min_ess_tail = round(min_ess_tail_structural, 1L)
   )
+
+  # -- Grouped (per parameter_group) diagnostic summary ------------------------
+  # Reports quantiles/percentages, not only the single worst parameter, so a
+  # single outlier does not stand in for the whole group's convergence.
+  # Consolidates what anumaan-analysis previously recomputed independently in
+  # `.probit_group_diagnostics()`.
+  grouped_diag_tbl <- if (nrow(monitored_diag_tbl) == 0L) {
+    tibble::tibble()
+  } else {
+    monitored_diag_tbl %>%
+      dplyr::mutate(rhat = suppressWarnings(as.numeric(.data$rhat)),
+                    ess_bulk = suppressWarnings(as.numeric(.data$ess_bulk)),
+                    ess_tail = suppressWarnings(as.numeric(.data$ess_tail))) %>%
+      dplyr::group_by(.data$parameter_group) %>%
+      dplyr::summarise(
+        n_parameters      = dplyr::n(),
+        median_rhat       = round(stats::median(.data$rhat, na.rm = TRUE), 4L),
+        p95_rhat          = round(stats::quantile(.data$rhat, 0.95, na.rm = TRUE), 4L),
+        max_rhat          = round(max(.data$rhat, na.rm = TRUE), 4L),
+        pct_rhat_above_1_01 = round(100 * mean(.data$rhat > 1.01, na.rm = TRUE), 1L),
+        median_ess_bulk   = round(stats::median(.data$ess_bulk, na.rm = TRUE), 1L),
+        p5_ess_bulk       = round(stats::quantile(.data$ess_bulk, 0.05, na.rm = TRUE), 1L),
+        min_ess_bulk      = round(min(.data$ess_bulk, na.rm = TRUE), 1L),
+        pct_ess_bulk_below_100 = round(100 * mean(.data$ess_bulk < 100, na.rm = TRUE), 1L),
+        min_ess_tail      = round(min(.data$ess_tail, na.rm = TRUE), 1L),
+        .groups           = "drop"
+      )
+  }
 
   message(sprintf(
     paste0("[fit_bayesian_multivariate_probit] Done. structural max_Rhat=%.3f (full incl. z_free=%.3f) | ",
@@ -5260,38 +5738,44 @@ fit_bayesian_multivariate_probit <- function(
     min_ess_bulk_structural, min_ess_bulk_full,
     n_divergent, converged_structural))
 
-  # Store event-level arrays needed by compute_event_profile_probabilities()
-  event_re_idx <- list(h_ev = h_ev_arr)
-  if (n_re_levels >= 2L) event_re_idx$p_ev <- p_ev_arr
-  if (n_re_levels == 3L) event_re_idx$a_ev <- a_ev_arr
-
   list(
     draws              = draws_arr,
     diagnostics        = diag_tbl,
     diagnostics_detail = list(
       monitored_parameters = tibble::as_tibble(monitored_diag_tbl),
-      all_parameters       = tibble::as_tibble(all_diag_tbl),
+      # Full per-parameter table (includes z_free) is large -- tens of
+      # thousands of rows for realistic N_events x D -- and is only retained
+      # when explicitly requested. diag_tbl$max_rhat_full/min_ess_bulk_full/
+      # min_ess_tail_full/n_params_full/pct_rhat_full_above_1_01/
+      # pct_ess_bulk_full_below_100 are always populated regardless.
+      all_parameters       = if (isTRUE(save_full_latent_diagnostics))
+                                tibble::as_tibble(all_diag_tbl)
+                              else tibble::as_tibble(all_diag_tbl)[0L, ],
+      grouped              = grouped_diag_tbl,
       chains               = chain_diag_tbl
     ),
     fit                = fit,
     data_long          = tibble::as_tibble(data_long),
     index_maps         = list(
       class_levels      = class_levels,
-      upper_levels      = upper_levels,
-      patient_levels    = patient_levels,
-      admission_levels  = admission_levels
+      # backward-compatible alias: first declared block's level set
+      upper_levels      = re_prep$level_maps[[1L]]
     ),
     X_design           = X_long,   # kept for back-compat; same as X_event aligned to obs
     X_event            = X_event_mat,   # N_events x K (use this in simulation)
-    event_re_idx       = event_re_idx,  # h_ev, p_ev, a_ev per event
+    # Generic random-effect representation (Stage 1): the self-contained
+    # object from prepare_random_effects(), including flat_group_index
+    # (N_events x R, one flattened level index per event per declared
+    # block) -- the SINGLE generic replacement for the old event_re_idx
+    # list of hardcoded h_ev/p_ev/a_ev arrays. Every downstream
+    # mu-reconstruction site should sum over blocks via re_contribution()
+    # against this object rather than hand-summing named arrays.
+    random_effects_prep = re_prep,
+    event_re_idx       = re_prep$flat_group_index,  # N_events x R (generic; see random_effects_prep)
     class_cols         = class_cols,
     event_metadata     = tibble::as_tibble(event_data),
-    n_re_levels        = n_re_levels,
+    n_re_levels        = re_prep$R,
     upper_re_col       = upper_re_col,
-    middle_re_col      = middle_re_col,
-    lower_re_col       = lower_re_col,
-    patient_key_col    = patient_col_use,
-    admission_key_col  = admission_col_use,
     pathogen_col        = pathogen_col,
     pathogen_fitted     = pathogen_fitted,
     residual_structure  = residual_structure,
@@ -5307,44 +5791,238 @@ fit_bayesian_multivariate_probit <- function(
 
 
 # ---------------------------------------------------------------------------
+# .gibbs_conditional_profile_probs() -- Commit 6
+# ---------------------------------------------------------------------------
+
+#' Conditional profile probabilities under a correlated residual, via Gibbs
+#'
+#' For one hospital-pathogen panel at one posterior draw, samples the missing
+#' latent class dimensions conditional on the observed resistance SIGNS of
+#' the tested classes (we only ever observe \eqn{\mathrm{sign}(Z_{ed})}, never
+#' the exact latent value), via a Gibbs sampler on the truncated multivariate
+#' normal \eqn{Z_e \sim N(\mu_e, \Omega)}, vectorized across all events in the
+#' panel simultaneously (the per-dimension conditional-normal regression
+#' coefficients depend only on \eqn{\Omega} -- fixed across events at a given
+#' draw -- so one matrix operation updates every event's Gibbs state at once).
+#'
+#' At every iteration, dimensions with an observed value are drawn from a
+#' truncated normal restricted to the half-line matching the observed sign
+#' (inverse-CDF sampling); dimensions without an observed value are drawn
+#' from the unrestricted conditional normal. Because the observed dimensions
+#' are truncation-constrained at every iteration, every kept iteration's
+#' pattern is automatically consistent with the observed cells -- profiles
+#' inconsistent with observed data are never visited, rather than assigned
+#' zero probability after the fact. Counting each kept iteration's full
+#' binary pattern against the enumerated profile list gives an empirical
+#' conditional profile-probability vector per event that sums to exactly 1
+#' by construction (every iteration falls into exactly one profile).
+#'
+#' \code{Dp == 1} (a single-class panel) has no joint structure to speak of
+#' and is handled directly via \eqn{\Phi(\mu_{ed})}, bypassing Gibbs entirely.
+#'
+#' @param mu_hp Numeric matrix, n_hp x Dp. Linear predictor for this draw.
+#' @param Omega_hp Numeric matrix, Dp x Dp. Residual correlation matrix for
+#'   this draw (already symmetrized/regularised by the caller).
+#' @param obs_panel Numeric matrix, n_hp x Dp, values in \{0, 1, NA\}.
+#' @param profile_bin Integer matrix, n_profiles x Dp, 0/1 (from
+#'   \code{enumerate_binary_profiles()}); row \eqn{j} must correspond to
+#'   integer code \eqn{j - 1} in binary (column \eqn{d} = bit \eqn{d - 1}),
+#'   which is how \code{enumerate_binary_profiles()} orders rows.
+#' @param n_burnin,n_kept Integer. Gibbs iterations discarded as burn-in and
+#'   iterations kept for the empirical profile-probability count,
+#'   respectively, at this single posterior draw. Total Gibbs cost scales
+#'   with \code{(n_burnin + n_kept) * n_posterior_draws_for_profiles}, so
+#'   correlated-residual profile generation should typically use fewer
+#'   posterior draws than an identity-residual fit of the same size.
+#'
+#' @return Numeric matrix, n_hp x n_profiles: empirical conditional profile
+#'   probability per event, rows summing to 1.
+#' @keywords internal
+.gibbs_conditional_profile_probs <- function(mu_hp, Omega_hp, obs_panel, profile_bin,
+                                             n_burnin = 10L, n_kept = 20L) {
+  n_hp <- nrow(mu_hp); Dp <- ncol(mu_hp)
+  n_profiles <- nrow(profile_bin)
+  pow2 <- 2L^(seq_len(Dp) - 1L)
+
+  if (Dp == 1L) {
+    # No joint structure with a single class; identical to the analytic
+    # identity-residual formula. profile_bin row 1 = code 0 = "S" (bit
+    # unset), row 2 = code 1 = "R" (bit set) -- see enumerate_binary_profiles().
+    p <- stats::pnorm(mu_hp[, 1])
+    p_eff <- obs_panel[, 1]
+    miss  <- is.na(p_eff)
+    p_eff[miss] <- p[miss]
+    prob_mat <- matrix(0, n_hp, n_profiles)
+    prob_mat[, 1] <- 1 - p_eff
+    prob_mat[, 2] <- p_eff
+    return(prob_mat)
+  }
+
+  known_mask <- !is.na(obs_panel)
+
+  # Per-dimension conditional-normal regression coefficients depend only on
+  # Omega (fixed across events at this draw) -- precomputed once. Near-
+  # singular Omega_oo (very high |correlation| among the conditioning
+  # dimensions) is handled with escalating controlled jitter; if that still
+  # doesn't produce a valid (finite, positive) conditional variance, this
+  # stops with an explicit, diagnosable reason rather than silently
+  # returning NaN/negative-variance draws (Commit 6, item 7).
+  beta_list <- vector("list", Dp)
+  cond_sd   <- numeric(Dp)
+  for (d in seq_len(Dp)) {
+    other <- setdiff(seq_len(Dp), d)
+    Omega_oo <- Omega_hp[other, other, drop = FALSE]
+
+    solved <- FALSE
+    for (jitter in c(1e-8, 1e-6, 1e-4, 1e-2)) {
+      Omega_oo_inv <- tryCatch(solve(Omega_oo + diag(jitter, Dp - 1L)), error = function(e) NULL)
+      if (is.null(Omega_oo_inv)) next
+      beta_d   <- as.vector(Omega_hp[d, other] %*% Omega_oo_inv)
+      cond_var <- Omega_hp[d, d] - sum(Omega_hp[d, other] * beta_d)
+      if (is.finite(cond_var) && cond_var > 1e-9) { solved <- TRUE; break }
+    }
+    if (!solved)
+      stop(sprintf(
+        paste0("[.gibbs_conditional_profile_probs] Omega is too near-singular to condition on ",
+               "dimension %d even after jitter up to 1e-2 (conditioning set size %d). This usually ",
+               "means the fitted residual correlation matrix has classes that are (near-)perfectly ",
+               "correlated -- inspect fit$diagnostics_detail for this draw/hospital-pathogen pair, ",
+               "or drop one of the collinear classes from the panel."),
+        d, Dp - 1L), call. = FALSE)
+
+    beta_list[[d]] <- beta_d
+    cond_sd[d] <- sqrt(cond_var)
+  }
+
+  # Initialise Z: observed dimensions nudged onto the correct side of 0 if
+  # mu itself has the wrong sign; missing dimensions start at mu.
+  Z <- mu_hp
+  for (d in seq_len(Dp)) {
+    k <- known_mask[, d]
+    if (!any(k)) next
+    want_pos <- obs_panel[k, d] == 1
+    cur <- Z[k, d]
+    wrong <- (want_pos & cur <= 0) | (!want_pos & cur >= 0)
+    if (any(wrong)) {
+      cur[wrong] <- ifelse(want_pos[wrong], abs(cur[wrong]) + 0.1, -abs(cur[wrong]) - 0.1)
+      Z[k, d] <- cur
+    }
+  }
+
+  prob_mat <- matrix(0, n_hp, n_profiles)
+  n_total_iter <- n_burnin + n_kept
+
+  for (g in seq_len(n_total_iter)) {
+    for (d in seq_len(Dp)) {
+      other <- setdiff(seq_len(Dp), d)
+      resid   <- Z[, other, drop = FALSE] - mu_hp[, other, drop = FALSE]
+      mu_cond <- mu_hp[, d] + as.vector(resid %*% beta_list[[d]])
+      sd_cond <- cond_sd[d]
+
+      k <- known_mask[, d]
+      z_new <- numeric(n_hp)
+      if (any(!k)) z_new[!k] <- stats::rnorm(sum(!k), mu_cond[!k], sd_cond)
+      if (any(k)) {
+        want_pos <- obs_panel[k, d] == 1
+        p0 <- stats::pnorm(0, mu_cond[k], sd_cond)   # P(Z < 0 | ...)
+        u  <- ifelse(want_pos, stats::runif(sum(k), p0, 1), stats::runif(sum(k), 0, p0))
+        u  <- pmin(pmax(u, 1e-10), 1 - 1e-10)         # guard qnorm(0)/qnorm(1) = +-Inf
+        z_new[k] <- stats::qnorm(u, mu_cond[k], sd_cond)
+      }
+      Z[, d] <- z_new
+    }
+    if (g > n_burnin) {
+      signs <- (Z > 0) * 1L
+      idx   <- as.vector(signs %*% pow2) + 1L
+      prob_mat[cbind(seq_len(n_hp), idx)] <- prob_mat[cbind(seq_len(n_hp), idx)] + 1
+    }
+  }
+
+  prob_mat / n_kept
+}
+
+
+# ---------------------------------------------------------------------------
 # compute_event_profile_probabilities()
 # ---------------------------------------------------------------------------
 
-#' Compute Posterior Resistance Profile Probabilities via MVN Simulation
+#' Compute Observed-Plus-Imputed Resistance Profile Probabilities
 #'
-#' For each posterior draw, constructs the event-level linear predictor
-#' \eqn{\mu_e} using fixed effects and correlated random effects from the
-#' fitted model, simulates latent
-#' \eqn{Z_e = \mu_e + L_\Omega\,\varepsilon_e}, \eqn{\varepsilon_e \sim N(0,I_D)},
-#' converts to binary resistance profiles, and accumulates profile
-#' probabilities. All \eqn{2^D} profiles appear in the output; profiles not
-#' observed in simulation receive probability 0.
+#' For each event, retains every observed (tested) AST cell exactly and
+#' computes a probability distribution only over the genuinely untested
+#' (\code{NA}) antibiotic-class cells in that event's profile panel. Any
+#' enumerated profile inconsistent with the event's observed cells receives
+#' probability 0 -- this function never overwrites an observed R/S result.
 #'
-#' \strong{Estimand:} The posterior predictive distribution over the observed
-#' event case-mix -- the profile distribution you would see if you drew a new
-#' event uniformly from the set of observed events (same covariate distribution
-#' as the data). This is labelled \code{"observed_stewardship_event_mix"}.
+#' \strong{Identity residual structure} (\code{fitted_model$residual_structure
+#' == "identity"}): classes are conditionally independent given the linear
+#' predictor, so the missing-cell probabilities are computed analytically as
+#' \eqn{P(Y_{ed}=1 \mid \theta) = \Phi(\mu_{ed})} for each missing class
+#' \eqn{d}, and the profile probability over the missing dimensions is the
+#' exact product of per-class Bernoulli probabilities -- no latent-variable
+#' simulation is used, so there is no added latent-profile-simulation noise.
+#' Rows carry \code{profile_generation_method = "conditional_analytic_identity"}.
+#'
+#' \strong{Correlated residual structure} (Commit 6): the missing latent
+#' dimensions are sampled conditional on the observed resistance SIGNS of the
+#' tested classes via a Gibbs sampler on the truncated multivariate normal --
+#' see \code{.gibbs_conditional_profile_probs()}. This replaces the earlier
+#' unconditional latent-\eqn{Z} simulation, which resampled tested cells
+#' along with untested ones and was therefore not observed-plus-imputed.
+#' Rows carry \code{profile_generation_method = "conditional_gibbs_correlated"}
+#' and ARE eligible for downstream DALY use (subject to the same panel-support
+#' and sampler-acceptability gates as identity-residual profiles -- see
+#' \code{aggregate_profiles_for_daly()}). Because Gibbs is only run for
+#' \code{n_gibbs_burnin + n_gibbs_kept} iterations per draw rather than to
+#' full convergence, correlated-residual profiles carry additional Monte
+#' Carlo error beyond identity-residual profiles at the same
+#' \code{n_posterior_draws_for_profiles}; increase \code{n_gibbs_kept} (and/or
+#' \code{n_gibbs_burnin}) for lower-noise estimates at higher compute cost.
+#'
+#' Both residual structures produce, per event per posterior draw, a profile
+#' probability vector over the panel's \eqn{2^{D_p}} enumerated profiles that
+#' (a) sums to exactly 1 and (b) assigns exactly 0 to any profile
+#' inconsistent with that event's observed cells -- enforced by construction
+#' in both cases (an exact product for identity; Gibbs never visiting an
+#' inconsistent pattern for correlated), and checked with a hard
+#' \code{stop()} for the identity path since it has no other source of
+#' Monte Carlo noise to blur a genuine bug.
+#'
+#' \strong{Class panels}: the antibiotic-class panel enumerated for each
+#' hospital x pathogen pair is drawn from the approved eligibility rules
+#' computed at fit time (\code{fitted_model$eligibility_report}: marginal
+#' n_tested/n_resistant/n_susceptible thresholds, plus pairwise co-testing
+#' sufficiency for correlated-residual fits) -- not from "tested at least
+#' once". See \code{.resolve_profile_class_panel()}.
+#'
+#' \strong{Estimand:} The posterior distribution over the observed event
+#' case-mix, conditional on each event's own observed AST results. This is
+#' labelled \code{"observed_stewardship_event_mix"}.
 #'
 #' @param fitted_model List returned by \code{fit_bayesian_multivariate_probit()}.
-#' @param n_posterior_draws_for_profiles Integer. Number of posterior draws to
-#'   use for profile simulation. Subsampled without replacement when total draws
-#'   exceed this value. Each draw generates one simulated latent profile per
-#'   event; rare profiles may be underestimated when this is small. For finer
-#'   Monte Carlo resolution of rare profiles, consider increasing this value or
-#'   adding \code{n_predictive_replicates_per_draw} in a future extension.
-#'   Default \code{2000L}.
+#' @param n_posterior_draws_for_profiles Integer. Number of posterior draws
+#'   averaged over for both the event-level profile probabilities and the
+#'   draw-level aggregates. Subsampled without replacement when total draws
+#'   exceed this value. Default \code{2000L}.
 #' @param outcome_col Character or \code{NULL}. Patient outcome column in
 #'   \code{fitted_model$event_metadata}. When \code{NULL}, all events are
 #'   treated as having a known outcome and R_NF is not computed separately.
 #' @param nonfatal_values Character vector. Outcome values for the non-fatal
 #'   cohort (R_NF). Default covers common discharge/survival labels.
-#' @param seed Integer. Random seed for MVN simulation. Default \code{123L}.
+#' @param seed Integer. Random seed. Default \code{123L}.
+#' @param n_gibbs_burnin,n_gibbs_kept Integer. Only used when
+#'   \code{fitted_model$residual_structure == "correlated"} -- see
+#'   \code{.gibbs_conditional_profile_probs()}. Defaults \code{10L}/\code{20L}.
 #'
-#' @return Named list: \code{event_profiles} (event-level posterior means) and
-#'   \code{aggregate_draws} (per-draw R_ALL and R_NF per hospital x pathogen x
-#'   profile, used by \code{aggregate_profiles_for_daly()} for credible
-#'   intervals). Both tibbles contain all \eqn{2^D} profiles per
-#'   hospital-pathogen pair.
+#' @return Named list: \code{event_profiles} (event-level posterior mean
+#'   observed-plus-imputed profile probabilities, with
+#'   \code{n_classes_observed}/\code{n_classes_missing} per event) and
+#'   \code{aggregate_draws} (per-draw \code{R_ALL} [truly all events in the
+#'   hp pair], \code{R_KNOWN_OUTCOME} [known-outcome cohort], and \code{R_NF}
+#'   [nonfatal cohort], used by \code{aggregate_profiles_for_daly()} for
+#'   credible intervals). Both tibbles contain all \eqn{2^D} profiles per
+#'   hospital-pathogen pair and carry \code{profile_generation_method} and
+#'   \code{panel_reason} columns.
 #' @export
 compute_event_profile_probabilities <- function(
     fitted_model,
@@ -5352,7 +6030,9 @@ compute_event_profile_probabilities <- function(
     outcome_col                    = NULL,
     nonfatal_values                = c("Discharged", "Survived", "Alive",
                                        "discharged", "survived", "alive"),
-    seed                           = 123L
+    seed                           = 123L,
+    n_gibbs_burnin                 = 10L,
+    n_gibbs_kept                   = 20L
 ) {
   if (!requireNamespace("posterior", quietly = TRUE))
     stop("Package 'posterior' is required (installed with cmdstanr).", call. = FALSE)
@@ -5362,22 +6042,21 @@ compute_event_profile_probabilities <- function(
   draws               <- fitted_model$draws
   class_cols          <- fitted_model$class_cols
   idx_maps            <- fitted_model$index_maps
-  X_long              <- fitted_model$X_design
-  data_long           <- fitted_model$data_long
   event_meta          <- fitted_model$event_metadata
   n_re_levels         <- fitted_model$n_re_levels
   upper_re_col        <- fitted_model$upper_re_col
   pathogen_col        <- fitted_model$pathogen_col
   residual_structure  <- .null_default(fitted_model$residual_structure, "identity")
+  eligibility_report  <- fitted_model$eligibility_report
 
   D <- length(idx_maps$class_levels)
-  H <- length(idx_maps$upper_levels)
+  re_prep <- fitted_model$random_effects_prep
 
   # Prefer event-level arrays stored by fit function; fall back to deriving them
   X_event_sim  <- if (!is.null(fitted_model$X_event))
                     fitted_model$X_event
                   else fitted_model$X_design  # legacy fallback
-  event_re_idx <- fitted_model$event_re_idx   # list: h_ev, [p_ev], [a_ev]
+  event_re_idx <- fitted_model$event_re_idx   # N_events x R flattened level index
 
   K <- ncol(X_event_sim)
 
@@ -5395,35 +6074,32 @@ compute_event_profile_probabilities <- function(
     array(draws_mat[, cols, drop = FALSE], dim = c(S, d1, d2))
   }
 
-  beta_arr     <- .arr("beta", K, D)                 # S x K x D
-  hosp_eff_arr <- .arr("hospital_effect", D, H)      # S x D x H
+  beta_arr     <- .arr("beta", K, D)                              # S x K x D
+  re_eff_arr   <- .arr("re_effect", D, re_prep$total_re_levels)    # S x D x total_re_levels
   L_omega_arr  <- if (residual_structure == "correlated")
                     .arr("L_Omega", D, D)             # S x D x D (lower triangular)
                   else NULL
-
-  has_patient   <- n_re_levels >= 2L
-  has_admission <- n_re_levels == 3L
-  Pt  <- if (has_patient)   length(idx_maps$patient_levels)   else 0L
-  Adm <- if (has_admission) length(idx_maps$admission_levels) else 0L
-
-  if (has_patient)   pt_eff_arr  <- .arr("patient_effect",   D, Pt)
-  if (has_admission) adm_eff_arr <- .arr("admission_effect", D, Adm)
 
   # -- Canonical event table --------------------------------------------------
   stopifnot(".event_idx" %in% names(event_meta))
   stopifnot(!anyDuplicated(event_meta$.event_idx))
 
   # Use event_meta to identify which events appear in data_long (have observations)
-  has_obs       <- event_meta$.event_idx %in% data_long$ev_idx
+  has_obs        <- event_meta$.event_idx %in% fitted_model$data_long$ev_idx
   event_meta_obs <- event_meta[has_obs, , drop = FALSE]
   N_ev           <- nrow(event_meta_obs)
 
-  # Event-level design matrix and RE indices (from stored event_re_idx)
+  # Event-level design matrix and RE indices (from stored event_re_idx, the
+  # generic N_events x R flattened level-index matrix -- see random_effects_prep).
   ev_row_idx <- event_meta_obs$.event_idx           # 1-based canonical event indices
   X_event    <- X_event_sim[ev_row_idx, , drop = FALSE]    # N_ev x K
-  h_events   <- as.integer(event_re_idx$h_ev[ev_row_idx])
-  p_events   <- if (has_patient)   as.integer(event_re_idx$p_ev[ev_row_idx])   else NULL
-  a_events   <- if (has_admission) as.integer(event_re_idx$a_ev[ev_row_idx])   else NULL
+  flat_re_idx_obs <- event_re_idx[ev_row_idx, , drop = FALSE]   # N_ev x R
+
+  # Observed AST matrix for these events, aligned to class_cols (0/1/NA). This
+  # is the ground truth that must be preserved: profile generation below only
+  # ever computes probabilities for the NA (untested) cells.
+  obs_ast_mat <- as.matrix(event_meta_obs[, class_cols, drop = FALSE])
+  storage.mode(obs_ast_mat) <- "double"
 
   # -- Outcome flags per event ------------------------------------------------
   oc_col_use <- if (!is.null(outcome_col) && outcome_col %in% names(event_meta_obs))
@@ -5439,21 +6115,22 @@ compute_event_profile_probabilities <- function(
     is_nonfatal      <- rep(TRUE, N_ev)
   }
 
-  # -- Hospital-pathogen eligible class sets ----------------------------------
+  # -- Hospital-pathogen profile class panels ---------------------------------
+  # Panels come from the approved eligibility rules (fitted_model$eligibility_
+  # report), not from "tested at least once" -- see .resolve_profile_class_panel().
   hp_pairs <- unique(event_meta_obs[, c(upper_re_col, pathogen_col), drop = FALSE])
   hp_keys  <- paste(hp_pairs[[upper_re_col]], hp_pairs[[pathogen_col]], sep = "||")
 
-  hp_class_d <- stats::setNames(lapply(seq_len(nrow(hp_pairs)), function(r) {
-    h_nm <- hp_pairs[[upper_re_col]][r]
-    k_nm <- hp_pairs[[pathogen_col]][r]
-    sub  <- event_meta_obs[
-      event_meta_obs[[upper_re_col]] == h_nm & event_meta_obs[[pathogen_col]] == k_nm,
-      class_cols, drop = FALSE
-    ]
-    which(vapply(class_cols, function(cc) {
-      v <- sub[[cc]]
-      any(!is.na(v))
-    }, logical(1L)))
+  hp_panel <- stats::setNames(lapply(seq_len(nrow(hp_pairs)), function(r) {
+    .resolve_profile_class_panel(
+      class_cols          = class_cols,
+      hospital            = hp_pairs[[upper_re_col]][r],
+      pathogen            = hp_pairs[[pathogen_col]][r],
+      eligibility_report  = eligibility_report,
+      upper_re_col        = upper_re_col,
+      pathogen_col        = pathogen_col,
+      residual_structure  = residual_structure
+    )
   }), hp_keys)
 
   # Map hp_keys -> row indices in event_meta_obs (canonical, not event_meta!)
@@ -5463,139 +6140,197 @@ compute_event_profile_probabilities <- function(
           event_meta_obs[[pathogen_col]]  == parts[2L])
   }), hp_keys)
 
-  # Storage: per-hp, per-draw profile labels matrix [N_hp x S]
-  hp_store <- stats::setNames(lapply(hp_keys, function(key) {
-    n_hp <- length(hp_ev_idx[[key]])
-    list(labels    = matrix(NA_character_, n_hp, S),
-         known_out = is_known_outcome[hp_ev_idx[[key]]],
-         nonfatal  = is_nonfatal[hp_ev_idx[[key]]])
+  imputation_method <- if (identical(residual_structure, "correlated")) {
+    "conditional_gibbs_correlated"
+  } else {
+    "conditional_analytic_identity"
+  }
+
+  # -- Per-hp-key static info: panel, observed matrix, cohort masks ------------
+  key_info <- stats::setNames(lapply(hp_keys, function(key) {
+    d_hp   <- match(hp_panel[[key]]$classes, class_cols)
+    ev_idx <- hp_ev_idx[[key]]
+    n_hp   <- length(ev_idx)
+    if (n_hp == 0L || length(d_hp) < 1L)
+      return(list(n_hp = n_hp, Dp = length(d_hp)))
+
+    panel_classes <- class_cols[d_hp]
+    enum_df       <- enumerate_binary_profiles(panel_classes)
+    profile_bin   <- as.matrix(enum_df[, panel_classes, drop = FALSE])  # n_profiles x Dp, 0/1
+    obs_panel     <- obs_ast_mat[ev_idx, d_hp, drop = FALSE]            # n_hp x Dp, 0/1/NA
+
+    list(
+      d_hp                 = d_hp,
+      ev_idx               = ev_idx,
+      n_hp                 = n_hp,
+      Dp                   = length(d_hp),
+      class_set            = paste(panel_classes, collapse = "|"),
+      all_lbls             = enum_df$profile_delta,
+      n_profiles           = length(enum_df$profile_delta),
+      profile_bin          = profile_bin,
+      obs_panel            = obs_panel,
+      n_missing_per_event  = rowSums(is.na(obs_panel)),
+      n_observed_per_event = length(d_hp) - rowSums(is.na(obs_panel)),
+      known_out            = is_known_outcome[ev_idx],
+      nonfatal             = is_nonfatal[ev_idx],
+      n_events_all         = n_hp,
+      n_events_known       = sum(is_known_outcome[ev_idx]),
+      n_events_nf          = sum(is_nonfatal[ev_idx]),
+      n_profile_classes       = length(d_hp),
+      panel_eligibility_method = hp_panel[[key]]$method,
+      classes_excluded         = paste(hp_panel[[key]]$excluded, collapse = "|"),
+      classes_excluded_reason  = hp_panel[[key]]$reason
+    )
+  }), hp_keys)
+
+  # Accumulator: posterior-mean event-profile sum. Shared by both residual
+  # structures now -- identity computes prob_mat analytically, correlated
+  # computes it via Gibbs-MC counting (see .gibbs_conditional_profile_probs()
+  # below), but both produce an n_hp x n_profiles matrix whose rows sum to 1
+  # and are consistent with observed cells, so the same accumulation and
+  # sum-to-1 check apply uniformly to both.
+  event_prob_sum <- stats::setNames(lapply(hp_keys, function(key) {
+    ki <- key_info[[key]]
+    if (ki$n_hp == 0L || ki$Dp < 1L) return(NULL)
+    matrix(0, ki$n_hp, ki$n_profiles)
   }), hp_keys)
 
   message(sprintf(
-    "[compute_event_profile_probabilities] %d draws | %d events | %d hp-pairs | %d RE level(s)",
-    S, N_ev, length(hp_keys), n_re_levels))
+    "[compute_event_profile_probabilities] %d draws | %d events | %d hp-pairs | %d RE level(s) | method=%s",
+    S, N_ev, length(hp_keys), n_re_levels, imputation_method))
 
-  # -- Main simulation loop ---------------------------------------------------
+  event_profile_rows  <- list()
+  aggregate_draw_rows <- list()
+
+  # -- Main draw loop: mu_all computed once per draw, shared across hp-keys ---
   for (s in seq_len(S)) {
-    beta_s     <- matrix(beta_arr[s, , ],     nrow = K, ncol = D)
-    hosp_eff_s <- matrix(hosp_eff_arr[s, , ], nrow = D, ncol = H)
+    beta_s   <- matrix(beta_arr[s, , ],   nrow = K, ncol = D)
+    re_eff_s <- matrix(re_eff_arr[s, , ], nrow = D, ncol = re_prep$total_re_levels)
 
-    # mu_all: N_ev x D
-    mu_all <- X_event %*% beta_s          # N_ev x D (fixed effects)
-    for (ev_i in seq_len(N_ev)) {
-      mu_all[ev_i, ] <- mu_all[ev_i, ] + hosp_eff_s[, h_events[ev_i]]
-    }
-    if (has_patient) {
-      pt_eff_s <- matrix(pt_eff_arr[s, , ], nrow = D, ncol = Pt)
-      for (ev_i in seq_len(N_ev))
-        mu_all[ev_i, ] <- mu_all[ev_i, ] + pt_eff_s[, p_events[ev_i]]
-    }
-    if (has_admission) {
-      adm_eff_s <- matrix(adm_eff_arr[s, , ], nrow = D, ncol = Adm)
-      for (ev_i in seq_len(N_ev))
-        mu_all[ev_i, ] <- mu_all[ev_i, ] + adm_eff_s[, a_events[ev_i]]
-    }
+    # Generic random-effect contribution: sums over an arbitrary number of
+    # declared blocks via one shared helper (re_contribution()), rather than
+    # hand-summing hospital_effect/patient_effect/admission_effect.
+    mu_all <- (X_event %*% beta_s) + re_contribution(re_eff_s, flat_re_idx_obs)   # N_ev x D
 
-    # Reconstruct full Omega for this draw (only needed for correlated structure)
-    Omega_s_full <- if (residual_structure == "correlated") {
-      L_omega_s <- matrix(L_omega_arr[s, , ], nrow = D, ncol = D)
-      tcrossprod(L_omega_s)
+    Omega_s_full <- if (identical(residual_structure, "correlated")) {
+      tcrossprod(matrix(L_omega_arr[s, , ], nrow = D, ncol = D))
     } else NULL
 
     for (key in hp_keys) {
-      d_hp   <- hp_class_d[[key]]
-      ev_idx <- hp_ev_idx[[key]]
-      if (length(ev_idx) == 0L || length(d_hp) < 1L) next
+      ki <- key_info[[key]]
+      if (ki$n_hp == 0L || ki$Dp < 1L) next
+      mu_hp <- mu_all[ki$ev_idx, ki$d_hp, drop = FALSE]   # n_hp x Dp
 
-      mu_hp <- mu_all[ev_idx, d_hp, drop = FALSE]   # N_hp x |d_hp|
-
-      if (residual_structure == "correlated") {
-        # Extract the correct correlation sub-matrix and its Cholesky factor.
-        # A submatrix of L_Omega is NOT the Cholesky factor of Omega[d_hp, d_hp].
-        Omega_hp <- Omega_s_full[d_hp, d_hp, drop = FALSE]
-        Omega_hp <- (Omega_hp + t(Omega_hp)) / 2 + diag(1e-9, length(d_hp))
-        L_hp <- tryCatch(t(chol(Omega_hp)), error = function(e) NULL)
-        if (is.null(L_hp)) next
-        Z_std <- matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
-        Z_hp  <- mu_hp + Z_std %*% t(L_hp)
+      if (identical(residual_structure, "correlated")) {
+        # Conditional Gibbs imputation (Commit 6): samples the missing latent
+        # dimensions conditional on the observed resistance SIGNS (not the
+        # exact latent values -- we only ever observe sign(Z), i.e. R/S), via
+        # a vectorized-across-events Gibbs sampler on the truncated
+        # multivariate normal. Known dimensions are truncated to the
+        # observed sign at every iteration, so every kept iteration's
+        # pattern is automatically consistent with observed cells -- see
+        # .gibbs_conditional_profile_probs(). Replaces the deferred
+        # unconditional-simulation path.
+        Omega_hp <- Omega_s_full[ki$d_hp, ki$d_hp, drop = FALSE]
+        Omega_hp <- (Omega_hp + t(Omega_hp)) / 2 + diag(1e-9, ki$Dp)
+        prob_mat <- .gibbs_conditional_profile_probs(
+          mu_hp = mu_hp, Omega_hp = Omega_hp, obs_panel = ki$obs_panel,
+          profile_bin = ki$profile_bin, n_burnin = n_gibbs_burnin, n_kept = n_gibbs_kept
+        )
       } else {
-        # Identity residual structure: classes are conditionally independent
-        Z_hp <- mu_hp + matrix(stats::rnorm(nrow(mu_hp) * length(d_hp)), nrow = nrow(mu_hp))
+        # -- Identity residual: exact analytic imputation over missing cells only.
+        # Classes are conditionally independent given mu, so no latent-variable
+        # simulation is needed at all.
+        p_miss <- stats::pnorm(mu_hp)          # marginal P(R) per class, in (0,1)
+        # Effective per-class probability: the observed 0/1 value where tested,
+        # Phi(mu) where untested. For a profile consistent with the observed
+        # cells every "known" factor below evaluates to exactly 1; for an
+        # inconsistent profile it evaluates to exactly 0 -- the same product
+        # both enforces the hard observed-cell constraint and computes the
+        # missing-cell probability, with no log(0) / 0 * -Inf edge cases because
+        # we never take logs.
+        p_eff <- ki$obs_panel
+        miss_mask <- is.na(ki$obs_panel)
+        p_eff[miss_mask] <- p_miss[miss_mask]
+
+        prob_mat <- matrix(1, ki$n_hp, ki$n_profiles)
+        for (d in seq_len(ki$Dp)) {
+          col_is1 <- ki$profile_bin[, d] == 1L
+          f_d <- matrix(NA_real_, ki$n_hp, ki$n_profiles)
+          if (any(col_is1))  f_d[, col_is1]  <- p_eff[, d]
+          if (any(!col_is1)) f_d[, !col_is1] <- 1 - p_eff[, d]
+          prob_mat <- prob_mat * f_d
+        }
       }
 
-      hp_store[[key]]$labels[, s] <- apply(
-        (Z_hp > 0) * 1L, 1L,
-        function(row) paste(ifelse(row == 1L, "R", "S"), collapse = "")
+      # Hard check, per draw, before any averaging: every event's enumerated
+      # profile probabilities must sum to 1 (observed cells fix a hard subset
+      # to consistent/inconsistent, missing cells are a proper Bernoulli
+      # product) -- a violation indicates a bug in the panel/observed-cell
+      # logic, not a data issue, so this stops rather than silently
+      # renormalising.
+      row_sums <- rowSums(prob_mat)
+      bad_rows <- which(abs(row_sums - 1) > 1e-6)
+      if (length(bad_rows) > 0L) {
+        stop(sprintf(
+          paste0("[compute_event_profile_probabilities] Profile probabilities do not sum to 1 ",
+                 "for %d event(s) in hospital-pathogen pair '%s' at posterior draw %d ",
+                 "(max abs deviation = %.3e). This indicates a bug in the panel/observed-cell ",
+                 "logic and must be fixed before results are trusted."),
+          length(bad_rows), key, s, max(abs(row_sums[bad_rows] - 1))), call. = FALSE)
+      }
+
+      event_prob_sum[[key]] <- event_prob_sum[[key]] + prob_mat
+
+      aggregate_draw_rows[[length(aggregate_draw_rows) + 1L]] <- tibble::tibble(
+        !!upper_re_col   := hp_pairs[[upper_re_col]][match(key, hp_keys)],
+        !!pathogen_col   := hp_pairs[[pathogen_col]][match(key, hp_keys)],
+        profile_class_set = ki$class_set,
+        profile_delta     = ki$all_lbls,
+        draw_s            = s,
+        R_ALL_s           = colMeans(prob_mat),
+        R_KNOWN_OUTCOME_s = if (any(ki$known_out))
+                              colMeans(prob_mat[ki$known_out, , drop = FALSE])
+                            else rep(NA_real_, ki$n_profiles),
+        R_NF_s            = if (any(ki$nonfatal))
+                              colMeans(prob_mat[ki$nonfatal, , drop = FALSE])
+                            else rep(NA_real_, ki$n_profiles),
+        profile_generation_method = imputation_method,
+        n_profile_classes        = ki$n_profile_classes,
+        panel_eligibility_method  = ki$panel_eligibility_method,
+        classes_excluded          = ki$classes_excluded,
+        classes_excluded_reason   = ki$classes_excluded_reason,
+        n_events_all           = ki$n_events_all,
+        n_events_known_outcome  = ki$n_events_known,
+        n_events_nonfatal       = ki$n_events_nf
       )
     }
   }
 
-  # -- Enumerate all 2^|d_hp| profiles per hp pair ----------------------------
-  # All profiles appear in the output. Profiles not sampled in finite Monte Carlo
-  # receive an estimated probability of 0, which may reflect simulation error
-  # for rare profiles rather than true structural zero probability.
-  event_profile_rows  <- list()
-  aggregate_draw_rows <- list()
-
+  # -- Finalize identity-residual event-level posterior means ------------------
   for (key in hp_keys) {
-    parts  <- strsplit(key, "||", fixed = TRUE)[[1L]]
-    h_nm   <- parts[1L]; k_nm <- parts[2L]
-    d_hp   <- hp_class_d[[key]]
-    ev_idx <- hp_ev_idx[[key]]
-    store  <- hp_store[[key]]
-    n_hp   <- nrow(store$labels)
-    if (n_hp == 0L) next
-
-    valid_s <- which(colSums(!is.na(store$labels)) == n_hp)
-    if (length(valid_s) == 0L) next
-    lbl_v <- store$labels[, valid_s, drop = FALSE]
-
-    class_set <- paste(class_cols[d_hp], collapse = "|")
-
-    # Complete set of 2^K profiles for this class panel
-    all_lbls <- if (length(d_hp) >= 1L) {
-      enum_df <- enumerate_binary_profiles(class_cols[d_hp])
-      enum_df$profile_delta
-    } else {
-      sort(unique(as.vector(lbl_v)))
-    }
-
-    # Event-level posterior mean profile probabilities
-    for (ev_i in seq_len(n_hp)) {
-      ev_lbl <- lbl_v[ev_i, ]
-      probs  <- vapply(all_lbls, function(lbl) mean(ev_lbl == lbl, na.rm = TRUE),
-                       numeric(1L))
-      event_id_val <- event_meta_obs$.event_idx[ev_idx[ev_i]]
-      for (li in seq_along(all_lbls)) {
-        event_profile_rows[[length(event_profile_rows) + 1L]] <- tibble::tibble(
-          !!upper_re_col    := h_nm,
-          !!pathogen_col    := k_nm,
-          event_idx          = event_id_val,
-          profile_class_set  = class_set,
-          profile_delta      = all_lbls[li],
-          profile_probability = probs[li]
-        )
-      }
-    }
-
-    # Draw-level aggregate R_ALL and R_NF (complete profile enumeration)
-    for (si in seq_along(valid_s)) {
-      s_lbl <- lbl_v[, si]
-      for (lbl in all_lbls) {
-        aggregate_draw_rows[[length(aggregate_draw_rows) + 1L]] <- tibble::tibble(
-          !!upper_re_col   := h_nm,
-          !!pathogen_col   := k_nm,
-          profile_class_set = class_set,
-          profile_delta     = lbl,
-          draw_s            = valid_s[si],
-          R_ALL_s = if (any(store$known_out))
-                      mean(s_lbl[store$known_out] == lbl, na.rm = TRUE)
-                    else NA_real_,
-          R_NF_s  = if (any(store$nonfatal))
-                      mean(s_lbl[store$nonfatal]  == lbl, na.rm = TRUE)
-                    else NA_real_
-        )
-      }
+    ki <- key_info[[key]]
+    if (ki$n_hp == 0L || ki$Dp < 1L || is.null(event_prob_sum[[key]])) next
+    h_nm <- hp_pairs[[upper_re_col]][match(key, hp_keys)]
+    k_nm <- hp_pairs[[pathogen_col]][match(key, hp_keys)]
+    event_prob_mean <- event_prob_sum[[key]] / S
+    for (ev_i in seq_len(ki$n_hp)) {
+      event_profile_rows[[length(event_profile_rows) + 1L]] <- tibble::tibble(
+        !!upper_re_col       := h_nm,
+        !!pathogen_col       := k_nm,
+        event_idx             = event_meta_obs$.event_idx[ki$ev_idx[ev_i]],
+        profile_class_set     = ki$class_set,
+        profile_delta         = ki$all_lbls,
+        profile_probability   = event_prob_mean[ev_i, ],
+        profile_generation_method = imputation_method,
+        n_profile_classes        = ki$n_profile_classes,
+        panel_eligibility_method  = ki$panel_eligibility_method,
+        classes_excluded          = ki$classes_excluded,
+        classes_excluded_reason   = ki$classes_excluded_reason,
+        n_classes_observed      = ki$n_observed_per_event[ev_i],
+        n_classes_missing       = ki$n_missing_per_event[ev_i],
+        fully_model_imputed     = ki$n_observed_per_event[ev_i] == 0L
+      )
     }
   }
 
@@ -5609,13 +6344,44 @@ compute_event_profile_probabilities <- function(
   )
 }
 
-#' Aggregate Posterior Profile Draws into R_ALL and R_NF Summaries
+#' Aggregate Posterior Profile Draws into R_ALL / R_KNOWN_OUTCOME / R_NF Summaries
 #'
-#' Summarises draw-level R_ALL and R_NF values from
+#' Summarises draw-level R_ALL, R_KNOWN_OUTCOME, and R_NF values from
 #' \code{compute_event_profile_probabilities()} into posterior mean and
-#' credible interval per hospital x pathogen x profile combination.
-#' All \eqn{2^D} profiles are present in the output (inherited from the
-#' complete enumeration in the simulation step).
+#' credible interval per hospital x pathogen x profile combination, and
+#' derives explicit \code{eligible_for_YLL}/\code{eligible_for_YLD} flags
+#' (with reasons) rather than asserting universal usability.
+#'
+#' \strong{Cohort definitions:} \code{R_ALL} is the mean over truly all events
+#' in the hospital-pathogen-panel cohort (no outcome filter). \code{R_KNOWN_OUTCOME}
+#' restricts to events with a known patient outcome (this is what earlier
+#' versions of this function called \code{R_ALL} -- renamed because it is not
+#' actually all events). \code{R_NF} restricts to the non-fatal subset of the
+#' known-outcome cohort. All three are computed per posterior draw and then
+#' summarised here; \code{n_draws_all}/\code{n_draws_known_outcome}/\code{n_draws_nf}
+#' count only the non-\code{NA} draws feeding each summary (a cohort that is
+#' empty for a given hospital-pathogen pair yields \code{NA} draws, which must
+#' not be silently counted as valid support).
+#'
+#' \strong{Eligibility:} \code{eligible_for_profile_inference} is a hard
+#' boolean, \code{TRUE} only for rows generated by a conditional
+#' (observed-plus-imputed) method -- \code{"conditional_analytic_identity"}
+#' or \code{"conditional_gibbs_correlated"} (Commit 6); see
+#' \code{compute_event_profile_probabilities()}. \code{FALSE} for any other
+#' \code{profile_generation_method} value, including a legacy
+#' \code{"unconditional_simulation_correlated_not_daly_eligible"} tag from a
+#' \code{profile_output} computed before Commit 6 -- callers must not rely on
+#' the descriptive \code{profile_generation_method} string alone.
+#' \code{eligible_for_YLL}/\code{eligible_for_YLD} additionally require:
+#' \code{sampler_acceptable} (passed in by the caller, e.g. from
+#' \code{fitted_model$diagnostics$converged_structural}); the relevant event
+#' cohort has at least \code{min_n_events} events; and at least
+#' \code{min_n_draws} valid posterior draws contributed to the relevant
+#' summary. \code{exclusion_reason_YLL}/\code{exclusion_reason_YLD} record
+#' why, distinguishing a cohort that is completely empty
+#' (\code{"no_known_outcome_events"} / \code{"no_nonfatal_events"}) from one
+#' that is merely small (\code{"too_few_known_outcome_events"} /
+#' \code{"too_few_nonfatal_events"}).
 #'
 #' @param profile_output List returned by \code{compute_event_profile_probabilities()}.
 #' @param hospital_col Character. Hospital column in \code{aggregate_draws}.
@@ -5624,16 +6390,34 @@ compute_event_profile_probabilities <- function(
 #' @param estimand Character. Estimand label to attach to output.
 #'   Default \code{"observed_stewardship_event_mix"}.
 #' @param ci_level Numeric. Credible interval coverage. Default \code{0.95}.
+#' @param min_n_events Integer. Minimum events in the relevant cohort
+#'   (known-outcome for YLL, nonfatal for YLD) for eligibility. Default \code{10L}.
+#' @param min_n_draws Integer. Minimum valid posterior draws in the relevant
+#'   summary for eligibility. Default \code{100L}.
+#' @param sampler_acceptable Logical, scalar or one value per row of
+#'   \code{profile_output$aggregate_draws} groups. Whether the fit's sampler
+#'   diagnostics are acceptable (e.g. \code{fitted_model$diagnostics$converged_structural}
+#'   from \code{fit_bayesian_multivariate_probit()}); \code{FALSE} makes every
+#'   row ineligible for YLL/YLD regardless of panel/count support. Default
+#'   \code{TRUE} (i.e. does not gate on sampler status unless the caller
+#'   supplies it -- \code{estimate_resistance_profiles()} supplies it
+#'   automatically).
 #'
-#' @return Tibble with one row per hospital x pathogen x profile:
-#'   R_ALL and R_NF posterior mean and credible interval.
+#' @return Tibble with one row per hospital x pathogen x profile: R_ALL,
+#'   R_KNOWN_OUTCOME, and R_NF posterior mean and credible interval, panel
+#'   composition (\code{n_profile_classes}, \code{panel_eligibility_method},
+#'   \code{classes_excluded}, \code{classes_excluded_reason}), event and draw
+#'   counts, and profile/YLL/YLD eligibility flags with reasons.
 #' @export
 aggregate_profiles_for_daly <- function(
     profile_output,
     hospital_col = "hospital",
     pathogen_col = "pathogen",
     estimand     = "observed_stewardship_event_mix",
-    ci_level     = 0.95
+    ci_level     = 0.95,
+    min_n_events = 10L,
+    min_n_draws  = 100L,
+    sampler_acceptable = TRUE
 ) {
   lo_q <- (1 - ci_level) / 2
   hi_q <- 1 - lo_q
@@ -5651,9 +6435,13 @@ aggregate_profiles_for_daly <- function(
 
   # Detect the actual hospital column name from the draws tibble
   if (!hospital_col %in% names(agg_draws)) {
-    candidate <- setdiff(names(agg_draws),
-                         c(pathogen_col, "profile_class_set", "profile_delta",
-                           "draw_s", "R_ALL_s", "R_NF_s"))
+    non_hospital_cols <- c(pathogen_col, "profile_class_set", "profile_delta", "draw_s",
+                           "R_ALL_s", "R_KNOWN_OUTCOME_s", "R_NF_s",
+                           "profile_generation_method",
+                           "n_profile_classes", "panel_eligibility_method",
+                           "classes_excluded", "classes_excluded_reason",
+                           "n_events_all", "n_events_known_outcome", "n_events_nonfatal")
+    candidate <- setdiff(names(agg_draws), non_hospital_cols)
     if (length(candidate) == 1L) {
       hospital_col <- candidate[1L]
       message(sprintf("[aggregate_profiles_for_daly] Using '%s' as hospital column.",
@@ -5672,36 +6460,128 @@ aggregate_profiles_for_daly <- function(
       .data$profile_delta
     ) %>%
     dplyr::summarise(
-      R_ALL_mean   = mean(.data$R_ALL_s,  na.rm = TRUE),
-      R_ALL_lower  = stats::quantile(.data$R_ALL_s, lo_q, na.rm = TRUE),
-      R_ALL_upper  = stats::quantile(.data$R_ALL_s, hi_q, na.rm = TRUE),
-      R_NF_mean    = mean(.data$R_NF_s,   na.rm = TRUE),
-      R_NF_lower   = stats::quantile(.data$R_NF_s,  lo_q, na.rm = TRUE),
-      R_NF_upper   = stats::quantile(.data$R_NF_s,  hi_q, na.rm = TRUE),
-      n_draws_used = dplyr::n(),
-      .groups      = "drop"
+      R_ALL_mean            = mean(.data$R_ALL_s, na.rm = TRUE),
+      R_ALL_lower           = stats::quantile(.data$R_ALL_s, lo_q, na.rm = TRUE),
+      R_ALL_upper           = stats::quantile(.data$R_ALL_s, hi_q, na.rm = TRUE),
+      R_KNOWN_OUTCOME_mean  = mean(.data$R_KNOWN_OUTCOME_s, na.rm = TRUE),
+      R_KNOWN_OUTCOME_lower = stats::quantile(.data$R_KNOWN_OUTCOME_s, lo_q, na.rm = TRUE),
+      R_KNOWN_OUTCOME_upper = stats::quantile(.data$R_KNOWN_OUTCOME_s, hi_q, na.rm = TRUE),
+      R_NF_mean             = mean(.data$R_NF_s, na.rm = TRUE),
+      R_NF_lower            = stats::quantile(.data$R_NF_s, lo_q, na.rm = TRUE),
+      R_NF_upper            = stats::quantile(.data$R_NF_s, hi_q, na.rm = TRUE),
+      # n_draws_* count valid POSTERIOR DRAWS contributing to this profile's
+      # summary, not event-profile rows -- each retained fitted state
+      # contributes exactly one row per (hospital, pathogen, profile_class_set,
+      # profile_delta) group here, so this is a draw count by construction.
+      # Event-level detail lives only in profile_output$event_profiles.
+      n_draws_all            = sum(!is.na(.data$R_ALL_s)),
+      n_draws_known_outcome  = sum(!is.na(.data$R_KNOWN_OUTCOME_s)),
+      n_draws_nf             = sum(!is.na(.data$R_NF_s)),
+      n_events_all           = dplyr::first(.data$n_events_all),
+      n_events_known_outcome = dplyr::first(.data$n_events_known_outcome),
+      n_events_nonfatal      = dplyr::first(.data$n_events_nonfatal),
+      profile_generation_method = dplyr::first(.data$profile_generation_method),
+      n_profile_classes        = dplyr::first(.data$n_profile_classes),
+      panel_eligibility_method  = dplyr::first(.data$panel_eligibility_method),
+      classes_excluded          = dplyr::first(.data$classes_excluded),
+      classes_excluded_reason   = dplyr::first(.data$classes_excluded_reason),
+      .groups                = "drop"
     ) %>%
     dplyr::mutate(
-      profile_label        = .data$profile_delta,
-      profile_set_type     = "facility_bayesian_probit",
-      estimand             = estimand,
-      used_for_YLL         = TRUE,
-      used_for_YLD         = TRUE,
-      estimator            = "bayesian_multivariate_probit",
-      low_draws_flag       = .data$n_draws_used < 100L,
+      # mean(all-NA, na.rm = TRUE) returns NaN (not NA); normalise so "no data"
+      # is represented consistently across mean/lower/upper.
+      dplyr::across(c(.data$R_ALL_mean, .data$R_KNOWN_OUTCOME_mean, .data$R_NF_mean),
+                    ~ dplyr::if_else(is.nan(.x), NA_real_, .x)),
+      profile_label     = .data$profile_delta,
+      profile_set_type  = "facility_bayesian_probit",
+      estimand          = estimand,
+      estimator         = "bayesian_multivariate_probit",
+      sampler_acceptable = sampler_acceptable,
+      # Both conditional (observed-plus-imputed) generation methods are
+      # DALY-eligible -- Commit 6 replaced the unconditional-simulation
+      # correlated path with conditional Gibbs imputation. Any OTHER method
+      # string (e.g. a future estimator, or a legacy
+      # "unconditional_simulation_correlated_not_daly_eligible" tag from a
+      # profile_output computed before Commit 6) is explicitly NOT eligible.
+      eligible_for_profile_inference =
+        .data$profile_generation_method %in%
+          c("conditional_analytic_identity", "conditional_gibbs_correlated"),
+      low_draws_all_flag           = .data$n_draws_all           < min_n_draws,
+      low_draws_known_outcome_flag = .data$n_draws_known_outcome < min_n_draws,
+      low_draws_nf_flag            = .data$n_draws_nf            < min_n_draws,
+      low_events_flag              = .data$n_events_all          < min_n_events,
+      eligible_for_YLL =
+        .data$eligible_for_profile_inference &
+        .data$sampler_acceptable &
+        .data$n_events_known_outcome >= min_n_events &
+        !.data$low_draws_known_outcome_flag,
+      eligible_for_YLD =
+        .data$eligible_for_profile_inference &
+        .data$sampler_acceptable &
+        .data$n_events_nonfatal >= min_n_events &
+        !.data$low_draws_nf_flag,
+      exclusion_reason_YLL = dplyr::case_when(
+        .data$eligible_for_YLL                       ~ NA_character_,
+        !.data$eligible_for_profile_inference         ~ .data$profile_generation_method,
+        !.data$sampler_acceptable                     ~ "sampler_not_acceptable",
+        .data$n_events_known_outcome == 0L            ~ "no_known_outcome_events",
+        .data$n_events_known_outcome < min_n_events   ~ "too_few_known_outcome_events",
+        .data$low_draws_known_outcome_flag            ~ "too_few_valid_draws",
+        TRUE                                          ~ "not_eligible"
+      ),
+      exclusion_reason_YLD = dplyr::case_when(
+        .data$eligible_for_YLD                       ~ NA_character_,
+        !.data$eligible_for_profile_inference         ~ .data$profile_generation_method,
+        !.data$sampler_acceptable                     ~ "sampler_not_acceptable",
+        .data$n_events_nonfatal == 0L                 ~ "no_nonfatal_events",
+        .data$n_events_nonfatal < min_n_events        ~ "too_few_nonfatal_events",
+        .data$low_draws_nf_flag                       ~ "too_few_valid_draws",
+        TRUE                                          ~ "not_eligible"
+      ),
+      # eligible_for_YLL/YLD (above) only ever required MARGINAL support --
+      # profile generation succeeding, the sampler being acceptable, and
+      # enough events/draws. They say nothing about whether the model's
+      # *joint* (multi-class) resistance profile can be trusted, which the
+      # exp_07 finding showed is a materially different question (excellent
+      # marginal calibration, poor pairwise/complete-profile calibration
+      # under an identity residual). eligible_for_marginal_YLL/YLD makes that
+      # existing, narrower meaning explicit under its own name.
+      # eligible_for_joint_profile_YLL/YLD starts identical to the marginal
+      # flags here (validation hasn't run yet at profile-generation time) and
+      # is subsequently AND-ed down by generate_bayesian_probit_validation()
+      # once pairwise/complete-profile calibration results are available --
+      # mirroring how eligible_for_YLL/YLD is itself narrowed post-validation.
+      eligible_for_marginal_YLL      = .data$eligible_for_YLL,
+      eligible_for_marginal_YLD      = .data$eligible_for_YLD,
+      eligible_for_joint_profile_YLL = .data$eligible_for_YLL,
+      eligible_for_joint_profile_YLD = .data$eligible_for_YLD,
+      exclusion_reason_joint_profile_YLL = .data$exclusion_reason_YLL,
+      exclusion_reason_joint_profile_YLD = .data$exclusion_reason_YLD,
       dplyr::across(dplyr::starts_with("R_"), ~ round(.x, 6L))
     ) %>%
     dplyr::select(
       dplyr::all_of(c(hospital_col, pathogen_col)),
       profile_set_type, estimand, profile_class_set, profile_delta, profile_label,
       R_ALL_mean, R_ALL_lower, R_ALL_upper,
-      R_NF_mean,  R_NF_lower,  R_NF_upper,
-      n_draws_used, used_for_YLL, used_for_YLD, estimator, low_draws_flag
+      R_KNOWN_OUTCOME_mean, R_KNOWN_OUTCOME_lower, R_KNOWN_OUTCOME_upper,
+      R_NF_mean, R_NF_lower, R_NF_upper,
+      n_profile_classes, panel_eligibility_method, classes_excluded, classes_excluded_reason,
+      n_events_all, n_events_known_outcome, n_events_nonfatal,
+      n_draws_all, n_draws_known_outcome, n_draws_nf,
+      profile_generation_method, sampler_acceptable,
+      eligible_for_profile_inference,
+      eligible_for_YLL, exclusion_reason_YLL,
+      eligible_for_YLD, exclusion_reason_YLD,
+      eligible_for_marginal_YLL, eligible_for_marginal_YLD,
+      eligible_for_joint_profile_YLL, exclusion_reason_joint_profile_YLL,
+      eligible_for_joint_profile_YLD, exclusion_reason_joint_profile_YLD,
+      low_draws_all_flag, low_draws_known_outcome_flag, low_draws_nf_flag, low_events_flag,
+      estimator
     )
 
   message(sprintf(
-    "[aggregate_profiles_for_daly] %d hospital-pathogen-profile rows.",
-    nrow(result)))
+    "[aggregate_profiles_for_daly] %d hospital-pathogen-profile rows (%d eligible for YLL, %d eligible for YLD).",
+    nrow(result), sum(result$eligible_for_YLL), sum(result$eligible_for_YLD)))
 
   result
 }
@@ -5863,7 +6743,8 @@ estimate_resistance_profiles <- function(
     profile_output = profile_probs,
     hospital_col   = fitted_mod$upper_re_col,
     pathogen_col   = pathogen_col,
-    estimand       = estimand
+    estimand       = estimand,
+    sampler_acceptable = isTRUE(fitted_mod$diagnostics$converged_structural)
   )
 
   eligibility_tbl <- if (!is.null(eligible_pairs)) {

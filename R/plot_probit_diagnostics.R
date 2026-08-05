@@ -191,13 +191,26 @@ plot_probit_diagnostics <- function(
   }
 
   # -- 5 & 6. NUTS diagnostics (energy + acceptance) ---------------------------
+  # mcmc_nuts_energy() plots the marginal energy distribution (pi_E) against
+  # the distribution of between-iteration energy transitions (pi_delta_E) --
+  # it is a SHAPE/OVERLAP diagnostic, not a bar chart of the E-BFMI number
+  # itself. The subtitle below prints the actual per-chain E-BFMI values
+  # computed in fit_bayesian_multivariate_probit() so the "< 0.3" threshold
+  # text is never mistaken for a statement about this fit's own values.
   np <- tryCatch(bayesplot::nuts_params(stan_fit), error = function(e) NULL)
   if (!is.null(np)) {
+    ebfmi_subtitle <- if (!is.null(diag) && !is.null(diag$ebfmi_by_chain[[1L]]) &&
+                          !is.na(diag$ebfmi_by_chain[[1L]])) {
+      sprintf("Chain E-BFMI: %s (values below 0.3 warrant investigation)",
+             diag$ebfmi_by_chain[[1L]])
+    } else {
+      "Chain E-BFMI unavailable for this fit (values below 0.3 warrant investigation)"
+    }
     .try_plot(
       bayesplot::mcmc_nuts_energy(np) +
         ggplot2::labs(
-          title    = paste(title_base, "-- NUTS Energy"),
-          subtitle = "E-BFMI < 0.3 suggests poor geometry"
+          title    = paste(title_base, "-- NUTS Energy (marginal energy vs. energy-transition distributions)"),
+          subtitle = ebfmi_subtitle
         ) +
         ggplot2::theme(plot.title = ggplot2::element_text(size = 10)),
       "energy plot"

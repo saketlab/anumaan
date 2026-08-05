@@ -2,7 +2,7 @@
 % Please edit documentation in R/daly_resistance_profiles.R
 \name{compute_event_profile_probabilities}
 \alias{compute_event_profile_probabilities}
-\title{Compute Posterior Resistance Profile Probabilities via MVN Simulation}
+\title{Compute Observed-Plus-Imputed Resistance Profile Probabilities}
 \usage{
 compute_event_profile_probabilities(
   fitted_model,
@@ -16,13 +16,10 @@ compute_event_profile_probabilities(
 \arguments{
 \item{fitted_model}{List returned by \code{fit_bayesian_multivariate_probit()}.}
 
-\item{n_posterior_draws_for_profiles}{Integer. Number of posterior draws to
-use for profile simulation. Subsampled without replacement when total draws
-exceed this value. Each draw generates one simulated latent profile per
-event; rare profiles may be underestimated when this is small. For finer
-Monte Carlo resolution of rare profiles, consider increasing this value or
-adding \code{n_predictive_replicates_per_draw} in a future extension.
-Default \code{2000L}.}
+\item{n_posterior_draws_for_profiles}{Integer. Number of posterior draws
+averaged over for both the event-level profile probabilities and the
+draw-level aggregates. Subsampled without replacement when total draws
+exceed this value. Default \code{2000L}.}
 
 \item{outcome_col}{Character or \code{NULL}. Patient outcome column in
 \code{fitted_model$event_metadata}. When \code{NULL}, all events are
@@ -31,27 +28,64 @@ treated as having a known outcome and R_NF is not computed separately.}
 \item{nonfatal_values}{Character vector. Outcome values for the non-fatal
 cohort (R_NF). Default covers common discharge/survival labels.}
 
-\item{seed}{Integer. Random seed for MVN simulation. Default \code{123L}.}
+\item{seed}{Integer. Random seed (used only by the correlated-residual
+simulation branch). Default \code{123L}.}
 }
 \value{
-Named list: \code{event_profiles} (event-level posterior means) and
-  \code{aggregate_draws} (per-draw R_ALL and R_NF per hospital x pathogen x
-  profile, used by \code{aggregate_profiles_for_daly()} for credible
-  intervals). Both tibbles contain all \eqn{2^D} profiles per
-  hospital-pathogen pair.
+Named list: \code{event_profiles} (event-level posterior mean
+  observed-plus-imputed profile probabilities, with
+  \code{n_classes_observed}/\code{n_classes_missing} per event) and
+  \code{aggregate_draws} (per-draw \code{R_ALL} [truly all events in the
+  hp pair], \code{R_KNOWN_OUTCOME} [known-outcome cohort], and \code{R_NF}
+  [nonfatal cohort], used by \code{aggregate_profiles_for_daly()} for
+  credible intervals). Both tibbles contain all \eqn{2^D} profiles per
+  hospital-pathogen pair and carry \code{profile_generation_method} and
+  \code{panel_reason} columns.
 }
 \description{
-For each posterior draw, constructs the event-level linear predictor
-\eqn{\mu_e} using fixed effects and correlated random effects from the
-fitted model, simulates latent
-\eqn{Z_e = \mu_e + L_\Omega\,\varepsilon_e}, \eqn{\varepsilon_e \sim N(0,I_D)},
-converts to binary resistance profiles, and accumulates profile
-probabilities. All \eqn{2^D} profiles appear in the output; profiles not
-observed in simulation receive probability 0.
+For each event, retains every observed (tested) AST cell exactly and
+computes a probability distribution only over the genuinely untested
+(\code{NA}) antibiotic-class cells in that event's profile panel. Any
+enumerated profile inconsistent with the event's observed cells receives
+probability 0 -- this function never overwrites an observed R/S result.
 }
 \details{
-\strong{Estimand:} The posterior predictive distribution over the observed
-event case-mix -- the profile distribution you would see if you drew a new
-event uniformly from the set of observed events (same covariate distribution
-as the data). This is labelled \code{"observed_stewardship_event_mix"}.
+\strong{Identity residual structure} (\code{fitted_model$residual_structure
+== "identity"}): classes are conditionally independent given the linear
+predictor, so the missing-cell probabilities are computed analytically as
+\eqn{P(Y_{ed}=1 \mid \theta) = \Phi(\mu_{ed})} for each missing class
+\eqn{d}, and the profile probability over the missing dimensions is the
+exact product of per-class Bernoulli probabilities -- no latent-variable
+simulation is used, so there is no added latent-profile-simulation noise.
+Averaging over the retained posterior draws still carries the usual finite-
+MCMC Monte Carlo error of estimating an expectation from a finite sample of
+fitted states; that residual error shrinks with more retained draws and is
+unrelated to the (now removed) per-event latent-variable simulation. This
+is the estimand suitable for downstream DALY use; rows carry
+\code{profile_generation_method = "conditional_analytic_identity"}.
+
+\strong{Correlated residual structure}: proper imputation requires sampling
+the missing latent dimensions conditional on the observed resistance signs
+(a truncated multivariate-normal / orthant-probability problem), which is
+not yet implemented. For \code{residual_structure == "correlated"} fits,
+this function still runs the prior unconditional latent-\eqn{Z} simulation
+so the fitted \code{Omega} can be inspected methodologically, but rows are
+tagged \code{profile_generation_method =
+"unconditional_simulation_correlated_not_daly_eligible"} and \strong{must
+not} be treated as observed-plus-imputed profiles.
+\code{aggregate_profiles_for_daly()} uses this tag to set
+\code{eligible_for_YLL}/\code{eligible_for_YLD} to \code{FALSE} for these
+rows. The fit itself remains valid to run and diagnose; only its profile
+output is gated.
+
+\strong{Class panels}: the antibiotic-class panel enumerated for each
+hospital x pathogen pair is drawn from the approved eligibility rules
+computed at fit time (\code{fitted_model$eligibility_report}: marginal
+n_tested/n_resistant/n_susceptible thresholds, plus pairwise co-testing
+sufficiency for correlated-residual fits) -- not from "tested at least
+once". See \code{.resolve_profile_class_panel()}.
+
+\strong{Estimand:} The posterior distribution over the observed event
+case-mix, conditional on each event's own observed AST results. This is
+labelled \code{"observed_stewardship_event_mix"}.
 }
