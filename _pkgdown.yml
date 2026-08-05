@@ -297,28 +297,7 @@ reference:
 - title: "Visualization"
   desc: "Generic AMR plotting utilities"
   contents:
-  - amr_theme
   - eda_theme
-  - get_amr_palette
-  - plot_bar
-  - plot_grouped_bar
-  - plot_stacked_bar
-  - plot_heatmap
-  - plot_histogram
-  - plot_line
-  - plot_proportion
-  - plot_resistance_heatmap
-
-- title: "Spatial analysis"
-  desc: "Spatial metrics and mapping"
-  contents:
-  - create_spatial_object
-  - create_choropleth_map
-  - create_interactive_map
-  - calculate_spatial_metrics
-  - calculate_spatial_autocorrelation
-  - calculate_distance_matrix
-  - detect_hotspots
 
 - title: "Validation and reporting"
   desc: "Data quality checks and reports"
