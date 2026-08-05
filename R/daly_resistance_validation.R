@@ -663,6 +663,10 @@ validate_complete_profile_calibration <- function(
 #' @param prior_config,sampler_config Named list or \code{NULL}. Forwarded
 #'   when \code{refit = TRUE}; default to the original fit's
 #'   \code{prior_config_used}/\code{sampler_config_used}.
+#' @param n_gibbs_burnin,n_gibbs_kept Integer. Gibbs burn-in/kept-iteration
+#'   counts forwarded to \code{.gibbs_conditional_profile_probs()} for
+#'   correlated-residual fits' masked-cell prediction (Commit 6). Ignored for
+#'   identity-residual fits. Default \code{10L}/\code{20L}.
 #'
 #' @return Named list: \code{predictions} (one row per masked cell: hospital,
 #'   pathogen, event id, class, true value, predicted probability, log score,

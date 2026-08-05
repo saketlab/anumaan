@@ -19,7 +19,9 @@ mask_and_validate_ast(
   min_susceptible_after_mask = 5L,
   panel_eligibility = list(),
   prior_config = NULL,
-  sampler_config = NULL
+  sampler_config = NULL,
+  n_gibbs_burnin = 10L,
+  n_gibbs_kept = 20L
 )
 }
 \arguments{
@@ -60,6 +62,11 @@ subsampling). Default \code{123L}.}
 \item{prior_config, sampler_config}{Named list or \code{NULL}. Forwarded
 when \code{refit = TRUE}; default to the original fit's
 \code{prior_config_used}/\code{sampler_config_used}.}
+
+\item{n_gibbs_burnin, n_gibbs_kept}{Integer. Gibbs burn-in/kept-iteration
+counts forwarded to \code{.gibbs_conditional_profile_probs()} for
+correlated-residual fits' masked-cell prediction (Commit 6). Ignored for
+identity-residual fits. Default \code{10L}/\code{20L}.}
 }
 \value{
 Named list: \code{predictions} (one row per masked cell: hospital,
@@ -106,4 +113,17 @@ pathogen x class cell, at most enough cells are masked to keep
 only observed (non-\code{NA}) cells are ever candidates; and no event is
 ever left with zero observed classes across \emph{all} \code{class_cols}
 (which would otherwise silently drop that event from a refit).
+
+\strong{Prediction} (Commit 6): for \code{fitted_model$residual_structure
+== "identity"}, \eqn{\Phi(\mu_{ed})} is the exact model-implied
+probability for a masked cell regardless of what else is known about that
+event (classes are conditionally independent given \eqn{\mu}). For
+\code{"correlated"}, using \eqn{\Phi(\mu_{ed})} alone would ignore every
+OTHER still-observed class for that event -- wrong whenever classes are
+correlated. Instead each masked event's full \code{class_cols} panel is
+rebuilt with the masked cell(s) set to \code{NA} and every other class at
+its true observed value, and \code{.gibbs_conditional_profile_probs()} is
+used to get \eqn{P(\text{masked class}=R \mid \text{that event's other
+observed classes}, \theta)} -- the same conditional-imputation machinery
+used for DALY profile generation, not a marginal prediction.
 }

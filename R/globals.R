@@ -143,8 +143,21 @@ utils::globalVariables(c(
   # Pathway 2 — aggregate_profiles_for_daly()
   "R_ALL_mean", "R_ALL_lower", "R_ALL_upper",
   "R_NF_mean",  "R_NF_lower",  "R_NF_upper",
+  "R_KNOWN_OUTCOME_mean", "R_KNOWN_OUTCOME_lower", "R_KNOWN_OUTCOME_upper",
   "used_for_YLL", "used_for_YLD", "profile_set_type",
   "n_draws_used", "profile_label",
+  "n_profile_classes", "panel_eligibility_method",
+  "classes_excluded", "classes_excluded_reason",
+  "n_events_all", "n_events_known_outcome", "n_events_nonfatal",
+  "n_draws_all", "n_draws_known_outcome", "n_draws_nf",
+  "profile_generation_method", "eligible_for_profile_inference",
+  "eligible_for_YLL", "exclusion_reason_YLL",
+  "eligible_for_YLD", "exclusion_reason_YLD",
+  "eligible_for_marginal_YLL", "eligible_for_marginal_YLD",
+  "eligible_for_joint_profile_YLL", "exclusion_reason_joint_profile_YLL",
+  "eligible_for_joint_profile_YLD", "exclusion_reason_joint_profile_YLD",
+  "low_draws_all_flag", "low_draws_known_outcome_flag",
+  "low_draws_nf_flag", "low_events_flag",
 
   # Pathway 2 — summarize_reserve_drugs()
   "n_total", "n_tested", "n_resistant",

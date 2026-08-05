@@ -54,9 +54,11 @@
   random_effects
 }
 
-#' Build the flattened, generic random-effect representation used by the
-#' generic Stan models and by every downstream mu-reconstruction site
-#' (profile generation, DALY aggregation, validation).
+#' Build the generic random-effect representation for an arbitrary number of blocks
+#'
+#' Flattens an arbitrary number of declared random-intercept blocks into the
+#' representation used by the generic Stan models and by every downstream
+#' mu-reconstruction site (profile generation, DALY aggregation, validation).
 #'
 #' @param data Data frame containing every declared block's group_col.
 #' @param random_effects Character vector (legacy) or list-of-blocks (see
@@ -68,7 +70,7 @@
 #'   analysis layer (see anumaan-analysis's random_effect_eligibility.R),
 #'   not hardcoded into the package.
 #' @param on_mostly_singleton "warn" (default) or "stop" when a block is
-#'   >90% singleton levels (1 observation).
+#'   more than 90 percent singleton levels (1 observation).
 #' @return An object of class "amr_random_effects": block metadata, level
 #'   maps, per-event flattened group indices, nesting diagnostics.
 #' @export

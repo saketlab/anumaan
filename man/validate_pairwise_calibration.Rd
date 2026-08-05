@@ -36,14 +36,26 @@ Tibble, one row per eligible hospital x pathogen x class-pair:
 For every adequately co-tested hospital x pathogen x class-pair
 combination, compares the observed pairwise resistance rate
 (\eqn{n_{RR}/n_{\text{cotested}}}) against the model's implied joint
-probability. For identity-residual fits this is computed as
-\eqn{P(Y_{d_1}=1, Y_{d_2}=1 \mid \theta) = \Phi(\mu_{ed_1})\,\Phi(\mu_{ed_2})}
--- i.e. the two classes are combined only through the shared fixed and
-random effects in \eqn{\mu}, not through any residual correlation (the
-identity model has none). \strong{This checks whether the identity-residual
-model reproduces observed pairwise resistance through shared covariates
-and random effects; it is not evidence that a residual-independence
-assumption is correct.} Persistent pairwise miscalibration despite good
-marginal calibration suggests unmodelled class-to-class dependence that a
-correlated-residual fit might capture.
+probability, computed differently by residual structure:
+\describe{
+  \item{Identity}{\eqn{P(Y_{d_1}=1, Y_{d_2}=1 \mid \theta) =
+    \Phi(\mu_{ed_1})\,\Phi(\mu_{ed_2})} -- the two classes are combined
+    only through the shared fixed and random effects in \eqn{\mu}, not
+    through any residual correlation (the identity model has none).
+    \strong{This checks whether the identity-residual model reproduces
+    observed pairwise resistance through shared covariates and random
+    effects; it is not evidence that a residual-independence assumption
+    is correct.} Persistent pairwise miscalibration despite good marginal
+    calibration suggests unmodelled class-to-class dependence that a
+    correlated-residual fit might capture.}
+  \item{Correlated (Commit 6)}{\eqn{P(Y_{d_1}=1, Y_{d_2}=1 \mid \theta) =
+    \Phi_2(\mu_{ed_1}, \mu_{ed_2}; \rho_{d_1 d_2})} -- the standard
+    bivariate-probit identity \eqn{P(Z_1>0,Z_2>0) = \Phi_2(\mu_1,\mu_2;\rho)}
+    for \eqn{(Z_1,Z_2)\sim N((\mu_1,\mu_2), [[1,\rho],[\rho,1]])}, with
+    \eqn{\rho_{d_1 d_2} = \Omega_{d_1 d_2}} from the fitted residual
+    correlation matrix (computed via \pkg{pbivnorm}). This actually uses
+    the fitted correlation structure, unlike the identity-model product
+    formula -- checking whether \eqn{\Omega} reproduces observed
+    co-resistance.}
+}
 }

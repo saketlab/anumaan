@@ -10,7 +10,9 @@ compute_event_profile_probabilities(
   outcome_col = NULL,
   nonfatal_values = c("Discharged", "Survived", "Alive", "discharged", "survived",
     "alive"),
-  seed = 123L
+  seed = 123L,
+  n_gibbs_burnin = 10L,
+  n_gibbs_kept = 20L
 )
 }
 \arguments{
@@ -28,8 +30,11 @@ treated as having a known outcome and R_NF is not computed separately.}
 \item{nonfatal_values}{Character vector. Outcome values for the non-fatal
 cohort (R_NF). Default covers common discharge/survival labels.}
 
-\item{seed}{Integer. Random seed (used only by the correlated-residual
-simulation branch). Default \code{123L}.}
+\item{seed}{Integer. Random seed. Default \code{123L}.}
+
+\item{n_gibbs_burnin, n_gibbs_kept}{Integer. Only used when
+\code{fitted_model$residual_structure == "correlated"} -- see
+\code{.gibbs_conditional_profile_probs()}. Defaults \code{10L}/\code{20L}.}
 }
 \value{
 Named list: \code{event_profiles} (event-level posterior mean
@@ -57,26 +62,32 @@ predictor, so the missing-cell probabilities are computed analytically as
 \eqn{d}, and the profile probability over the missing dimensions is the
 exact product of per-class Bernoulli probabilities -- no latent-variable
 simulation is used, so there is no added latent-profile-simulation noise.
-Averaging over the retained posterior draws still carries the usual finite-
-MCMC Monte Carlo error of estimating an expectation from a finite sample of
-fitted states; that residual error shrinks with more retained draws and is
-unrelated to the (now removed) per-event latent-variable simulation. This
-is the estimand suitable for downstream DALY use; rows carry
-\code{profile_generation_method = "conditional_analytic_identity"}.
+Rows carry \code{profile_generation_method = "conditional_analytic_identity"}.
 
-\strong{Correlated residual structure}: proper imputation requires sampling
-the missing latent dimensions conditional on the observed resistance signs
-(a truncated multivariate-normal / orthant-probability problem), which is
-not yet implemented. For \code{residual_structure == "correlated"} fits,
-this function still runs the prior unconditional latent-\eqn{Z} simulation
-so the fitted \code{Omega} can be inspected methodologically, but rows are
-tagged \code{profile_generation_method =
-"unconditional_simulation_correlated_not_daly_eligible"} and \strong{must
-not} be treated as observed-plus-imputed profiles.
-\code{aggregate_profiles_for_daly()} uses this tag to set
-\code{eligible_for_YLL}/\code{eligible_for_YLD} to \code{FALSE} for these
-rows. The fit itself remains valid to run and diagnose; only its profile
-output is gated.
+\strong{Correlated residual structure} (Commit 6): the missing latent
+dimensions are sampled conditional on the observed resistance SIGNS of the
+tested classes via a Gibbs sampler on the truncated multivariate normal --
+see \code{.gibbs_conditional_profile_probs()}. This replaces the earlier
+unconditional latent-\eqn{Z} simulation, which resampled tested cells
+along with untested ones and was therefore not observed-plus-imputed.
+Rows carry \code{profile_generation_method = "conditional_gibbs_correlated"}
+and ARE eligible for downstream DALY use (subject to the same panel-support
+and sampler-acceptability gates as identity-residual profiles -- see
+\code{aggregate_profiles_for_daly()}). Because Gibbs is only run for
+\code{n_gibbs_burnin + n_gibbs_kept} iterations per draw rather than to
+full convergence, correlated-residual profiles carry additional Monte
+Carlo error beyond identity-residual profiles at the same
+\code{n_posterior_draws_for_profiles}; increase \code{n_gibbs_kept} (and/or
+\code{n_gibbs_burnin}) for lower-noise estimates at higher compute cost.
+
+Both residual structures produce, per event per posterior draw, a profile
+probability vector over the panel's \eqn{2^{D_p}} enumerated profiles that
+(a) sums to exactly 1 and (b) assigns exactly 0 to any profile
+inconsistent with that event's observed cells -- enforced by construction
+in both cases (an exact product for identity; Gibbs never visiting an
+inconsistent pattern for correlated), and checked with a hard
+\code{stop()} for the identity path since it has no other source of
+Monte Carlo noise to blur a genuine bug.
 
 \strong{Class panels}: the antibiotic-class panel enumerated for each
 hospital x pathogen pair is drawn from the approved eligibility rules
