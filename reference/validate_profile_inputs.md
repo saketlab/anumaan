@@ -92,21 +92,21 @@ any mandatory check fails.
 ``` r
 if (FALSE) { # \dontrun{
 report <- validate_profile_inputs(
-  data        = my_ast_data,
-  col_map     = list(
-    isolate_col   = "isolate_id",
-    pathogen_col  = "organism",
-    ast_col       = "result",
-    patient_col   = "pid",
-    date_col      = "culture_date",
+  data = my_ast_data,
+  col_map = list(
+    isolate_col = "isolate_id",
+    pathogen_col = "organism",
+    ast_col = "result",
+    patient_col = "pid",
+    date_col = "culture_date",
     geography_col = "state",
-    specimen_col  = "specimen",
-    age_col       = "age_years",
-    dob_col       = NULL,
+    specimen_col = "specimen",
+    age_col = "age_years",
+    dob_col = NULL,
     antibiotic_col = "drug_name",
-    class_col     = NULL,
-    location_col  = "ward",
-    outcome_col   = "discharge_status"
+    class_col = NULL,
+    location_col = "ward",
+    outcome_col = "discharge_status"
   ),
   stratify_by = c("geography", "year"),
   outcome_col = "discharge_status"

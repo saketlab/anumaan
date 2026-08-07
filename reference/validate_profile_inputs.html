@@ -35,7 +35,7 @@ any failed mandatory check."><link rel="stylesheet" href="extra.css"><meta name=
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -154,21 +154,21 @@ when <code>"outcome"</code> is in <code>stratify_by</code>. Can also be supplied
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu">validate_profile_inputs</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  data        <span class="op">=</span> <span class="va">my_ast_data</span>,</span></span>
-<span class="r-in"><span>  col_map     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>    isolate_col   <span class="op">=</span> <span class="st">"isolate_id"</span>,</span></span>
-<span class="r-in"><span>    pathogen_col  <span class="op">=</span> <span class="st">"organism"</span>,</span></span>
-<span class="r-in"><span>    ast_col       <span class="op">=</span> <span class="st">"result"</span>,</span></span>
-<span class="r-in"><span>    patient_col   <span class="op">=</span> <span class="st">"pid"</span>,</span></span>
-<span class="r-in"><span>    date_col      <span class="op">=</span> <span class="st">"culture_date"</span>,</span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="va">my_ast_data</span>,</span></span>
+<span class="r-in"><span>  col_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    isolate_col <span class="op">=</span> <span class="st">"isolate_id"</span>,</span></span>
+<span class="r-in"><span>    pathogen_col <span class="op">=</span> <span class="st">"organism"</span>,</span></span>
+<span class="r-in"><span>    ast_col <span class="op">=</span> <span class="st">"result"</span>,</span></span>
+<span class="r-in"><span>    patient_col <span class="op">=</span> <span class="st">"pid"</span>,</span></span>
+<span class="r-in"><span>    date_col <span class="op">=</span> <span class="st">"culture_date"</span>,</span></span>
 <span class="r-in"><span>    geography_col <span class="op">=</span> <span class="st">"state"</span>,</span></span>
-<span class="r-in"><span>    specimen_col  <span class="op">=</span> <span class="st">"specimen"</span>,</span></span>
-<span class="r-in"><span>    age_col       <span class="op">=</span> <span class="st">"age_years"</span>,</span></span>
-<span class="r-in"><span>    dob_col       <span class="op">=</span> <span class="cn">NULL</span>,</span></span>
+<span class="r-in"><span>    specimen_col <span class="op">=</span> <span class="st">"specimen"</span>,</span></span>
+<span class="r-in"><span>    age_col <span class="op">=</span> <span class="st">"age_years"</span>,</span></span>
+<span class="r-in"><span>    dob_col <span class="op">=</span> <span class="cn">NULL</span>,</span></span>
 <span class="r-in"><span>    antibiotic_col <span class="op">=</span> <span class="st">"drug_name"</span>,</span></span>
-<span class="r-in"><span>    class_col     <span class="op">=</span> <span class="cn">NULL</span>,</span></span>
-<span class="r-in"><span>    location_col  <span class="op">=</span> <span class="st">"ward"</span>,</span></span>
-<span class="r-in"><span>    outcome_col   <span class="op">=</span> <span class="st">"discharge_status"</span></span></span>
+<span class="r-in"><span>    class_col <span class="op">=</span> <span class="cn">NULL</span>,</span></span>
+<span class="r-in"><span>    location_col <span class="op">=</span> <span class="st">"ward"</span>,</span></span>
+<span class="r-in"><span>    outcome_col <span class="op">=</span> <span class="st">"discharge_status"</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span>,</span></span>
 <span class="r-in"><span>  stratify_by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"geography"</span>, <span class="st">"year"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  outcome_col <span class="op">=</span> <span class="st">"discharge_status"</span></span></span>

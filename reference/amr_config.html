@@ -33,7 +33,7 @@ specific use case."><link rel="stylesheet" href="extra.css"><meta name="keywords
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,8 +85,7 @@ specific use case.</p>
 <span>  column_mappings <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  fuzzy_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  strict_validation <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  date_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"date_of_admission"</span>, <span class="st">"date_of_culture"</span>, <span class="st">"date_of_final_outcome"</span>,</span>
-<span>    <span class="st">"DOB"</span><span class="op">)</span>,</span>
+<span>  date_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  hai_cutoff <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  infer_department <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  event_gap_days <span class="op">=</span> <span class="fl">14</span>,</span>
@@ -94,11 +93,6 @@ specific use case.</p>
 <span>  age_bins <span class="op">=</span> <span class="st">"GBD_standard"</span>,</span>
 <span>  contaminant_method <span class="op">=</span> <span class="st">"auto"</span>,</span>
 <span>  mdr_definition <span class="op">=</span> <span class="st">"CDC"</span>,</span>
-<span>  xdr_definition <span class="op">=</span> <span class="st">"CDC"</span>,</span>
-<span>  map_icd10 <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  rr_table <span class="op">=</span> <span class="st">"GBD_2021"</span>,</span>
-<span>  organism_map <span class="op">=</span> <span class="st">"default"</span>,</span>
-<span>  antibiotic_map <span class="op">=</span> <span class="st">"WHO_2023"</span>,</span>
 <span>  intermediate_as_resistant <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -125,7 +119,7 @@ fields are missing. If FALSE, issues warnings. Default FALSE.</p></dd>
 
 <dt id="arg-date-columns">date_columns<a class="anchor" aria-label="anchor" href="#arg-date-columns"></a></dt>
 <dd><p>Character vector of date column names to parse.
-Default includes standard date fields.</p></dd>
+Default NULL auto-detects date-like columns by name pattern.</p></dd>
 
 
 <dt id="arg-hai-cutoff">hai_cutoff<a class="anchor" aria-label="anchor" href="#arg-hai-cutoff"></a></dt>
@@ -161,31 +155,9 @@ as infection-related. Default 14.</p></dd>
 
 
 <dt id="arg-mdr-definition">mdr_definition<a class="anchor" aria-label="anchor" href="#arg-mdr-definition"></a></dt>
-<dd><p>Character or numeric. MDR definition: "CDC", "WHO",
-or numeric threshold for number of resistant classes. Default "CDC".</p></dd>
-
-
-<dt id="arg-xdr-definition">xdr_definition<a class="anchor" aria-label="anchor" href="#arg-xdr-definition"></a></dt>
-<dd><p>Character or numeric. XDR definition. Default "CDC".</p></dd>
-
-
-<dt id="arg-map-icd-">map_icd10<a class="anchor" aria-label="anchor" href="#arg-map-icd-"></a></dt>
-<dd><p>Logical. Attempt ICD-10 code mapping. Default TRUE.</p></dd>
-
-
-<dt id="arg-rr-table">rr_table<a class="anchor" aria-label="anchor" href="#arg-rr-table"></a></dt>
-<dd><p>Character. Name of built-in RR table to use, or path
-to custom RR table. Default "GBD_2021".</p></dd>
-
-
-<dt id="arg-organism-map">organism_map<a class="anchor" aria-label="anchor" href="#arg-organism-map"></a></dt>
-<dd><p>Character or named vector. "default" for built-in
-mapping, or custom named vector. Default "default".</p></dd>
-
-
-<dt id="arg-antibiotic-map">antibiotic_map<a class="anchor" aria-label="anchor" href="#arg-antibiotic-map"></a></dt>
-<dd><p>Character. Built-in antibiotic classification:
-"WHO_2023" or path to custom. Default "WHO_2023".</p></dd>
+<dd><p>Character or numeric. MDR/XDR definition (used for
+both): "CDC", "WHO", or numeric threshold for number of resistant
+classes. Default "CDC".</p></dd>
 
 
 <dt id="arg-intermediate-as-resistant">intermediate_as_resistant<a class="anchor" aria-label="anchor" href="#arg-intermediate-as-resistant"></a></dt>

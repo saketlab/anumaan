@@ -57,7 +57,7 @@ prep_assign_facility_type(
 
 ``` r
 df <- data.frame(center_name = c("AFMC", "SGRH", "Unknown"))
-m  <- c(AFMC = "Government", SGRH = "Private")
+m <- c(AFMC = "Government", SGRH = "Private")
 prep_assign_facility_type(df, mapping = m)
 #>   center_name facility_type
 #> 1        AFMC    Government

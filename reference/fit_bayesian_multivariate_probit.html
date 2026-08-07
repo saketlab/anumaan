@@ -33,7 +33,7 @@ hierarchical Bayesian multivariate probit model via cmdstanr."><link rel="styles
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,6 +98,7 @@ hierarchical Bayesian multivariate probit model via <span class="pkg">cmdstanr</
 <span>  prior_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  sampler_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  show_messages <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  save_full_latent_diagnostics <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -201,6 +202,19 @@ are forwarded via <code>...</code>.</p></dd>
 <dd><p>Logical. Print sampling progress. Default <code>TRUE</code>.</p></dd>
 
 
+<dt id="arg-save-full-latent-diagnostics">save_full_latent_diagnostics<a class="anchor" aria-label="anchor" href="#arg-save-full-latent-diagnostics"></a></dt>
+<dd><p>Logical. When <code>FALSE</code> (default),
+<code>diagnostics_detail$all_parameters</code> (per-parameter Rhat/ESS
+including the <code>N_events * D</code> latent <code>z_free</code> nuisance
+parameters – tens of thousands of rows for realistic data) is returned
+with 0 rows to keep the fitted object small; the full-scope summary
+scalars (<code>max_rhat_full</code>, <code>min_ess_bulk_full</code>,
+<code>min_ess_tail_full</code>, <code>n_params_full</code>,
+<code>pct_rhat_full_above_1_01</code>, <code>pct_ess_bulk_full_below_100</code>) are
+always populated in <code>diagnostics</code> regardless. Set <code>TRUE</code> to
+retain the full per-parameter table for debugging.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments forwarded to <code><a href="https://mc-stan.org/cmdstanr/reference/model-method-sample.html" class="external-link">cmdstanr::sample()</a></code>.</p></dd>
 
@@ -208,39 +222,39 @@ are forwarded via <code>...</code>.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Named list with elements: <code>draws</code>, <code>diagnostics</code>,
-<code>diagnostics_detail</code>, <code>fit</code>, <code>data_long</code>, <code>index_maps</code>,
-<code>X_design</code>, <code>class_cols</code>, <code>event_metadata</code>,
-<code>n_re_levels</code>, <code>upper_re_col</code>, <code>middle_re_col</code>,
-<code>lower_re_col</code>, <code>pathogen_col</code>, <code>pathogen_fitted</code>,
-<code>estimand</code>, <code>prior_config_used</code>, <code>sampler_config_used</code>,
-<code>eligibility_report</code>.</p>
-<p><code>diagnostics</code> is a one-row tibble reported in <strong>two scopes</strong>,
-because the model has <code>N_events * D</code> latent <code>z_free</code> nuisance
-parameters from probit data augmentation. These latent variables are
-excluded from <code>draws</code>, <code>draws_summary.csv</code>, and
-<code><a href="plot_probit_diagnostics.html">plot_probit_diagnostics()</a></code>, but are still part of the Stan fit:</p><ul><li><p><code>max_rhat_structural</code>, <code>min_ess_bulk_structural</code>,
-    <code>min_ess_tail_structural</code>, <code>converged_structural</code> –
-    computed only over the retained structural parameters such as
-    <code>beta</code>, random-effect terms, <code>tau_*</code>, <code>R_*</code>,
-    <code>Omega</code> when present, and <code>lp__</code>. This is the scope that
-    matches <code>draws</code> and diagnostic plots, and is the recommended
-    pass/fail signal for the resistance-profile model.</p></li>
-<li><p><code>max_rhat_full</code>, <code>min_ess_bulk_full</code>,
-    <code>min_ess_tail_full</code>, <code>converged_full</code> – the same
-    computation over every Stan parameter, including <code>z_free</code>.
-    A small number of <code>z_free</code> entries crossing the Rhat 1.01 or
-    ESS 100 thresholds can occur even when the structural parameters
-    are well behaved. Therefore, <code>converged_full = FALSE</code> while
-    <code>converged_structural = TRUE</code> should not by itself be read as
-    model failure.</p></li>
-<li><p><code>latent_diagnostic_warning</code> – <code>TRUE</code> when
-    <code>converged_structural</code> is <code>TRUE</code> but <code>converged_full</code>
-    is <code>FALSE</code>. This is informational metadata, not a failure signal.</p></li>
-<li><p><code>n_divergent</code>, <code>n_treedepth_sat</code>, <code>ebfmi_min</code>,
-    <code>ebfmi_mean</code>, and <code>ebfmi_by_chain</code> – sampler-health
-    diagnostics, not parameter-scope dependent.</p></li>
-</ul><p><code>diagnostics_detail</code> contains structural-parameter,
-full-parameter, and chain-level diagnostic tables.</p>
+  <code>diagnostics_detail</code>, <code>fit</code>, <code>data_long</code>, <code>index_maps</code>,
+  <code>X_event</code>, <code>event_re_idx</code>, <code>class_cols</code>,
+  <code>event_metadata</code>, <code>n_re_levels</code>, <code>upper_re_col</code>,
+  <code>middle_re_col</code>, <code>lower_re_col</code>, <code>patient_key_col</code>,
+  <code>admission_key_col</code>, <code>pathogen_col</code>, <code>pathogen_fitted</code>,
+  <code>residual_structure</code>, <code>estimand</code>, <code>prior_config_used</code>,
+  <code>sampler_config_used</code>, and <code>eligibility_report</code>.</p>
+<p><code>diagnostics</code> is a one-row monitored summary. The main diagnostic
+  fields <code>max_rhat</code>, <code>min_ess_bulk</code>, and <code>min_ess_tail</code>
+  are computed over the monitored parameters retained in <code>draws</code>.
+  These exclude the latent <code>z_free</code> nuisance parameters used for
+  probit data augmentation. <code>converged_structural</code>/<code>converged_full</code>
+  incorporate tree-depth saturation as well as R-hat/ESS/divergences/E-BFMI
+  (a run that repeatedly saturates <code>max_treedepth</code> is not reported as
+  converged). <code>diagnostic_status</code> is a canonical multi-level status –
+  one of <code>"pass"</code>, <code>"warning_rhat"</code>, <code>"warning_low_bulk_ess"</code>,
+  <code>"warning_low_tail_ess"</code>, <code>"warning_treedepth"</code>,
+  <code>"fail_rhat"</code>, <code>"fail_energy"</code>, or <code>"fail_divergent"</code> (most
+  severe first) – intended as the single authoritative status field for
+  callers, replacing ad hoc re-derivations downstream.</p>
+<p>Full-fit diagnostic fields, including <code>max_rhat_all</code>,
+  <code>min_ess_bulk_all</code>, and <code>min_ess_tail_all</code>, are reported
+  separately for visibility and include all Stan parameters, including
+  <code>z_free</code>.</p>
+<p><code>diagnostics_detail</code> contains <code>monitored_parameters</code>,
+  <code>all_parameters</code> (per-parameter Rhat/ESS with <code>parameter_group</code>),
+  <code>grouped</code> (per-<code>parameter_group</code> Rhat/ESS quantiles and
+  percentage-over-threshold, not only the single worst parameter), and
+  <code>chains</code> (per-chain <code>n_sampling</code>, <code>n_divergent</code>,
+  <code>n_treedepth_sat</code>, <code>ebfmi</code>, <code>mean_accept_stat</code>,
+  <code>mean_stepsize</code>, <code>mean_treedepth</code>, <code>max_treedepth</code>) – the
+  canonical diagnostic tables; callers should not recompute these
+  independently from <code>fit$fit$sampler_diagnostics()</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

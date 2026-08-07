@@ -164,14 +164,14 @@ milliseconds; B = 500 replicates will complete in seconds. For \\n \geq
 
 ``` r
 if (FALSE) { # \dontrun{
-marg   <- compute_marginal_resistance(amr_clean)
+marg <- compute_marginal_resistance(amr_clean)
 co_res <- compute_pairwise_coresistance(marg)
 
-boot   <- bootstrap_profiles_convex(
-  marginals          = marg$marginal,
+boot <- bootstrap_profiles_convex(
+  marginals = marg$marginal,
   coresistance_output = co_res,
-  B                  = 500,
-  seed               = 42
+  B = 500,
+  seed = 42
 )
 
 # 95% intervals for K. pneumoniae

@@ -39,7 +39,7 @@ simplex-constrained weighted least-squares QP:"><link rel="stylesheet" href="ext
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -229,9 +229,9 @@ are detected automatically and carried through to the output.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">marg</span>   <span class="op">&lt;-</span> <span class="fu"><a href="compute_marginals_from_data.html">compute_marginals_from_data</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data_wide</span>, <span class="va">result</span><span class="op">$</span><span class="va">col_map_resolved</span>, <span class="va">panel_map</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">pw</span>     <span class="op">&lt;-</span> <span class="fu"><a href="compute_pairwise_from_data.html">compute_pairwise_from_data</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data_wide</span>, <span class="va">marg</span>, <span class="va">result</span><span class="op">$</span><span class="va">col_map_resolved</span>, <span class="va">panel_map</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">out</span>    <span class="op">&lt;-</span> <span class="fu">estimate_profiles_convex</span><span class="op">(</span><span class="va">marg</span>, <span class="va">pw</span>, <span class="va">panel_map</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">marg</span> <span class="op">&lt;-</span> <span class="fu"><a href="compute_marginals_from_data.html">compute_marginals_from_data</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data_wide</span>, <span class="va">result</span><span class="op">$</span><span class="va">col_map_resolved</span>, <span class="va">panel_map</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">pw</span> <span class="op">&lt;-</span> <span class="fu"><a href="compute_pairwise_from_data.html">compute_pairwise_from_data</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">data_wide</span>, <span class="va">marg</span>, <span class="va">result</span><span class="op">$</span><span class="va">col_map_resolved</span>, <span class="va">panel_map</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">estimate_profiles_convex</span><span class="op">(</span><span class="va">marg</span>, <span class="va">pw</span>, <span class="va">panel_map</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

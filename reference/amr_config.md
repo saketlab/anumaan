@@ -11,8 +11,7 @@ amr_config(
   column_mappings = NULL,
   fuzzy_match = TRUE,
   strict_validation = FALSE,
-  date_columns = c("date_of_admission", "date_of_culture", "date_of_final_outcome",
-    "DOB"),
+  date_columns = NULL,
   hai_cutoff = 2,
   infer_department = TRUE,
   event_gap_days = 14,
@@ -20,11 +19,6 @@ amr_config(
   age_bins = "GBD_standard",
   contaminant_method = "auto",
   mdr_definition = "CDC",
-  xdr_definition = "CDC",
-  map_icd10 = TRUE,
-  rr_table = "GBD_2021",
-  organism_map = "default",
-  antibiotic_map = "WHO_2023",
   intermediate_as_resistant = TRUE,
   verbose = TRUE
 )
@@ -48,8 +42,8 @@ amr_config(
 
 - date_columns:
 
-  Character vector of date column names to parse. Default includes
-  standard date fields.
+  Character vector of date column names to parse. Default NULL
+  auto-detects date-like columns by name pattern.
 
 - hai_cutoff:
 
@@ -84,31 +78,9 @@ amr_config(
 
 - mdr_definition:
 
-  Character or numeric. MDR definition: "CDC", "WHO", or numeric
-  threshold for number of resistant classes. Default "CDC".
-
-- xdr_definition:
-
-  Character or numeric. XDR definition. Default "CDC".
-
-- map_icd10:
-
-  Logical. Attempt ICD-10 code mapping. Default TRUE.
-
-- rr_table:
-
-  Character. Name of built-in RR table to use, or path to custom RR
-  table. Default "GBD_2021".
-
-- organism_map:
-
-  Character or named vector. "default" for built-in mapping, or custom
-  named vector. Default "default".
-
-- antibiotic_map:
-
-  Character. Built-in antibiotic classification: "WHO_2023" or path to
-  custom. Default "WHO_2023".
+  Character or numeric. MDR/XDR definition (used for both): "CDC",
+  "WHO", or numeric threshold for number of resistant classes. Default
+  "CDC".
 
 - intermediate_as_resistant:
 

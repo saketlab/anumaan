@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,8 +100,7 @@
 <span>  icu_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ICU"</span>, <span class="st">"Intensive Care"</span>, <span class="st">"Critical Care"</span>, <span class="st">"PICU"</span>, <span class="st">"NICU"</span><span class="op">)</span>,</span>
 <span>  phi_threshold <span class="op">=</span> <span class="fl">0.7</span>,</span>
 <span>  min_n <span class="op">=</span> <span class="fl">20L</span>,</span>
-<span>  min_deaths <span class="op">=</span> <span class="fl">10L</span>,</span>
-<span>  use_random_intercept <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  min_deaths <span class="op">=</span> <span class="fl">10L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -212,12 +211,6 @@ and the result contains one row per pathogen-class-hospital combination
 
 <dt id="arg-min-deaths">min_deaths<a class="anchor" aria-label="anchor" href="#arg-min-deaths"></a></dt>
 <dd><p>Integer. Minimum deaths per fitted model.</p></dd>
-
-
-<dt id="arg-use-random-intercept">use_random_intercept<a class="anchor" aria-label="anchor" href="#arg-use-random-intercept"></a></dt>
-<dd><p>Logical. Retained for backward compatibility;
-ignored when <code>facility_col</code> is provided (per-hospital fitting is
-used) or <code>NULL</code> (no facility information available).</p></dd>
 
 </dl></div>
     <div class="section level2">

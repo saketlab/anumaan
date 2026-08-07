@@ -30,8 +30,7 @@ daly_fit_mortality_rr(
   icu_values = c("ICU", "Intensive Care", "Critical Care", "PICU", "NICU"),
   phi_threshold = 0.7,
   min_n = 20L,
-  min_deaths = 10L,
-  use_random_intercept = TRUE
+  min_deaths = 10L
 )
 ```
 
@@ -141,12 +140,6 @@ daly_fit_mortality_rr(
 - min_deaths:
 
   Integer. Minimum deaths per fitted model.
-
-- use_random_intercept:
-
-  Logical. Retained for backward compatibility; ignored when
-  `facility_col` is provided (per-hospital fitting is used) or `NULL`
-  (no facility information available).
 
 ## Value
 

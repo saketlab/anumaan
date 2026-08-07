@@ -102,8 +102,7 @@ plot_top_organisms(
 
 ## Value
 
-A `ggplot` object. Print it or pass to
-[`ggsave()`](https://ggplot2.tidyverse.org/reference/ggsave.html).
+A `ggplot` object. Print it or pass to `ggsave()`.
 
 ## Details
 

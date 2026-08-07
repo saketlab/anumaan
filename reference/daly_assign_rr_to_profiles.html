@@ -39,7 +39,7 @@ The CI reported for each profile is that of its dominant (max-RR) class."><link 
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -109,7 +109,7 @@ The CI reported for each profile is that of its dominant (max-RR) class.</p>
 
 
 <dt id="arg-rr-table">rr_table<a class="anchor" aria-label="anchor" href="#arg-rr-table"></a></dt>
-<dd><p>Data frame from daly_fit_los_rr() or daly_fit_los_rr_nima().
+<dd><p>Data frame from daly_fit_los_rr() or daly_fit_los_rr_distribution().
 Must have columns pathogen_col, class_col, rr_col, and optionally
 CI_lower / CI_upper.</p></dd>
 
@@ -136,6 +136,13 @@ Default <code>1</code> (no attributable effect).</p></dd>
     <p>Named list (one entry per pathogen): original profiles data frame
   augmented with RR_LOS_profile, dominant_class, and (if available)
   CI_lower_profile / CI_upper_profile.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>If <code>rr_table</code> was fit with a <code>syndrome_name</code> filter, its RR
+values are syndrome-specific but get applied here to all profiles of a
+pathogen – i.e. it assumes syndrome-invariant LOS prolongation. Refit
+with <code>syndrome_name = NULL</code> for a RR pooled across syndromes.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

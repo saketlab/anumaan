@@ -31,7 +31,7 @@ using a Gamma generalized linear model with log link:"><link rel="stylesheet" hr
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -103,8 +103,7 @@ using a Gamma generalized linear model with log link:</p>
 <span>  max_los <span class="op">=</span> <span class="fl">365</span>,</span>
 <span>  min_n <span class="op">=</span> <span class="fl">20L</span>,</span>
 <span>  min_resistant <span class="op">=</span> <span class="fl">5L</span>,</span>
-<span>  min_susceptible <span class="op">=</span> <span class="fl">5L</span>,</span>
-<span>  add_centre_fe <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  min_susceptible <span class="op">=</span> <span class="fl">5L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -214,12 +213,6 @@ per pathogen-class-hospital combination (hospital-specific RR).</p></dd>
 
 <dt id="arg-min-susceptible">min_susceptible<a class="anchor" aria-label="anchor" href="#arg-min-susceptible"></a></dt>
 <dd><p>Integer. Minimum susceptible patients required.</p></dd>
-
-
-<dt id="arg-add-centre-fe">add_centre_fe<a class="anchor" aria-label="anchor" href="#arg-add-centre-fe"></a></dt>
-<dd><p>Logical. Retained for backward compatibility; ignored
-when <code>facility_col</code> is provided (per-hospital fitting is used) or
-<code>NULL</code> (no facility information available).</p></dd>
 
 </dl></div>
     <div class="section level2">

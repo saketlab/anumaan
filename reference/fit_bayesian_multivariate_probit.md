@@ -24,6 +24,7 @@ fit_bayesian_multivariate_probit(
   prior_config = list(),
   sampler_config = list(),
   show_messages = TRUE,
+  save_full_latent_diagnostics = FALSE,
   ...
 )
 ```
@@ -122,6 +123,18 @@ fit_bayesian_multivariate_probit(
 
   Logical. Print sampling progress. Default `TRUE`.
 
+- save_full_latent_diagnostics:
+
+  Logical. When `FALSE` (default), `diagnostics_detail$all_parameters`
+  (per-parameter Rhat/ESS including the `N_events * D` latent `z_free`
+  nuisance parameters – tens of thousands of rows for realistic data) is
+  returned with 0 rows to keep the fitted object small; the full-scope
+  summary scalars (`max_rhat_full`, `min_ess_bulk_full`,
+  `min_ess_tail_full`, `n_params_full`, `pct_rhat_full_above_1_01`,
+  `pct_ess_bulk_full_below_100`) are always populated in `diagnostics`
+  regardless. Set `TRUE` to retain the full per-parameter table for
+  debugging.
+
 - ...:
 
   Additional arguments forwarded to
@@ -130,43 +143,38 @@ fit_bayesian_multivariate_probit(
 ## Value
 
 Named list with elements: `draws`, `diagnostics`, `diagnostics_detail`,
-`fit`, `data_long`, `index_maps`, `X_design`, `class_cols`,
-`event_metadata`, `n_re_levels`, `upper_re_col`, `middle_re_col`,
-`lower_re_col`, `pathogen_col`, `pathogen_fitted`, `estimand`,
-`prior_config_used`, `sampler_config_used`, `eligibility_report`.
+`fit`, `data_long`, `index_maps`, `X_event`, `event_re_idx`,
+`class_cols`, `event_metadata`, `n_re_levels`, `upper_re_col`,
+`middle_re_col`, `lower_re_col`, `patient_key_col`, `admission_key_col`,
+`pathogen_col`, `pathogen_fitted`, `residual_structure`, `estimand`,
+`prior_config_used`, `sampler_config_used`, and `eligibility_report`.
 
-`diagnostics` is a one-row tibble reported in **two scopes**, because
-the model has `N_events * D` latent `z_free` nuisance parameters from
-probit data augmentation. These latent variables are excluded from
-`draws`, `draws_summary.csv`, and
-[`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md),
-but are still part of the Stan fit:
+`diagnostics` is a one-row monitored summary. The main diagnostic fields
+`max_rhat`, `min_ess_bulk`, and `min_ess_tail` are computed over the
+monitored parameters retained in `draws`. These exclude the latent
+`z_free` nuisance parameters used for probit data augmentation.
+`converged_structural`/`converged_full` incorporate tree-depth
+saturation as well as R-hat/ESS/divergences/E-BFMI (a run that
+repeatedly saturates `max_treedepth` is not reported as converged).
+`diagnostic_status` is a canonical multi-level status – one of `"pass"`,
+`"warning_rhat"`, `"warning_low_bulk_ess"`, `"warning_low_tail_ess"`,
+`"warning_treedepth"`, `"fail_rhat"`, `"fail_energy"`, or
+`"fail_divergent"` (most severe first) – intended as the single
+authoritative status field for callers, replacing ad hoc re-derivations
+downstream.
 
-- `max_rhat_structural`, `min_ess_bulk_structural`,
-  `min_ess_tail_structural`, `converged_structural` – computed only over
-  the retained structural parameters such as `beta`, random-effect
-  terms, `tau_*`, `R_*`, `Omega` when present, and `lp__`. This is the
-  scope that matches `draws` and diagnostic plots, and is the
-  recommended pass/fail signal for the resistance-profile model.
+Full-fit diagnostic fields, including `max_rhat_all`,
+`min_ess_bulk_all`, and `min_ess_tail_all`, are reported separately for
+visibility and include all Stan parameters, including `z_free`.
 
-- `max_rhat_full`, `min_ess_bulk_full`, `min_ess_tail_full`,
-  `converged_full` – the same computation over every Stan parameter,
-  including `z_free`. A small number of `z_free` entries crossing the
-  Rhat 1.01 or ESS 100 thresholds can occur even when the structural
-  parameters are well behaved. Therefore, `converged_full = FALSE` while
-  `converged_structural = TRUE` should not by itself be read as model
-  failure.
-
-- `latent_diagnostic_warning` – `TRUE` when `converged_structural` is
-  `TRUE` but `converged_full` is `FALSE`. This is informational
-  metadata, not a failure signal.
-
-- `n_divergent`, `n_treedepth_sat`, `ebfmi_min`, `ebfmi_mean`, and
-  `ebfmi_by_chain` – sampler-health diagnostics, not parameter-scope
-  dependent.
-
-`diagnostics_detail` contains structural-parameter, full-parameter, and
-chain-level diagnostic tables.
+`diagnostics_detail` contains `monitored_parameters`, `all_parameters`
+(per-parameter Rhat/ESS with `parameter_group`), `grouped`
+(per-`parameter_group` Rhat/ESS quantiles and percentage-over-threshold,
+not only the single worst parameter), and `chains` (per-chain
+`n_sampling`, `n_divergent`, `n_treedepth_sat`, `ebfmi`,
+`mean_accept_stat`, `mean_stepsize`, `mean_treedepth`, `max_treedepth`)
+– the canonical diagnostic tables; callers should not recompute these
+independently from `fit$fit$sampler_diagnostics()`.
 
 ## Details
 

@@ -257,13 +257,42 @@ as the top-level entry point.
   : Fit Bayesian Hierarchical Multivariate Probit Model for Resistance
   Profiles
 - [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md)
-  : Compute Posterior Resistance Profile Probabilities via MVN
-  Simulation
+  : Compute Observed-Plus-Imputed Resistance Profile Probabilities
 - [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md)
-  : Aggregate Posterior Profile Draws into R_ALL and R_NF Summaries
+  : Aggregate Posterior Profile Draws into R_ALL / R_KNOWN_OUTCOME /
+  R_NF Summaries
 - [`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md)
   : Generate diagnostic plots for a fitted Bayesian multivariate probit
   model
+- [`prepare_random_effects()`](https://saketlab.github.io/anumaan/reference/prepare_random_effects.md)
+  : Build the generic random-effect representation for an arbitrary
+  number of blocks
+- [`re_contribution()`](https://saketlab.github.io/anumaan/reference/re_contribution.md)
+  : Compute each event's total random-effect contribution from a
+  flattened re_effect\[D, total_re_levels\] matrix (as emitted by the
+  generic Stan models' generated re_effect, or reconstructed R-side from
+  posterior draws of z_re/tau_re/L_corr_re). This is the SINGLE generic
+  helper every downstream mu-reconstruction site should call instead of
+  hand-summing hospital_effect/patient_effect/admission_effect.
+- [`summarize_fit_correlation_matrix()`](https://saketlab.github.io/anumaan/reference/summarize_fit_correlation_matrix.md)
+  : Summarize a posterior D x D correlation matrix from stored fit draws
+
+## Resistance profile validation
+
+Observed-versus-model calibration checks (marginal, pairwise, and
+complete-profile) and masked-AST holdout validation for fitted
+resistance-profile models.
+
+- [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md)
+  : Observed-versus-Model Marginal Resistance Validation
+- [`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md)
+  : Observed-versus-Model Pairwise Co-resistance Validation
+- [`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md)
+  : Observed-versus-Model Complete-Profile Validation
+- [`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md)
+  : Masked-AST Holdout Validation
+- [`compute_profile_validation_status()`](https://saketlab.github.io/anumaan/reference/compute_profile_validation_status.md)
+  : Summarise Validation Checks into a Profile-Validation Status
 
 ## Burden estimation (YLL/YLD/DALY)
 
@@ -412,47 +441,8 @@ Exploratory plots for AMR surveillance data
 
 Generic AMR plotting utilities
 
-- [`amr_theme()`](https://saketlab.github.io/anumaan/reference/amr_theme.md)
-  : AMR Theme for ggplot2
 - [`eda_theme()`](https://saketlab.github.io/anumaan/reference/eda_theme.md)
   : EDA ggplot2 Theme
-- [`get_amr_palette()`](https://saketlab.github.io/anumaan/reference/get_amr_palette.md)
-  : Get Color Palette
-- [`plot_bar()`](https://saketlab.github.io/anumaan/reference/plot_bar.md)
-  : Generic Bar Plot
-- [`plot_grouped_bar()`](https://saketlab.github.io/anumaan/reference/plot_grouped_bar.md)
-  : Grouped (Dodged) Bar Plot
-- [`plot_stacked_bar()`](https://saketlab.github.io/anumaan/reference/plot_stacked_bar.md)
-  : Stacked Bar Plot
-- [`plot_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_heatmap.md)
-  : Heatmap
-- [`plot_histogram()`](https://saketlab.github.io/anumaan/reference/plot_histogram.md)
-  : Histogram
-- [`plot_line()`](https://saketlab.github.io/anumaan/reference/plot_line.md)
-  : Line Chart
-- [`plot_proportion()`](https://saketlab.github.io/anumaan/reference/plot_proportion.md)
-  : Proportion Bar Plot
-- [`plot_resistance_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_resistance_heatmap.md)
-  : Resistance Pattern Heatmap
-
-## Spatial analysis
-
-Spatial metrics and mapping
-
-- [`create_spatial_object()`](https://saketlab.github.io/anumaan/reference/create_spatial_object.md)
-  : Create Spatial Object from AMR Data
-- [`create_choropleth_map()`](https://saketlab.github.io/anumaan/reference/create_choropleth_map.md)
-  : Create Choropleth Map
-- [`create_interactive_map()`](https://saketlab.github.io/anumaan/reference/create_interactive_map.md)
-  : Create Interactive Leaflet Map
-- [`calculate_spatial_metrics()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_metrics.md)
-  : Calculate AMR Metrics by Geographic Unit
-- [`calculate_spatial_autocorrelation()`](https://saketlab.github.io/anumaan/reference/calculate_spatial_autocorrelation.md)
-  : Calculate Spatial Autocorrelation (Moran's I)
-- [`calculate_distance_matrix()`](https://saketlab.github.io/anumaan/reference/calculate_distance_matrix.md)
-  : Calculate Distance Matrix Between Locations
-- [`detect_hotspots()`](https://saketlab.github.io/anumaan/reference/detect_hotspots.md)
-  : Detect Spatial Hotspots (Getis-Ord Gi\*)
 
 ## Validation and reporting
 

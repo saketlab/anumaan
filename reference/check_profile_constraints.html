@@ -35,7 +35,7 @@ pairwise resistance rates within a specified tolerance."><link rel="stylesheet" 
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -208,15 +208,15 @@ Default <code>"pairwise_resistance_prevalence"</code>.</p></dd>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">marg</span>    <span class="op">&lt;-</span> <span class="fu"><a href="compute_marginal_resistance.html">compute_marginal_resistance</a></span><span class="op">(</span><span class="va">amr_clean</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">co_res</span>  <span class="op">&lt;-</span> <span class="fu"><a href="compute_pairwise_coresistance.html">compute_pairwise_coresistance</a></span><span class="op">(</span><span class="va">marg</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">rp</span>      <span class="op">&lt;-</span> <span class="fu"><a href="compute_resistance_profiles.html">compute_resistance_profiles</a></span><span class="op">(</span><span class="va">marg</span>, <span class="va">co_res</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">marg</span> <span class="op">&lt;-</span> <span class="fu"><a href="compute_marginal_resistance.html">compute_marginal_resistance</a></span><span class="op">(</span><span class="va">amr_clean</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">co_res</span> <span class="op">&lt;-</span> <span class="fu"><a href="compute_pairwise_coresistance.html">compute_pairwise_coresistance</a></span><span class="op">(</span><span class="va">marg</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">rp</span> <span class="op">&lt;-</span> <span class="fu"><a href="compute_resistance_profiles.html">compute_resistance_profiles</a></span><span class="op">(</span><span class="va">marg</span>, <span class="va">co_res</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Using stored constraint residuals only</span></span></span>
-<span class="r-in"><span><span class="va">checks</span>  <span class="op">&lt;-</span> <span class="fu">check_profile_constraints</span><span class="op">(</span><span class="va">rp</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">checks</span> <span class="op">&lt;-</span> <span class="fu">check_profile_constraints</span><span class="op">(</span><span class="va">rp</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Full re-verification with original rates</span></span></span>
-<span class="r-in"><span><span class="va">checks</span>  <span class="op">&lt;-</span> <span class="fu">check_profile_constraints</span><span class="op">(</span></span></span>
+<span class="r-in"><span><span class="va">checks</span> <span class="op">&lt;-</span> <span class="fu">check_profile_constraints</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">rp</span>,</span></span>
 <span class="r-in"><span>  marginals <span class="op">=</span> <span class="va">marg</span><span class="op">$</span><span class="va">marginal</span>,</span></span>
 <span class="r-in"><span>  pairwise  <span class="op">=</span> <span class="cn">NULL</span>,</span></span>

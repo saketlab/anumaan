@@ -163,8 +163,8 @@ are detected automatically and carried through to the output.
 
 ``` r
 if (FALSE) { # \dontrun{
-marg   <- compute_marginals_from_data(result$data_wide, result$col_map_resolved, panel_map)
-pw     <- compute_pairwise_from_data(result$data_wide, marg, result$col_map_resolved, panel_map)
-out    <- estimate_profiles_convex(marg, pw, panel_map)
+marg <- compute_marginals_from_data(result$data_wide, result$col_map_resolved, panel_map)
+pw <- compute_pairwise_from_data(result$data_wide, marg, result$col_map_resolved, panel_map)
+out <- estimate_profiles_convex(marg, pw, panel_map)
 } # }
 ```

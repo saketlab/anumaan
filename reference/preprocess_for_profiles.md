@@ -133,19 +133,19 @@ one count per patient.
 ``` r
 if (FALSE) { # \dontrun{
 result <- preprocess_for_profiles(
-  data        = raw_ast,
-  col_map     = list(
-    isolate_col   = "isolate_id",
-    pathogen_col  = "organism",
-    ast_col       = "result",
-    patient_col   = "pid",
-    date_col      = "culture_date",
+  data = raw_ast,
+  col_map = list(
+    isolate_col = "isolate_id",
+    pathogen_col = "organism",
+    ast_col = "result",
+    patient_col = "pid",
+    date_col = "culture_date",
     geography_col = "state",
-    specimen_col  = "specimen",
-    age_col       = "age",
+    specimen_col = "specimen",
+    age_col = "age",
     antibiotic_col = "drug_name"
   ),
-  panel_map   = list(
+  panel_map = list(
     "Klebsiella pneumoniae" = c("3GC", "Carbapenems", "Fluoroquinolones"),
     "Escherichia coli"      = c("3GC", "Fluoroquinolones", "Aminoglycosides")
   ),
@@ -153,8 +153,8 @@ result <- preprocess_for_profiles(
   outcome_col = "final_outcome"
 )
 
-result$data_wide           # ready for compute_marginals_from_data()
-result$preprocessing_log   # step-by-step row counts
-result$panel_exclusions    # classes dropped per organism
+result$data_wide # ready for compute_marginals_from_data()
+result$preprocessing_log # step-by-step row counts
+result$panel_exclusions # classes dropped per organism
 } # }
 ```

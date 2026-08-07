@@ -27,9 +27,9 @@ daly_assign_rr_to_profiles(
 
 - rr_table:
 
-  Data frame from daly_fit_los_rr() or daly_fit_los_rr_nima(). Must have
-  columns pathogen_col, class_col, rr_col, and optionally CI_lower /
-  CI_upper.
+  Data frame from daly_fit_los_rr() or daly_fit_los_rr_distribution().
+  Must have columns pathogen_col, class_col, rr_col, and optionally
+  CI_lower / CI_upper.
 
 - pathogen_col:
 
@@ -53,3 +53,10 @@ daly_assign_rr_to_profiles(
 Named list (one entry per pathogen): original profiles data frame
 augmented with RR_LOS_profile, dominant_class, and (if available)
 CI_lower_profile / CI_upper_profile.
+
+## Details
+
+If `rr_table` was fit with a `syndrome_name` filter, its RR values are
+syndrome-specific but get applied here to all profiles of a pathogen –
+i.e. it assumes syndrome-invariant LOS prolongation. Refit with
+`syndrome_name = NULL` for a RR pooled across syndromes.

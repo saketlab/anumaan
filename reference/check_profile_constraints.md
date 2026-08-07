@@ -137,15 +137,15 @@ The function uses two complementary sources of evidence:
 
 ``` r
 if (FALSE) { # \dontrun{
-marg    <- compute_marginal_resistance(amr_clean)
-co_res  <- compute_pairwise_coresistance(marg)
-rp      <- compute_resistance_profiles(marg, co_res)
+marg <- compute_marginal_resistance(amr_clean)
+co_res <- compute_pairwise_coresistance(marg)
+rp <- compute_resistance_profiles(marg, co_res)
 
 # Using stored constraint residuals only
-checks  <- check_profile_constraints(rp)
+checks <- check_profile_constraints(rp)
 
 # Full re-verification with original rates
-checks  <- check_profile_constraints(
+checks <- check_profile_constraints(
   rp,
   marginals = marg$marginal,
   pairwise  = NULL,

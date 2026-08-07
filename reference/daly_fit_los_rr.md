@@ -31,8 +31,7 @@ daly_fit_los_rr(
   max_los = 365,
   min_n = 20L,
   min_resistant = 5L,
-  min_susceptible = 5L,
-  add_centre_fe = TRUE
+  min_susceptible = 5L
 )
 ```
 
@@ -141,12 +140,6 @@ daly_fit_los_rr(
 - min_susceptible:
 
   Integer. Minimum susceptible patients required.
-
-- add_centre_fe:
-
-  Logical. Retained for backward compatibility; ignored when
-  `facility_col` is provided (per-hospital fitting is used) or `NULL`
-  (no facility information available).
 
 ## Value
 

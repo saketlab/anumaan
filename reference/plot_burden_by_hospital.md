@@ -11,7 +11,8 @@ Each bar is labelled with its rounded value.
 plot_burden_by_hospital(
   data,
   metric = c("YLL", "YLD"),
-  center_col = "center_name",
+  facility_col = "center_name",
+  center_col = NULL,
   assoc_col = NULL,
   attr_col = NULL,
   syndrome_col = NULL,
@@ -30,7 +31,7 @@ plot_burden_by_hospital(
 - data:
 
   Data frame. One row per hospital (or one row per hospital x syndrome).
-  Must contain the columns named by `center_col`, `assoc_col`, and
+  Must contain the columns named by `facility_col`, `assoc_col`, and
   `attr_col`.
 
 - metric:
@@ -39,10 +40,14 @@ plot_burden_by_hospital(
   axis labels are used. Ignored when `assoc_col` and `attr_col` are
   supplied explicitly. Default `"YLL"`.
 
+- facility_col:
+
+  Character. Column containing hospital / facility names. Default
+  `"center_name"`.
+
 - center_col:
 
-  Character. Column containing hospital / centre names. Default
-  `"center_name"`.
+  Deprecated alias for `facility_col`.
 
 - assoc_col:
 

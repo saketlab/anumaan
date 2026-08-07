@@ -190,14 +190,13 @@ Total YLL associated: \$\$\text{YLL}\_{\text{associated}} = \sum\_{r,k}
 \text{YLL}\_{r,k}\$\$
 
 **Polymicrobial weights** are computed via
-[`flag_polymicrobial()`](https://saketlab.github.io/anumaan/reference/prep_flag_polymicrobial.md) +
-[`compute_polymicrobial_weight()`](https://saketlab.github.io/anumaan/reference/prep_compute_poly_weights.md)
-from `weight.R`. When `facility_col` is provided the weights are derived
-per facility (reflecting local organism distributions), with automatic
-fallback to globally-pooled proportions for facilities whose
-monomicrobial reference pool is smaller than `min_mono_per_facility`. If
-`date_culture_col` is `NULL` polymicrobial flagging is skipped and all
-weights default to 1.
+[`prep_flag_polymicrobial()`](https://saketlab.github.io/anumaan/reference/prep_flag_polymicrobial.md) +
+[`prep_compute_poly_weights()`](https://saketlab.github.io/anumaan/reference/prep_compute_poly_weights.md).
+When `facility_col` is provided the weights are derived per facility
+(reflecting local organism distributions), with automatic fallback to
+globally-pooled proportions for facilities whose monomicrobial reference
+pool is smaller than `min_mono_per_facility`. If `date_culture_col` is
+`NULL` polymicrobial flagging is skipped and all weights default to 1.
 
 ## Examples
 

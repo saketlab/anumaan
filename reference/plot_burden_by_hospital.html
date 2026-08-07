@@ -35,7 +35,7 @@ Each bar is labelled with its rounded value."><link rel="stylesheet" href="extra
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9021</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -87,7 +87,8 @@ Each bar is labelled with its rounded value.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_burden_by_hospital</span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
 <span>  metric <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"YLL"</span>, <span class="st">"YLD"</span><span class="op">)</span>,</span>
-<span>  center_col <span class="op">=</span> <span class="st">"center_name"</span>,</span>
+<span>  facility_col <span class="op">=</span> <span class="st">"center_name"</span>,</span>
+<span>  center_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  assoc_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  attr_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  syndrome_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -108,7 +109,7 @@ Each bar is labelled with its rounded value.</p>
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Data frame. One row per hospital (or one row per
 hospital x syndrome). Must contain the columns named by
-<code>center_col</code>, <code>assoc_col</code>, and <code>attr_col</code>.</p></dd>
+<code>facility_col</code>, <code>assoc_col</code>, and <code>attr_col</code>.</p></dd>
 
 
 <dt id="arg-metric">metric<a class="anchor" aria-label="anchor" href="#arg-metric"></a></dt>
@@ -118,9 +119,13 @@ which default column names and axis labels are used. Ignored when
 Default <code>"YLL"</code>.</p></dd>
 
 
+<dt id="arg-facility-col">facility_col<a class="anchor" aria-label="anchor" href="#arg-facility-col"></a></dt>
+<dd><p>Character. Column containing hospital / facility
+names. Default <code>"center_name"</code>.</p></dd>
+
+
 <dt id="arg-center-col">center_col<a class="anchor" aria-label="anchor" href="#arg-center-col"></a></dt>
-<dd><p>Character. Column containing hospital / centre names.
-Default <code>"center_name"</code>.</p></dd>
+<dd><p>Deprecated alias for <code>facility_col</code>.</p></dd>
 
 
 <dt id="arg-assoc-col">assoc_col<a class="anchor" aria-label="anchor" href="#arg-assoc-col"></a></dt>
