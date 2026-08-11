@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9023</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -797,7 +797,7 @@
       </dl></div><div class="section level2">
       <h2 id="pathway-bayesian-profile-estimation">Pathway 2: Bayesian Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-bayesian-profile-estimation"></a></h2>
 
-      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with correlated random effects at up to three grouping levels (e.g. hospital, patient, admission). Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). Run once per pathogen; orchestrate across pathogens in the analysis repository. Use  as the top-level entry point.</p></div>
+      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with an arbitrary, user-declared number of named random-intercept blocks (see  – e.g. hospital, patient, admission, or any other grouping the analysis layer declares; the package does not hardcode which blocks are scientifically appropriate for a given dataset). Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). Run once per pathogen; orchestrate across pathogens in the analysis repository. Use  as the top-level entry point.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -810,27 +810,6 @@
 
         </dt>
         <dd>Fit Bayesian Hierarchical Multivariate Probit Model for Resistance Profiles</dd>
-
-        <dt>
-
-          <code><a href="compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>
-
-        </dt>
-        <dd>Compute Observed-Plus-Imputed Resistance Profile Probabilities</dd>
-
-        <dt>
-
-          <code><a href="aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code>
-
-        </dt>
-        <dd>Aggregate Posterior Profile Draws into R_ALL / R_KNOWN_OUTCOME / R_NF Summaries</dd>
-
-        <dt>
-
-          <code><a href="plot_probit_diagnostics.html">plot_probit_diagnostics()</a></code>
-
-        </dt>
-        <dd>Generate diagnostic plots for a fitted Bayesian multivariate probit model</dd>
 
         <dt>
 
@@ -848,14 +827,35 @@
 
         <dt>
 
+          <code><a href="compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>
+
+        </dt>
+        <dd>Compute Observed-Plus-Imputed Resistance Profile Probabilities</dd>
+
+        <dt>
+
+          <code><a href="aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code>
+
+        </dt>
+        <dd>Aggregate Posterior Profile Draws into R_ALL / R_KNOWN_OUTCOME / R_NF Summaries</dd>
+
+        <dt>
+
           <code><a href="summarize_fit_correlation_matrix.html">summarize_fit_correlation_matrix()</a></code>
 
         </dt>
         <dd>Summarize a posterior D x D correlation matrix from stored fit draws</dd>
-      </dl></div><div class="section level2">
-      <h2 id="resistance-profile-validation">Resistance profile validation<a class="anchor" aria-label="anchor" href="#resistance-profile-validation"></a></h2>
 
-      <div class="section-desc"><p>Observed-versus-model calibration checks (marginal, pairwise, and complete-profile) and masked-AST holdout validation for fitted resistance-profile models.</p></div>
+        <dt>
+
+          <code><a href="plot_probit_diagnostics.html">plot_probit_diagnostics()</a></code>
+
+        </dt>
+        <dd>Generate diagnostic plots for a fitted Bayesian multivariate probit model</dd>
+      </dl></div><div class="section level2">
+      <h2 id="pathway-model-validation">Pathway 2: Model Validation<a class="anchor" aria-label="anchor" href="#pathway-model-validation"></a></h2>
+
+      <div class="section-desc"><p>Observed-versus-model calibration checks for a fitted Bayesian multivariate probit model – a different question from profile estimation above (“does the fitted model reproduce the resistance patterns actually observed?” rather than “what is the observed-plus- imputed resistance profile?”). Kept as a distinct status () from sampler diagnostics.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -885,17 +885,82 @@
 
         <dt>
 
-          <code><a href="mask_and_validate_ast.html">mask_and_validate_ast()</a></code>
-
-        </dt>
-        <dd>Masked-AST Holdout Validation</dd>
-
-        <dt>
-
           <code><a href="compute_profile_validation_status.html">compute_profile_validation_status()</a></code>
 
         </dt>
         <dd>Summarise Validation Checks into a Profile-Validation Status</dd>
+
+        <dt>
+
+          <code><a href="mask_and_validate_ast.html">mask_and_validate_ast()</a></code>
+
+        </dt>
+        <dd>Masked-AST Holdout Validation</dd>
+      </dl></div><div class="section level2">
+      <h2 id="pathway-predictive-checking">Pathway 2: Predictive Checking<a class="anchor" aria-label="anchor" href="#pathway-predictive-checking"></a></h2>
+
+      <div class="section-desc"><p>Posterior, prior, and mixed predictive checking (Stan User’s Guide, “Posterior and Prior Predictive Checks”: ), a third and distinct question from both profile estimation and model validation above: “can the fitted model generate WHOLE REPLICATED DATASETS that resemble the one actually observed?” (posterior predictive, ) and “what data are implied by the priors before conditioning on any observed outcomes?” (prior predictive, ). Kept as distinct status fields from  and  – never merged into one generic status anywhere in this package. Mixed predictive checking (new random-effect levels, retaining fitted hyperparameters) is implemented for a single random-effect block at a time.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="simulate_probit_posterior_predictive.html">simulate_probit_posterior_predictive()</a></code>
+
+        </dt>
+        <dd>Simulate posterior predictive replicate datasets from a fitted probit model</dd>
+
+        <dt>
+
+          <code><a href="compute_probit_ppc_statistics.html">compute_probit_ppc_statistics()</a></code>
+
+        </dt>
+        <dd>Compute AMR-specific posterior predictive discrepancy statistics</dd>
+
+        <dt>
+
+          <code><a href="plot_probit_posterior_predictive_checks.html">plot_probit_posterior_predictive_checks()</a></code>
+
+        </dt>
+        <dd>Plot posterior predictive checks for a fitted probit model</dd>
+
+        <dt>
+
+          <code><a href="compute_posterior_predictive_status.html">compute_posterior_predictive_status()</a></code>
+
+        </dt>
+        <dd>Classify overall posterior predictive fit from a discrepancy-statistics table</dd>
+
+        <dt>
+
+          <code><a href="simulate_probit_prior_predictive.html">simulate_probit_prior_predictive()</a></code>
+
+        </dt>
+        <dd>Simulate prior predictive replicate datasets for a probit model</dd>
+
+        <dt>
+
+          <code><a href="compute_prior_predictive_status.html">compute_prior_predictive_status()</a></code>
+
+        </dt>
+        <dd>Classify plausibility of the prior predictive distribution</dd>
+
+        <dt>
+
+          <code><a href="compute_prior_predictive_fingerprint.html">compute_prior_predictive_fingerprint()</a></code>
+
+        </dt>
+        <dd>Fingerprint the prior-generative configuration of a fitted model</dd>
+
+        <dt>
+
+          <code><a href="simulate_probit_mixed_predictive.html">simulate_probit_mixed_predictive()</a></code>
+
+        </dt>
+        <dd>Simulate mixed predictive replicate datasets: new random-effect levels for a requested block, retaining fitted hyperparameters</dd>
       </dl></div><div class="section level2">
       <h2 id="burden-estimation-yll-yld-daly-">Burden estimation (YLL/YLD/DALY)<a class="anchor" aria-label="anchor" href="#burden-estimation-yll-yld-daly-"></a></h2>
 

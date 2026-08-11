@@ -33,7 +33,7 @@ mu-reconstruction site (profile generation, DALY aggregation, validation)."><lin
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9022</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9023</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,6 +85,7 @@ mu-reconstruction site (profile generation, DALY aggregation, validation).</p>
 <span>  <span class="va">data</span>,</span>
 <span>  <span class="va">random_effects</span>,</span>
 <span>  min_repeated_levels <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  singleton_threshold <span class="op">=</span> <span class="fl">0.9</span>,</span>
 <span>  on_mostly_singleton <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"warn"</span>, <span class="st">"stop"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -104,16 +105,27 @@ mu-reconstruction site (profile generation, DALY aggregation, validation).</p>
 
 <dt id="arg-min-repeated-levels">min_repeated_levels<a class="anchor" aria-label="anchor" href="#arg-min-repeated-levels"></a></dt>
 <dd><p>Optional integer. If supplied, a block whose
-number of levels with &gt;=2 observations falls below this is a hard
-stop (via on_mostly_singleton = "stop") rather than a warning. NULL
-(default) never stops here – eligibility gating belongs in the
-analysis layer (see anumaan-analysis's random_effect_eligibility.R),
-not hardcoded into the package.</p></dd>
+number of levels with &gt;=2 observations falls below this is checked
+INDEPENDENTLY of singleton_threshold below (previously this was bugged:
+nested inside the singleton_fraction check, so it was silently skipped
+whenever singleton_fraction fell at or below the threshold even if
+n_repeated_levels was itself too low). Triggers a stop (via
+on_mostly_singleton = "stop") or warning. NULL (default) never checks
+this – eligibility gating belongs in the analysis layer (see
+anumaan-analysis's random_effect_eligibility.R), not hardcoded into the
+package.</p></dd>
+
+
+<dt id="arg-singleton-threshold">singleton_threshold<a class="anchor" aria-label="anchor" href="#arg-singleton-threshold"></a></dt>
+<dd><p>Numeric in (0, 1]. A block whose fraction of
+singleton levels (exactly 1 observation) exceeds this triggers a
+separate warning/stop, evaluated independently of min_repeated_levels.
+Default 0.90.</p></dd>
 
 
 <dt id="arg-on-mostly-singleton">on_mostly_singleton<a class="anchor" aria-label="anchor" href="#arg-on-mostly-singleton"></a></dt>
-<dd><p>"warn" (default) or "stop" when a block is
-more than 90 percent singleton levels (1 observation).</p></dd>
+<dd><p>"warn" (default) or "stop" – applies to BOTH
+the min_repeated_levels check and the singleton_threshold check.</p></dd>
 
 </dl></div>
     <div class="section level2">
