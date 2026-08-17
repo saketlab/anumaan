@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9023</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9024</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -71,6 +71,7 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipelines</h6></li>
     <li><a class="dropdown-item" href="../articles/preprocessing-workflow.html">Preprocessing Workflow</a></li>
+    <li><a class="dropdown-item" href="../articles/eda-workflow.html">Exploratory Data Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/daly-pipeline.html">DALY Burden Estimation</a></li>
   </ul>
 </li>
@@ -104,7 +105,7 @@
 
       <h1>Preprocessing Workflow in anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-08-11</h4>
+            <h4 data-toc-skip class="date">2026-08-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/preprocessing-workflow.Rmd" class="external-link"><code>vignettes/preprocessing-workflow.Rmd</code></a></small>
       <div class="d-none name"><code>preprocessing-workflow.Rmd</code></div>
@@ -129,7 +130,9 @@ preprocessing tests:</p>
 <li>date parsing and table validation</li>
 <li>organism, specimen, antibiotic, and AST cleaning</li>
 <li>age, length-of-stay, and HAI/CAI derivation</li>
-<li>event creation and deduplication</li>
+<li>facility type assignment</li>
+<li>event creation, deduplication, and readmission classification</li>
+<li>MDR/XDR classification</li>
 <li>contaminant and polymicrobial handling</li>
 <li>analysis-readiness filtering</li>
 </ul>
@@ -598,6 +601,29 @@ and <code>Superficial Biopsy</code>.</p>
 <span><span class="co">#&gt; 5  inferred_2day_cutoff           inferred</span></span>
 <span><span class="co">#&gt; 6  inferred_2day_cutoff           inferred</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="assign-facility-type">Assign facility type<a class="anchor" aria-label="anchor" href="#assign-facility-type"></a>
+</h3>
+<p><code><a href="../reference/prep_assign_facility_type.html">prep_assign_facility_type()</a></code> is deliberately generic – it
+has no hardcoded facility names. You supply a named mapping from
+facility value to the category you want (e.g. Government/Private,
+Urban/Rural, or a region), and facilities not found in the mapping get
+<code>default</code> (<code>NA</code> unless you set one).</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">facility_demo</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  center_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"General Hospital"</span>, <span class="st">"City Medical Center"</span>, <span class="st">"Unknown Hospital"</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/prep_assign_facility_type.html">prep_assign_facility_type</a></span><span class="op">(</span></span>
+<span>  <span class="va">facility_demo</span>,</span>
+<span>  mapping <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"General Hospital"</span> <span class="op">=</span> <span class="st">"Government"</span>, <span class="st">"City Medical Center"</span> <span class="op">=</span> <span class="st">"Private"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;           center_name facility_type</span></span>
+<span><span class="co">#&gt; 1    General Hospital    Government</span></span>
+<span><span class="co">#&gt; 2 City Medical Center       Private</span></span>
+<span><span class="co">#&gt; 3    Unknown Hospital          &lt;NA&gt;</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="event-creation-and-ast-reshaping">Event Creation and AST Reshaping<a class="anchor" aria-label="anchor" href="#event-creation-and-ast-reshaping"></a>
@@ -605,7 +631,7 @@ and <code>Superficial Biopsy</code>.</p>
 <div class="section level3">
 <h3 id="create-event-ids-from-long-format-isolates">Create event IDs from long-format isolates<a class="anchor" aria-label="anchor" href="#create-event-ids-from-long-format-isolates"></a>
 </h3>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prepped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_event_ids.html">prep_create_event_ids</a></span><span class="op">(</span></span>
 <span>  <span class="va">prepped</span>,</span>
 <span>  patient_col <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
@@ -636,7 +662,7 @@ and <code>Superficial Biopsy</code>.</p>
 <div class="section level3">
 <h3 id="deduplicate-event-level-rows">Deduplicate event-level rows<a class="anchor" aria-label="anchor" href="#deduplicate-event-level-rows"></a>
 </h3>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">event_dedup</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_deduplicate_events.html">prep_deduplicate_events</a></span><span class="op">(</span></span>
 <span>  <span class="va">prepped</span>,</span>
 <span>  event_col <span class="op">=</span> <span class="st">"event_id"</span>,</span>
@@ -650,9 +676,77 @@ and <code>Superficial Biopsy</code>.</p>
 <span><span class="co">#&gt; [1] 6</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="classify-readmissions-from-admission-dates">Classify readmissions from admission dates<a class="anchor" aria-label="anchor" href="#classify-readmissions-from-admission-dates"></a>
+</h3>
+<p><code><a href="../reference/prep_flag_readmission.html">prep_flag_readmission()</a></code> classifies each admission
+relative to the patient’s previous one, based on the gap in days:</p>
+<ul>
+<li>
+<strong><code>index</code></strong> – the patient’s first
+admission</li>
+<li>
+<strong><code>linked_readmission</code></strong> – within
+<code>gap_linked_days</code> (default 30) of the previous admission;
+treated as the same clinical episode</li>
+<li>
+<strong><code>new_readmission</code></strong> – between
+<code>gap_linked_days</code> and <code>gap_new_days</code> (default
+90)</li>
+<li>
+<strong><code>late_readmission</code></strong> – more than
+<code>gap_new_days</code> later; a fully new event</li>
+</ul>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">readmit_demo</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  patient_id     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"pt_101"</span>, <span class="fl">4</span><span class="op">)</span>,</span>
+<span>  admission_date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2021-01-01"</span>, <span class="st">"2021-01-10"</span>, <span class="st">"2021-03-05"</span>, <span class="st">"2021-09-20"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/prep_flag_readmission.html">prep_flag_readmission</a></span><span class="op">(</span><span class="va">readmit_demo</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span>, admission_col <span class="op">=</span> <span class="st">"admission_date"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;              index   late_readmission linked_readmission    new_readmission </span></span>
+<span><span class="co">#&gt;                  1                  1                  1                  1</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 4 × 3</span></span></span>
+<span><span class="co">#&gt;   patient_id admission_date readmission_class </span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>             </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> pt_101     2021-01-01     index             </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> pt_101     2021-01-10     linked_readmission</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> pt_101     2021-03-05     new_readmission   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> pt_101     2021-09-20     late_readmission</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="standardize-non-conforming-readmission-labels">Standardize non-conforming readmission labels<a class="anchor" aria-label="anchor" href="#standardize-non-conforming-readmission-labels"></a>
+</h3>
+<p>If a <code>readmission_class</code> column already exists but uses
+non-standard labels (e.g. from an external system),
+<code><a href="../reference/prep_classify_readmission.html">prep_classify_readmission()</a></code> remaps common synonyms to the
+controlled vocabulary above. Unrecognised labels become <code>NA</code>
+rather than being guessed at.</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">messy_readmit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  patient_id        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"pt_"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span>,</span>
+<span>  readmission_class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"First"</span>, <span class="st">"READMIT"</span>, <span class="st">"Same_Episode"</span>, <span class="st">"late"</span>, <span class="st">"unmapped_value"</span><span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/prep_classify_readmission.html">prep_classify_readmission</a></span><span class="op">(</span><span class="va">messy_readmit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;              index   late_readmission linked_readmission    new_readmission </span></span>
+<span><span class="co">#&gt;                  1                  1                  1                  1 </span></span>
+<span><span class="co">#&gt;               &lt;NA&gt; </span></span>
+<span><span class="co">#&gt;                  1</span></span>
+<span><span class="co">#&gt;   patient_id  readmission_class</span></span>
+<span><span class="co">#&gt; 1       pt_1              index</span></span>
+<span><span class="co">#&gt; 2       pt_2    new_readmission</span></span>
+<span><span class="co">#&gt; 3       pt_3 linked_readmission</span></span>
+<span><span class="co">#&gt; 4       pt_4   late_readmission</span></span>
+<span><span class="co">#&gt; 5       pt_5               &lt;NA&gt;</span></span></code></pre></div>
+</div>
+<div class="section level3">
 <h3 id="pivot-wide-ast-input-to-long-format">Pivot wide AST input to long format<a class="anchor" aria-label="anchor" href="#pivot-wide-ast-input-to-long-format"></a>
 </h3>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">wide_ast</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  patient_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pt_010"</span>, <span class="st">"pt_011"</span><span class="op">)</span>,</span>
 <span>  organism_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Escherichia coli"</span>, <span class="st">"Klebsiella pneumoniae"</span><span class="op">)</span>,</span>
@@ -696,7 +790,7 @@ date has <em>different</em> values (e.g. one lab returns S, another
 returns R), then flags or resolves them via a strategy.</li>
 </ol>
 <p><strong>Step 1 — exact duplicates removed automatically:</strong></p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ast_exact_dups</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  patient_id            <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pt_030"</span>, <span class="st">"pt_030"</span>, <span class="st">"pt_031"</span><span class="op">)</span>,</span>
 <span>  culture_date          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2021-02-01"</span>, <span class="st">"2021-02-01"</span>, <span class="st">"2021-02-01"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -716,7 +810,7 @@ returns R), then flags or resolves them via a strategy.</li>
 <span><span class="co">#&gt; 1     pt_030              amikacin                    R            FALSE</span></span>
 <span><span class="co">#&gt; 2     pt_031         ciprofloxacin                    S            FALSE</span></span></code></pre></div>
 <p><strong>Step 2 — conflict detection after exact-dedup:</strong></p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ast_dups</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  patient_id            <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pt_020"</span>, <span class="st">"pt_020"</span>, <span class="st">"pt_020"</span><span class="op">)</span>,</span>
 <span>  culture_date          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2021-01-15"</span>, <span class="st">"2021-01-15"</span>, <span class="st">"2021-01-15"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -765,12 +859,76 @@ returns R), then flags or resolves them via a strategy.</li>
 </div>
 </div>
 <div class="section level2">
+<h2 id="mdrxdr-classification">MDR/XDR Classification<a class="anchor" aria-label="anchor" href="#mdrxdr-classification"></a>
+</h2>
+<p>MDR (Multidrug Resistant) and XDR (Extensively Drug Resistant)
+classification follows the Magiorakos 2012 criteria: MDR means resistant
+to at least one agent in three or more antimicrobial categories; XDR
+means susceptible to at most two categories. Both are computed per
+<code>event_id</code>, so this must run <em>after</em> event
+creation.</p>
+<div class="section level3">
+<h3 id="collapse-to-class-level">Collapse to class level<a class="anchor" aria-label="anchor" href="#collapse-to-class-level"></a>
+</h3>
+<p><code><a href="../reference/prep_classify_mdr_xdr.html">prep_classify_mdr_xdr()</a></code> requires a
+<code>class_result_event</code> column, which comes from
+<code><a href="../reference/prep_collapse_class_level.html">prep_collapse_class_level()</a></code> (renaming its output
+<code>class_resistance</code> column). Pass <code>extra_cols</code> to
+carry <code>organism_group</code> through the aggregation – it is
+dropped otherwise, since the function only groups by
+<code>event_col</code>/<code>organism_col</code>/<code>class_col</code>.</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">class_level</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_collapse_class_level.html">prep_collapse_class_level</a></span><span class="op">(</span></span>
+<span>  <span class="va">prepped</span>,</span>
+<span>  event_col          <span class="op">=</span> <span class="st">"event_id"</span>,</span>
+<span>  organism_col       <span class="op">=</span> <span class="st">"organism_normalized"</span>,</span>
+<span>  class_col          <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
+<span>  susceptibility_col <span class="op">=</span> <span class="st">"antibiotic_value"</span>,</span>
+<span>  extra_cols         <span class="op">=</span> <span class="st">"organism_group"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 5</span></span></span>
+<span><span class="co">#&gt;   antibiotic_class     R  `NA`     S     I</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>            <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> Aminoglycosides      1     0     0     0</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> Colistin             0     1     0     0</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> Fluoroquinolones     0     0     1     0</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> Penicillins          0     0     0     1</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> Vancomycin           0     0     1     0</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> <span style="color: #BB0000;">NA</span>                   0     1     0     0</span></span>
+<span></span>
+<span><span class="va">class_level</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/rename.html" class="external-link">rename</a></span><span class="op">(</span><span class="va">class_level</span>, class_result_event <span class="op">=</span> <span class="va">class_resistance</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="classify-mdrxdr">Classify MDR/XDR<a class="anchor" aria-label="anchor" href="#classify-mdrxdr"></a>
+</h3>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mdr_xdr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_classify_mdr_xdr.html">prep_classify_mdr_xdr</a></span><span class="op">(</span><span class="va">class_level</span>, organism_group_col <span class="op">=</span> <span class="st">"organism_group"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/distinct.html" class="external-link">distinct</a></span><span class="op">(</span><span class="va">mdr_xdr</span>, <span class="va">event_id</span>, <span class="va">mdr</span>, <span class="va">mdr_confidence</span>, <span class="va">xdr</span>, <span class="va">xdr_confidence</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 5</span></span></span>
+<span><span class="co">#&gt;   event_id                             mdr   mdr_confidence xdr   xdr_confidence</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;lgl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> pt_001_blood_20210103_escherichia c… FALSE insufficient_… TRUE  high          </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> pt_002_blood_20200103_staphylococcu… FALSE <span style="color: #BB0000;">NA</span>             TRUE  medium        </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> pt_003_brain abscess_20210111_coagu… FALSE <span style="color: #BB0000;">NA</span>             TRUE  medium        </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> pt_003_endotracheal aspirate (eta)_… FALSE <span style="color: #BB0000;">NA</span>             TRUE  medium        </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> pt_004_superficial biopsy_20210115_… FALSE <span style="color: #BB0000;">NA</span>             TRUE  medium</span></span></code></pre></div>
+<p>With only 6 rows in this synthetic example, most events have too few
+antibiotic classes tested for a confident call –
+<code>mdr_confidence</code> reports <code>"insufficient_data"</code>
+rather than a false-confident answer. On a real dataset with a fuller
+antibiotic panel per event, confidence rises to
+<code>"medium"</code>/<code>"high"</code> as more categories are
+tested.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="contaminants-and-polymicrobial-episodes">Contaminants and Polymicrobial Episodes<a class="anchor" aria-label="anchor" href="#contaminants-and-polymicrobial-episodes"></a>
 </h2>
 <div class="section level3">
 <h3 id="flag-likely-contaminants">Flag likely contaminants<a class="anchor" aria-label="anchor" href="#flag-likely-contaminants"></a>
 </h3>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prepped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_flag_contaminants.html">prep_flag_contaminants</a></span><span class="op">(</span><span class="va">prepped</span>, method <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">prepped</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"organism_normalized"</span>, <span class="st">"specimen_normalized"</span>, <span class="st">"is_contaminant"</span>, <span class="st">"contaminant_confidence"</span>, <span class="st">"contaminant_method"</span><span class="op">)</span><span class="op">]</span></span>
@@ -792,7 +950,7 @@ returns R), then flags or resolves them via a strategy.</li>
 <div class="section level3">
 <h3 id="exclude-fungal-isolates-when-needed">Exclude fungal isolates when needed<a class="anchor" aria-label="anchor" href="#exclude-fungal-isolates-when-needed"></a>
 </h3>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_filter_fungal.html">prep_filter_fungal</a></span><span class="op">(</span><span class="va">prepped</span>, group_col <span class="op">=</span> <span class="st">"organism_group"</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"patient_id"</span>, <span class="st">"organism_normalized"</span>, <span class="st">"organism_group"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;   patient_id                  organism_normalized        organism_group</span></span>
 <span><span class="co">#&gt; 1     pt_001                     escherichia coli      Enterobacterales</span></span>
@@ -808,7 +966,7 @@ returns R), then flags or resolves them via a strategy.</li>
 <p><code><a href="../reference/prep_flag_polymicrobial.html">prep_flag_polymicrobial()</a></code> is easiest to interpret at the
 event level, where each row is already attached to an episode
 identifier.</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">poly_input</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  patient_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pt_poly_1"</span>, <span class="st">"pt_poly_1"</span>, <span class="st">"pt_poly_2"</span><span class="op">)</span>,</span>
 <span>  event_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ev_poly_1"</span>, <span class="st">"ev_poly_1"</span>, <span class="st">"ev_poly_2"</span><span class="op">)</span>,</span>
@@ -857,7 +1015,7 @@ identifier.</p>
 <div class="section level3">
 <h3 id="track-attrition-across-preprocessing-stages">Track attrition across preprocessing stages<a class="anchor" aria-label="anchor" href="#track-attrition-across-preprocessing-stages"></a>
 </h3>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">flow</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
 <span><span class="va">flow</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_attrition_flow.html">prep_attrition_flow</a></span><span class="op">(</span><span class="va">flow</span>, <span class="va">raw_alias</span>, <span class="st">"raw_input"</span>, <span class="st">"Unmapped raw extract"</span>, patient_col <span class="op">=</span> <span class="st">"PID"</span><span class="op">)</span></span>
 <span><span class="va">flow</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_attrition_flow.html">prep_attrition_flow</a></span><span class="op">(</span><span class="va">flow</span>, <span class="va">prepped</span>, <span class="st">"preprocessed"</span>, <span class="st">"After schema, cleaning, and derivation"</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span>, event_col <span class="op">=</span> <span class="st">"event_id"</span><span class="op">)</span></span>
@@ -886,7 +1044,7 @@ identifier.</p>
 <div class="section level3">
 <h3 id="final-readiness-checks">Final readiness checks<a class="anchor" aria-label="anchor" href="#final-readiness-checks"></a>
 </h3>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/prep_missingness_report.html">prep_missingness_report</a></span><span class="op">(</span></span>
 <span>  <span class="va">ready</span>,</span>
 <span>  threshold <span class="op">=</span> <span class="fl">20</span>,</span>

@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9023</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9024</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -71,6 +71,7 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipelines</h6></li>
     <li><a class="dropdown-item" href="../articles/preprocessing-workflow.html">Preprocessing Workflow</a></li>
+    <li><a class="dropdown-item" href="../articles/eda-workflow.html">Exploratory Data Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/daly-pipeline.html">DALY Burden Estimation</a></li>
   </ul>
 </li>
@@ -104,7 +105,7 @@
 
       <h1>DALY Burden Estimation Workflow in anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-08-11</h4>
+            <h4 data-toc-skip class="date">2026-08-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/daly-pipeline.Rmd" class="external-link"><code>vignettes/daly-pipeline.Rmd</code></a></small>
       <div class="d-none name"><code>daly-pipeline.Rmd</code></div>
@@ -118,57 +119,85 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>This vignette covers the <strong>DALY burden estimation
-pipeline</strong>. It does not repeat preprocessing — that is in the <a href="preprocessing-workflow.html">Preprocessing Workflow
-vignette</a>.</p>
-<p>The pipeline has two stages:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Resistance profile estimation</strong> — converts resistance
-prevalence data into probability distributions over all 2^n binary
-resistance profiles (S/R per antibiotic class). Uses convex optimisation
-(GBD eq. 7.5.1.3).</li>
-<li>
-<strong>Burden calculation</strong> — applies relative-risk weights
-to profiles and computes YLL, YLD, and total DALY burden.</li>
-</ol>
-<p>Input can come from two sources:</p>
+<p>This vignette covers <strong>resistance profile estimation</strong> —
+the first stage of the DALY burden estimation pipeline, converting
+resistance data into probability distributions over all 2^n binary
+resistance profiles (S/R per antibiotic class). It does not repeat
+preprocessing — that is in the <a href="preprocessing-workflow.html">Preprocessing Workflow vignette</a>.
+Downstream burden calculation (RR assignment, YLL/YLD) is not yet
+covered here.</p>
+<p>Resistance profile estimation has <strong>two pathways</strong>,
+chosen by what data you have and how much you need the profiles to
+reflect patient/hospital-level structure:</p>
 <table class="table">
 <colgroup>
-<col width="50%">
-<col width="50%">
+<col width="33%">
+<col width="33%">
+<col width="33%">
 </colgroup>
 <thead><tr class="header">
-<th>Source</th>
-<th>Entry point</th>
+<th></th>
+<th>Option 1: Convex Optimisation (Pathway 1)</th>
+<th>Option 2: Bayesian Multivariate Probit (Pathway 2)</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Pre-computed aggregate marginals (GBD, GLASS, national
-surveillance)</td>
+<td>Input</td>
+<td>Pre-computed aggregate marginals (GBD ST-GPR, GLASS, national
+surveillance) <strong>or</strong> facility line-list AST data</td>
+<td>Facility-level, event-level AST data with covariates</td>
+</tr>
+<tr class="even">
+<td>Method</td>
+<td>Simplex-constrained QP (GBD eq. 7.5.1.3) reproducing marginal +
+pairwise resistance rates</td>
+<td>Bayesian hierarchical multivariate probit model, fit with
+Stan/<code>cmdstanr</code>
+</td>
+</tr>
+<tr class="odd">
+<td>Entry point</td>
 <td>
-<code><a href="../reference/validate_aggregate_inputs.html">validate_aggregate_inputs()</a></code> →
-<code><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex()</a></code>
+<code><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex()</a></code> (aggregate) or
+<code><a href="../reference/compute_marginal_resistance.html">compute_marginal_resistance()</a></code> →
+<code><a href="../reference/compute_pairwise_coresistance.html">compute_pairwise_coresistance()</a></code> →
+<code><a href="../reference/compute_resistance_profiles.html">compute_resistance_profiles()</a></code> (line-list)</td>
+<td>
+<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code> →
+<code><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>
 </td>
 </tr>
 <tr class="even">
-<td>Facility line-list AST data (after preprocessing)</td>
-<td>
-<code><a href="../reference/compute_marginal_resistance.html">compute_marginal_resistance()</a></code> →
-<code><a href="../reference/compute_pairwise_coresistance.html">compute_pairwise_coresistance()</a></code> →
-<code><a href="../reference/compute_resistance_profiles.html">compute_resistance_profiles()</a></code>
+<td>Captures hospital/random effects, fixed-effect covariates</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td>Extra dependency</td>
+<td>None beyond <code>osqp</code>/<code>quadprog</code>
 </td>
+<td>
+<code>cmdstanr</code> + CmdStan (optional, see
+<code>DESCRIPTION</code>)</td>
+</tr>
+<tr class="even">
+<td>Unified dispatcher</td>
+<td><code>estimate_resistance_profiles(method = "convex", ...)</code></td>
+<td><code>estimate_resistance_profiles(method = "bayesian", ...)</code></td>
 </tr>
 </tbody>
 </table>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="stage-1-resistance-profile-estimation">Stage 1 — Resistance Profile Estimation<a class="anchor" aria-label="anchor" href="#stage-1-resistance-profile-estimation"></a>
+<h2 id="resistance-profile-estimation">Resistance Profile Estimation<a class="anchor" aria-label="anchor" href="#resistance-profile-estimation"></a>
 </h2>
 <div class="section level3">
-<h3 id="aggregate-input-validate-marginals">1.1 Aggregate Input: Validate Marginals<a class="anchor" aria-label="anchor" href="#aggregate-input-validate-marginals"></a>
+<h3 id="option-1-convex-optimisation-pathway-1">Option 1: Convex Optimisation (Pathway 1)<a class="anchor" aria-label="anchor" href="#option-1-convex-optimisation-pathway-1"></a>
 </h3>
+<div class="section level4">
+<h4 id="aggregate-input-validate-marginals">1.1 Aggregate Input: Validate Marginals<a class="anchor" aria-label="anchor" href="#aggregate-input-validate-marginals"></a>
+</h4>
 <p>When working from pre-computed marginal resistance rates (e.g. GBD
 ST-GPR country estimates or national surveillance summaries), supply
 them directly as a tibble and validate before running the QP.</p>
@@ -204,9 +233,9 @@ them directly as a tibble and validate before running the QP.</p>
 <span>  n_resistant_col <span class="op">=</span> <span class="st">"n_resistant"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="profile-enumeration">1.2 Profile Enumeration<a class="anchor" aria-label="anchor" href="#profile-enumeration"></a>
-</h3>
+<div class="section level4">
+<h4 id="profile-enumeration">1.2 Profile Enumeration<a class="anchor" aria-label="anchor" href="#profile-enumeration"></a>
+</h4>
 <p><code><a href="../reference/enumerate_binary_profiles.html">enumerate_binary_profiles()</a></code> generates all 2^n binary
 combinations for a given ordered class set. This is the profile space
 the QP optimises over.</p>
@@ -230,9 +259,9 @@ pan-susceptible reference; <code>RRR</code> = pan-resistant. The ordered
 <code>classes</code> vector defines the bit positions and must stay
 consistent throughout the pipeline.</p>
 </div>
-<div class="section level3">
-<h3 id="constraint-matrix">1.3 Constraint Matrix<a class="anchor" aria-label="anchor" href="#constraint-matrix"></a>
-</h3>
+<div class="section level4">
+<h4 id="constraint-matrix">1.3 Constraint Matrix<a class="anchor" aria-label="anchor" href="#constraint-matrix"></a>
+</h4>
 <p><code><a href="../reference/build_constraint_matrix.html">build_constraint_matrix()</a></code> constructs the constraint
 matrix M and target vector v that encode the marginal and pairwise
 constraints fed into the QP.</p>
@@ -255,9 +284,9 @@ constraints fed into the QP.</p>
 profile. Pairwise rows: entry = 1 if both classes in the pair are
 resistant.</p>
 </div>
-<div class="section level3">
-<h3 id="estimate-profile-probabilities">1.4 Estimate Profile Probabilities<a class="anchor" aria-label="anchor" href="#estimate-profile-probabilities"></a>
-</h3>
+<div class="section level4">
+<h4 id="estimate-profile-probabilities">1.4 Estimate Profile Probabilities<a class="anchor" aria-label="anchor" href="#estimate-profile-probabilities"></a>
+</h4>
 <p><code><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex()</a></code> runs the full pipeline for
 all pathogens in one call: validates, enumerates, builds constraints,
 and solves the QP. The solver prefers <code>osqp</code> (sparse, fast)
@@ -319,9 +348,9 @@ any downstream DALY attribution to prevent class-order ambiguity.</p>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> Klebsiella pneumoniae 3GC|Carbapenems|Fluoroquinolones convex   </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> Escherichia coli      3GC|Carbapenems|Fluoroquinolones convex</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="facility-line-list-pathway">1.5 Facility Line-List Pathway<a class="anchor" aria-label="anchor" href="#facility-line-list-pathway"></a>
-</h3>
+<div class="section level4">
+<h4 id="facility-line-list-pathway">1.5 Facility Line-List Pathway<a class="anchor" aria-label="anchor" href="#facility-line-list-pathway"></a>
+</h4>
 <p>When working from isolate-level AST data (after preprocessing), use
 the three-step pipeline that feeds the same QP engine.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
@@ -410,9 +439,9 @@ the three-step pipeline that feeds the same QP engine.</p>
 <span><span class="co">#&gt;         pair_3GC_Fluoroquinolones pair_Carbapenems_Fluoroquinolones </span></span>
 <span><span class="co">#&gt;                              0.01                              0.09</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="check-constraint-satisfaction">1.6 Check Constraint Satisfaction<a class="anchor" aria-label="anchor" href="#check-constraint-satisfaction"></a>
-</h3>
+<div class="section level4">
+<h4 id="check-constraint-satisfaction">1.6 Check Constraint Satisfaction<a class="anchor" aria-label="anchor" href="#check-constraint-satisfaction"></a>
+</h4>
 <p><code><a href="../reference/check_profile_constraints.html">check_profile_constraints()</a></code> formally verifies that the
 estimated probabilities satisfy non-negativity, sum-to-one, and
 reproduce the input marginal rates within tolerance. It accepts the
@@ -447,9 +476,9 @@ directly.</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 12 more rows</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: pass &lt;lgl&gt;</span></span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="bootstrap-uncertainty-intervals">1.7 Bootstrap Uncertainty Intervals<a class="anchor" aria-label="anchor" href="#bootstrap-uncertainty-intervals"></a>
-</h3>
+<div class="section level4">
+<h4 id="bootstrap-uncertainty-intervals">1.7 Bootstrap Uncertainty Intervals<a class="anchor" aria-label="anchor" href="#bootstrap-uncertainty-intervals"></a>
+</h4>
 <p><code><a href="../reference/bootstrap_profiles_convex.html">bootstrap_profiles_convex()</a></code> resamples resistant counts
 from a Binomial distribution and refits the QP B times, returning
 percentile confidence intervals for each profile probability.</p>
@@ -472,213 +501,272 @@ percentile confidence intervals for each profile probability.</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 7 variables: profile &lt;chr&gt;, probability_mean &lt;dbl&gt;,</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;">#   probability_median &lt;dbl&gt;, lower &lt;dbl&gt;, upper &lt;dbl&gt;,</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;">#   n_replicates_converged &lt;int&gt;, convergence_rate &lt;dbl&gt;</span></span></span></code></pre></div>
-<hr>
 </div>
 </div>
-<div class="section level2">
-<h2 id="stage-2-assigning-relative-risk-to-profiles">Stage 2 — Assigning Relative Risk to Profiles<a class="anchor" aria-label="anchor" href="#stage-2-assigning-relative-risk-to-profiles"></a>
-</h2>
-<p><code><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles()</a></code> applies the GBD <strong>max
-rule</strong>: the profile-level LOS relative risk is the maximum RR
-across all resistant classes in that profile.</p>
+<div class="section level3">
+<h3 id="option-2-bayesian-multivariate-probit-pathway-2">Option 2: Bayesian Multivariate Probit (Pathway 2)<a class="anchor" aria-label="anchor" href="#option-2-bayesian-multivariate-probit-pathway-2"></a>
+</h3>
+<p>Pathway 2 fits a Bayesian hierarchical multivariate probit model
+directly to facility-level, event-level AST data. Unlike Pathway 1, it
+can incorporate fixed-effect covariates (age, gender, location, …) and
+random effects (hospital, admission, …), and estimate resistance
+<em>jointly</em> across antibiotic classes rather than reconstructing
+joint profiles purely from marginal + pairwise constraints.</p>
+<p>This requires the optional <code>cmdstanr</code> + CmdStan dependency
+(see <code>DESCRIPTION</code>) and fits an actual MCMC model, so the
+code chunks below are shown with <code>eval = FALSE</code> for
+portability – the printed output is real, captured from an actual run on
+the synthetic data below (2 chains, 200 warmup/200 sampling iterations –
+deliberately small and fast for illustration; a real analysis uses far
+more, e.g. 4 chains x 3000 warmup/1000 sampling).</p>
+<div class="section level4">
+<h4 id="prepare-event-level-class-data">2.1 Prepare Event-Level Class Data<a class="anchor" aria-label="anchor" href="#prepare-event-level-class-data"></a>
+</h4>
+<p>One row per organism-event. Antibiotic class columns hold
+<code>0</code> (susceptible), <code>1</code> (resistant), or
+<code>NA</code> (not tested) – a different encoding from Pathway 1’s S/R
+text values, because this is the direct input to the Stan model.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Synthetic LOS relative risk estimates (from daly_fit_los_rr() in practice)</span></span>
-<span><span class="co"># pathogen column must match the keys in rp_out (organism_name column values)</span></span>
-<span><span class="va">rr_table</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
-<span>  organism_name    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Klebsiella pneumoniae"</span>, <span class="st">"Escherichia coli"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">3</span><span class="op">)</span>,</span>
-<span>  antibiotic_class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>, times <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
-<span>  RR_LOS    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.1</span>, <span class="fl">1.6</span>, <span class="fl">1.4</span>,  <span class="fl">1.8</span>, <span class="fl">1.5</span>, <span class="fl">1.3</span><span class="op">)</span>,</span>
-<span>  CI_lower  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.7</span>, <span class="fl">1.3</span>, <span class="fl">1.1</span>,  <span class="fl">1.4</span>, <span class="fl">1.2</span>, <span class="fl">1.0</span><span class="op">)</span>,</span>
-<span>  CI_upper  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.6</span>, <span class="fl">2.0</span>, <span class="fl">1.8</span>,  <span class="fl">2.3</span>, <span class="fl">1.9</span>, <span class="fl">1.7</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
+<span><span class="va">n_events</span> <span class="op">&lt;-</span> <span class="fl">150</span></span>
+<span><span class="va">centers</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Hospital A"</span>, <span class="st">"Hospital B"</span>, <span class="st">"Hospital C"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">event_class_data</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span>  event_id       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"EV"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%04d"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_events</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  pathogen       <span class="op">=</span> <span class="st">"Klebsiella pneumoniae"</span>,</span>
+<span>  center_name    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">centers</span>, <span class="va">n_events</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  Age_normalised <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n_events</span>, <span class="fl">0</span>, <span class="fl">90</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  gender         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Male"</span>, <span class="st">"Female"</span><span class="op">)</span>, <span class="va">n_events</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  final_outcome  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Discharged"</span>, <span class="st">"Died"</span><span class="op">)</span>, <span class="va">n_events</span>, replace <span class="op">=</span> <span class="cn">TRUE</span>, prob <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.8</span>, <span class="fl">0.2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">rr_table</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 5</span></span></span>
-<span><span class="co">#&gt;   organism_name         antibiotic_class RR_LOS CI_lower CI_upper</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                 <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> Klebsiella pneumoniae Carbapenems         2.1      1.7      2.6</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> Klebsiella pneumoniae 3GC                 1.6      1.3      2  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> Klebsiella pneumoniae Fluoroquinolones    1.4      1.1      1.8</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> Escherichia coli      Carbapenems         1.8      1.4      2.3</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> Escherichia coli      3GC                 1.5      1.2      1.9</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> Escherichia coli      Fluoroquinolones    1.3      1        1.7</span></span></code></pre></div>
+<span><span class="va">true_p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Carbapenems <span class="op">=</span> <span class="fl">0.35</span>, Fluoroquinolones <span class="op">=</span> <span class="fl">0.55</span>, Aminoglycosides <span class="op">=</span> <span class="fl">0.30</span><span class="op">)</span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">cls</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">true_p</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">vals</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_events</span>, <span class="fl">1</span>, <span class="va">true_p</span><span class="op">[[</span><span class="va">cls</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
+<span>  <span class="va">vals</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample.int</a></span><span class="op">(</span><span class="va">n_events</span>, size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="fl">0.15</span> <span class="op">*</span> <span class="va">n_events</span><span class="op">)</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span>  <span class="co"># some untested</span></span>
+<span>  <span class="va">event_class_data</span><span class="op">[[</span><span class="va">cls</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">vals</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">class_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"Fluoroquinolones"</span>, <span class="st">"Aminoglycosides"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level4">
+<h4 id="fit-the-model">2.2 Fit the Model<a class="anchor" aria-label="anchor" href="#fit-the-model"></a>
+</h4>
+<p><code>fixed_effects</code> and <code>random_effects</code> are
+required, with no defaults – <code>random_effects</code> accepts 1-3
+grouping columns (hospital; [+patient]; [+admission]), or the generic
+list-of-blocks spec for more than three.
+<code>residual_structure = "identity"</code> treats classes as
+conditionally independent given the fixed/random effects (default, more
+stable); <code>"correlated"</code> estimates a full residual correlation
+matrix via an LKJCholesky prior, but needs adequate pairwise co-testing
+overlap to be identifiable
+(<code>fit$eligibility_report$pairwise</code>).</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">profiles_rr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles</a></span><span class="op">(</span></span>
-<span>  profiles_output <span class="op">=</span> <span class="va">rp_out</span>,</span>
-<span>  rr_table        <span class="op">=</span> <span class="va">rr_table</span>,</span>
-<span>  pathogen_col    <span class="op">=</span> <span class="st">"organism_name"</span>,</span>
-<span>  class_col       <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
-<span>  rr_col          <span class="op">=</span> <span class="st">"RR_LOS"</span>,</span>
-<span>  fallback_rr     <span class="op">=</span> <span class="fl">1</span></span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit</a></span><span class="op">(</span></span>
+<span>  event_class_data   <span class="op">=</span> <span class="va">event_class_data</span>,</span>
+<span>  class_cols         <span class="op">=</span> <span class="va">class_cols</span>,</span>
+<span>  fixed_effects      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span><span class="op">)</span>,</span>
+<span>  random_effects     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"center_name"</span><span class="op">)</span>,</span>
+<span>  pathogen           <span class="op">=</span> <span class="st">"Klebsiella pneumoniae"</span>,</span>
+<span>  outcome_col        <span class="op">=</span> <span class="st">"final_outcome"</span>,</span>
+<span>  residual_structure <span class="op">=</span> <span class="st">"identity"</span>,</span>
+<span>  prior_config       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>beta_sd <span class="op">=</span> <span class="fl">1.5</span>, tau_sd <span class="op">=</span> <span class="fl">1.0</span><span class="op">)</span>,</span>
+<span>  sampler_config     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>chains <span class="op">=</span> <span class="fl">2</span>, iter_warmup <span class="op">=</span> <span class="fl">200</span>, iter_sampling <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>                             seed <span class="op">=</span> <span class="fl">123</span>, parallel_chains <span class="op">=</span> <span class="fl">2</span>, adapt_delta <span class="op">=</span> <span class="fl">0.9</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">profiles_rr</span><span class="op">[[</span><span class="st">"Klebsiella pneumoniae"</span><span class="op">]</span><span class="op">]</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">profile</span>, <span class="va">probability</span>, <span class="va">RR_LOS_profile</span>, <span class="va">dominant_class</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/desc.html" class="external-link">desc</a></span><span class="op">(</span><span class="va">probability</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   profile probability RR_LOS_profile   dominant_class</span></span>
-<span><span class="co">#&gt; 1     SSS       0.125            1.0  all_susceptible</span></span>
-<span><span class="co">#&gt; 2     RSS       0.125            1.6              3GC</span></span>
-<span><span class="co">#&gt; 3     SRS       0.125            2.1      Carbapenems</span></span>
-<span><span class="co">#&gt; 4     RRS       0.125            2.1      Carbapenems</span></span>
-<span><span class="co">#&gt; 5     SSR       0.125            1.4 Fluoroquinolones</span></span>
-<span><span class="co">#&gt; 6     RSR       0.125            1.6              3GC</span></span>
-<span><span class="co">#&gt; 7     SRR       0.125            2.1      Carbapenems</span></span>
-<span><span class="co">#&gt; 8     RRR       0.125            2.1      Carbapenems</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="filter-to-classes-with-rr-estimates">Filter to Classes with RR Estimates<a class="anchor" aria-label="anchor" href="#filter-to-classes-with-rr-estimates"></a>
-</h3>
-<p><code><a href="../reference/daly_filter_profiles_to_rr_classes.html">daly_filter_profiles_to_rr_classes()</a></code> drops profiles
-whose resistant classes have no RR estimate (cannot contribute to
-burden), always keeping the all-susceptible reference profile.
-Probabilities are re-normalised after filtering.</p>
+<span><span class="va">fit</span><span class="op">$</span><span class="va">diagnostics</span></span>
+<span><span class="co">#&gt; # A tibble: 1 x 36</span></span>
+<span><span class="co">#&gt;   n_chains iter_warmup iter_sampling n_re_levels n_observed_pairs n_events</span></span>
+<span><span class="co">#&gt;      &lt;int&gt;       &lt;int&gt;         &lt;int&gt;       &lt;int&gt;            &lt;int&gt;    &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1        2         200           200           1              384      149</span></span>
+<span><span class="co">#&gt; # i 30 more variables: n_classes &lt;int&gt;, max_rhat_structural &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   min_ess_bulk_structural &lt;dbl&gt;, min_ess_tail_structural &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   n_divergent &lt;int&gt;, converged_structural &lt;lgl&gt;, diagnostic_status &lt;chr&gt;, ...</span></span></code></pre></div>
+<p>With these deliberately tiny/fast settings,
+<code>converged_structural</code> comes back <code>FALSE</code> (max
+R-hat ~1.03, a few divergences) – expected for a 200/200 smoke-test fit,
+not a sign of a broken model. This mirrors the
+<code>exp_00_smoke_test</code> convention used for fast iteration before
+committing to a full run with production-scale
+<code>sampler_config</code>.</p>
+</div>
+<div class="section level4">
+<h4 id="convert-posterior-draws-to-resistance-profile-probabilities">2.3 Convert Posterior Draws to Resistance-Profile Probabilities<a class="anchor" aria-label="anchor" href="#convert-posterior-draws-to-resistance-profile-probabilities"></a>
+</h4>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">profiles_filtered</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_filter_profiles_to_rr_classes.html">daly_filter_profiles_to_rr_classes</a></span><span class="op">(</span></span>
-<span>  <span class="va">profiles_rr</span>,</span>
-<span>  rr_table     <span class="op">=</span> <span class="va">rr_table</span>,</span>
-<span>  pathogen_col <span class="op">=</span> <span class="st">"organism_name"</span>,</span>
-<span>  class_col    <span class="op">=</span> <span class="st">"antibiotic_class"</span></span>
+<code class="sourceCode R"><span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  n_posterior_draws_for_profiles <span class="op">=</span> <span class="fl">200L</span>,</span>
+<span>  outcome_col <span class="op">=</span> <span class="st">"final_outcome"</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">123L</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">profiles_filtered</span><span class="op">[[</span><span class="st">"Klebsiella pneumoniae"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 8</span></span></code></pre></div>
-<hr>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">profiles</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "event_profiles"  "aggregate_draws"</span></span>
+<span></span>
+<span><span class="va">profiles</span><span class="op">$</span><span class="va">event_profiles</span></span>
+<span><span class="co">#&gt; [compute_event_profile_probabilities] 200 draws | 149 events | 3 hp-pairs | 1 RE level(s)</span></span>
+<span><span class="co">#&gt; # A tibble: 1,192 x 14</span></span>
+<span><span class="co">#&gt;   center_name pathogen               event_idx profile_class_set   profile_delta</span></span>
+<span><span class="co">#&gt;   &lt;chr&gt;       &lt;chr&gt;                      &lt;int&gt; &lt;chr&gt;               &lt;chr&gt;</span></span>
+<span><span class="co">#&gt; 1 Hospital C  Klebsiella pneumoniae         1   Carbapenems|Fluoro… SSS</span></span>
+<span><span class="co">#&gt; 2 Hospital C  Klebsiella pneumoniae         1   Carbapenems|Fluoro… RSS</span></span>
+<span><span class="co">#&gt; # i 1,190 more rows, and 9 more variables: profile_probability &lt;dbl&gt;, ...</span></span></code></pre></div>
+<p><code>event_profiles</code> is one row per event x profile (up to 2^D
+rows per event); <code>aggregate_draws</code> carries per-draw
+<code>R_ALL</code>/<code>R_KNOWN_OUTCOME</code>/<code>R_NF</code> used
+for credible intervals in the next step.</p>
 </div>
-</div>
-<div class="section level2">
-<h2 id="stage-3-resistance-prevalence-for-daly-calculation">Stage 3 — Resistance Prevalence for DALY Calculation<a class="anchor" aria-label="anchor" href="#stage-3-resistance-prevalence-for-daly-calculation"></a>
-</h2>
-<div class="section level3">
-<h3 id="fatal-resistance-prevalence-r_k">Fatal Resistance Prevalence (R_k)<a class="anchor" aria-label="anchor" href="#fatal-resistance-prevalence-r_k"></a>
-</h3>
-<p><code><a href="../reference/daly_calc_resistance_prevalence_fatal.html">daly_calc_resistance_prevalence_fatal()</a></code> computes R_k —
-the profile-weighted expected proportion of deaths attributable to
-resistance. This feeds the YLL calculation.</p>
+<div class="section level4">
+<h4 id="aggregate-for-daly">2.4 Aggregate for DALY<a class="anchor" aria-label="anchor" href="#aggregate-for-daly"></a>
+</h4>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fatal_prev</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_resistance_prevalence_fatal.html">daly_calc_resistance_prevalence_fatal</a></span><span class="op">(</span></span>
-<span>  profiles_with_rr  <span class="op">=</span> <span class="va">profiles_filtered</span>,</span>
-<span>  probability_col   <span class="op">=</span> <span class="st">"probability"</span>,</span>
-<span>  rr_profile_col    <span class="op">=</span> <span class="st">"RR_LOS_profile"</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">agg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly</a></span><span class="op">(</span><span class="va">profiles</span>, hospital_col <span class="op">=</span> <span class="st">"center_name"</span>, pathogen_col <span class="op">=</span> <span class="st">"pathogen"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># R_k: fatal resistance prevalence per pathogen</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">fatal_prev</span>, <span class="va">`[[`</span>, <span class="st">"R_k"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      Escherichia coli Klebsiella pneumoniae </span></span>
-<span><span class="co">#&gt;              0.920000              0.928571</span></span>
-<span></span>
-<span><span class="co"># E[OR_death]: expected odds ratio of death</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">fatal_prev</span>, <span class="va">`[[`</span>, <span class="st">"E_OR_k"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      Escherichia coli Klebsiella pneumoniae </span></span>
-<span><span class="co">#&gt;                1.5625                1.7500</span></span></code></pre></div>
+<span><span class="va">agg</span></span>
+<span><span class="co">#&gt; [aggregate_profiles_for_daly] 24 hospital-pathogen-profile rows</span></span>
+<span><span class="co">#&gt; # A tibble: 24 x 44</span></span>
+<span><span class="co">#&gt;   center_name pathogen        profile_class_set    profile_delta R_ALL_mean R_ALL_lower R_ALL_upper ...</span></span>
+<span><span class="co">#&gt;   &lt;chr&gt;       &lt;chr&gt;           &lt;chr&gt;                &lt;chr&gt;              &lt;dbl&gt;       &lt;dbl&gt;       &lt;dbl&gt;</span></span>
+<span><span class="co">#&gt; 1 Hospital A  Klebsiella pne… Carbapenems|Fluoro…   RRR</span></span>
+<span><span class="co">#&gt; # i 23 more rows</span></span></code></pre></div>
+<p><code>agg</code> is analogous to Pathway 1’s
+<code>profiles_out</code>/<code>rp_out</code> – both are the
+resistance-profile output this vignette produces; downstream burden
+calculation (<code><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles()</a></code> onward) is not
+yet covered here.</p>
 </div>
-<div class="section level3">
-<h3 id="select-resistance-class-for-attribution">Select Resistance Class for Attribution<a class="anchor" aria-label="anchor" href="#select-resistance-class-for-attribution"></a>
-</h3>
-<p>For events with multiple resistant classes,
-<code><a href="../reference/select_resistance_class.html">select_resistance_class()</a></code> picks a single class per event
-using the beta-lactam hierarchy and RR values — preventing
-double-counting in DALY attribution.</p>
+<div class="section level4">
+<h4 id="validate-calibration">2.5 Validate Calibration<a class="anchor" aria-label="anchor" href="#validate-calibration"></a>
+</h4>
+<p>Three calibration checks compare the model’s posterior predictions
+back against the observed data it was fit on, at increasing levels of
+joint complexity: single-class marginals, pairs of classes, and complete
+observed profiles.</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Synthetic event-level class data</span></span>
-<span><span class="va">event_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  event_id         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"EV"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
-<span>  antibiotic_class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>,</span>
-<span>                       <span class="st">"Carbapenems"</span>, <span class="st">"Fluoroquinolones"</span>,</span>
-<span>                       <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span>,</span>
-<span>                       <span class="st">"Carbapenems"</span>, <span class="st">"Aminoglycosides"</span>,</span>
-<span>                       <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>,</span>
-<span>  antibiotic_value <span class="op">=</span> <span class="st">"R"</span>,</span>
-<span>  rr_value         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.1</span>, <span class="fl">1.6</span>,  <span class="fl">2.1</span>, <span class="fl">1.4</span>,  <span class="fl">1.6</span>, <span class="fl">1.4</span>,  <span class="fl">2.1</span>, <span class="fl">1.2</span>,  <span class="fl">1.6</span>, <span class="fl">1.4</span><span class="op">)</span>,</span>
-<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">val_marginal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_marginal_calibration.html">validate_marginal_calibration</a></span><span class="op">(</span><span class="va">fit</span>, n_posterior_draws_for_validation <span class="op">=</span> <span class="fl">200L</span>, seed <span class="op">=</span> <span class="fl">123L</span><span class="op">)</span></span>
+<span><span class="va">val_pairwise</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_pairwise_calibration.html">validate_pairwise_calibration</a></span><span class="op">(</span><span class="va">fit</span>, n_posterior_draws_for_validation <span class="op">=</span> <span class="fl">200L</span>, seed <span class="op">=</span> <span class="fl">123L</span><span class="op">)</span></span>
+<span><span class="va">val_complete</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_complete_profile_calibration.html">validate_complete_profile_calibration</a></span><span class="op">(</span><span class="va">fit</span>, n_posterior_draws_for_validation <span class="op">=</span> <span class="fl">200L</span>,</span>
+<span>                                                       seed <span class="op">=</span> <span class="fl">123L</span>, min_complete_events <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/select_resistance_class.html">select_resistance_class</a></span><span class="op">(</span></span>
-<span>  <span class="va">event_data</span>,</span>
-<span>  event_col          <span class="op">=</span> <span class="st">"event_id"</span>,</span>
-<span>  class_col          <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
-<span>  susceptibility_col <span class="op">=</span> <span class="st">"antibiotic_value"</span>,</span>
-<span>  rr_col             <span class="op">=</span> <span class="st">"rr_value"</span></span>
+<span><span class="fu"><a href="../reference/compute_profile_validation_status.html">compute_profile_validation_status</a></span><span class="op">(</span></span>
+<span>  marginal_tbl          <span class="op">=</span> <span class="va">val_marginal</span>,</span>
+<span>  pairwise_tbl          <span class="op">=</span> <span class="va">val_pairwise</span>,</span>
+<span>  complete_profile_tbl  <span class="op">=</span> <span class="va">val_complete</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 2</span></span></span>
-<span><span class="co">#&gt;   antibiotic_class n_events</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> Carbapenems             3</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 3GC                     2</span></span>
-<span></span>
-<span><span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">selected</span>, <span class="va">event_id</span>, <span class="va">antibiotic_class</span>, <span class="va">rr_value</span>, <span class="va">selection_method</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 4</span></span></span>
-<span><span class="co">#&gt;   event_id antibiotic_class rr_value selection_method</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>           </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> EV1      Carbapenems           2.1 hierarchy_rr    </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> EV2      Carbapenems           2.1 hierarchy_rr    </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> EV3      3GC                   1.6 hierarchy_rr    </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> EV4      Carbapenems           2.1 hierarchy_rr    </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> EV5      3GC                   1.6 hierarchy_rr</span></span></code></pre></div>
-<hr>
+<span><span class="co">#&gt; $status</span></span>
+<span><span class="co">#&gt; [1] "pass"</span></span>
+<span><span class="co">#&gt; $reasons</span></span>
+<span><span class="co">#&gt; character(0)</span></span>
+<span><span class="co">#&gt; $thresholds_used</span></span>
+<span><span class="co">#&gt; $thresholds_used$max_mean_abs_error_marginal</span></span>
+<span><span class="co">#&gt; [1] 0.1</span></span>
+<span><span class="co">#&gt; ...</span></span></code></pre></div>
+<p><code><a href="../reference/compute_profile_validation_status.html">compute_profile_validation_status()</a></code> is the single
+authoritative pass/fail call – it applies default thresholds (mean
+absolute error, interval coverage) across all three tables and returns
+one combined <code>status</code>, rather than requiring the caller to
+eyeball three separate tibbles.</p>
 </div>
-</div>
-<div class="section level2">
-<h2 id="stage-4-rr-mapping-preparing-for-yllyld">Stage 4 — RR Mapping (Preparing for YLL/YLD)<a class="anchor" aria-label="anchor" href="#stage-4-rr-mapping-preparing-for-yllyld"></a>
-</h2>
-<p><code><a href="../reference/daly_add_rr_mappings.html">daly_add_rr_mappings()</a></code> maps organism names and
-antibiotic classes in your analysis-ready data to the GBD RR pathogen
-and drug categories, adding <code>rr_pathogen</code> and
-<code>rr_drug</code> columns.</p>
+<div class="section level4">
+<h4 id="predictive-checks">2.6 Predictive Checks<a class="anchor" aria-label="anchor" href="#predictive-checks"></a>
+</h4>
+<p>Beyond calibration against the fitted data, prior and posterior
+predictive checks simulate data <em>from</em> the model to check the
+priors are reasonable before fitting, and that the fitted model
+reproduces the observed data’s statistical structure after fitting.</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sample_events</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  organism_normalized <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Klebsiella pneumoniae"</span>, <span class="st">"Escherichia coli"</span>,</span>
-<span>                           <span class="st">"Staphylococcus aureus"</span><span class="op">)</span>,</span>
-<span>  antibiotic_class    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"Fluoroquinolones"</span>, <span class="st">"Glycopeptides"</span><span class="op">)</span>,</span>
-<span>  stringsAsFactors    <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">prior_pred</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_probit_prior_predictive.html">simulate_probit_prior_predictive</a></span><span class="op">(</span><span class="va">fit</span>, n_states <span class="op">=</span> <span class="fl">100L</span>, seed <span class="op">=</span> <span class="fl">123L</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/compute_prior_predictive_status.html">compute_prior_predictive_status</a></span><span class="op">(</span><span class="va">prior_pred</span><span class="op">)</span></span>
+<span><span class="co">#&gt; $summary$fraction_probability_lt_0.001</span></span>
+<span><span class="co">#&gt; [1] 0.478</span></span>
+<span><span class="co">#&gt; $summary$fraction_all_resistant</span></span>
+<span><span class="co">#&gt; [1] 0.0857</span></span>
 <span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_add_rr_mappings.html">daly_add_rr_mappings</a></span><span class="op">(</span></span>
-<span>  <span class="va">sample_events</span>,</span>
-<span>  organism_col <span class="op">=</span> <span class="st">"organism_normalized"</span>,</span>
-<span>  class_col    <span class="op">=</span> <span class="st">"antibiotic_class"</span></span>
+<span><span class="va">ppc_stats</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_probit_ppc_statistics.html">compute_probit_ppc_statistics</a></span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>, n_states <span class="op">=</span> <span class="fl">100L</span>, seed <span class="op">=</span> <span class="fl">123L</span>,</span>
+<span>  statistics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"marginal"</span>, <span class="st">"resistant_count"</span>, <span class="st">"pairwise"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/compute_posterior_predictive_status.html">compute_posterior_predictive_status</a></span><span class="op">(</span><span class="va">ppc_stats</span><span class="op">)</span></span>
+<span><span class="co">#&gt; $status</span></span>
+<span><span class="co">#&gt; [1] "pass"</span></span>
+<span><span class="co">#&gt; $family_status$marginal$status</span></span>
+<span><span class="co">#&gt; [1] "ok"</span></span>
+<span><span class="co">#&gt; $family_status$pairwise$status</span></span>
+<span><span class="co">#&gt; [1] "ok"</span></span></code></pre></div>
+<p><code>plot_probit_diagnostics(fit, output_dir, experiment_id, pathogen)</code>
+(needs <code>bayesplot</code>) writes trace/rank/pair plots for the
+monitored parameters to a PDF, and
+<code><a href="../reference/plot_probit_posterior_predictive_checks.html">plot_probit_posterior_predictive_checks()</a></code> visualises the
+<code>ppc_stats</code> tables – both are for interactive review, not
+part of the scripted pipeline.</p>
+</div>
+<div class="section level4">
+<h4 id="unified-dispatcher">2.7 Unified Dispatcher<a class="anchor" aria-label="anchor" href="#unified-dispatcher"></a>
+</h4>
+<p><code><a href="../reference/estimate_resistance_profiles.html">estimate_resistance_profiles()</a></code> wraps both pathways
+behind one interface – switch pathway with <code>method</code>:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Pathway 1 (convex)</span></span>
+<span><span class="fu"><a href="../reference/estimate_resistance_profiles.html">estimate_resistance_profiles</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">marginals</span>, method <span class="op">=</span> <span class="st">"convex"</span>, panel_map <span class="op">=</span> <span class="va">panel_map</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">mapped</span></span>
-<span><span class="co">#&gt;     organism_normalized antibiotic_class           rr_pathogen          rr_drug</span></span>
-<span><span class="co">#&gt; 1 Klebsiella pneumoniae      Carbapenems Klebsiella pneumoniae      Carbapenems</span></span>
-<span><span class="co">#&gt; 2      Escherichia coli Fluoroquinolones      Escherichia coli Fluoroquinolones</span></span>
-<span><span class="co">#&gt; 3 Staphylococcus aureus    Glycopeptides Staphylococcus aureus    Glycopeptides</span></span></code></pre></div>
+<span><span class="co"># Pathway 2 (Bayesian) -- runs steps 2.1-2.4 above in one call</span></span>
+<span><span class="fu"><a href="../reference/estimate_resistance_profiles.html">estimate_resistance_profiles</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">event_class_data</span>, method <span class="op">=</span> <span class="st">"bayesian"</span>,</span>
+<span>  class_cols <span class="op">=</span> <span class="va">class_cols</span>, fixed_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span><span class="op">)</span>,</span>
+<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"center_name"</span><span class="op">)</span>, pathogen <span class="op">=</span> <span class="st">"Klebsiella pneumoniae"</span>,</span>
+<span>  outcome_col <span class="op">=</span> <span class="st">"final_outcome"</span>, residual_structure <span class="op">=</span> <span class="st">"identity"</span>,</span>
+<span>  sampler_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>chains <span class="op">=</span> <span class="fl">2</span>, iter_warmup <span class="op">=</span> <span class="fl">200</span>, iter_sampling <span class="op">=</span> <span class="fl">200</span>, seed <span class="op">=</span> <span class="fl">123</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; [estimate_resistance_profiles] Pathway 2 complete.</span></span>
+<span><span class="co">#&gt; $profiles      # same shape as aggregate_profiles_for_daly() output above</span></span>
+<span><span class="co">#&gt; $eligibility</span></span>
+<span><span class="co">#&gt; $diagnostics</span></span>
+<span><span class="co">#&gt; $fitted_models</span></span>
+<span><span class="co">#&gt; $config_used</span></span></code></pre></div>
+<p>Both pathways’ <code>profiles</code>/<code>agg</code> output are the
+deliverable of this vignette – downstream burden calculation (RR
+assignment, YLL/YLD) is not yet covered here.</p>
 <hr>
+</div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="pipeline-at-a-glance">Pipeline at a Glance<a class="anchor" aria-label="anchor" href="#pipeline-at-a-glance"></a>
 </h2>
 <pre><code>Preprocessing output (prep_* pipeline)
           │
-          ▼
-  compute_marginal_resistance()         # Step 1 — marginals per pathogen x class
-          │
-          ▼
-  compute_pairwise_coresistance()       # Step 2 — pairwise co-resistance matrices
-          │
-          ▼
-  compute_resistance_profiles()         # Step 3 — QP -&gt; profile probabilities
-          │
-          │    Alternative entry (aggregate marginals):
-          │    validate_aggregate_inputs()
-          │    estimate_profiles_convex()
-          │
-          ▼
-  daly_assign_rr_to_profiles()          # Assign LOS RR (GBD max rule)
-          │
-          ▼
-  daly_filter_profiles_to_rr_classes()  # Drop unestimable profiles
-          │
-          ▼
-  daly_calc_resistance_prevalence_fatal/nonfatal()
-          │
-          ├── YLL: daly_calc_yll_associated() / daly_calc_yll_attributable()
-          └── YLD: daly_calc_yld_attributable() / daly_calc_paf_los()</code></pre>
+          ├─────────────────────────────┬─────────────────────────────────────┐
+          ▼ Option 1: Convex (Pathway 1) ▼                Option 2: Bayesian Probit (Pathway 2)
+  compute_marginal_resistance()          fit_bayesian_multivariate_probit()
+          │  (Step 1: marginals)                 │  (facility event-level AST + covariates)
+          ▼                                       ▼
+  compute_pairwise_coresistance()        compute_event_profile_probabilities()
+          │  (Step 2: pairwise co-R)             │  (posterior draws -&gt; profile probs)
+          ▼                                       ▼
+  compute_resistance_profiles()          aggregate_profiles_for_daly()
+          │  (Step 3: QP -&gt; profiles)            │  (+ validate_*_calibration(),
+          │                                       │    predictive checks)
+          │    Alternative entry (aggregate       │
+          │    marginals): validate_aggregate_    │
+          │    inputs() -&gt; estimate_profiles_     │
+          │    convex()                           │
+          │                                       │
+          │         (or, either pathway via one call:
+          │          estimate_resistance_profiles(method = "convex" | "bayesian"))
+          │                                       │
+          └───────────────────┬───────────────────┘
+                               ▼
+                  Resistance profile probabilities (this vignette's scope ends here;
+                  downstream burden calculation -- RR assignment, YLL/YLD -- not yet covered)</code></pre>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="session-info">Session Info<a class="anchor" aria-label="anchor" href="#session-info"></a>
 </h2>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; R version 4.6.1 (2026-06-24)</span></span>
 <span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
@@ -701,7 +789,7 @@ and drug categories, adding <code>rr_pathogen</code> and
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9023</span></span>
+<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9024</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    Rcpp_1.1.2       </span></span>

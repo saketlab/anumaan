@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9023</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9024</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -71,6 +71,7 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipelines</h6></li>
     <li><a class="dropdown-item" href="../articles/preprocessing-workflow.html">Preprocessing Workflow</a></li>
+    <li><a class="dropdown-item" href="../articles/eda-workflow.html">Exploratory Data Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/daly-pipeline.html">DALY Burden Estimation</a></li>
   </ul>
 </li>
@@ -104,7 +105,7 @@
 
       <h1>Getting Started with anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-08-11</h4>
+            <h4 data-toc-skip class="date">2026-08-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -117,8 +118,8 @@
 </h2>
 <p><strong>anumaan</strong> is an R package for preprocessing
 antimicrobial resistance (AMR) surveillance data and estimating disease
-burden using GBD methodology. It is structured around two sequential,
-independent pipelines that can be used together or separately.</p>
+burden using GBD methodology. It is structured around three sequential
+pipelines that can be used together or separately.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -160,7 +161,39 @@ vignette</a>.</p>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="pipeline-2-daly-burden-estimation">Pipeline 2 — DALY Burden Estimation<a class="anchor" aria-label="anchor" href="#pipeline-2-daly-burden-estimation"></a>
+<h2 id="pipeline-2-exploratory-data-analysis">Pipeline 2 — Exploratory Data Analysis<a class="anchor" aria-label="anchor" href="#pipeline-2-exploratory-data-analysis"></a>
+</h2>
+<p><strong>Vignette:</strong> <a href="eda-workflow.html">Exploratory
+Data Analysis</a></p>
+<p>The EDA pipeline visualises preprocessed data before it moves on to
+burden estimation. It does not transform data – it is the review step a
+stewardship team runs on Pipeline 1’s output to catch data-quality
+issues and characterise the cohort. It covers:</p>
+<ul>
+<li>Organism and antibiotic-susceptibility overviews (top organisms, R/S
+patterns, resistance heatmaps)</li>
+<li>Outcome distributions, including outcome by organism/resistance
+status, by age bin, and by year</li>
+<li>Case-mix and facility patterns (HAI/CAI, ICU vs. ward, polymicrobial
+share, syndrome distribution)</li>
+<li>Length-of-stay and age distributions</li>
+</ul>
+<p>All functions start with <code>plot_</code>, plus the shared
+<code><a href="../reference/eda_theme.html">eda_theme()</a></code> styling helper – deliberately distinct from the
+<code>prep_</code> (Pipeline 1) and <code>daly_</code> (Pipeline 3)
+naming.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://saketlab.github.io/anumaan/">anumaan</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/plot_top_organisms.html">plot_top_organisms</a></span><span class="op">(</span><span class="va">data</span>, n <span class="op">=</span> <span class="fl">10</span>, mode <span class="op">=</span> <span class="st">"faceted"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_abx_heatmap.html">plot_abx_heatmap</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_outcome_distribution.html">plot_outcome_distribution</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"overall"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_los_ridge.html">plot_los_ridge</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></code></pre></div>
+<p>See the full walkthrough in the <a href="eda-workflow.html">Exploratory Data Analysis vignette</a>.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="pipeline-3-daly-burden-estimation">Pipeline 3 — DALY Burden Estimation<a class="anchor" aria-label="anchor" href="#pipeline-3-daly-burden-estimation"></a>
 </h2>
 <p><strong>Vignette:</strong> <a href="daly-pipeline.html">DALY Burden
 Estimation</a></p>
@@ -184,7 +217,7 @@ Profile-specific functions are <code>compute_*</code>,
 <code>estimate_*</code>, <code>enumerate_*</code>, <code>build_*</code>,
 <code>validate_*</code>, <code>check_*</code>, and
 <code>bootstrap_*</code>.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># From aggregate marginals (GBD / GLASS / national surveillance)</span></span>
 <span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex</a></span><span class="op">(</span></span>
 <span>  marginals <span class="op">=</span> <span class="va">your_marginals_table</span>,</span>
@@ -203,7 +236,7 @@ Burden Estimation vignette</a>.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># From GitHub</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span><span class="op">)</span></span>
 <span></span>
@@ -268,8 +301,8 @@ Burden Estimation vignette</a>.</p>
 <div class="section level2">
 <h2 id="data-format">Data Format<a class="anchor" aria-label="anchor" href="#data-format"></a>
 </h2>
-<p>Both pipelines expect <strong>long format</strong> input — one row
-per isolate × antibiotic combination:</p>
+<p>All three pipelines expect <strong>long format</strong> input — one
+row per isolate × antibiotic combination:</p>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -327,7 +360,7 @@ and <code>Superficial Biopsy</code>.</p>
 <h2 id="package-reference">Package Reference<a class="anchor" aria-label="anchor" href="#package-reference"></a>
 </h2>
 <p>Full function documentation is at the <a href="../reference/index.html">Reference page</a>.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Search all functions</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/help.html" class="external-link">help</a></span><span class="op">(</span>package <span class="op">=</span> <span class="st">"anumaan"</span><span class="op">)</span></span>
 <span></span>

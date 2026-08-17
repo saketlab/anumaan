@@ -18,7 +18,9 @@ preprocessing tests:
 - date parsing and table validation
 - organism, specimen, antibiotic, and AST cleaning
 - age, length-of-stay, and HAI/CAI derivation
-- event creation and deduplication
+- facility type assignment
+- event creation, deduplication, and readmission classification
+- MDR/XDR classification
 - contaminant and polymicrobial handling
 - analysis-readiness filtering
 
@@ -486,6 +488,30 @@ prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_typ
 #> 6  inferred_2day_cutoff           inferred
 ```
 
+### Assign facility type
+
+[`prep_assign_facility_type()`](https://saketlab.github.io/anumaan/reference/prep_assign_facility_type.md)
+is deliberately generic – it has no hardcoded facility names. You supply
+a named mapping from facility value to the category you want
+(e.g. Government/Private, Urban/Rural, or a region), and facilities not
+found in the mapping get `default` (`NA` unless you set one).
+
+``` r
+facility_demo <- data.frame(
+  center_name = c("General Hospital", "City Medical Center", "Unknown Hospital"),
+  stringsAsFactors = FALSE
+)
+
+prep_assign_facility_type(
+  facility_demo,
+  mapping = c("General Hospital" = "Government", "City Medical Center" = "Private")
+)
+#>           center_name facility_type
+#> 1    General Hospital    Government
+#> 2 City Medical Center       Private
+#> 3    Unknown Hospital          <NA>
+```
+
 ## Event Creation and AST Reshaping
 
 ### Create event IDs from long-format isolates
@@ -533,6 +559,69 @@ nrow(prepped)
 #> [1] 6
 nrow(event_dedup)
 #> [1] 6
+```
+
+### Classify readmissions from admission dates
+
+[`prep_flag_readmission()`](https://saketlab.github.io/anumaan/reference/prep_flag_readmission.md)
+classifies each admission relative to the patient’s previous one, based
+on the gap in days:
+
+- **`index`** – the patient’s first admission
+- **`linked_readmission`** – within `gap_linked_days` (default 30) of
+  the previous admission; treated as the same clinical episode
+- **`new_readmission`** – between `gap_linked_days` and `gap_new_days`
+  (default 90)
+- **`late_readmission`** – more than `gap_new_days` later; a fully new
+  event
+
+``` r
+readmit_demo <- data.frame(
+  patient_id     = rep("pt_101", 4),
+  admission_date = as.Date(c("2021-01-01", "2021-01-10", "2021-03-05", "2021-09-20")),
+  stringsAsFactors = FALSE
+)
+
+prep_flag_readmission(readmit_demo, patient_col = "patient_id", admission_col = "admission_date")
+#> 
+#>              index   late_readmission linked_readmission    new_readmission 
+#>                  1                  1                  1                  1
+#> # A tibble: 4 × 3
+#>   patient_id admission_date readmission_class 
+#>   <chr>      <date>         <chr>             
+#> 1 pt_101     2021-01-01     index             
+#> 2 pt_101     2021-01-10     linked_readmission
+#> 3 pt_101     2021-03-05     new_readmission   
+#> 4 pt_101     2021-09-20     late_readmission
+```
+
+### Standardize non-conforming readmission labels
+
+If a `readmission_class` column already exists but uses non-standard
+labels (e.g. from an external system),
+[`prep_classify_readmission()`](https://saketlab.github.io/anumaan/reference/prep_classify_readmission.md)
+remaps common synonyms to the controlled vocabulary above. Unrecognised
+labels become `NA` rather than being guessed at.
+
+``` r
+messy_readmit <- data.frame(
+  patient_id        = paste0("pt_", 1:5),
+  readmission_class = c("First", "READMIT", "Same_Episode", "late", "unmapped_value"),
+  stringsAsFactors = FALSE
+)
+
+prep_classify_readmission(messy_readmit)
+#> 
+#>              index   late_readmission linked_readmission    new_readmission 
+#>                  1                  1                  1                  1 
+#>               <NA> 
+#>                  1
+#>   patient_id  readmission_class
+#> 1       pt_1              index
+#> 2       pt_2    new_readmission
+#> 3       pt_3 linked_readmission
+#> 4       pt_4   late_readmission
+#> 5       pt_5               <NA>
 ```
 
 ### Pivot wide AST input to long format
@@ -651,6 +740,68 @@ prep_deduplicate_ast(ast_dups, mode = "remove", strategy = "resistant_wins")[, c
 #> 1 pt_020     amikacin              R                   
 #> 2 pt_020     cefotaxime            I
 ```
+
+## MDR/XDR Classification
+
+MDR (Multidrug Resistant) and XDR (Extensively Drug Resistant)
+classification follows the Magiorakos 2012 criteria: MDR means resistant
+to at least one agent in three or more antimicrobial categories; XDR
+means susceptible to at most two categories. Both are computed per
+`event_id`, so this must run *after* event creation.
+
+### Collapse to class level
+
+[`prep_classify_mdr_xdr()`](https://saketlab.github.io/anumaan/reference/prep_classify_mdr_xdr.md)
+requires a `class_result_event` column, which comes from
+[`prep_collapse_class_level()`](https://saketlab.github.io/anumaan/reference/prep_collapse_class_level.md)
+(renaming its output `class_resistance` column). Pass `extra_cols` to
+carry `organism_group` through the aggregation – it is dropped
+otherwise, since the function only groups by
+`event_col`/`organism_col`/`class_col`.
+
+``` r
+class_level <- prep_collapse_class_level(
+  prepped,
+  event_col          = "event_id",
+  organism_col       = "organism_normalized",
+  class_col          = "antibiotic_class",
+  susceptibility_col = "antibiotic_value",
+  extra_cols         = "organism_group"
+)
+#> # A tibble: 6 × 5
+#>   antibiotic_class     R  `NA`     S     I
+#>   <chr>            <int> <int> <int> <int>
+#> 1 Aminoglycosides      1     0     0     0
+#> 2 Colistin             0     1     0     0
+#> 3 Fluoroquinolones     0     0     1     0
+#> 4 Penicillins          0     0     0     1
+#> 5 Vancomycin           0     0     1     0
+#> 6 NA                   0     1     0     0
+
+class_level <- dplyr::rename(class_level, class_result_event = class_resistance)
+```
+
+### Classify MDR/XDR
+
+``` r
+mdr_xdr <- prep_classify_mdr_xdr(class_level, organism_group_col = "organism_group")
+
+dplyr::distinct(mdr_xdr, event_id, mdr, mdr_confidence, xdr, xdr_confidence)
+#> # A tibble: 5 × 5
+#>   event_id                             mdr   mdr_confidence xdr   xdr_confidence
+#>   <chr>                                <lgl> <chr>          <lgl> <chr>         
+#> 1 pt_001_blood_20210103_escherichia c… FALSE insufficient_… TRUE  high          
+#> 2 pt_002_blood_20200103_staphylococcu… FALSE NA             TRUE  medium        
+#> 3 pt_003_brain abscess_20210111_coagu… FALSE NA             TRUE  medium        
+#> 4 pt_003_endotracheal aspirate (eta)_… FALSE NA             TRUE  medium        
+#> 5 pt_004_superficial biopsy_20210115_… FALSE NA             TRUE  medium
+```
+
+With only 6 rows in this synthetic example, most events have too few
+antibiotic classes tested for a confident call – `mdr_confidence`
+reports `"insufficient_data"` rather than a false-confident answer. On a
+real dataset with a fuller antibiotic panel per event, confidence rises
+to `"medium"`/`"high"` as more categories are tested.
 
 ## Contaminants and Polymicrobial Episodes
 
