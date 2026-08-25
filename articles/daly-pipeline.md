@@ -7,27 +7,32 @@ library(dplyr)
 
 ## Overview
 
-This vignette covers **resistance profile estimation** — the first stage
-of the DALY burden estimation pipeline, converting resistance data into
-probability distributions over all 2^n binary resistance profiles (S/R
-per antibiotic class). It does not repeat preprocessing — that is in the
-[Preprocessing Workflow
+This vignette covers the **DALY burden estimation pipeline**. It does
+not repeat preprocessing — that is in the [Preprocessing Workflow
 vignette](https://saketlab.github.io/anumaan/articles/preprocessing-workflow.md).
-Downstream burden calculation (RR assignment, YLL/YLD) is not yet
-covered here.
 
-Resistance profile estimation has **two pathways**, chosen by what data
-you have and how much you need the profiles to reflect
-patient/hospital-level structure:
+For Bayesian multivariate probit resistance-profile estimation,
+`anumaan` supports both CPU and OpenCL execution backends through the
+`compute` argument to
+[`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md).
+This is a computational choice only: it does not alter the statistical
+model, validation framework, or DALY estimands.
 
-|                                                           | Option 1: Convex Optimisation (Pathway 1)                                                                                                                                                                                                                                                                                                                                                                                                                                                | Option 2: Bayesian Multivariate Probit (Pathway 2)                                                                                                                                                                                                        |
-|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Input                                                     | Pre-computed aggregate marginals (GBD ST-GPR, GLASS, national surveillance) **or** facility line-list AST data                                                                                                                                                                                                                                                                                                                                                                           | Facility-level, event-level AST data with covariates                                                                                                                                                                                                      |
-| Method                                                    | Simplex-constrained QP (GBD eq. 7.5.1.3) reproducing marginal + pairwise resistance rates                                                                                                                                                                                                                                                                                                                                                                                                | Bayesian hierarchical multivariate probit model, fit with Stan/`cmdstanr`                                                                                                                                                                                 |
-| Entry point                                               | [`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md) (aggregate) or [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md) → [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md) → [`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md) (line-list) | [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md) → [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md) |
-| Captures hospital/random effects, fixed-effect covariates | No                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Yes                                                                                                                                                                                                                                                       |
-| Extra dependency                                          | None beyond `osqp`/`quadprog`                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `cmdstanr` + CmdStan (optional, see `DESCRIPTION`)                                                                                                                                                                                                        |
-| Unified dispatcher                                        | `estimate_resistance_profiles(method = "convex", ...)`                                                                                                                                                                                                                                                                                                                                                                                                                                   | `estimate_resistance_profiles(method = "bayesian", ...)`                                                                                                                                                                                                  |
+The pipeline has two stages:
+
+1.  **Resistance profile estimation** — converts resistance prevalence
+    data into probability distributions over all 2^n binary resistance
+    profiles (S/R per antibiotic class). Uses convex optimisation (GBD
+    eq. 7.5.1.3).
+2.  **Burden calculation** — applies relative-risk weights to profiles
+    and computes YLL, YLD, and total DALY burden.
+
+Input can come from two sources:
+
+| Source                                                               | Entry point                                                                                                                                                                                                                                                                                                                                          |
+|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Pre-computed aggregate marginals (GBD, GLASS, national surveillance) | [`validate_aggregate_inputs()`](https://saketlab.github.io/anumaan/reference/validate_aggregate_inputs.md) → [`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md)                                                                                                                                |
+| Facility line-list AST data (after preprocessing)                    | [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md) → [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md) → [`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md) |
 
 ------------------------------------------------------------------------
 
@@ -659,19 +664,19 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9024
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9025
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    Rcpp_1.1.2       
-#>  [5] tidyselect_1.2.1  tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2
+#>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 
+#>  [5] Rcpp_1.1.2        tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2
 #>  [9] textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0     lattice_0.22-9   
-#> [13] R6_2.6.1          generics_0.1.4    knitr_1.51        htmlwidgets_1.6.4
-#> [17] tibble_3.3.1      desc_1.4.3        osqp_1.0.0        bslib_0.12.0     
-#> [21] pillar_1.11.1     rlang_1.3.0       utf8_1.2.6        cachem_1.1.0     
-#> [25] xfun_0.60         quadprog_1.5-8    fs_2.1.0          sass_0.4.10      
-#> [29] S7_0.2.2          otel_0.2.0        cli_3.6.6         withr_3.0.3      
-#> [33] pkgdown_2.2.1     magrittr_2.0.5    digest_0.6.39     grid_4.6.1       
-#> [37] lifecycle_1.0.5   vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1       
-#> [41] ragg_1.5.2        purrr_1.2.2       rmarkdown_2.31    tools_4.6.1      
-#> [45] pkgconfig_2.0.3   htmltools_0.5.9
+#> [13] R6_2.6.1          generics_0.1.4    knitr_1.51        tibble_3.3.1     
+#> [17] desc_1.4.3        osqp_1.0.0        bslib_0.12.0      pillar_1.11.1    
+#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.60        
+#> [25] quadprog_1.5-8    fs_2.1.0          sass_0.4.10       S7_0.2.2         
+#> [29] otel_0.2.0        cli_3.6.6         withr_3.0.3       pkgdown_2.2.1    
+#> [33] magrittr_2.0.5    digest_0.6.39     grid_4.6.1        lifecycle_1.0.5  
+#> [37] vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1        ragg_1.5.2       
+#> [41] purrr_1.2.2       rmarkdown_2.31    tools_4.6.1       pkgconfig_2.0.3  
+#> [45] htmltools_0.5.9
 ```

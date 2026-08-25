@@ -278,12 +278,16 @@ or any other grouping the analysis layer declares; the package does not
 hardcode which blocks are scientifically appropriate for a given
 dataset). Two residual structures are supported: identity (default, no
 residual correlation) and correlated (full LKJ-Cholesky residual
-covariance). Run once per pathogen; orchestrate across pathogens in the
-analysis repository. Use as the top-level entry point.
+covariance). CPU and OpenCL backends are both supported as execution
+choices; backend selection changes compilation/sampling only, not the
+underlying model. Run once per pathogen; orchestrate across pathogens in
+the analysis repository. Use as the top-level entry point.
 
 - [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
   : Fit Bayesian Hierarchical Multivariate Probit Model for Resistance
   Profiles
+- [`validate_compute_backend()`](https://saketlab.github.io/anumaan/reference/validate_compute_backend.md)
+  : Validate a selectable Stan compute backend configuration
 - [`prepare_random_effects()`](https://saketlab.github.io/anumaan/reference/prepare_random_effects.md)
   : Build the generic random-effect representation for an arbitrary
   number of blocks

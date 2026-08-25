@@ -131,6 +131,51 @@ R_k         <- daly_calc_resistance_prevalence_fatal(profiles_rr)
 See the full walkthrough in the [DALY Burden Estimation
 vignette](https://saketlab.github.io/anumaan/articles/daly-pipeline.md).
 
+### Bayesian multivariate probit backend selection
+
+For Pathway 2 Bayesian resistance-profile estimation,
+[`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
+now accepts a `compute` argument so the same statistical model can be
+run on either a standard CPU backend or an OpenCL-enabled backend.
+
+``` r
+fit <- fit_bayesian_multivariate_probit(
+  event_class_data = event_level_ast,
+  class_cols = c("3GC", "Carbapenems", "Fluoroquinolones"),
+  fixed_effects = c("Age_normalised", "gender", "location"),
+  random_effects = list(
+    list(name = "hospital", group_col = "center_name", terms = "intercept")
+  ),
+  pathogen = "klebsiella pneumoniae",
+  residual_structure = "correlated",
+  compute = list(
+    backend = "cpu"
+  )
+)
+```
+
+``` r
+fit_opencl <- fit_bayesian_multivariate_probit(
+  event_class_data = event_level_ast,
+  class_cols = c("3GC", "Carbapenems", "Fluoroquinolones"),
+  fixed_effects = c("Age_normalised", "gender", "location"),
+  random_effects = list(
+    list(name = "hospital", group_col = "center_name", terms = "intercept")
+  ),
+  pathogen = "klebsiella pneumoniae",
+  residual_structure = "correlated",
+  compute = list(
+    backend = "opencl",
+    opencl_platform_id = 0L,
+    opencl_device_id = 0L
+  )
+)
+```
+
+This backend choice affects compilation and sampling only. Priors,
+likelihood, diagnostics, posterior predictive checks, resistance
+profiles, and downstream DALY quantities remain unchanged.
+
 ------------------------------------------------------------------------
 
 ## Installation

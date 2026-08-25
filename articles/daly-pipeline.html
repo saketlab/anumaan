@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9024</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9025</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,7 +105,7 @@
 
       <h1>DALY Burden Estimation Workflow in anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-08-17</h4>
+            <h4 data-toc-skip class="date">2026-08-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/daly-pipeline.Rmd" class="external-link"><code>vignettes/daly-pipeline.Rmd</code></a></small>
       <div class="d-none name"><code>daly-pipeline.Rmd</code></div>
@@ -119,71 +119,52 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>This vignette covers <strong>resistance profile estimation</strong> —
-the first stage of the DALY burden estimation pipeline, converting
-resistance data into probability distributions over all 2^n binary
-resistance profiles (S/R per antibiotic class). It does not repeat
-preprocessing — that is in the <a href="preprocessing-workflow.html">Preprocessing Workflow vignette</a>.
-Downstream burden calculation (RR assignment, YLL/YLD) is not yet
-covered here.</p>
-<p>Resistance profile estimation has <strong>two pathways</strong>,
-chosen by what data you have and how much you need the profiles to
-reflect patient/hospital-level structure:</p>
+<p>This vignette covers the <strong>DALY burden estimation
+pipeline</strong>. It does not repeat preprocessing — that is in the <a href="preprocessing-workflow.html">Preprocessing Workflow
+vignette</a>.</p>
+<p>For Bayesian multivariate probit resistance-profile estimation,
+<code>anumaan</code> supports both CPU and OpenCL execution backends
+through the <code>compute</code> argument to
+<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code>. This is a computational
+choice only: it does not alter the statistical model, validation
+framework, or DALY estimands.</p>
+<p>The pipeline has two stages:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Resistance profile estimation</strong> — converts resistance
+prevalence data into probability distributions over all 2^n binary
+resistance profiles (S/R per antibiotic class). Uses convex optimisation
+(GBD eq. 7.5.1.3).</li>
+<li>
+<strong>Burden calculation</strong> — applies relative-risk weights
+to profiles and computes YLL, YLD, and total DALY burden.</li>
+</ol>
+<p>Input can come from two sources:</p>
 <table class="table">
 <colgroup>
-<col width="33%">
-<col width="33%">
-<col width="33%">
+<col width="50%">
+<col width="50%">
 </colgroup>
 <thead><tr class="header">
-<th></th>
-<th>Option 1: Convex Optimisation (Pathway 1)</th>
-<th>Option 2: Bayesian Multivariate Probit (Pathway 2)</th>
+<th>Source</th>
+<th>Entry point</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Input</td>
-<td>Pre-computed aggregate marginals (GBD ST-GPR, GLASS, national
-surveillance) <strong>or</strong> facility line-list AST data</td>
-<td>Facility-level, event-level AST data with covariates</td>
-</tr>
-<tr class="even">
-<td>Method</td>
-<td>Simplex-constrained QP (GBD eq. 7.5.1.3) reproducing marginal +
-pairwise resistance rates</td>
-<td>Bayesian hierarchical multivariate probit model, fit with
-Stan/<code>cmdstanr</code>
+<td>Pre-computed aggregate marginals (GBD, GLASS, national
+surveillance)</td>
+<td>
+<code><a href="../reference/validate_aggregate_inputs.html">validate_aggregate_inputs()</a></code> →
+<code><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex()</a></code>
 </td>
 </tr>
-<tr class="odd">
-<td>Entry point</td>
+<tr class="even">
+<td>Facility line-list AST data (after preprocessing)</td>
 <td>
-<code><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex()</a></code> (aggregate) or
 <code><a href="../reference/compute_marginal_resistance.html">compute_marginal_resistance()</a></code> →
 <code><a href="../reference/compute_pairwise_coresistance.html">compute_pairwise_coresistance()</a></code> →
-<code><a href="../reference/compute_resistance_profiles.html">compute_resistance_profiles()</a></code> (line-list)</td>
-<td>
-<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code> →
-<code><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>
+<code><a href="../reference/compute_resistance_profiles.html">compute_resistance_profiles()</a></code>
 </td>
-</tr>
-<tr class="even">
-<td>Captures hospital/random effects, fixed-effect covariates</td>
-<td>No</td>
-<td>Yes</td>
-</tr>
-<tr class="odd">
-<td>Extra dependency</td>
-<td>None beyond <code>osqp</code>/<code>quadprog</code>
-</td>
-<td>
-<code>cmdstanr</code> + CmdStan (optional, see
-<code>DESCRIPTION</code>)</td>
-</tr>
-<tr class="even">
-<td>Unified dispatcher</td>
-<td><code>estimate_resistance_profiles(method = "convex", ...)</code></td>
-<td><code>estimate_resistance_profiles(method = "bayesian", ...)</code></td>
 </tr>
 </tbody>
 </table>
@@ -789,21 +770,21 @@ assignment, YLL/YLD) is not yet covered here.</p>
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9024</span></span>
+<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9025</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span><span class="co">#&gt;  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    Rcpp_1.1.2       </span></span>
-<span><span class="co">#&gt;  [5] tidyselect_1.2.1  tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2</span></span>
+<span><span class="co">#&gt;  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 </span></span>
+<span><span class="co">#&gt;  [5] Rcpp_1.1.2        tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2</span></span>
 <span><span class="co">#&gt;  [9] textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0     lattice_0.22-9   </span></span>
-<span><span class="co">#&gt; [13] R6_2.6.1          generics_0.1.4    knitr_1.51        htmlwidgets_1.6.4</span></span>
-<span><span class="co">#&gt; [17] tibble_3.3.1      desc_1.4.3        osqp_1.0.0        bslib_0.12.0     </span></span>
-<span><span class="co">#&gt; [21] pillar_1.11.1     rlang_1.3.0       utf8_1.2.6        cachem_1.1.0     </span></span>
-<span><span class="co">#&gt; [25] xfun_0.60         quadprog_1.5-8    fs_2.1.0          sass_0.4.10      </span></span>
-<span><span class="co">#&gt; [29] S7_0.2.2          otel_0.2.0        cli_3.6.6         withr_3.0.3      </span></span>
-<span><span class="co">#&gt; [33] pkgdown_2.2.1     magrittr_2.0.5    digest_0.6.39     grid_4.6.1       </span></span>
-<span><span class="co">#&gt; [37] lifecycle_1.0.5   vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1       </span></span>
-<span><span class="co">#&gt; [41] ragg_1.5.2        purrr_1.2.2       rmarkdown_2.31    tools_4.6.1      </span></span>
-<span><span class="co">#&gt; [45] pkgconfig_2.0.3   htmltools_0.5.9</span></span></code></pre></div>
+<span><span class="co">#&gt; [13] R6_2.6.1          generics_0.1.4    knitr_1.51        tibble_3.3.1     </span></span>
+<span><span class="co">#&gt; [17] desc_1.4.3        osqp_1.0.0        bslib_0.12.0      pillar_1.11.1    </span></span>
+<span><span class="co">#&gt; [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.60        </span></span>
+<span><span class="co">#&gt; [25] quadprog_1.5-8    fs_2.1.0          sass_0.4.10       S7_0.2.2         </span></span>
+<span><span class="co">#&gt; [29] otel_0.2.0        cli_3.6.6         withr_3.0.3       pkgdown_2.2.1    </span></span>
+<span><span class="co">#&gt; [33] magrittr_2.0.5    digest_0.6.39     grid_4.6.1        lifecycle_1.0.5  </span></span>
+<span><span class="co">#&gt; [37] vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1        ragg_1.5.2       </span></span>
+<span><span class="co">#&gt; [41] purrr_1.2.2       rmarkdown_2.31    tools_4.6.1       pkgconfig_2.0.3  </span></span>
+<span><span class="co">#&gt; [45] htmltools_0.5.9</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

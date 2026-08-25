@@ -23,6 +23,7 @@ fit_bayesian_multivariate_probit(
   estimand = "observed_stewardship_event_mix",
   prior_config = list(),
   sampler_config = list(),
+  compute = list(),
   show_messages = TRUE,
   save_full_latent_diagnostics = FALSE,
   ...
@@ -119,6 +120,15 @@ fit_bayesian_multivariate_probit(
   to a positive integer to stop if approximate parameter count exceeds
   the threshold). Any additional entries are forwarded via `...`.
 
+- compute:
+
+  Named list controlling the Stan execution backend. Supported fields
+  are `backend` (`"cpu"` default or `"opencl"`), `opencl_platform_id`,
+  `opencl_device_id`, and `allow_cpu_fallback` (`FALSE` by default).
+  OpenCL changes the compilation/sampling backend only; it does not
+  change the statistical model, priors, diagnostics, or downstream
+  estimands.
+
 - show_messages:
 
   Logical. Print sampling progress. Default `TRUE`.
@@ -147,7 +157,8 @@ Named list with elements: `draws`, `diagnostics`, `diagnostics_detail`,
 `class_cols`, `event_metadata`, `n_re_levels`, `upper_re_col`,
 `middle_re_col`, `lower_re_col`, `patient_key_col`, `admission_key_col`,
 `pathogen_col`, `pathogen_fitted`, `residual_structure`, `estimand`,
-`prior_config_used`, `sampler_config_used`, and `eligibility_report`.
+`prior_config_used`, `sampler_config_used`, `compute_config_used`, and
+`eligibility_report`.
 
 `diagnostics` is a one-row monitored summary. The main diagnostic fields
 `max_rhat`, `min_ess_bulk`, and `min_ess_tail` are computed over the

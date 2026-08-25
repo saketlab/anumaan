@@ -33,7 +33,7 @@ hierarchical Bayesian multivariate probit model via cmdstanr."><link rel="styles
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9024</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9025</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,6 +98,7 @@ hierarchical Bayesian multivariate probit model via <span class="pkg">cmdstanr</
 <span>  estimand <span class="op">=</span> <span class="st">"observed_stewardship_event_mix"</span>,</span>
 <span>  prior_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  sampler_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  compute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  show_messages <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  save_full_latent_diagnostics <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
@@ -199,6 +200,15 @@ if approximate parameter count exceeds the threshold). Any additional entries
 are forwarded via <code>...</code>.</p></dd>
 
 
+<dt id="arg-compute">compute<a class="anchor" aria-label="anchor" href="#arg-compute"></a></dt>
+<dd><p>Named list controlling the Stan execution backend. Supported
+fields are <code>backend</code> (<code>"cpu"</code> default or <code>"opencl"</code>),
+<code>opencl_platform_id</code>, <code>opencl_device_id</code>, and
+<code>allow_cpu_fallback</code> (<code>FALSE</code> by default). OpenCL changes the
+compilation/sampling backend only; it does not change the statistical
+model, priors, diagnostics, or downstream estimands.</p></dd>
+
+
 <dt id="arg-show-messages">show_messages<a class="anchor" aria-label="anchor" href="#arg-show-messages"></a></dt>
 <dd><p>Logical. Print sampling progress. Default <code>TRUE</code>.</p></dd>
 
@@ -229,7 +239,8 @@ retain the full per-parameter table for debugging.</p></dd>
   <code>middle_re_col</code>, <code>lower_re_col</code>, <code>patient_key_col</code>,
   <code>admission_key_col</code>, <code>pathogen_col</code>, <code>pathogen_fitted</code>,
   <code>residual_structure</code>, <code>estimand</code>, <code>prior_config_used</code>,
-  <code>sampler_config_used</code>, and <code>eligibility_report</code>.</p>
+  <code>sampler_config_used</code>, <code>compute_config_used</code>, and
+  <code>eligibility_report</code>.</p>
 <p><code>diagnostics</code> is a one-row monitored summary. The main diagnostic
   fields <code>max_rhat</code>, <code>min_ess_bulk</code>, and <code>min_ess_tail</code>
   are computed over the monitored parameters retained in <code>draws</code>.

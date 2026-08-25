@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9024</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9025</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,7 +105,7 @@
 
       <h1>Getting Started with anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-08-17</h4>
+            <h4 data-toc-skip class="date">2026-08-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -231,12 +231,53 @@ Profile-specific functions are <code>compute_*</code>,
 <span><span class="va">R_k</span>         <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_resistance_prevalence_fatal.html">daly_calc_resistance_prevalence_fatal</a></span><span class="op">(</span><span class="va">profiles_rr</span><span class="op">)</span></span></code></pre></div>
 <p>See the full walkthrough in the <a href="daly-pipeline.html">DALY
 Burden Estimation vignette</a>.</p>
+<div class="section level3">
+<h3 id="bayesian-multivariate-probit-backend-selection">Bayesian multivariate probit backend selection<a class="anchor" aria-label="anchor" href="#bayesian-multivariate-probit-backend-selection"></a>
+</h3>
+<p>For Pathway 2 Bayesian resistance-profile estimation,
+<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code> now accepts a
+<code>compute</code> argument so the same statistical model can be run
+on either a standard CPU backend or an OpenCL-enabled backend.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit</a></span><span class="op">(</span></span>
+<span>  event_class_data <span class="op">=</span> <span class="va">event_level_ast</span>,</span>
+<span>  class_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"3GC"</span>, <span class="st">"Carbapenems"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>,</span>
+<span>  fixed_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span>, <span class="st">"location"</span><span class="op">)</span>,</span>
+<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"hospital"</span>, group_col <span class="op">=</span> <span class="st">"center_name"</span>, terms <span class="op">=</span> <span class="st">"intercept"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  pathogen <span class="op">=</span> <span class="st">"klebsiella pneumoniae"</span>,</span>
+<span>  residual_structure <span class="op">=</span> <span class="st">"correlated"</span>,</span>
+<span>  compute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    backend <span class="op">=</span> <span class="st">"cpu"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit_opencl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit</a></span><span class="op">(</span></span>
+<span>  event_class_data <span class="op">=</span> <span class="va">event_level_ast</span>,</span>
+<span>  class_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"3GC"</span>, <span class="st">"Carbapenems"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>,</span>
+<span>  fixed_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span>, <span class="st">"location"</span><span class="op">)</span>,</span>
+<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"hospital"</span>, group_col <span class="op">=</span> <span class="st">"center_name"</span>, terms <span class="op">=</span> <span class="st">"intercept"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  pathogen <span class="op">=</span> <span class="st">"klebsiella pneumoniae"</span>,</span>
+<span>  residual_structure <span class="op">=</span> <span class="st">"correlated"</span>,</span>
+<span>  compute <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    backend <span class="op">=</span> <span class="st">"opencl"</span>,</span>
+<span>    opencl_platform_id <span class="op">=</span> <span class="fl">0L</span>,</span>
+<span>    opencl_device_id <span class="op">=</span> <span class="fl">0L</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>This backend choice affects compilation and sampling only. Priors,
+likelihood, diagnostics, posterior predictive checks, resistance
+profiles, and downstream DALY quantities remain unchanged.</p>
 <hr>
+</div>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># From GitHub</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"saketlab/anumaan"</span><span class="op">)</span></span>
 <span></span>
@@ -360,7 +401,7 @@ and <code>Superficial Biopsy</code>.</p>
 <h2 id="package-reference">Package Reference<a class="anchor" aria-label="anchor" href="#package-reference"></a>
 </h2>
 <p>Full function documentation is at the <a href="../reference/index.html">Reference page</a>.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Search all functions</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/help.html" class="external-link">help</a></span><span class="op">(</span>package <span class="op">=</span> <span class="st">"anumaan"</span><span class="op">)</span></span>
 <span></span>
