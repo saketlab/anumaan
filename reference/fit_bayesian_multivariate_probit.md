@@ -11,7 +11,8 @@ fit_bayesian_multivariate_probit(
   event_class_data,
   class_cols,
   fixed_effects,
-  random_effects,
+  random_effects = list(),
+  profile_group_col = NULL,
   pathogen = NULL,
   pathogen_col = "pathogen",
   event_id_col = "event_id",
@@ -48,9 +49,19 @@ fit_bayesian_multivariate_probit(
 
 - random_effects:
 
-  Character vector of length 1, 2, or 3. Grouping column names. First
-  element: hospital (upper); second (optional): patient; third
-  (optional): admission. Required.
+  Character vector or named list of random-intercept blocks. Use
+  [`list()`](https://rdrr.io/r/base/list.html) for no random-effect
+  blocks. When non-empty, the legacy character-vector form names
+  grouping columns; the list form uses `name`, `group_col`, and optional
+  `terms = "intercept"`.
+
+- profile_group_col:
+
+  Character scalar or `NULL`. Column used for downstream profile
+  aggregation, eligibility summaries, and validation. It is independent
+  of the random-effect specification. Defaults to the first
+  random-effect grouping column when random effects exist; it is
+  required for fixed-effects-only fits.
 
 - pathogen:
 

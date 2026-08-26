@@ -272,16 +272,18 @@ Pathway 1 and Pathway 2.
 
 Bayesian hierarchical multivariate probit model for estimating
 resistance-profile distributions from facility-level AST data. Fits a
-Stan model (via cmdstanr) with an arbitrary, user-declared number of
-named random-intercept blocks (see – e.g. hospital, patient, admission,
-or any other grouping the analysis layer declares; the package does not
-hardcode which blocks are scientifically appropriate for a given
-dataset). Two residual structures are supported: identity (default, no
-residual correlation) and correlated (full LKJ-Cholesky residual
-covariance). CPU and OpenCL backends are both supported as execution
-choices; backend selection changes compilation/sampling only, not the
-underlying model. Run once per pathogen; orchestrate across pathogens in
-the analysis repository. Use as the top-level entry point.
+Stan model (via cmdstanr) with zero or an arbitrary, user-declared
+number of named random-intercept blocks (see – e.g. hospital, patient,
+admission, or any other grouping the analysis layer declares; the
+package does not hardcode which blocks are scientifically appropriate
+for a given dataset). Use for a fixed-effects-only model and supply when
+profiles are to be grouped. Two residual structures are supported:
+identity (default, no residual correlation) and correlated (full
+LKJ-Cholesky residual covariance). CPU and OpenCL backends are both
+supported as execution choices; backend selection changes
+compilation/sampling only, not the underlying model. Run once per
+pathogen; orchestrate across pathogens in the analysis repository. Use
+as the top-level entry point.
 
 - [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
   : Fit Bayesian Hierarchical Multivariate Probit Model for Resistance
@@ -339,8 +341,8 @@ implied by the priors before conditioning on any observed outcomes?”
 (prior predictive, ). Kept as distinct status fields from and – never
 merged into one generic status anywhere in this package. Mixed
 predictive checking (new random-effect levels, retaining fitted
-hyperparameters) is implemented for a single random-effect block at a
-time.
+hyperparameters) is available only when fitted random-effect blocks
+exist; fixed-only models use posterior predictive checking instead.
 
 - [`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md)
   : Simulate posterior predictive replicate datasets from a fitted

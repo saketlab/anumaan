@@ -33,7 +33,7 @@ multivariate probit pathway (Pathway 2, facility-level AST data)."><link rel="st
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9025</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9026</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,7 +89,8 @@ multivariate probit pathway (Pathway 2, facility-level AST data).</p>
 <span>  panel_map <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  class_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  fixed_effects <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  random_effects <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  profile_group_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pathogen <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pathogen_col <span class="op">=</span> <span class="st">"pathogen"</span>,</span>
 <span>  eligible_pairs <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -136,8 +137,14 @@ event-level tibble (one row per event; class columns 0/1/NA).</p></dd>
 
 
 <dt id="arg-random-effects">random_effects<a class="anchor" aria-label="anchor" href="#arg-random-effects"></a></dt>
-<dd><p>Character vector (1-3 elements). Pathway 2 only.
-Required. Elements: hospital; [+patient]; [+admission].</p></dd>
+<dd><p>Character vector or named list of random-intercept
+blocks. Pathway 2 only. Use <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> for a fixed-effects-only model.</p></dd>
+
+
+<dt id="arg-profile-group-col">profile_group_col<a class="anchor" aria-label="anchor" href="#arg-profile-group-col"></a></dt>
+<dd><p>Character scalar or <code>NULL</code>. Pathway 2 only.
+Grouping column for profile aggregation and validation. Required when
+<code>random_effects</code> is empty.</p></dd>
 
 
 <dt id="arg-pathogen">pathogen<a class="anchor" aria-label="anchor" href="#arg-pathogen"></a></dt>

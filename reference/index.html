@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9025</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9026</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -798,7 +798,7 @@
       </dl></div><div class="section level2">
       <h2 id="pathway-bayesian-profile-estimation">Pathway 2: Bayesian Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-bayesian-profile-estimation"></a></h2>
 
-      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with an arbitrary, user-declared number of named random-intercept blocks (see  – e.g. hospital, patient, admission, or any other grouping the analysis layer declares; the package does not hardcode which blocks are scientifically appropriate for a given dataset). Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). CPU and OpenCL backends are both supported as execution choices; backend selection changes compilation/sampling only, not the underlying model. Run once per pathogen; orchestrate across pathogens in the analysis repository. Use  as the top-level entry point.</p></div>
+      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with zero or an arbitrary, user-declared number of named random-intercept blocks (see  – e.g. hospital, patient, admission, or any other grouping the analysis layer declares; the package does not hardcode which blocks are scientifically appropriate for a given dataset). Use  for a fixed-effects-only model and supply  when profiles are to be grouped. Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). CPU and OpenCL backends are both supported as execution choices; backend selection changes compilation/sampling only, not the underlying model. Run once per pathogen; orchestrate across pathogens in the analysis repository. Use  as the top-level entry point.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -907,7 +907,7 @@
       </dl></div><div class="section level2">
       <h2 id="pathway-predictive-checking">Pathway 2: Predictive Checking<a class="anchor" aria-label="anchor" href="#pathway-predictive-checking"></a></h2>
 
-      <div class="section-desc"><p>Posterior, prior, and mixed predictive checking (Stan User’s Guide, “Posterior and Prior Predictive Checks”: ), a third and distinct question from both profile estimation and model validation above: “can the fitted model generate WHOLE REPLICATED DATASETS that resemble the one actually observed?” (posterior predictive, ) and “what data are implied by the priors before conditioning on any observed outcomes?” (prior predictive, ). Kept as distinct status fields from  and  – never merged into one generic status anywhere in this package. Mixed predictive checking (new random-effect levels, retaining fitted hyperparameters) is implemented for a single random-effect block at a time.</p></div>
+      <div class="section-desc"><p>Posterior, prior, and mixed predictive checking (Stan User’s Guide, “Posterior and Prior Predictive Checks”: ), a third and distinct question from both profile estimation and model validation above: “can the fitted model generate WHOLE REPLICATED DATASETS that resemble the one actually observed?” (posterior predictive, ) and “what data are implied by the priors before conditioning on any observed outcomes?” (prior predictive, ). Kept as distinct status fields from  and  – never merged into one generic status anywhere in this package. Mixed predictive checking (new random-effect levels, retaining fitted hyperparameters) is available only when fitted random-effect blocks exist; fixed-only models use posterior predictive checking instead.</p></div>
 
       <dl></dl></div><div class="section level2">
 

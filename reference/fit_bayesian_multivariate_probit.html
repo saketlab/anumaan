@@ -33,7 +33,7 @@ hierarchical Bayesian multivariate probit model via cmdstanr."><link rel="styles
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9025</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9026</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,7 +86,8 @@ hierarchical Bayesian multivariate probit model via <span class="pkg">cmdstanr</
 <span>  <span class="va">event_class_data</span>,</span>
 <span>  <span class="va">class_cols</span>,</span>
 <span>  <span class="va">fixed_effects</span>,</span>
-<span>  <span class="va">random_effects</span>,</span>
+<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  profile_group_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pathogen <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pathogen_col <span class="op">=</span> <span class="st">"pathogen"</span>,</span>
 <span>  event_id_col <span class="op">=</span> <span class="st">"event_id"</span>,</span>
@@ -126,9 +127,18 @@ Required.</p></dd>
 
 
 <dt id="arg-random-effects">random_effects<a class="anchor" aria-label="anchor" href="#arg-random-effects"></a></dt>
-<dd><p>Character vector of length 1, 2, or 3. Grouping
-column names. First element: hospital (upper); second (optional): patient;
-third (optional): admission. Required.</p></dd>
+<dd><p>Character vector or named list of random-intercept
+blocks. Use <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> for no random-effect blocks. When non-empty,
+the legacy character-vector form names grouping columns; the list form
+uses <code>name</code>, <code>group_col</code>, and optional <code>terms = "intercept"</code>.</p></dd>
+
+
+<dt id="arg-profile-group-col">profile_group_col<a class="anchor" aria-label="anchor" href="#arg-profile-group-col"></a></dt>
+<dd><p>Character scalar or <code>NULL</code>. Column used for
+downstream profile aggregation, eligibility summaries, and validation.
+It is independent of the random-effect specification. Defaults to the
+first random-effect grouping column when random effects exist; it is
+required for fixed-effects-only fits.</p></dd>
 
 
 <dt id="arg-pathogen">pathogen<a class="anchor" aria-label="anchor" href="#arg-pathogen"></a></dt>

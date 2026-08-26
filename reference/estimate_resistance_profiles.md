@@ -14,7 +14,8 @@ estimate_resistance_profiles(
   panel_map = NULL,
   class_cols = NULL,
   fixed_effects = NULL,
-  random_effects = NULL,
+  random_effects = list(),
+  profile_group_col = NULL,
   pathogen = NULL,
   pathogen_col = "pathogen",
   eligible_pairs = NULL,
@@ -61,8 +62,15 @@ estimate_resistance_profiles(
 
 - random_effects:
 
-  Character vector (1-3 elements). Pathway 2 only. Required. Elements:
-  hospital; \[+patient\]; \[+admission\].
+  Character vector or named list of random-intercept blocks. Pathway 2
+  only. Use [`list()`](https://rdrr.io/r/base/list.html) for a
+  fixed-effects-only model.
+
+- profile_group_col:
+
+  Character scalar or `NULL`. Pathway 2 only. Grouping column for
+  profile aggregation and validation. Required when `random_effects` is
+  empty.
 
 - pathogen:
 

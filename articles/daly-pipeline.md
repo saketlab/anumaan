@@ -377,9 +377,10 @@ boot[["Klebsiella pneumoniae"]] %>%
 Pathway 2 fits a Bayesian hierarchical multivariate probit model
 directly to facility-level, event-level AST data. Unlike Pathway 1, it
 can incorporate fixed-effect covariates (age, gender, location, …) and
-random effects (hospital, admission, …), and estimate resistance
-*jointly* across antibiotic classes rather than reconstructing joint
-profiles purely from marginal + pairwise constraints.
+optional random effects (hospital, admission, …), and estimate
+resistance *jointly* across antibiotic classes rather than
+reconstructing joint profiles purely from marginal + pairwise
+constraints.
 
 This requires the optional `cmdstanr` + CmdStan dependency (see
 `DESCRIPTION`) and fits an actual MCMC model, so the code chunks below
@@ -422,11 +423,14 @@ class_cols <- c("Carbapenems", "Fluoroquinolones", "Aminoglycosides")
 
 #### 2.2 Fit the Model
 
-`fixed_effects` and `random_effects` are required, with no defaults –
-`random_effects` accepts 1-3 grouping columns (hospital; \[+patient\];
-\[+admission\]), or the generic list-of-blocks spec for more than three.
+`fixed_effects` is required. `random_effects` may be a legacy character
+vector, a named list-of-blocks specification, or
+[`list()`](https://rdrr.io/r/base/list.html) for a fixed-effects-only
+model. When no random effects are fitted, `profile_group_col` is
+required to state the column used for profile aggregation and
+validation; it does not make that column a random effect.
 `residual_structure = "identity"` treats classes as conditionally
-independent given the fixed/random effects (default, more stable);
+independent given the modelled mean (default, more stable);
 `"correlated"` estimates a full residual correlation matrix via an
 LKJCholesky prior, but needs adequate pairwise co-testing overlap to be
 identifiable (`fit$eligibility_report$pairwise`).
@@ -453,6 +457,22 @@ fit$diagnostics
 #> # i 30 more variables: n_classes <int>, max_rhat_structural <dbl>,
 #> #   min_ess_bulk_structural <dbl>, min_ess_tail_structural <dbl>,
 #> #   n_divergent <int>, converged_structural <lgl>, diagnostic_status <chr>, ...
+```
+
+For a fixed-effects-only comparison, retain the same fixed-effect design
+and make the grouping purpose explicit without adding a random-effect
+block:
+
+``` r
+fixed_only_fit <- fit_bayesian_multivariate_probit(
+  event_class_data = event_class_data,
+  class_cols = class_cols,
+  fixed_effects = c("Age_normalised", "gender", "center_name"),
+  random_effects = list(),
+  profile_group_col = "center_name",
+  pathogen = "Klebsiella pneumoniae",
+  residual_structure = "identity"
+)
 ```
 
 With these deliberately tiny/fast settings, `converged_structural` comes
@@ -664,7 +684,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9025
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9026
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 
