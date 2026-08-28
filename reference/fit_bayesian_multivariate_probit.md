@@ -218,9 +218,10 @@ classes.
 **Single-pathogen design:** pass `pathogen` to restrict the fit. Run
 once per pathogen and orchestrate in the analysis repository.
 
-**Random effects** (`random_effects`): 1, 2, or 3 grouping column names
-defining the clustering hierarchy (e.g. hospital; hospital + patient;
-hospital + patient + admission). The first element is the upper-most
+**Random effects** (`random_effects`): an optional character vector or
+list of grouping blocks defining the clustering hierarchy. Use
+[`list()`](https://rdrr.io/r/base/list.html) for a fixed-effects-only
+model. When blocks are present, the first element is the upper-most
 level; subsequent elements are nested within it. Nested levels receive
 globally unique composite keys built internally. Any hierarchical
 grouping variable can occupy any slot – the labels

@@ -53,7 +53,7 @@ rather than silently omitted."><link rel="stylesheet" href="extra.css"><meta nam
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9027</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9028</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -117,7 +117,8 @@ rather than silently omitted.</p>
 <span>  n_posterior_draws_for_validation <span class="op">=</span> <span class="fl">2000L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">123L</span>,</span>
 <span>  ci_level <span class="op">=</span> <span class="fl">0.95</span>,</span>
-<span>  min_complete_events <span class="op">=</span> <span class="fl">30L</span></span>
+<span>  min_complete_events <span class="op">=</span> <span class="fl">30L</span>,</span>
+<span>  n_mc_profile_replicates <span class="op">=</span> <span class="fl">200L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -145,6 +146,21 @@ Default <code>2000L</code>.</p></dd>
 <dt id="arg-min-complete-events">min_complete_events<a class="anchor" aria-label="anchor" href="#arg-min-complete-events"></a></dt>
 <dd><p>Integer. Minimum number of fully-observed-panel
 events required to evaluate a hospital-pathogen panel. Default <code>30L</code>.</p></dd>
+
+
+<dt id="arg-n-mc-profile-replicates">n_mc_profile_replicates<a class="anchor" aria-label="anchor" href="#arg-n-mc-profile-replicates"></a></dt>
+<dd><p>Integer. Correlated residual structure only:
+inner Monte Carlo replicate count <code>M</code> used per posterior draw per
+complete event to estimate model-implied full-profile probabilities via
+\(Z = \mu + L_\Omega \epsilon\), \(Y = I(Z &gt; 0)\) (the same simulation
+mechanism <code><a href="dot-ppc_generate_correlated.html">.ppc_generate_correlated()</a></code> uses). Worst-case Monte Carlo
+SE on a cohort of <code>n</code> complete events is approximately
+\(0.5/\sqrt{Mn}\); the default <code>200</code> keeps that under ~0.7pp even
+at the <code>min_complete_events</code> floor of 30, while remaining far
+cheaper than reusing <code>n_posterior_draws_for_validation</code> (e.g. 2000)
+as the inner replicate count would be. Ignored for identity residual
+structure, where profile probabilities are computed exactly (the
+independent product of \(\Phi(\mu_d)\) terms), not simulated.</p></dd>
 
 </dl></div>
     <div class="section level2">

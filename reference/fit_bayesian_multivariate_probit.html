@@ -33,7 +33,7 @@ hierarchical Bayesian multivariate probit model via cmdstanr."><link rel="styles
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9027</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9028</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -295,9 +295,10 @@ outcomes. Hospital (and lower-level) effects use a
 the D-dim random effect vectors are correlated across antibiotic classes.</p>
 <p><strong>Single-pathogen design:</strong> pass <code>pathogen</code> to restrict the fit.
 Run once per pathogen and orchestrate in the analysis repository.</p>
-<p><strong>Random effects</strong> (<code>random_effects</code>): 1, 2, or 3 grouping column
-names defining the clustering hierarchy (e.g. hospital; hospital + patient;
-hospital + patient + admission). The first element is the upper-most level;
+<p><strong>Random effects</strong> (<code>random_effects</code>): an optional character
+vector or list of grouping blocks defining the clustering hierarchy. Use
+<code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> for a fixed-effects-only model. When blocks are present, the
+first element is the upper-most level;
 subsequent elements are nested within it. Nested levels receive globally unique
 composite keys built internally. Any hierarchical grouping variable can occupy
 any slot – the labels hospital/patient/admission are semantic conventions, not
