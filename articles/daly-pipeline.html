@@ -54,7 +54,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9028</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9029</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,7 +105,7 @@
 
       <h1>DALY Burden Estimation Workflow in anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-08-28</h4>
+            <h4 data-toc-skip class="date">2026-08-29</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/daly-pipeline.Rmd" class="external-link"><code>vignettes/daly-pipeline.Rmd</code></a></small>
       <div class="d-none name"><code>daly-pipeline.Rmd</code></div>
@@ -726,6 +726,142 @@ behind one interface – switch pathway with <code>method</code>:</p>
 <p>Both pathways’ <code>profiles</code>/<code>agg</code> output are the
 deliverable of this vignette – downstream burden calculation (RR
 assignment, YLL/YLD) is not yet covered here.</p>
+</div>
+<div class="section level4">
+<h4 id="post-fit-checklist-what-to-run-and-why">2.8 Post-Fit Checklist: What to Run, and Why<a class="anchor" aria-label="anchor" href="#post-fit-checklist-what-to-run-and-why"></a>
+</h4>
+<p>Sections 2.2-2.6 introduced each Pathway 2 function individually;
+this section ties them into one ordered checklist, since it’s easy to
+run only some of them and miss a gap. Every function below reads
+<code>fit</code>, the object returned by
+<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code> – none of them require
+re-fitting.</p>
+<p><strong>1. Did the sampler converge?</strong>
+(<code>fit$diagnostics</code>, populated at fit time – no separate call
+needed). Check <code>diagnostic_status</code> (<code>"pass"</code> /
+<code>"warning_rhat"</code> / <code>"fail_energy"</code> /
+<code>"fail_divergent"</code> / …), <code>converged_structural</code>,
+<code>max_rhat</code>, <code>min_ess_bulk</code>,
+<code>ebfmi_min</code>. This is a <em>computational</em> question – did
+the four chains actually agree with each other about where the posterior
+mass is – and it is answered independently of everything below. A model
+can fail here while still answering later checks well (the reverse is
+not reassuring: don’t trust calibration numbers from an unconverged
+fit).</p>
+<p><strong>2. Estimate the resistance profiles.</strong>
+<code><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code> computes, per event,
+the posterior probability of every possible resistance profile –
+analytically (<code>Phi(mu_d)</code> per class) for
+<code>residual_structure = "identity"</code>, or via Gibbs sampling of
+the truncated multivariate normal conditional on that event’s own
+observed AST results for <code>"correlated"</code>. It never overwrites
+an observed cell – only untested classes are imputed, so a
+fully-observed event’s profile is a fact about the data, not a claim
+from the model. <code><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code> rolls the
+per-event, per-draw output up to one row per hospital x pathogen x
+profile (<code>R_ALL_mean/lower/upper</code>, DALY-eligibility flags
+gated by <code>sampler_acceptable</code> and panel support).</p>
+<p><strong>3. Does the model generate data that looks like the real
+data?</strong> <code><a href="../reference/simulate_probit_posterior_predictive.html">simulate_probit_posterior_predictive()</a></code> draws
+replicated datasets from the posterior (Bernoulli(<code>Phi(mu)</code>)
+for identity; <code>Z = mu + L_Omega %*% eps</code>,
+<code>Y = I(Z &gt; 0)</code> for correlated – genuine correlated
+simulation either way). <code><a href="../reference/compute_probit_ppc_statistics.html">compute_probit_ppc_statistics()</a></code>
+computes discrepancy statistics (marginal rate, pairwise co-resistance,
+complete-profile summary stats, hospital heterogeneity) on observed
+vs. every replicate. <code><a href="../reference/compute_posterior_predictive_status.html">compute_posterior_predictive_status()</a></code>
+classifies each statistic as extreme/severe and rolls up to an overall
+status. This is a strict trigger, not a fraction-based one – even a
+single severely-extreme statistic in a family sets the whole run’s
+status to <code>"fail_major_ppc_misfit"</code>, so always read the
+per-family <code>n_severe</code>/<code>fraction_extreme</code> breakdown
+underneath the top-line status rather than the label alone.
+<code><a href="../reference/simulate_probit_prior_predictive.html">simulate_probit_prior_predictive()</a></code> (before fitting) and
+<code><a href="../reference/simulate_probit_mixed_predictive.html">simulate_probit_mixed_predictive()</a></code> (new, unseen groups)
+answer the adjacent but different questions “is the prior reasonable?”
+and “does this generalise beyond the fitted groups?”.</p>
+<p><strong>4. Are the model’s stated probabilities calibrated against
+reality?</strong> <code><a href="../reference/validate_marginal_calibration.html">validate_marginal_calibration()</a></code>,
+<code><a href="../reference/validate_pairwise_calibration.html">validate_pairwise_calibration()</a></code>, and
+<code><a href="../reference/validate_complete_profile_calibration.html">validate_complete_profile_calibration()</a></code> (Section 2.5)
+compare observed rates to model-implied probabilities at increasing
+joint complexity – single class, class pairs, and full profiles. All
+three correctly use <code>Omega</code> for correlated fits where
+relevant (pairwise and complete-profile; marginal probabilities don’t
+depend on Omega by construction). <code><a href="../reference/mask_and_validate_ast.html">mask_and_validate_ast()</a></code>
+adds a masked-AST holdout check – by default
+(<code>refit = FALSE</code>) this is an <em>in-sample</em> diagnostic
+(the masked cells were still seen during fitting, labelled
+<code>"in_sample_no_refit"</code> in its output, not a genuine holdout),
+while <code>refit = TRUE</code> actually refits without the masked cells
+for a real out-of-sample score, at proportionally higher cost.
+<code><a href="../reference/compute_profile_validation_status.html">compute_profile_validation_status()</a></code> rolls all four into one
+<code>profile_validation_status</code> verdict.</p>
+<p><strong>Quick reference: which check answers which
+question</strong></p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr class="header">
+<th>Question</th>
+<th>Function</th>
+<th>Needs <code>Omega</code>?</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Did the sampler converge?</td>
+<td><code>fit$diagnostics</code></td>
+<td>–</td>
+</tr>
+<tr class="even">
+<td>What’s the estimated resistance profile?</td>
+<td>
+<code><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code> +
+<code><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code>
+</td>
+<td>correlated fits only</td>
+</tr>
+<tr class="odd">
+<td>Does simulated data resemble real data?</td>
+<td>
+<code><a href="../reference/simulate_probit_posterior_predictive.html">simulate_probit_posterior_predictive()</a></code> +
+<code><a href="../reference/compute_probit_ppc_statistics.html">compute_probit_ppc_statistics()</a></code>
+</td>
+<td>correlated fits only</td>
+</tr>
+<tr class="even">
+<td>Is the model calibrated on single classes?</td>
+<td><code><a href="../reference/validate_marginal_calibration.html">validate_marginal_calibration()</a></code></td>
+<td>no</td>
+</tr>
+<tr class="odd">
+<td>Is the model calibrated on class pairs?</td>
+<td><code><a href="../reference/validate_pairwise_calibration.html">validate_pairwise_calibration()</a></code></td>
+<td>correlated fits only</td>
+</tr>
+<tr class="even">
+<td>Is the model calibrated on full profiles?</td>
+<td><code><a href="../reference/validate_complete_profile_calibration.html">validate_complete_profile_calibration()</a></code></td>
+<td>correlated fits only</td>
+</tr>
+<tr class="odd">
+<td>Can it predict held-out AST results?</td>
+<td><code><a href="../reference/mask_and_validate_ast.html">mask_and_validate_ast()</a></code></td>
+<td>correlated fits only</td>
+</tr>
+</tbody>
+</table>
+<p>A model can score well on some of these and poorly on others at the
+same time – e.g. a correlated-residual fit with unresolved sampler
+convergence issues can still show much better calibration on class pairs
+and full profiles than a well-converged identity-residual fit, because
+convergence and calibration are answering different questions (numerical
+reliability of the specific parameter estimates vs. structural adequacy
+of the model form). Treat “did it converge” and “is it calibrated” as
+two separate verdicts, not one combined score.</p>
 <hr>
 </div>
 </div>
@@ -786,7 +922,7 @@ assignment, YLL/YLD) is not yet covered here.</p>
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9028</span></span>
+<span><span class="co">#&gt; [1] dplyr_1.2.1        anumaan_0.1.0.9029</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 </span></span>

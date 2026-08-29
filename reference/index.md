@@ -284,6 +284,25 @@ as the top-level entry point.
 - [`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md)
   : Generate diagnostic plots for a fitted Bayesian multivariate probit
   model
+- [`plot_omega_correlation_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_omega_correlation_heatmap.md)
+  : Posterior-median latent cross-class correlation heatmap (Omega)
+- [`plot_omega_convergence_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_omega_convergence_heatmap.md)
+  : Sampling-diagnostic (Rhat) heatmap for Omega
+- [`plot_omega_summary_table()`](https://saketlab.github.io/anumaan/reference/plot_omega_summary_table.md)
+  : Full per-pair Omega summary table (rho, 95% CrI, Rhat, ESS
+  bulk/tail)
+- [`plot_omega_degeneracy_diagnostic()`](https://saketlab.github.io/anumaan/reference/plot_omega_degeneracy_diagnostic.md)
+  : Near-degeneracy diagnostic for the posterior Omega correlation
+  matrix
+- [`plot_probit_fixed_effect_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_fixed_effect_diagnostics.md)
+  : Fixed-effect coefficient diagnostics, split by contrast type and
+  faceted by antimicrobial class
+- [`plot_probit_beta_family_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_beta_family_diagnostics.md)
+  : Fixed-effect convergence broken out by source of variation
+- [`plot_probit_worst_parameters()`](https://saketlab.github.io/anumaan/reference/plot_probit_worst_parameters.md)
+  : Human-readable worst-converging structural parameters
+- [`plot_probit_worst_offender_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_worst_offender_diagnostics.md)
+  : Trace and rank plots for the worst-converging structural parameters
 
 ## Pathway 2: Model Validation
 
@@ -487,6 +506,14 @@ Generic AMR plotting utilities
 
 - [`eda_theme()`](https://saketlab.github.io/anumaan/reference/eda_theme.md)
   : EDA ggplot2 Theme
+- [`class_display_label()`](https://saketlab.github.io/anumaan/reference/class_display_label.md)
+  : Human-readable antimicrobial class label
+- [`class_short_label()`](https://saketlab.github.io/anumaan/reference/class_short_label.md)
+  : Short antimicrobial class label (for dense facet strips)
+- [`class_pair_label()`](https://saketlab.github.io/anumaan/reference/class_pair_label.md)
+  : Human-readable class-pair label
+- [`hospital_display_label()`](https://saketlab.github.io/anumaan/reference/hospital_display_label.md)
+  : Human-readable hospital/site display label
 
 ## Validation and reporting
 

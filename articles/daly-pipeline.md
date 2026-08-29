@@ -627,6 +627,101 @@ Both pathways’ `profiles`/`agg` output are the deliverable of this
 vignette – downstream burden calculation (RR assignment, YLL/YLD) is not
 yet covered here.
 
+#### 2.8 Post-Fit Checklist: What to Run, and Why
+
+Sections 2.2-2.6 introduced each Pathway 2 function individually; this
+section ties them into one ordered checklist, since it’s easy to run
+only some of them and miss a gap. Every function below reads `fit`, the
+object returned by
+[`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
+– none of them require re-fitting.
+
+**1. Did the sampler converge?** (`fit$diagnostics`, populated at fit
+time – no separate call needed). Check `diagnostic_status` (`"pass"` /
+`"warning_rhat"` / `"fail_energy"` / `"fail_divergent"` / …),
+`converged_structural`, `max_rhat`, `min_ess_bulk`, `ebfmi_min`. This is
+a *computational* question – did the four chains actually agree with
+each other about where the posterior mass is – and it is answered
+independently of everything below. A model can fail here while still
+answering later checks well (the reverse is not reassuring: don’t trust
+calibration numbers from an unconverged fit).
+
+**2. Estimate the resistance profiles.**
+[`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md)
+computes, per event, the posterior probability of every possible
+resistance profile – analytically (`Phi(mu_d)` per class) for
+`residual_structure = "identity"`, or via Gibbs sampling of the
+truncated multivariate normal conditional on that event’s own observed
+AST results for `"correlated"`. It never overwrites an observed cell –
+only untested classes are imputed, so a fully-observed event’s profile
+is a fact about the data, not a claim from the model.
+[`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md)
+rolls the per-event, per-draw output up to one row per hospital x
+pathogen x profile (`R_ALL_mean/lower/upper`, DALY-eligibility flags
+gated by `sampler_acceptable` and panel support).
+
+**3. Does the model generate data that looks like the real data?**
+[`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md)
+draws replicated datasets from the posterior (Bernoulli(`Phi(mu)`) for
+identity; `Z = mu + L_Omega %*% eps`, `Y = I(Z > 0)` for correlated –
+genuine correlated simulation either way).
+[`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md)
+computes discrepancy statistics (marginal rate, pairwise co-resistance,
+complete-profile summary stats, hospital heterogeneity) on observed
+vs. every replicate.
+[`compute_posterior_predictive_status()`](https://saketlab.github.io/anumaan/reference/compute_posterior_predictive_status.md)
+classifies each statistic as extreme/severe and rolls up to an overall
+status. This is a strict trigger, not a fraction-based one – even a
+single severely-extreme statistic in a family sets the whole run’s
+status to `"fail_major_ppc_misfit"`, so always read the per-family
+`n_severe`/`fraction_extreme` breakdown underneath the top-line status
+rather than the label alone.
+[`simulate_probit_prior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_prior_predictive.md)
+(before fitting) and
+[`simulate_probit_mixed_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_mixed_predictive.md)
+(new, unseen groups) answer the adjacent but different questions “is the
+prior reasonable?” and “does this generalise beyond the fitted groups?”.
+
+**4. Are the model’s stated probabilities calibrated against reality?**
+[`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md),
+[`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md),
+and
+[`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md)
+(Section 2.5) compare observed rates to model-implied probabilities at
+increasing joint complexity – single class, class pairs, and full
+profiles. All three correctly use `Omega` for correlated fits where
+relevant (pairwise and complete-profile; marginal probabilities don’t
+depend on Omega by construction).
+[`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md)
+adds a masked-AST holdout check – by default (`refit = FALSE`) this is
+an *in-sample* diagnostic (the masked cells were still seen during
+fitting, labelled `"in_sample_no_refit"` in its output, not a genuine
+holdout), while `refit = TRUE` actually refits without the masked cells
+for a real out-of-sample score, at proportionally higher cost.
+[`compute_profile_validation_status()`](https://saketlab.github.io/anumaan/reference/compute_profile_validation_status.md)
+rolls all four into one `profile_validation_status` verdict.
+
+**Quick reference: which check answers which question**
+
+| Question                                   | Function                                                                                                                                                                                                                                              | Needs `Omega`?       |
+|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
+| Did the sampler converge?                  | `fit$diagnostics`                                                                                                                                                                                                                                     | –                    |
+| What’s the estimated resistance profile?   | [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md) + [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md)       | correlated fits only |
+| Does simulated data resemble real data?    | [`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md) + [`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md) | correlated fits only |
+| Is the model calibrated on single classes? | [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md)                                                                                                                                    | no                   |
+| Is the model calibrated on class pairs?    | [`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md)                                                                                                                                    | correlated fits only |
+| Is the model calibrated on full profiles?  | [`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md)                                                                                                                    | correlated fits only |
+| Can it predict held-out AST results?       | [`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md)                                                                                                                                                    | correlated fits only |
+
+A model can score well on some of these and poorly on others at the same
+time – e.g. a correlated-residual fit with unresolved sampler
+convergence issues can still show much better calibration on class pairs
+and full profiles than a well-converged identity-residual fit, because
+convergence and calibration are answering different questions (numerical
+reliability of the specific parameter estimates vs. structural adequacy
+of the model form). Treat “did it converge” and “is it calibrated” as
+two separate verdicts, not one combined score.
+
 ------------------------------------------------------------------------
 
 ## Pipeline at a Glance
@@ -684,7 +779,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9028
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9029
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 

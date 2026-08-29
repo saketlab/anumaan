@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9028</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9029</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -860,6 +860,62 @@
 
         </dt>
         <dd>Generate diagnostic plots for a fitted Bayesian multivariate probit model</dd>
+
+        <dt>
+
+          <code><a href="plot_omega_correlation_heatmap.html">plot_omega_correlation_heatmap()</a></code>
+
+        </dt>
+        <dd>Posterior-median latent cross-class correlation heatmap (Omega)</dd>
+
+        <dt>
+
+          <code><a href="plot_omega_convergence_heatmap.html">plot_omega_convergence_heatmap()</a></code>
+
+        </dt>
+        <dd>Sampling-diagnostic (Rhat) heatmap for Omega</dd>
+
+        <dt>
+
+          <code><a href="plot_omega_summary_table.html">plot_omega_summary_table()</a></code>
+
+        </dt>
+        <dd>Full per-pair Omega summary table (rho, 95% CrI, Rhat, ESS bulk/tail)</dd>
+
+        <dt>
+
+          <code><a href="plot_omega_degeneracy_diagnostic.html">plot_omega_degeneracy_diagnostic()</a></code>
+
+        </dt>
+        <dd>Near-degeneracy diagnostic for the posterior Omega correlation matrix</dd>
+
+        <dt>
+
+          <code><a href="plot_probit_fixed_effect_diagnostics.html">plot_probit_fixed_effect_diagnostics()</a></code>
+
+        </dt>
+        <dd>Fixed-effect coefficient diagnostics, split by contrast type and faceted by antimicrobial class</dd>
+
+        <dt>
+
+          <code><a href="plot_probit_beta_family_diagnostics.html">plot_probit_beta_family_diagnostics()</a></code>
+
+        </dt>
+        <dd>Fixed-effect convergence broken out by source of variation</dd>
+
+        <dt>
+
+          <code><a href="plot_probit_worst_parameters.html">plot_probit_worst_parameters()</a></code>
+
+        </dt>
+        <dd>Human-readable worst-converging structural parameters</dd>
+
+        <dt>
+
+          <code><a href="plot_probit_worst_offender_diagnostics.html">plot_probit_worst_offender_diagnostics()</a></code>
+
+        </dt>
+        <dd>Trace and rank plots for the worst-converging structural parameters</dd>
       </dl></div><div class="section level2">
       <h2 id="pathway-model-validation">Pathway 2: Model Validation<a class="anchor" aria-label="anchor" href="#pathway-model-validation"></a></h2>
 
@@ -1434,6 +1490,34 @@
 
         </dt>
         <dd>EDA ggplot2 Theme</dd>
+
+        <dt>
+
+          <code><a href="class_display_label.html">class_display_label()</a></code>
+
+        </dt>
+        <dd>Human-readable antimicrobial class label</dd>
+
+        <dt>
+
+          <code><a href="class_short_label.html">class_short_label()</a></code>
+
+        </dt>
+        <dd>Short antimicrobial class label (for dense facet strips)</dd>
+
+        <dt>
+
+          <code><a href="class_pair_label.html">class_pair_label()</a></code>
+
+        </dt>
+        <dd>Human-readable class-pair label</dd>
+
+        <dt>
+
+          <code><a href="hospital_display_label.html">hospital_display_label()</a></code>
+
+        </dt>
+        <dd>Human-readable hospital/site display label</dd>
       </dl></div><div class="section level2">
       <h2 id="validation-and-reporting">Validation and reporting<a class="anchor" aria-label="anchor" href="#validation-and-reporting"></a></h2>
 
