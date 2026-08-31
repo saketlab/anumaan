@@ -276,6 +276,8 @@ as the top-level entry point.
   hand-summing hospital_effect/patient_effect/admission_effect.
 - [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md)
   : Compute Observed-Plus-Imputed Resistance Profile Probabilities
+- [`assess_gibbs_profile_stability()`](https://saketlab.github.io/anumaan/reference/assess_gibbs_profile_stability.md)
+  : Assess Numerical Stability of Correlated Profile Completion
 - [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md)
   : Aggregate Posterior Profile Draws into R_ALL / R_KNOWN_OUTCOME /
   R_NF Summaries
@@ -310,7 +312,9 @@ Observed-versus-model calibration checks for a fitted Bayesian
 multivariate probit model – a different question from profile estimation
 above (“does the fitted model reproduce the resistance patterns actually
 observed?” rather than “what is the observed-plus- imputed resistance
-profile?”). Kept as a distinct status () from sampler diagnostics.
+profile?”). Kept as a distinct status () from sampler diagnostics. Gibbs
+profile-completion stability is a separate numerical status () assessed
+with .
 
 - [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md)
   : Observed-versus-Model Marginal Resistance Validation

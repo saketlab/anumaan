@@ -4,9 +4,11 @@ the same approved-eligibility panel used for DALY profiles) with at least
 min_complete_events events that have every panel class
 actually observed (no imputation involved), compares the empirical
 complete-profile frequency distribution against the model-implied profile
-probability distribution for that same event cohort (product of per-class
-\(\Phi(\mu_{ed})\), as if the classes had not been observed – i.e. the
-model's unconditional prediction, deliberately NOT using
+probability distribution for that same event cohort.  With identity residuals
+it uses the analytic product of per-class \(\Phi(\mu_{ed})\); with
+correlated residuals it uses correlated MVN simulation with \(L_\Omega\),
+as if the classes had not been observed – i.e. the model's unconditional
+prediction, deliberately NOT using
 compute_event_profile_probabilities()'s observed-cell-preserving
 logic, since the point here is to check whether the model's predictions
 agree with what was actually measured). Panels without enough complete
@@ -16,9 +18,11 @@ the same approved-eligibility panel used for DALY profiles) with at least
 min_complete_events events that have every panel class
 actually observed (no imputation involved), compares the empirical
 complete-profile frequency distribution against the model-implied profile
-probability distribution for that same event cohort (product of per-class
-\(\Phi(\mu_{ed})\), as if the classes had not been observed – i.e. the
-model's unconditional prediction, deliberately NOT using
+probability distribution for that same event cohort.  With identity residuals
+it uses the analytic product of per-class \(\Phi(\mu_{ed})\); with
+correlated residuals it uses correlated MVN simulation with \(L_\Omega\),
+as if the classes had not been observed – i.e. the model's unconditional
+prediction, deliberately NOT using
 compute_event_profile_probabilities()'s observed-cell-preserving
 logic, since the point here is to check whether the model's predictions
 agree with what was actually measured). Panels without enough complete
@@ -53,7 +57,7 @@ rather than silently omitted."><link rel="stylesheet" href="extra.css"><meta nam
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9030</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9031</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,9 +104,11 @@ the same approved-eligibility panel used for DALY profiles) with at least
 <code>min_complete_events</code> events that have <strong>every</strong> panel class
 actually observed (no imputation involved), compares the empirical
 complete-profile frequency distribution against the model-implied profile
-probability distribution for that same event cohort (product of per-class
-\(\Phi(\mu_{ed})\), as if the classes had not been observed – i.e. the
-model's unconditional prediction, deliberately NOT using
+probability distribution for that same event cohort.  With identity residuals
+it uses the analytic product of per-class \(\Phi(\mu_{ed})\); with
+correlated residuals it uses correlated MVN simulation with \(L_\Omega\),
+as if the classes had not been observed – i.e. the model's unconditional
+prediction, deliberately NOT using
 <code><a href="compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>'s observed-cell-preserving
 logic, since the point here is to check whether the model's predictions
 agree with what was actually measured). Panels without enough complete

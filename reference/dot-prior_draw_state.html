@@ -35,7 +35,7 @@ mu = X_event beta + re_contribution(re_effect, flat_re_idx)."><link rel="stylesh
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9030</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9031</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,11 +85,32 @@ the Stan fitting model's transformed-parameters block EXACTLY:
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.prior_draw_state</span><span class="op">(</span><span class="va">setup</span>, <span class="va">lkj_arr</span>, <span class="va">s</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.prior_draw_state</span><span class="op">(</span><span class="va">setup</span>, <span class="va">lkj_re_arr</span>, <span class="va">lkj_residual_arr</span>, <span class="va">s</span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
-  </main></div>
+
+<dl><dt id="arg-setup">setup<a class="anchor" aria-label="anchor" href="#arg-setup"></a></dt>
+<dd><p>Resolved prior-predictive setup.</p></dd>
+
+
+<dt id="arg-lkj-re-arr">lkj_re_arr<a class="anchor" aria-label="anchor" href="#arg-lkj-re-arr"></a></dt>
+<dd><p>LKJ Cholesky draws for random-effect correlation blocks.</p></dd>
+
+
+<dt id="arg-lkj-residual-arr">lkj_residual_arr<a class="anchor" aria-label="anchor" href="#arg-lkj-residual-arr"></a></dt>
+<dd><p>LKJ Cholesky draws for the residual correlation.</p></dd>
+
+
+<dt id="arg-s">s<a class="anchor" aria-label="anchor" href="#arg-s"></a></dt>
+<dd><p>Prior-state draw index.</p></dd>
+
+</dl></div>
+
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

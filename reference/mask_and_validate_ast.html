@@ -33,7 +33,7 @@ and scores the predictions against their true values."><link rel="stylesheet" hr
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9030</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9031</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,7 @@ and scores the predictions against their true values.</p>
 <span>  min_tested_after_mask <span class="op">=</span> <span class="fl">30L</span>,</span>
 <span>  min_resistant_after_mask <span class="op">=</span> <span class="fl">5L</span>,</span>
 <span>  min_susceptible_after_mask <span class="op">=</span> <span class="fl">5L</span>,</span>
-<span>  panel_eligibility <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  panel_eligibility <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  prior_config <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sampler_config <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_gibbs_burnin <span class="op">=</span> <span class="fl">10L</span>,</span>
@@ -159,8 +159,9 @@ subsampling). Default <code>123L</code>.</p></dd>
 
 
 <dt id="arg-panel-eligibility">panel_eligibility<a class="anchor" aria-label="anchor" href="#arg-panel-eligibility"></a></dt>
-<dd><p>Named list. Forwarded to
-<code><a href="fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code> when <code>refit = TRUE</code>.</p></dd>
+<dd><p>Named list or <code>NULL</code>. When <code>NULL</code>, a
+masked refit inherits <code>fitted_model$panel_eligibility_used</code>; a
+non-<code>NULL</code> value explicitly overrides those resolved thresholds.</p></dd>
 
 
 <dt id="arg-prior-config-sampler-config">prior_config, sampler_config<a class="anchor" aria-label="anchor" href="#arg-prior-config-sampler-config"></a></dt>

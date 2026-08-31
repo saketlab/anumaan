@@ -8,5 +8,23 @@ the Stan fitting model's transformed-parameters block EXACTLY:
 ## Usage
 
 ``` r
-.prior_draw_state(setup, lkj_arr, s)
+.prior_draw_state(setup, lkj_re_arr, lkj_residual_arr, s)
 ```
+
+## Arguments
+
+- setup:
+
+  Resolved prior-predictive setup.
+
+- lkj_re_arr:
+
+  LKJ Cholesky draws for random-effect correlation blocks.
+
+- lkj_residual_arr:
+
+  LKJ Cholesky draws for the residual correlation.
+
+- s:
+
+  Prior-state draw index.

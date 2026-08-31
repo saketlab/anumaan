@@ -119,7 +119,9 @@ fit_bayesian_multivariate_probit(
 - prior_config:
 
   Named list. Any subset of `beta_sd` (default 1.5), `tau_sd` (default
-  1.0), `lkj_eta` (default 2.0).
+  1.0), legacy `lkj_eta` (default 2.0), or separate `lkj_eta_residual`
+  and `lkj_eta_random_effect`. Legacy `lkj_eta` resolves to both values
+  for exact backward compatibility.
 
 - sampler_config:
 

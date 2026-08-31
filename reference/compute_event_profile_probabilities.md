@@ -17,7 +17,9 @@ compute_event_profile_probabilities(
     "alive"),
   seed = 123L,
   n_gibbs_burnin = 10L,
-  n_gibbs_kept = 20L
+  n_gibbs_kept = 20L,
+  posterior_draw_indices = NULL,
+  event_indices = NULL
 )
 ```
 
@@ -56,6 +58,16 @@ compute_event_profile_probabilities(
   `fitted_model$residual_structure == "correlated"` – see
   [`.gibbs_conditional_profile_probs()`](https://saketlab.github.io/anumaan/reference/dot-gibbs_conditional_profile_probs.md).
   Defaults `10L`/`20L`.
+
+- posterior_draw_indices:
+
+  Optional unique indices into the fitted posterior draws. When
+  supplied, these replace random draw subsampling.
+
+- event_indices:
+
+  Optional canonical event indices to include. When supplied, only
+  observed events with these indices are processed.
 
 ## Value
 

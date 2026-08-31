@@ -20,7 +20,7 @@ mask_and_validate_ast(
   min_tested_after_mask = 30L,
   min_resistant_after_mask = 5L,
   min_susceptible_after_mask = 5L,
-  panel_eligibility = list(),
+  panel_eligibility = NULL,
   prior_config = NULL,
   sampler_config = NULL,
   n_gibbs_burnin = 10L,
@@ -83,9 +83,9 @@ mask_and_validate_ast(
 
 - panel_eligibility:
 
-  Named list. Forwarded to
-  [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
-  when `refit = TRUE`.
+  Named list or `NULL`. When `NULL`, a masked refit inherits
+  `fitted_model$panel_eligibility_used`; a non-`NULL` value explicitly
+  overrides those resolved thresholds.
 
 - prior_config, sampler_config:
 

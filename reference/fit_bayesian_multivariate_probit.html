@@ -33,7 +33,7 @@ hierarchical Bayesian multivariate probit model via cmdstanr."><link rel="styles
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9030</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9031</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -197,7 +197,9 @@ mainly by the LKJ prior and adds identifiability risk.</p></dd>
 
 <dt id="arg-prior-config">prior_config<a class="anchor" aria-label="anchor" href="#arg-prior-config"></a></dt>
 <dd><p>Named list. Any subset of <code>beta_sd</code> (default 1.5),
-<code>tau_sd</code> (default 1.0), <code>lkj_eta</code> (default 2.0).</p></dd>
+<code>tau_sd</code> (default 1.0), legacy <code>lkj_eta</code> (default 2.0), or
+separate <code>lkj_eta_residual</code> and <code>lkj_eta_random_effect</code>.
+Legacy <code>lkj_eta</code> resolves to both values for exact backward compatibility.</p></dd>
 
 
 <dt id="arg-sampler-config">sampler_config<a class="anchor" aria-label="anchor" href="#arg-sampler-config"></a></dt>

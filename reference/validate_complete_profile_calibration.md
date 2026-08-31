@@ -6,8 +6,10 @@ the same approved-eligibility panel used for DALY profiles) with at
 least `min_complete_events` events that have **every** panel class
 actually observed (no imputation involved), compares the empirical
 complete-profile frequency distribution against the model-implied
-profile probability distribution for that same event cohort (product of
-per-class \\\Phi(\mu\_{ed})\\, as if the classes had not been observed –
+profile probability distribution for that same event cohort. With
+identity residuals it uses the analytic product of per-class
+\\\Phi(\mu\_{ed})\\; with correlated residuals it uses correlated MVN
+simulation with \\L\_\Omega\\, as if the classes had not been observed –
 i.e. the model's unconditional prediction, deliberately NOT using
 [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md)'s
 observed-cell-preserving logic, since the point here is to check whether

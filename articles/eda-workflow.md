@@ -442,7 +442,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9030
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9031
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] janeaustenr_1.0.0  tidyr_1.3.2        sass_0.4.10        generics_0.1.4    
