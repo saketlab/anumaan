@@ -779,7 +779,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9032
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9033
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 
@@ -792,6 +792,6 @@ sessionInfo()
 #> [29] otel_0.2.0        cli_3.6.6         withr_3.0.3       pkgdown_2.2.1    
 #> [33] magrittr_2.0.5    digest_0.6.39     grid_4.6.1        lifecycle_1.0.5  
 #> [37] vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1        ragg_1.5.2       
-#> [41] purrr_1.2.2       rmarkdown_2.31    tools_4.6.1       pkgconfig_2.0.3  
+#> [41] purrr_1.2.2       rmarkdown_2.32    tools_4.6.1       pkgconfig_2.0.3  
 #> [45] htmltools_0.5.9
 ```

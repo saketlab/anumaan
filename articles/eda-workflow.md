@@ -442,7 +442,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9032
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9033
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] janeaustenr_1.0.0  tidyr_1.3.2        sass_0.4.10        generics_0.1.4    
@@ -460,5 +460,5 @@ sessionInfo()
 #> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.60         
 #> [53] tibble_3.3.1       tidyselect_1.2.1   knitr_1.51         farver_2.1.2      
 #> [57] htmltools_0.5.9    SnowballC_0.7.1    labeling_0.4.3     carData_3.0-6     
-#> [61] rmarkdown_2.31     compiler_4.6.1     S7_0.2.2
+#> [61] rmarkdown_2.32     compiler_4.6.1     S7_0.2.2
 ```

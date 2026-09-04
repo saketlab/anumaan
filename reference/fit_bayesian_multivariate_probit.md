@@ -131,7 +131,21 @@ fit_bayesian_multivariate_probit(
   `adapt_delta` (NULL, uses Stan default), `max_treedepth` (NULL),
   `seed` (123), `parallel_chains` (NULL), `max_param_count` (NULL – set
   to a positive integer to stop if approximate parameter count exceeds
-  the threshold). Any additional entries are forwarded via `...`.
+  the threshold), `save_warmup` (NULL, i.e. `cmdstanr`'s own default of
+  `FALSE` – set `TRUE` to retain warmup-phase draws in the raw CmdStan
+  CSV for later adaptation-trajectory forensics; note this recovers
+  per-iteration diagnostics and parameter draws during warmup, NOT the
+  full evolving HMC mass matrix at every adaptation window – only the
+  final adapted metric is ever written to the CSV, regardless of this
+  setting), `metric` (NULL, i.e. `cmdstanr`'s default `"diag_e"` – set
+  `"dense_e"` to adapt a full mass matrix instead of a diagonal one;
+  substantially more expensive to adapt at high parameter counts, e.g.
+  models with a large `z_free` block), `init` (NULL, i.e. CmdStan's
+  default Uniform(-2,2) unconstrained init – set to a value accepted by
+  [`cmdstanr::sample()`](https://mc-stan.org/cmdstanr/reference/model-method-sample.html)'s
+  own `init` argument, e.g. a list of per-chain initial-value lists, to
+  run an initialization-sensitivity check). Any additional entries are
+  forwarded via `...`.
 
 - compute:
 
