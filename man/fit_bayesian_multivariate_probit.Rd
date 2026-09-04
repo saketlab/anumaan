@@ -95,8 +95,22 @@ Legacy \code{lkj_eta} resolves to both values for exact backward compatibility.}
 \code{iter_sampling} (1000), \code{adapt_delta} (NULL, uses Stan default),
 \code{max_treedepth} (NULL), \code{seed} (123), \code{parallel_chains}
 (NULL), \code{max_param_count} (NULL -- set to a positive integer to stop
-if approximate parameter count exceeds the threshold). Any additional entries
-are forwarded via \code{...}.}
+if approximate parameter count exceeds the threshold),
+\code{save_warmup} (NULL, i.e. \code{cmdstanr}'s own default of
+\code{FALSE} -- set \code{TRUE} to retain warmup-phase draws in the raw
+CmdStan CSV for later adaptation-trajectory forensics; note this recovers
+per-iteration diagnostics and parameter draws during warmup, NOT the
+full evolving HMC mass matrix at every adaptation window -- only the
+final adapted metric is ever written to the CSV, regardless of this
+setting), \code{metric} (NULL, i.e. \code{cmdstanr}'s default
+\code{"diag_e"} -- set \code{"dense_e"} to adapt a full mass matrix
+instead of a diagonal one; substantially more expensive to adapt at
+high parameter counts, e.g. models with a large \code{z_free} block),
+\code{init} (NULL, i.e. CmdStan's default Uniform(-2,2) unconstrained
+init -- set to a value accepted by \code{cmdstanr::sample()}'s own
+\code{init} argument, e.g. a list of per-chain initial-value lists, to
+run an initialization-sensitivity check). Any additional entries are
+forwarded via \code{...}.}
 
 \item{compute}{Named list controlling the Stan execution backend. Supported
 fields are \code{backend} (\code{"cpu"} default or \code{"opencl"}),

@@ -4571,8 +4571,22 @@ model {
 #'   \code{iter_sampling} (1000), \code{adapt_delta} (NULL, uses Stan default),
 #'   \code{max_treedepth} (NULL), \code{seed} (123), \code{parallel_chains}
 #'   (NULL), \code{max_param_count} (NULL -- set to a positive integer to stop
-#'   if approximate parameter count exceeds the threshold). Any additional entries
-#'   are forwarded via \code{...}.
+#'   if approximate parameter count exceeds the threshold),
+#'   \code{save_warmup} (NULL, i.e. \code{cmdstanr}'s own default of
+#'   \code{FALSE} -- set \code{TRUE} to retain warmup-phase draws in the raw
+#'   CmdStan CSV for later adaptation-trajectory forensics; note this recovers
+#'   per-iteration diagnostics and parameter draws during warmup, NOT the
+#'   full evolving HMC mass matrix at every adaptation window -- only the
+#'   final adapted metric is ever written to the CSV, regardless of this
+#'   setting), \code{metric} (NULL, i.e. \code{cmdstanr}'s default
+#'   \code{"diag_e"} -- set \code{"dense_e"} to adapt a full mass matrix
+#'   instead of a diagonal one; substantially more expensive to adapt at
+#'   high parameter counts, e.g. models with a large \code{z_free} block),
+#'   \code{init} (NULL, i.e. CmdStan's default Uniform(-2,2) unconstrained
+#'   init -- set to a value accepted by \code{cmdstanr::sample()}'s own
+#'   \code{init} argument, e.g. a list of per-chain initial-value lists, to
+#'   run an initialization-sensitivity check). Any additional entries are
+#'   forwarded via \code{...}.
 #' @param compute Named list controlling the Stan execution backend. Supported
 #'   fields are \code{backend} (\code{"cpu"} default or \code{"opencl"}),
 #'   \code{opencl_platform_id}, \code{opencl_device_id}, and
@@ -4794,7 +4808,8 @@ fit_bayesian_multivariate_probit <- function(
   sc_defaults <- list(
     chains = 4L, iter_warmup = 1000L, iter_sampling = 1000L,
     seed = 123L, adapt_delta = NULL, max_treedepth = NULL,
-    parallel_chains = NULL, max_param_count = NULL
+    parallel_chains = NULL, max_param_count = NULL,
+    save_warmup = NULL, metric = NULL, init = NULL
   )
   for (nm in names(sampler_config)) sc_defaults[[nm]] <- sampler_config[[nm]]
   sc <- sc_defaults
@@ -5191,6 +5206,13 @@ fit_bayesian_multivariate_probit <- function(
   if (!is.null(sc$adapt_delta)) sample_args$adapt_delta <- sc$adapt_delta
   if (!is.null(sc$max_treedepth)) sample_args$max_treedepth <- sc$max_treedepth
   if (!is.null(sc$parallel_chains)) sample_args$parallel_chains <- as.integer(sc$parallel_chains)
+  # save_warmup/metric/init are forwarded as-is to cmdstanr::sample() -- see
+  # the sampler_config roxygen entry above for what save_warmup=TRUE does and
+  # does not recover (per-iteration draws/diagnostics during warmup; NOT the
+  # full evolving mass matrix at every adaptation window).
+  if (!is.null(sc$save_warmup)) sample_args$save_warmup <- sc$save_warmup
+  if (!is.null(sc$metric)) sample_args$metric <- sc$metric
+  if (!is.null(sc$init)) sample_args$init <- sc$init
   extra_args <- list(...)
   sample_args <- c(sample_args, extra_args)
 
