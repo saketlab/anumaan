@@ -423,7 +423,7 @@ is for Pipeline 1. A typical review pass:
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -442,7 +442,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9033
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9034
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] janeaustenr_1.0.0  tidyr_1.3.2        sass_0.4.10        generics_0.1.4    
@@ -457,8 +457,8 @@ sessionInfo()
 #> [37] R6_2.6.1           ggridges_0.5.7     lifecycle_1.0.5    car_3.1-5         
 #> [41] fs_2.1.0           ragg_1.5.2         pkgconfig_2.0.3    desc_1.4.3        
 #> [45] pkgdown_2.2.1      pillar_1.11.1      bslib_0.12.0       gtable_0.3.6      
-#> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.60         
-#> [53] tibble_3.3.1       tidyselect_1.2.1   knitr_1.51         farver_2.1.2      
+#> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.61         
+#> [53] tibble_3.3.1       tidyselect_1.2.1   knitr_1.52         farver_2.1.2      
 #> [57] htmltools_0.5.9    SnowballC_0.7.1    labeling_0.4.3     carData_3.0-6     
 #> [61] rmarkdown_2.32     compiler_4.6.1     S7_0.2.2
 ```

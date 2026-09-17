@@ -760,7 +760,7 @@ two separate verdicts, not one combined score.
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -779,15 +779,15 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9033
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9034
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 
 #>  [5] Rcpp_1.1.2        tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2
 #>  [9] textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0     lattice_0.22-9   
-#> [13] R6_2.6.1          generics_0.1.4    knitr_1.51        tibble_3.3.1     
+#> [13] R6_2.6.1          generics_0.1.4    knitr_1.52        tibble_3.3.1     
 #> [17] desc_1.4.3        osqp_1.0.0        bslib_0.12.0      pillar_1.11.1    
-#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.60        
+#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.61        
 #> [25] quadprog_1.5-8    fs_2.1.0          sass_0.4.10       S7_0.2.2         
 #> [29] otel_0.2.0        cli_3.6.6         withr_3.0.3       pkgdown_2.2.1    
 #> [33] magrittr_2.0.5    digest_0.6.39     grid_4.6.1        lifecycle_1.0.5  
