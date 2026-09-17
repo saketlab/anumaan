@@ -185,6 +185,35 @@ test_that("preserve_observation_mask=TRUE reproduces exactly the real tested-cel
   expect_false(any(is.na(st$Y_rep_complete)))
 })
 
+test_that("preserve_observation_mask=FALSE returns an unmasked streaming replicate", {
+  re_data <- data.frame(hosp = c("H1", "H1", "H2", "H2"))
+  X_event <- matrix(1, nrow = 4, ncol = 1)
+  beta_states <- list(matrix(c(0.1, -0.2), nrow = 1, ncol = 2))
+  re_effect_states <- list(matrix(0, nrow = 2, ncol = 2))
+  obs_ast <- cbind(c(1, NA, 0, NA), c(NA, 1, NA, 0))
+  fit <- .ppc_build_test_fit(
+    X_event, re_data, "hosp", c("classA", "classB"),
+    beta_states, re_effect_states, obs_ast = obs_ast
+  )
+
+  masked <- simulate_probit_posterior_predictive(
+    fit, n_states = 1L, seed = 19L, preserve_observation_mask = TRUE,
+    return_replicates = TRUE
+  )
+  complete <- simulate_probit_posterior_predictive(
+    fit, n_states = 1L, seed = 19L, preserve_observation_mask = FALSE,
+    return_replicates = TRUE
+  )
+
+  expect_identical(is.na(masked$generate_state(1L)$Y_rep), is.na(obs_ast))
+  expect_false(anyNA(complete$generate_state(1L)$Y_rep))
+  expect_identical(complete$generate_state(1L)$Y_rep,
+                   complete$generate_state(1L)$Y_rep_complete)
+  expect_identical(complete$Y_rep_array, complete$Y_rep_complete_array)
+  expect_identical(masked$generate_state(1L)$Y_rep_complete,
+                   complete$generate_state(1L)$Y_rep_complete)
+})
+
 # ---------------------------------------------------------------------------
 # Part 18E: RE contribution correctness for 1/2/3/arbitrary-named blocks
 # ---------------------------------------------------------------------------
