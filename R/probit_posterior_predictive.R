@@ -364,7 +364,10 @@ simulate_probit_posterior_predictive <- function(
         }
         Y_masked <- Y_complete
         Y_masked[!setup$obs_mask] <- NA_integer_
-        list(Y_rep_complete = Y_complete, Y_rep = Y_masked)
+        list(
+          Y_rep_complete = Y_complete,
+          Y_rep = if (isTRUE(preserve_observation_mask)) Y_masked else Y_complete
+        )
       })
       cache[[key]] <- val
       val
@@ -403,7 +406,7 @@ simulate_probit_posterior_predictive <- function(
     for (s in seq_len(setup$S)) {
       st <- generate_state(s)
       Y_rep_complete_array[s, , ] <- st$Y_rep_complete
-      Y_rep_array[s, , ] <- if (isTRUE(preserve_observation_mask)) st$Y_rep else st$Y_rep_complete
+      Y_rep_array[s, , ] <- st$Y_rep
     }
     out$Y_rep_array <- Y_rep_array
     out$Y_rep_complete_array <- Y_rep_complete_array
@@ -440,8 +443,11 @@ simulate_probit_posterior_predictive <- function(
 #' output schema: statistic_name, stratum, observed_value, replicated_mean/
 #' sd/q025/q50/q975, ppc_tail_probability, ppc_two_sided, n_replications,
 #' support_status. ppc_tail_probability/ppc_two_sided are posterior
-#' predictive TAIL-PROBABILITY-LIKE quantities (mean(T_rep >= T_obs) and its
-#' two-sided extremeness), NOT classical calibrated p-values.
+#' predictive TAIL-PROBABILITY-LIKE quantities. The reported one-sided value
+#' is the inclusive upper tail, code{(1 + sum(T_rep >= T_obs)) / (B + 1)};
+#' the two-sided value is code{min(1, 2 * min(lower_tail, upper_tail))}, with
+#' the lower tail calculated analogously. These finite-replicate corrected
+#' summaries are NOT classical calibrated p-values.
 #' @keywords internal
 .ppc_summarize_statistic <- function(statistic_name, stratum, observed_value, T_rep,
                                       support_status, ci_level) {
@@ -461,8 +467,9 @@ simulate_probit_posterior_predictive <- function(
     ))
   }
 
-  tail_p <- mean(T_rep >= observed_value)
-  two_sided <- min(2 * min(tail_p, 1 - tail_p), 1)
+  lower_tail <- (1 + sum(T_rep <= observed_value)) / (n_rep + 1)
+  upper_tail <- (1 + sum(T_rep >= observed_value)) / (n_rep + 1)
+  two_sided <- min(1, 2 * min(lower_tail, upper_tail))
 
   tibble::tibble(
     statistic_name = statistic_name, stratum = stratum,
@@ -471,7 +478,7 @@ simulate_probit_posterior_predictive <- function(
     replicated_q025 = .ppc_quantile(T_rep, lo_q),
     replicated_q50  = .ppc_quantile(T_rep, 0.5),
     replicated_q975 = .ppc_quantile(T_rep, hi_q),
-    ppc_tail_probability = tail_p, ppc_two_sided = two_sided,
+    ppc_tail_probability = upper_tail, ppc_two_sided = two_sided,
     n_replications = n_rep, support_status = support_status
   )
 }

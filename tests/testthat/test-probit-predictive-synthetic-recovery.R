@@ -89,6 +89,22 @@ test_that("compute_probit_ppc_statistics() returns the exact Part 7 output schem
   expect_true(all(stats_tbl$ppc_two_sided[!is.na(stats_tbl$ppc_two_sided)] <= 1))
 })
 
+test_that("finite-replicate PPC tails cannot be zero", {
+  low <- anumaan:::.ppc_summarize_statistic(
+    "synthetic", "all", -10, rep(0, 9), "supported", 0.95
+  )
+  high <- anumaan:::.ppc_summarize_statistic(
+    "synthetic", "all", 10, rep(0, 9), "supported", 0.95
+  )
+
+  expect_equal(low$ppc_tail_probability, 1)
+  expect_equal(low$ppc_two_sided, 0.2)
+  expect_equal(high$ppc_tail_probability, 0.1)
+  expect_equal(high$ppc_two_sided, 0.2)
+  expect_gt(low$ppc_two_sided, 0)
+  expect_gt(high$ppc_tail_probability, 0)
+})
+
 test_that("compute_posterior_predictive_status() family-level logic", {
   base <- tibble::tibble(
     statistic_name = c("marginal_resistance", "pairwise_RR", "profile_shannon_entropy",
