@@ -10,7 +10,10 @@ daly_assign_rr_to_profiles(
   pathogen_col = "pathogen",
   class_col = "antibiotic_class",
   rr_col = "RR_LOS",
-  fallback_rr = 1
+  fallback_rr = 1,
+  los_r_col = NULL,
+  los_s_col = NULL,
+  los_unit = c("years", "days")
 )
 }
 \arguments{
@@ -28,11 +31,29 @@ CI_lower / CI_upper.}
 
 \item{fallback_rr}{Numeric. RR for resistant classes with no match.
 Default \code{1} (no attributable effect).}
+
+\item{los_r_col}{Character or \code{NULL}. Column in \code{rr_table} with
+absolute mean LOS for resistant patients (e.g. \code{"mean_LOS_R"}).
+When supplied together with \code{los_s_col}, \code{LOSR_years} /
+\code{LOSS_years} are added to the output. Default \code{NULL} (no
+absolute LOS propagated; behaviour identical to before this parameter
+existed).}
+
+\item{los_s_col}{Character or \code{NULL}. Column in \code{rr_table} with
+absolute mean LOS for susceptible patients (e.g. \code{"mean_LOS_S"}).
+Required when \code{los_r_col} is supplied.}
+
+\item{los_unit}{Character. Unit of \code{los_r_col} / \code{los_s_col} in
+\code{rr_table}: \code{"years"} (used as-is) or \code{"days"} (divided
+by 365, matching the day-to-year conversion already used in
+\code{daly_fit_los_rr_distribution()}). Default \code{"years"}. Ignored
+when \code{los_r_col} is \code{NULL}.}
 }
 \value{
 Named list (one entry per pathogen): original profiles data frame
-  augmented with RR_LOS_profile, dominant_class, and (if available)
-  CI_lower_profile / CI_upper_profile.
+  augmented with RR_LOS_profile, dominant_class, (if available)
+  CI_lower_profile / CI_upper_profile, and (when \code{los_r_col} /
+  \code{los_s_col} are supplied) LOSR_years / LOSS_years.
 }
 \description{
 For each resistance profile delta (from compute_resistance_profiles()),
@@ -47,4 +68,15 @@ If \code{rr_table} was fit with a \code{syndrome_name} filter, its RR
 values are syndrome-specific but get applied here to all profiles of a
 pathogen -- i.e. it assumes syndrome-invariant LOS prolongation. Refit
 with \code{syndrome_name = NULL} for a RR pooled across syndromes.
+
+Optionally, when \code{los_r_col} and \code{los_s_col} are supplied, also
+propagates the \strong{absolute} mean LOS for the profile's dominant class
+(resistant and susceptible) as \code{LOSR_years} / \code{LOSS_years}. This
+does not change the RR assignment above; it is an additive lookup against
+the dominant class already selected by the max rule, using whichever
+absolute-LOS columns are present in \code{rr_table} (e.g. \code{mean_LOS_R}
+/ \code{mean_LOS_S} from \code{daly_fit_los_rr_distribution()}, or
+\code{mean_los_resistant} / \code{mean_los_susceptible} from
+\code{daly_fit_los_rr()}). \code{LOSR_years}/\code{LOSS_years} are set to
+\code{NA} for the all-susceptible profile, which has no dominant class.
 }

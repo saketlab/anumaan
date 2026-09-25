@@ -1,238 +1,6 @@
 # daly_yld.R
 # YLD (Years Lived with Disability) calculation functions for AMR burden estimation
 
-daly_calc_yld_baseline <- function(incidence_data,
-                                   P_Lk_prime_tbl,
-                                   yld_ref = NULL,
-                                   DW_sepsis = NULL,
-                                   avg_los_years = NULL,
-                                   state_name = NULL,
-                                   facility_col = NULL,
-                                   facility_name = NULL,
-                                   facility_state_map = NULL,
-                                   state_col = "state",
-                                   pathogen_col = "pathogen",
-                                   pathogen_name = NULL,
-                                   plk_col = "P_Lk_prime",
-                                   incidence_col = "n_cases") {
-  # -- Input validation ------------------------------------------------------
-  use_scalar_proxy <- !is.null(DW_sepsis)
-
-  if (use_scalar_proxy) {
-    if (!is.numeric(DW_sepsis) || length(DW_sepsis) != 1 ||
-      is.na(DW_sepsis)) {
-      stop("DW_sepsis must be a single non-missing numeric value.")
-    }
-  } else {
-    if (is.null(yld_ref) ||
-      !all(c("location_name", "DW_sepsis") %in% names(yld_ref))) {
-      stop(
-        "Provide either DW_sepsis as a numeric scalar, or yld_ref ",
-        "with columns: 'location_name', 'DW_sepsis'."
-      )
-    }
-  }
-
-  # Validate avg_los_years
-  if (!is.null(avg_los_years)) {
-    if (!is.numeric(avg_los_years) || length(avg_los_years) != 1 || is.na(avg_los_years) || avg_los_years <= 0) {
-      stop("avg_los_years must be a single positive numeric value (mean LOS in years).")
-    }
-  }
-
-  if (!pathogen_col %in% names(P_Lk_prime_tbl)) {
-    stop(sprintf("pathogen_col '%s' not found in P_Lk_prime_tbl.", pathogen_col))
-  }
-  if (!plk_col %in% names(P_Lk_prime_tbl)) {
-    stop(sprintf("plk_col '%s' not found in P_Lk_prime_tbl.", plk_col))
-  }
-  if (!is.null(facility_name) && is.null(facility_col)) {
-    stop("facility_col must be provided when facility_name is specified.")
-  }
-
-  pool_by_facility <- !is.null(facility_col) && is.null(facility_name) &&
-    is.data.frame(incidence_data)
-
-  # -- Pathogen filter -------------------------------------------------------
-  if (!is.null(pathogen_name)) {
-    P_Lk_prime_tbl <- P_Lk_prime_tbl %>%
-      dplyr::filter(.data[[pathogen_col]] %in% pathogen_name)
-    if (nrow(P_Lk_prime_tbl) == 0) {
-      stop(sprintf(
-        "No rows in P_Lk_prime_tbl for pathogen(s): %s",
-        paste(pathogen_name, collapse = ", ")
-      ))
-    }
-  }
-
-  # -- Single facility restriction -------------------------------------------
-  if (!is.null(facility_name) && !is.null(facility_col)) {
-    if (facility_col %in% names(P_Lk_prime_tbl)) {
-      P_Lk_prime_tbl <- P_Lk_prime_tbl %>%
-        dplyr::filter(.data[[facility_col]] == facility_name)
-    }
-    if (is.data.frame(incidence_data) &&
-      facility_col %in% names(incidence_data)) {
-      incidence_data <- incidence_data %>%
-        dplyr::filter(.data[[facility_col]] == facility_name)
-    }
-  }
-
-  # =========================================================================
-  # POOLED / NO-FACILITY MODE
-  # =========================================================================
-  if (!pool_by_facility) {
-    # Resolve scalar incidence
-    if (is.data.frame(incidence_data)) {
-      if (!incidence_col %in% names(incidence_data)) {
-        stop(sprintf(
-          "incidence_col '%s' not found in incidence_data.",
-          incidence_col
-        ))
-      }
-      incidence_L <- sum(incidence_data[[incidence_col]], na.rm = TRUE)
-    } else {
-      incidence_L <- as.numeric(incidence_data)
-    }
-
-    # Resolve YLD weight
-    if (use_scalar_proxy) {
-      loc <- "user_input"
-      yld_weight <- as.numeric(DW_sepsis)
-    } else {
-      loc <- if (is.null(state_name)) "India" else state_name
-      yld_weight <- yld_ref %>%
-        dplyr::filter(location_name == loc) %>%
-        dplyr::pull(DW_sepsis)
-
-      if (length(yld_weight) == 0) {
-        stop(sprintf(
-          "Location '%s' not found in yld_ref. Available: %s",
-          loc,
-          paste(head(yld_ref$location_name, 10), collapse = ", ")
-        ))
-      }
-    }
-
-    effective_dw <- if (!is.null(avg_los_years)) yld_weight * avg_los_years else yld_weight
-
-    result <- P_Lk_prime_tbl %>%
-      dplyr::select(dplyr::all_of(c(pathogen_col, plk_col))) %>%
-      dplyr::mutate(
-        incidence_L = incidence_L,
-        DW_sepsis = yld_weight,
-        avg_los_years = if (!is.null(avg_los_years)) avg_los_years else NA_real_,
-        effective_DW = effective_dw,
-        YLD = incidence_L * .data[[plk_col]] * effective_dw
-      )
-
-    message(sprintf(
-      "YLD computed (pooled, location='%s'): %d pathogen(s), effective_DW=%.6f, total YLD = %.2f.",
-      loc, nrow(result), effective_dw, sum(result$YLD, na.rm = TRUE)
-    ))
-
-    return(result)
-  }
-
-  # =========================================================================
-  # FACILITY-LEVEL MODE
-  # =========================================================================
-
-  if (!use_scalar_proxy) {
-    if (is.null(facility_state_map)) {
-      stop("facility_state_map is required in facility-level mode.")
-    }
-    if (!all(c(facility_col, state_col) %in% names(facility_state_map))) {
-      stop(sprintf(
-        "facility_state_map must have columns '%s' and '%s'.",
-        facility_col, state_col
-      ))
-    }
-  }
-
-  if (!facility_col %in% names(P_Lk_prime_tbl)) {
-    stop(sprintf(
-      "facility_col '%s' not found in P_Lk_prime_tbl. ",
-      facility_col,
-      "Pass the 'facility_level' element from calculate_P_Lk_prime()."
-    ))
-  }
-  if (!incidence_col %in% names(incidence_data)) {
-    stop(sprintf(
-      "incidence_col '%s' not found in incidence_data.",
-      incidence_col
-    ))
-  }
-
-  # Join P'LK with incidence
-  result <- P_Lk_prime_tbl %>%
-    dplyr::select(dplyr::all_of(c(facility_col, pathogen_col, plk_col))) %>%
-    dplyr::left_join(
-      incidence_data %>%
-        dplyr::select(dplyr::all_of(c(facility_col, incidence_col))),
-      by = facility_col
-    )
-
-  if (use_scalar_proxy) {
-    result <- result %>%
-      dplyr::mutate(DW_sepsis = as.numeric(.env$DW_sepsis))
-  } else {
-    result <- result %>%
-      dplyr::left_join(
-        facility_state_map %>%
-          dplyr::select(dplyr::all_of(c(facility_col, state_col))) %>%
-          dplyr::distinct(),
-        by = facility_col
-      ) %>%
-      dplyr::left_join(
-        yld_ref %>%
-          dplyr::select(location_name, DW_sepsis) %>%
-          dplyr::rename(!!state_col := location_name),
-        by = state_col
-      )
-
-    # Warn if any facilities couldn't be matched to a state YLD weight
-    missing_yld <- result %>%
-      dplyr::filter(is.na(DW_sepsis)) %>%
-      dplyr::pull(.data[[facility_col]]) %>%
-      unique()
-
-    if (length(missing_yld) > 0) {
-      warning(sprintf(
-        "No YLD weight found for facility/state: %s. Using India-wide fallback.",
-        paste(missing_yld, collapse = ", ")
-      ))
-      india_yld <- yld_ref %>%
-        dplyr::filter(location_name == "India") %>%
-        dplyr::pull(DW_sepsis)
-
-      result <- result %>%
-        dplyr::mutate(
-          DW_sepsis = dplyr::if_else(
-            is.na(DW_sepsis), india_yld, DW_sepsis
-          )
-        )
-    }
-  }
-
-  result <- result %>%
-    dplyr::mutate(
-      avg_los_years = if (!is.null(avg_los_years)) avg_los_years else NA_real_,
-      effective_DW = if (!is.null(avg_los_years)) DW_sepsis * avg_los_years else DW_sepsis,
-      YLD = .data[[incidence_col]] * .data[[plk_col]] * effective_DW
-    )
-
-  message(sprintf(
-    "YLD computed (facility-level): %d facility/facilities, %d pathogen(s), total YLD = %.2f.",
-    dplyr::n_distinct(result[[facility_col]]),
-    dplyr::n_distinct(result[[pathogen_col]]),
-    sum(result$YLD, na.rm = TRUE)
-  ))
-
-  return(result)
-}
-
-
 # -- PAF_LOS : population attributable fraction for length of stay ---------------
 
 #' Compute PAF for length of stay per resistance profile
@@ -320,320 +88,434 @@ daly_calc_paf_los <- function(
 }
 
 
-# -- Step 5 --------------------------------------------------------------------
-
-#' Compute Associated-Burden Fractions per Resistance Profile
-#'
-#' Computes the fraction of total expected YLD burden that *occurs in*
-#' infections with each resistance profile delta (YLDs associated with
-#' resistance).  This is a **burden partition**, not a counterfactual.
-#'
-#' For a single drug-class d the formula simplifies to:
-#'
-#'   Fraction_assoc_Kd = R'_Kd * RR_Kd / [(1 - R'_Kd) + R'_Kd * RR_Kd]
-#'
-#' With resistance profiles the denominator becomes the expected RR across
-#' ALL profiles (including the all-susceptible profile with RR = 1):
-#'
-#'   E_RR_k = sum_delta  R'_K_delta * RR_K_delta
-#'          = 1 + sum_delta  R'_K_delta * (RR_K_delta - 1)   [equivalent]
-#'
-#' Per-profile associated fraction:
-#'   fraction_K_delta = R'_K_delta * RR_K_delta / E_RR_k
-#'
-#' Overall associated fraction (all resistant profiles combined):
-#'   Fraction_k = sum_\{delta != 0\}  fraction_K_delta
-#'
-#' where delta != 0 denotes profiles with at least one resistant class.
-#'
-#' Note: E_RR_k is numerically identical to the `denominator` produced by
-#' daly_calc_paf_los() -- both equal 1 + sum_d R'_kd*(RR_kd - 1).
-#'
-#' @param profiles_with_rr Named list from assign_rr_to_profiles() or
-#'   filter_profiles_to_rr_classes().  Each entry is a profile data frame.
-#' @param probability_col Character.  Profile probability column.
-#'   Default \code{"probability"}.
-#' @param rr_profile_col Character.  Profile-level RR column.
-#'   Default \code{"RR_LOS_profile"}.
-#'
-#' @return Named list (one entry per pathogen) containing:
-#'   \itemize{
-#'     \item \code{per_profile}: profile data frame augmented with
-#'       \code{numerator_assoc} (= p * rr) and \code{fraction_assoc}
-#'       (= p * rr / E_RR_k).
-#'     \item \code{Fraction_k}: overall associated fraction for the pathogen
-#'       (sum of \code{fraction_assoc} over all resistant profiles).
-#'     \item \code{E_RR_k}: expected RR = sum_delta R'_K_delta * RR_K_delta.
-#'   }
-#' @export
-daly_calc_fraction_associated_yld <- function(
-  profiles_with_rr,
-  probability_col = "probability",
-  rr_profile_col = "RR_LOS_profile"
+# -- Direct profile-specific YLD equations (associated / attributable) --------
+#
+# Shared machinery behind daly_calc_yld_associated() and
+# daly_calc_yld_attributable(). Not exported; both public functions are thin
+# wrappers so the two equations cannot drift out of sync with each other.
+.daly_yld_direct <- function(
+  mode,
+  profiles_with_los,
+  P_Lk_prime_tbl,
+  yld_ref,
+  DW_sepsis,
+  pathogen_col,
+  plk_col,
+  incidence_col,
+  facility_col,
+  facility_name,
+  facility_state_map,
+  state_col,
+  state_name,
+  probability_col,
+  dominant_class_col,
+  losr_col,
+  loss_col,
+  out_col
 ) {
-  if (!is.list(profiles_with_rr)) {
-    stop("profiles_with_rr must be the list returned by assign_rr_to_profiles().")
+  # -- Input validation -------------------------------------------------------
+  if (!is.list(profiles_with_los) || is.data.frame(profiles_with_los)) {
+    stop(
+      "profiles_with_los must be the named list returned by ",
+      "daly_assign_rr_to_profiles() (called with los_r_col/los_s_col set)."
+    )
+  }
+  if (!is.data.frame(P_Lk_prime_tbl)) {
+    stop(
+      "P_Lk_prime_tbl must be a data frame (the P_Lk_prime or ",
+      "facility_level element from daly_calc_pathogen_fraction_nonfatal())."
+    )
   }
 
-  # Columns that are metadata / computed -- NOT class indicator columns
-  non_class_cols <- c(
-    "profile", probability_col, rr_profile_col,
-    "dominant_class", "CI_lower_profile", "CI_upper_profile",
-    "numerator", "PAF_LOS", "denominator",
-    "numerator_assoc", "fraction_assoc"
-  )
-
-  out <- list()
-
-  for (path in names(profiles_with_rr)) {
-    df <- profiles_with_rr[[path]]
-
-    for (col in c(probability_col, rr_profile_col)) {
-      if (!col %in% names(df)) {
-        stop(sprintf(
-          "Column '%s' not found in profiles for '%s'.",
-          col, path
-        ))
-      }
+  use_scalar_dw <- !is.null(DW_sepsis)
+  if (use_scalar_dw) {
+    if (!is.numeric(DW_sepsis) || length(DW_sepsis) != 1 || is.na(DW_sepsis)) {
+      stop("DW_sepsis must be a single non-missing numeric value.")
     }
+  } else {
+    if (is.null(yld_ref) || !all(c("location_name", "DW_sepsis") %in% names(yld_ref))) {
+      stop(
+        "Provide either DW_sepsis as a numeric scalar, or yld_ref ",
+        "with columns: 'location_name', 'DW_sepsis'."
+      )
+    }
+    warning(
+      "DW_L is being sourced from yld_ref (Proxy_YLD_per_case.csv-derived). ",
+      "That table's 'DW_sepsis' column is an already duration-inclusive ",
+      "YLD-per-case proxy (proxy_yld_per_case == yld_days_per_case / 365), ",
+      "not a pure disability weight -- combining it with profile-specific ",
+      "LOSR/LOSS here risks double-counting duration. Prefer supplying a ",
+      "pure disability weight via the DW_sepsis scalar argument for this ",
+      "direct-equation pathway.",
+      call. = FALSE
+    )
+  }
 
-    p <- df[[probability_col]] # R'_K_delta  (sums to 1 after normalisation)
-    rr <- df[[rr_profile_col]] # RR_LOS_K_delta (1.0 for all-susceptible profile)
+  required_tbl_cols <- c(pathogen_col, plk_col, incidence_col)
+  missing_tbl_cols <- setdiff(required_tbl_cols, names(P_Lk_prime_tbl))
+  if (length(missing_tbl_cols) > 0L) {
+    stop(sprintf(
+      paste0(
+        "Column(s) not found in P_Lk_prime_tbl: %s. incidence_col defaults ",
+        "to 'N_NF_L', the non-fatal incidence column already returned by ",
+        "daly_calc_pathogen_fraction_nonfatal()."
+      ),
+      paste(missing_tbl_cols, collapse = ", ")
+    ))
+  }
+  if (!is.null(facility_name) && is.null(facility_col)) {
+    stop("facility_col must be provided when facility_name is specified.")
+  }
 
-    # E[RR_k] = sum_delta  R'_K_delta * RR_K_delta
-    # Equivalent: 1 + sum_delta R'_K_delta*(RR-1) = PAF denominator
-    E_RR_k <- sum(p * rr)
+  # -- Optional single-facility restriction -----------------------------------
+  if (!is.null(facility_name) && !is.null(facility_col) &&
+    facility_col %in% names(P_Lk_prime_tbl)) {
+    P_Lk_prime_tbl <- P_Lk_prime_tbl[P_Lk_prime_tbl[[facility_col]] == facility_name, , drop = FALSE]
+    if (nrow(P_Lk_prime_tbl) == 0L) {
+      stop(sprintf("No rows in P_Lk_prime_tbl for facility '%s'.", facility_name))
+    }
+  }
 
-    if (E_RR_k <= 0) {
-      warning(sprintf("'%s': E[relative LOS] <= 0 -- skipping.", path))
+  n_row <- nrow(P_Lk_prime_tbl)
+
+  # -- Resolve DW_L: one value per row of P_Lk_prime_tbl -----------------------
+  has_facility_col <- !is.null(facility_col) && facility_col %in% names(P_Lk_prime_tbl)
+
+  if (use_scalar_dw) {
+    dw_vec <- rep(as.numeric(DW_sepsis), n_row)
+  } else if (has_facility_col && !is.null(facility_state_map)) {
+    if (!all(c(facility_col, state_col) %in% names(facility_state_map))) {
+      stop(sprintf(
+        "facility_state_map must have columns '%s' and '%s'.",
+        facility_col, state_col
+      ))
+    }
+    state_lookup <- stats::setNames(facility_state_map[[state_col]], facility_state_map[[facility_col]])
+    dw_lookup <- stats::setNames(yld_ref$DW_sepsis, yld_ref$location_name)
+    india_dw <- unname(dw_lookup[["India"]])
+    fac_state <- unname(state_lookup[P_Lk_prime_tbl[[facility_col]]])
+    dw_vec <- unname(dw_lookup[fac_state])
+    n_missing_dw <- sum(is.na(dw_vec))
+    if (n_missing_dw > 0L) {
+      warning(sprintf(
+        "%d row(s) had no state-level DW_sepsis match; using India-wide fallback.",
+        n_missing_dw
+      ))
+      dw_vec[is.na(dw_vec)] <- india_dw
+    }
+  } else {
+    loc <- if (is.null(state_name)) "India" else state_name
+    dw_scalar <- yld_ref$DW_sepsis[yld_ref$location_name == loc]
+    if (length(dw_scalar) == 0L) {
+      stop(sprintf(
+        "Location '%s' not found in yld_ref. Available: %s",
+        loc, paste(utils::head(yld_ref$location_name, 10), collapse = ", ")
+      ))
+    }
+    dw_vec <- rep(as.numeric(dw_scalar[1]), n_row)
+  }
+
+  # -- Per-row profile term: sum over RESISTANT profiles only ------------------
+  # D_k = profiles with a dominant class (dominant_class != "all_susceptible").
+  # The all-susceptible profile is excluded rather than included with an
+  # implied LOSR==LOSS(->0) term, matching the pre-existing convention
+  # elsewhere in this package that "associated"/"attributable" burden is a
+  # partition over resistant profiles only (see daly_calc_paf_los(), whose
+  # all-susceptible term already contributes exactly zero by construction).
+  profile_term <- rep(NA_real_, n_row)
+  n_unmatched_pathogen <- 0L
+
+  for (i in seq_len(n_row)) {
+    path <- as.character(P_Lk_prime_tbl[[pathogen_col]][i])
+    prof_df <- profiles_with_los[[path]]
+
+    if (is.null(prof_df)) {
+      n_unmatched_pathogen <- n_unmatched_pathogen + 1L
       next
     }
 
-    # Per-profile numerator and fraction
-    numerator_assoc <- p * rr
-    fraction_assoc_vec <- numerator_assoc / E_RR_k
+    required_prof_cols <- c(probability_col, dominant_class_col, losr_col)
+    if (mode == "attributable") required_prof_cols <- c(required_prof_cols, loss_col)
+    missing_prof_cols <- setdiff(required_prof_cols, names(prof_df))
+    if (length(missing_prof_cols) > 0L) {
+      stop(sprintf(
+        paste0(
+          "Column(s) not found in profiles_with_los[['%s']]: %s. Call ",
+          "daly_assign_rr_to_profiles() with los_r_col/los_s_col set to ",
+          "produce them."
+        ),
+        path, paste(missing_prof_cols, collapse = ", ")
+      ))
+    }
 
-    df$numerator_assoc <- round(numerator_assoc, 6L)
-    df$fraction_assoc <- round(fraction_assoc_vec, 6L)
+    resist <- prof_df[prof_df[[dominant_class_col]] != "all_susceptible", , drop = FALSE]
+    if (nrow(resist) == 0L) {
+      profile_term[i] <- 0
+      next
+    }
 
-    # Resistant profiles: at least one binary class indicator column == 1.
-    # The all-susceptible profile has every class column = 0 and RR = 1.
-    class_cols <- setdiff(names(df), non_class_cols)
-    if (length(class_cols) > 0L) {
-      is_resistant <- rowSums(
-        df[, class_cols, drop = FALSE] == 1L,
-        na.rm = TRUE
-      ) > 0L
+    p <- resist[[probability_col]]
+    losr <- resist[[losr_col]]
+    n_na_losr <- sum(is.na(losr))
+    if (n_na_losr > 0L) {
+      warning(sprintf(
+        paste0(
+          "'%s': %d resistant profile(s) have no matched LOSR_years ",
+          "(dominant class not in rr_table) -- excluded from the profile sum."
+        ),
+        path, n_na_losr
+      ))
+    }
+
+    if (mode == "associated") {
+      term_vec <- p * losr
     } else {
-      # Fallback when class columns absent: use RR > 1 as proxy
-      is_resistant <- rr > 1.0
-    }
-
-    Fraction_k <- sum(fraction_assoc_vec[is_resistant])
-
-    out[[path]] <- list(
-      per_profile = df,
-      Fraction_k  = round(Fraction_k, 6L),
-      E_RR_k      = round(E_RR_k, 6L)
-    )
-
-    message(sprintf(
-      "'%s': Fraction_k (associated) = %.4f | E[relative LOS] = %.4f | %d profiles (%d resistant).",
-      path, Fraction_k, E_RR_k, nrow(df), sum(is_resistant)
-    ))
-  }
-
-  return(out)
-}
-
-daly_calc_yld_associated <- function(
-  yld_k_tbl,
-  fraction_assoc_list,
-  pathogen_col = "pathogen",
-  yld_col = "YLD",
-  probability_col = "probability",
-  rr_profile_col = "RR_LOS_profile"
-) {
-  if (!is.data.frame(yld_k_tbl)) {
-    stop("yld_k_tbl must be a data frame (output of calculate_YLD()).")
-  }
-  if (!is.list(fraction_assoc_list)) {
-    stop("fraction_assoc_list must be the list returned by daly_calc_fraction_associated_yld().")
-  }
-  if (!pathogen_col %in% names(yld_k_tbl)) {
-    stop(sprintf("pathogen_col '%s' not found in yld_k_tbl.", pathogen_col))
-  }
-  if (!yld_col %in% names(yld_k_tbl)) {
-    stop(sprintf("yld_col '%s' not found in yld_k_tbl.", yld_col))
-  }
-
-  # Build flat lookup: one row per pathogen
-  frac_rows <- lapply(names(fraction_assoc_list), function(k) {
-    res <- fraction_assoc_list[[k]]
-    if (is.null(res)) {
-      return(NULL)
-    }
-
-    # Defaults if per_profile unavailable
-    R_k_delta_txt <- NA_character_
-    LOS_k_delta_txt <- NA_character_
-
-    if (!is.null(res$per_profile) && is.data.frame(res$per_profile)) {
-      df <- res$per_profile
-
-      # Classify resistant profiles the same way as Step 5
-      non_class_cols <- c(
-        "profile", probability_col, rr_profile_col,
-        "dominant_class", "CI_lower_profile", "CI_upper_profile",
-        "numerator", "PAF_LOS", "denominator",
-        "numerator_assoc", "fraction_assoc"
-      )
-
-      class_cols <- setdiff(names(df), non_class_cols)
-      rr <- if (rr_profile_col %in% names(df)) df[[rr_profile_col]] else rep(NA_real_, nrow(df))
-
-      if (length(class_cols) > 0L) {
-        is_resistant <- rowSums(df[, class_cols, drop = FALSE] == 1L, na.rm = TRUE) > 0L
-      } else {
-        is_resistant <- rr > 1.0
+      loss <- resist[[loss_col]]
+      n_na_loss <- sum(is.na(loss) & !is.na(losr))
+      if (n_na_loss > 0L) {
+        warning(sprintf(
+          paste0(
+            "'%s': %d resistant profile(s) have LOSR_years but no matched ",
+            "LOSS_years -- excluded from the profile sum."
+          ),
+          path, n_na_loss
+        ))
       }
-
-      if (probability_col %in% names(df) && rr_profile_col %in% names(df)) {
-        p_res <- df[[probability_col]][is_resistant]
-        rr_res <- df[[rr_profile_col]][is_resistant]
-
-        if (length(p_res) > 0L) {
-          R_k_delta_txt <- paste(round(p_res, 6L), collapse = ",")
-        }
-        if (length(rr_res) > 0L) {
-          LOS_k_delta_txt <- paste(round(rr_res, 6L), collapse = ",")
-        }
-      }
+      term_vec <- p * (losr - loss)
     }
 
-    data.frame(
-      .pathogen = k,
-      Fraction_k = res$Fraction_k,
-      R_k_delta = R_k_delta_txt,
-      LOS_k_delta = LOS_k_delta_txt,
-      stringsAsFactors = FALSE
-    )
-  })
-
-  frac_df <- do.call(rbind, frac_rows)
-
-  if (is.null(frac_df) || nrow(frac_df) == 0L) {
-    stop("fraction_assoc_list is empty -- no fractions to join.")
+    profile_term[i] <- sum(term_vec, na.rm = TRUE)
   }
 
-  names(frac_df)[names(frac_df) == ".pathogen"] <- pathogen_col
-
-  out <- merge(yld_k_tbl, frac_df, by = pathogen_col, all.x = TRUE)
-
-  out$YLD_associated <- out[[yld_col]] * out$Fraction_k
-
-  n_unmatched <- sum(is.na(out$Fraction_k))
-  if (n_unmatched > 0L) {
+  if (n_unmatched_pathogen > 0L) {
     warning(sprintf(
-      "%d row(s) in yld_k_tbl had no matching Fraction_k; YLD_associated set to NA.",
-      n_unmatched
+      "%d row(s) in P_Lk_prime_tbl had no matching entry in profiles_with_los; %s set to NA.",
+      n_unmatched_pathogen, out_col
     ))
   }
+
+  out <- P_Lk_prime_tbl
+  out$I_L <- out[[incidence_col]]
+  out$DW_L <- dw_vec
+  out$profile_term <- round(profile_term, 6L)
+  out[[out_col]] <- out$I_L * out[[plk_col]] * out$DW_L * out$profile_term
 
   message(sprintf(
-    "YLD_associated computed: %d pathogen(s), total YLD_associated = %.4f.",
-    sum(!is.na(out$YLD_associated)),
-    sum(out$YLD_associated, na.rm = TRUE)
+    "%s computed: %d row(s), total %s = %.4f.",
+    out_col, n_row, out_col, sum(out[[out_col]], na.rm = TRUE)
   ))
 
-  return(out)
+  out
 }
 
 
-# -- Step 7 --------------------------------------------------------------------
+#' Compute YLD Associated with Resistance (Direct, Profile-Specific)
+#'
+#' Primary, direct implementation of the profile-specific associated-YLD
+#' equation:
+#'
+#'   YLD_assoc_k = I_L * P'_Lk * DW_L *
+#'     sum_\{delta in D_k\} [R'_k_delta * LOSR_k,d*(delta)]
+#'
+#' where D_k is the set of RESISTANT resistance profiles for pathogen k (the
+#' all-susceptible profile has no dominant class and is excluded -- see
+#' "Details"). d*(delta) is the dominant drug class of profile delta (GBD max
+#' rule, assigned by \code{daly_assign_rr_to_profiles()}).
+#'
+#' This does \strong{not} require computing a baseline/pooled YLD first:
+#' unlike the pre-existing multiplicative pathway (a pooled baseline YLD
+#' multiplied by an associated-burden fraction), this is the direct
+#' equation, evaluated per pathogen (and per facility, if
+#' \code{P_Lk_prime_tbl} is facility-level) from its own inputs.
+#'
+#' \strong{Component sourcing}:
+#' \itemize{
+#'   \item \strong{I_L} and \strong{P'_Lk}: read directly from
+#'     \code{P_Lk_prime_tbl} -- the \code{P_Lk_prime} (pooled) or
+#'     \code{facility_level} element already returned by
+#'     \code{daly_calc_pathogen_fraction_nonfatal()}, which computes both the
+#'     non-fatal incidence count and the pathogen fraction from the same
+#'     observed cohort. Incidence is never back-calculated from deaths, CFR,
+#'     or LOS.
+#'   \item \strong{DW_L}: resolved exactly as in the package's pre-existing
+#'     YLD weight mechanism -- either the \code{DW_sepsis} scalar, or a
+#'     lookup in \code{yld_ref} (loaded from
+#'     \code{inst/extdata/Proxy_YLD_per_case.csv}) by state/facility. See
+#'     "Disability weight caveat" below.
+#'   \item \strong{R'_k_delta}, \strong{d*(delta)}, and \strong{LOSR}: read
+#'     from \code{profiles_with_los}, the list returned by
+#'     \code{daly_assign_rr_to_profiles()} when called with
+#'     \code{los_r_col}/\code{los_s_col} set.
+#' }
+#'
+#' \strong{Why D_k excludes the all-susceptible profile}: this matches the
+#' pre-existing convention elsewhere in this package that "associated"
+#' burden is a partition over resistant profiles only (the removed
+#' \code{daly_calc_fraction_associated_yld()}'s \code{Fraction_k} summed over
+#' resistant profiles only; \code{daly_calc_paf_los()}'s all-susceptible term
+#' already contributes exactly zero by construction, since RR=1 there).
+#' \code{YLD_associated} therefore represents the burden occurring
+#' specifically among pathogen-k patients with a resistant profile, not the
+#' total burden across all pathogen-k patients.
+#'
+#' \strong{Disability weight caveat}: \code{Proxy_YLD_per_case.csv}'s
+#' \code{DW_sepsis} column is empirically a duration-inclusive "YLD per case"
+#' proxy (\code{proxy_yld_per_case == yld_days_per_case / 365}), not a pure
+#' disability weight. Because this function already multiplies by
+#' profile-specific \code{LOSR_years} separately, sourcing \code{DW_L} from
+#' \code{yld_ref} risks double-counting duration; a warning is emitted when
+#' \code{DW_sepsis} is not supplied directly. Prefer supplying a pure
+#' disability weight via the \code{DW_sepsis} scalar for this pathway.
+#'
+#' @param profiles_with_los Named list (one entry per pathogen) from
+#'   \code{daly_assign_rr_to_profiles(..., los_r_col = ..., los_s_col = ...)}.
+#'   Each entry must have \code{probability_col}, \code{dominant_class_col},
+#'   and \code{losr_col} columns.
+#' @param P_Lk_prime_tbl Data frame: the \code{P_Lk_prime} (pooled) or
+#'   \code{facility_level} element from
+#'   \code{daly_calc_pathogen_fraction_nonfatal()}. Must contain
+#'   \code{pathogen_col}, \code{plk_col}, and \code{incidence_col}.
+#' @param yld_ref Data frame with columns \code{location_name} and
+#'   \code{DW_sepsis}. Ignored when \code{DW_sepsis} is supplied.
+#' @param DW_sepsis Numeric scalar or \code{NULL}. Disability weight used
+#'   directly for every row when supplied (recommended -- see "Disability
+#'   weight caveat").
+#' @param pathogen_col Character. Default \code{"pathogen"}.
+#' @param plk_col Character. P'_Lk column in \code{P_Lk_prime_tbl}. Default
+#'   \code{"P_Lk_prime"}.
+#' @param incidence_col Character. I_L column in \code{P_Lk_prime_tbl}.
+#'   Default \code{"N_NF_L"} (the column already produced by
+#'   \code{daly_calc_pathogen_fraction_nonfatal()}).
+#' @param facility_col Character or \code{NULL}. Facility identifier column
+#'   in \code{P_Lk_prime_tbl}. Default \code{NULL}.
+#' @param facility_name Character or \code{NULL}. Restrict to a single
+#'   facility. Default \code{NULL}.
+#' @param facility_state_map Data frame with \code{facility_col} and
+#'   \code{state_col}, mapping each facility to a state. Used only when
+#'   \code{DW_sepsis} is not supplied and \code{facility_col} is present.
+#' @param state_col Character. Default \code{"state"}.
+#' @param state_name Character or \code{NULL}. State for the pooled/no-facility
+#'   DW lookup. \code{NULL} uses the "India" row. Ignored when
+#'   \code{DW_sepsis} is supplied.
+#' @param probability_col Character. R'_k_delta column in
+#'   \code{profiles_with_los}. Default \code{"probability"}.
+#' @param dominant_class_col Character. d*(delta) column. Default
+#'   \code{"dominant_class"}.
+#' @param losr_col Character. LOSR_k,d*(delta) column (years). Default
+#'   \code{"LOSR_years"}.
+#'
+#' @return \code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
+#'   \code{profile_term} (= sum_delta R'_k_delta * LOSR_k_delta), and
+#'   \code{YLD_associated}.
+#' @export
+daly_calc_yld_associated <- function(
+  profiles_with_los,
+  P_Lk_prime_tbl,
+  yld_ref = NULL,
+  DW_sepsis = NULL,
+  pathogen_col = "pathogen",
+  plk_col = "P_Lk_prime",
+  incidence_col = "N_NF_L",
+  facility_col = NULL,
+  facility_name = NULL,
+  facility_state_map = NULL,
+  state_col = "state",
+  state_name = NULL,
+  probability_col = "probability",
+  dominant_class_col = "dominant_class",
+  losr_col = "LOSR_years"
+) {
+  .daly_yld_direct(
+    mode = "associated",
+    profiles_with_los = profiles_with_los,
+    P_Lk_prime_tbl = P_Lk_prime_tbl,
+    yld_ref = yld_ref,
+    DW_sepsis = DW_sepsis,
+    pathogen_col = pathogen_col,
+    plk_col = plk_col,
+    incidence_col = incidence_col,
+    facility_col = facility_col,
+    facility_name = facility_name,
+    facility_state_map = facility_state_map,
+    state_col = state_col,
+    state_name = state_name,
+    probability_col = probability_col,
+    dominant_class_col = dominant_class_col,
+    losr_col = losr_col,
+    loss_col = NULL,
+    out_col = "YLD_associated"
+  )
+}
 
-#' Compute YLDs Attributable to Resistance
+
+#' Compute YLD Attributable to Resistance (Direct, Profile-Specific)
 #'
-#' Multiplies \code{YLD_k} (from \code{calculate_YLD()}) by the LOS-based
-#' PAF (from \code{daly_calc_paf_los()}).
+#' Primary, direct implementation of the profile-specific attributable-YLD
+#' equation:
 #'
-#'   YLD_attributable_k = YLD_k * PAF_k
+#'   YLD_attrib_k = I_L * P'_Lk * DW_L *
+#'     sum_\{delta in D_k\} [R'_k_delta * (LOSR_k,d*(delta) - LOSS_k,d*(delta))]
 #'
-#' Answers: "How much disability burden exists *only because* infections were
-#' resistant instead of susceptible?"  This is a counterfactual -- it measures
-#' the excess burden driven purely by resistance.
+#' The excess \code{(LOSR - LOSS)} term makes this a genuine counterfactual:
+#' how much MORE disability burden exists because these infections were
+#' resistant, versus if they had been susceptible to the same (dominant)
+#' class. D_k excludes the all-susceptible profile from the sum entirely
+#' (rather than including a zero \code{LOSR - LOSS} term for it) -- see
+#' \code{daly_calc_yld_associated()} for why.
 #'
-#' Note: YLD_attributable_k < YLD_associated_k always, because
-#'   PAF_k = Fraction_k * (1 - 1/E_RR_k)  <  Fraction_k.
+#' Obtains I_L, P'_Lk, DW_L, R'_k_delta, d*(delta), LOSR, and LOSS the same
+#' way as \code{daly_calc_yld_associated()} -- see that function's
+#' documentation for full component-by-component sourcing and the
+#' disability-weight caveat. Does \strong{not} require a baseline YLD or a
+#' PAF_LOS computed first; unlike the pre-existing multiplicative pathway
+#' (\code{daly_calc_paf_los()} multiplied against a pooled baseline YLD),
+#' this is the direct equation. \code{daly_calc_paf_los()} remains available
+#' standalone for diagnostics / comparison against this direct calculation.
 #'
-#' @param yld_k_tbl Data frame from \code{calculate_YLD()} containing at
-#'   least a pathogen column and a YLD column.
-#' @param paf_los_list Named list from \code{daly_calc_paf_los()}.
-#' @param pathogen_col Character.  Pathogen column in \code{yld_k_tbl}.
-#'   Default \code{"pathogen"}.
-#' @param yld_col Character.  YLD column in \code{yld_k_tbl}.
-#'   Default \code{"YLD"}.
+#' @inheritParams daly_calc_yld_associated
+#' @param loss_col Character. LOSS_k,d*(delta) column (years) in
+#'   \code{profiles_with_los}. Default \code{"LOSS_years"}.
 #'
-#' @return \code{yld_k_tbl} augmented with columns \code{PAF_k},
-#'   \code{denominator}, and \code{YLD_attributable}.
+#' @return \code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
+#'   \code{profile_term} (= sum_delta R'_k_delta * (LOSR_k_delta -
+#'   LOSS_k_delta)), and \code{YLD_attributable}.
 #' @export
 daly_calc_yld_attributable <- function(
-  yld_k_tbl,
-  paf_los_list,
+  profiles_with_los,
+  P_Lk_prime_tbl,
+  yld_ref = NULL,
+  DW_sepsis = NULL,
   pathogen_col = "pathogen",
-  yld_col = "YLD"
+  plk_col = "P_Lk_prime",
+  incidence_col = "N_NF_L",
+  facility_col = NULL,
+  facility_name = NULL,
+  facility_state_map = NULL,
+  state_col = "state",
+  state_name = NULL,
+  probability_col = "probability",
+  dominant_class_col = "dominant_class",
+  losr_col = "LOSR_years",
+  loss_col = "LOSS_years"
 ) {
-  if (!is.data.frame(yld_k_tbl)) {
-    stop("yld_k_tbl must be a data frame (output of calculate_YLD()).")
-  }
-  if (!is.list(paf_los_list)) {
-    stop("paf_los_list must be the list returned by daly_calc_paf_los().")
-  }
-  if (!pathogen_col %in% names(yld_k_tbl)) {
-    stop(sprintf("pathogen_col '%s' not found in yld_k_tbl.", pathogen_col))
-  }
-  if (!yld_col %in% names(yld_k_tbl)) {
-    stop(sprintf("yld_col '%s' not found in yld_k_tbl.", yld_col))
-  }
-
-  # Build flat lookup: one row per pathogen
-  paf_rows <- lapply(names(paf_los_list), function(k) {
-    res <- paf_los_list[[k]]
-    if (is.null(res)) {
-      return(NULL)
-    }
-    data.frame(
-      .pathogen = k,
-      PAF_k = res$PAF_k,
-      denominator = res$denominator,
-      stringsAsFactors = FALSE
-    )
-  })
-  paf_df <- do.call(rbind, paf_rows)
-
-  if (is.null(paf_df) || nrow(paf_df) == 0L) {
-    stop("paf_los_list is empty -- no PAFs to join.")
-  }
-
-  names(paf_df)[names(paf_df) == ".pathogen"] <- pathogen_col
-
-  out <- merge(yld_k_tbl, paf_df, by = pathogen_col, all.x = TRUE)
-
-  out$YLD_attributable <- out[[yld_col]] * out$PAF_k
-
-  n_unmatched <- sum(is.na(out$PAF_k))
-  if (n_unmatched > 0L) {
-    warning(sprintf(
-      "%d row(s) in yld_k_tbl had no matching PAF_k; YLD_attributable set to NA.",
-      n_unmatched
-    ))
-  }
-
-  message(sprintf(
-    "YLD_attributable computed: %d pathogen(s), total YLD_attributable = %.4f.",
-    sum(!is.na(out$YLD_attributable)),
-    sum(out$YLD_attributable, na.rm = TRUE)
-  ))
-
-  return(out)
+  .daly_yld_direct(
+    mode = "attributable",
+    profiles_with_los = profiles_with_los,
+    P_Lk_prime_tbl = P_Lk_prime_tbl,
+    yld_ref = yld_ref,
+    DW_sepsis = DW_sepsis,
+    pathogen_col = pathogen_col,
+    plk_col = plk_col,
+    incidence_col = incidence_col,
+    facility_col = facility_col,
+    facility_name = facility_name,
+    facility_state_map = facility_state_map,
+    state_col = state_col,
+    state_name = state_name,
+    probability_col = probability_col,
+    dominant_class_col = dominant_class_col,
+    losr_col = losr_col,
+    loss_col = loss_col,
+    out_col = "YLD_attributable"
+  )
 }
