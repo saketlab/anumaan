@@ -14,7 +14,7 @@ daly_fit_los_rr_distribution(
   facility_col = "center_name",
   organism_col = "organism_name",
   syndrome_col = "syndrome",
-  infection_type_col = "type_of_infection",
+  infection_type_col = "infection_type",
   antibiotic_class_col = "antibiotic_class",
   antibiotic_name_col = "antibiotic_name",
   antibiotic_value_col = "antibiotic_value",
@@ -58,7 +58,11 @@ daly_fit_los_rr_distribution(
 
 - infection_type_col:
 
-  Character. Column used to derive HAI/CAI.
+  Character. Column already holding the final HAI/CAI classification
+  (e.g.
+  [`prep_derive_hai_cai()`](https://saketlab.github.io/anumaan/reference/prep_derive_hai_cai.md)'s
+  output). Used as-is – **not** re-derived from admission/culture dates.
+  Default `"infection_type"`.
 
 - antibiotic_class_col:
 
@@ -108,8 +112,9 @@ daly_fit_los_rr_distribution(
 
 - hai_threshold_hours:
 
-  Numeric. Hours after admission before a culture is classified as HAI.
-  Default `48`.
+  Numeric. Unused – retained only for backward API compatibility.
+  HAI/CAI is read directly from `infection_type_col` rather than
+  re-derived from a date gap.
 
 - distributions:
 

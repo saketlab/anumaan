@@ -40,7 +40,6 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_cr_l.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_deaths_by_cause.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_deaths_by_syndrome.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_fraction_associated_yld.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_incidence_from_cfr.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_infection_fraction.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_paf_los.html</loc></url>
@@ -48,12 +47,12 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_fatal.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_resistance_prevalence_fatal.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_syndrome_fraction.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yld_associated.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yld_attributable.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_compute_patient_los.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_los.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.html</loc></url>

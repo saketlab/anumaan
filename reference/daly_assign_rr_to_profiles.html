@@ -39,7 +39,7 @@ The CI reported for each profile is that of its dominant (max-RR) class."><link 
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9034</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9035</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,7 +97,10 @@ The CI reported for each profile is that of its dominant (max-RR) class.</p>
 <span>  pathogen_col <span class="op">=</span> <span class="st">"pathogen"</span>,</span>
 <span>  class_col <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
 <span>  rr_col <span class="op">=</span> <span class="st">"RR_LOS"</span>,</span>
-<span>  fallback_rr <span class="op">=</span> <span class="fl">1</span></span>
+<span>  fallback_rr <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  los_r_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  los_s_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  los_unit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"years"</span>, <span class="st">"days"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -131,12 +134,36 @@ CI_lower / CI_upper.</p></dd>
 <dd><p>Numeric. RR for resistant classes with no match.
 Default <code>1</code> (no attributable effect).</p></dd>
 
+
+<dt id="arg-los-r-col">los_r_col<a class="anchor" aria-label="anchor" href="#arg-los-r-col"></a></dt>
+<dd><p>Character or <code>NULL</code>. Column in <code>rr_table</code> with
+absolute mean LOS for resistant patients (e.g. <code>"mean_LOS_R"</code>).
+When supplied together with <code>los_s_col</code>, <code>LOSR_years</code> /
+<code>LOSS_years</code> are added to the output. Default <code>NULL</code> (no
+absolute LOS propagated; behaviour identical to before this parameter
+existed).</p></dd>
+
+
+<dt id="arg-los-s-col">los_s_col<a class="anchor" aria-label="anchor" href="#arg-los-s-col"></a></dt>
+<dd><p>Character or <code>NULL</code>. Column in <code>rr_table</code> with
+absolute mean LOS for susceptible patients (e.g. <code>"mean_LOS_S"</code>).
+Required when <code>los_r_col</code> is supplied.</p></dd>
+
+
+<dt id="arg-los-unit">los_unit<a class="anchor" aria-label="anchor" href="#arg-los-unit"></a></dt>
+<dd><p>Character. Unit of <code>los_r_col</code> / <code>los_s_col</code> in
+<code>rr_table</code>: <code>"years"</code> (used as-is) or <code>"days"</code> (divided
+by 365, matching the day-to-year conversion already used in
+<code><a href="daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code>). Default <code>"years"</code>. Ignored
+when <code>los_r_col</code> is <code>NULL</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Named list (one entry per pathogen): original profiles data frame
-  augmented with RR_LOS_profile, dominant_class, and (if available)
-  CI_lower_profile / CI_upper_profile.</p>
+  augmented with RR_LOS_profile, dominant_class, (if available)
+  CI_lower_profile / CI_upper_profile, and (when <code>los_r_col</code> /
+  <code>los_s_col</code> are supplied) LOSR_years / LOSS_years.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -144,6 +171,16 @@ Default <code>1</code> (no attributable effect).</p></dd>
 values are syndrome-specific but get applied here to all profiles of a
 pathogen – i.e. it assumes syndrome-invariant LOS prolongation. Refit
 with <code>syndrome_name = NULL</code> for a RR pooled across syndromes.</p>
+<p>Optionally, when <code>los_r_col</code> and <code>los_s_col</code> are supplied, also
+propagates the <strong>absolute</strong> mean LOS for the profile's dominant class
+(resistant and susceptible) as <code>LOSR_years</code> / <code>LOSS_years</code>. This
+does not change the RR assignment above; it is an additive lookup against
+the dominant class already selected by the max rule, using whichever
+absolute-LOS columns are present in <code>rr_table</code> (e.g. <code>mean_LOS_R</code>
+/ <code>mean_LOS_S</code> from <code><a href="daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code>, or
+<code>mean_los_resistant</code> / <code>mean_los_susceptible</code> from
+<code><a href="daly_fit_los_rr.html">daly_fit_los_rr()</a></code>). <code>LOSR_years</code>/<code>LOSS_years</code> are set to
+<code>NA</code> for the all-susceptible profile, which has no dominant class.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

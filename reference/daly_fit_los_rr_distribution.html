@@ -35,7 +35,7 @@ each group's LOS, and returns:
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9034</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9035</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -91,7 +91,7 @@ each group's LOS, and returns:
 <span>  facility_col <span class="op">=</span> <span class="st">"center_name"</span>,</span>
 <span>  organism_col <span class="op">=</span> <span class="st">"organism_name"</span>,</span>
 <span>  syndrome_col <span class="op">=</span> <span class="st">"syndrome"</span>,</span>
-<span>  infection_type_col <span class="op">=</span> <span class="st">"type_of_infection"</span>,</span>
+<span>  infection_type_col <span class="op">=</span> <span class="st">"infection_type"</span>,</span>
 <span>  antibiotic_class_col <span class="op">=</span> <span class="st">"antibiotic_class"</span>,</span>
 <span>  antibiotic_name_col <span class="op">=</span> <span class="st">"antibiotic_name"</span>,</span>
 <span>  antibiotic_value_col <span class="op">=</span> <span class="st">"antibiotic_value"</span>,</span>
@@ -136,7 +136,10 @@ each group's LOS, and returns:
 
 
 <dt id="arg-infection-type-col">infection_type_col<a class="anchor" aria-label="anchor" href="#arg-infection-type-col"></a></dt>
-<dd><p>Character. Column used to derive HAI/CAI.</p></dd>
+<dd><p>Character. Column already holding the final
+HAI/CAI classification (e.g. <code><a href="prep_derive_hai_cai.html">prep_derive_hai_cai()</a></code>'s output).
+Used as-is – <strong>not</strong> re-derived from admission/culture dates.
+Default <code>"infection_type"</code>.</p></dd>
 
 
 <dt id="arg-antibiotic-class-col">antibiotic_class_col<a class="anchor" aria-label="anchor" href="#arg-antibiotic-class-col"></a></dt>
@@ -186,8 +189,9 @@ to the specified facility before fitting. Default <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-hai-threshold-hours">hai_threshold_hours<a class="anchor" aria-label="anchor" href="#arg-hai-threshold-hours"></a></dt>
-<dd><p>Numeric. Hours after admission before a culture
-is classified as HAI. Default <code>48</code>.</p></dd>
+<dd><p>Numeric. Unused – retained only for backward
+API compatibility. HAI/CAI is read directly from <code>infection_type_col</code>
+rather than re-derived from a date gap.</p></dd>
 
 
 <dt id="arg-distributions">distributions<a class="anchor" aria-label="anchor" href="#arg-distributions"></a></dt>

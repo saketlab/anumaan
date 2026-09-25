@@ -403,8 +403,6 @@ GBD-methodology burden calculations
   : Calculate Deaths by Underlying Cause (D_J)
 - [`daly_calc_deaths_by_syndrome()`](https://saketlab.github.io/anumaan/reference/daly_calc_deaths_by_syndrome.md)
   : Calculate Deaths by Infectious Syndrome (D_L)
-- [`daly_calc_fraction_associated_yld()`](https://saketlab.github.io/anumaan/reference/daly_calc_fraction_associated_yld.md)
-  : Compute Associated-Burden Fractions per Resistance Profile
 - [`daly_calc_incidence_from_cfr()`](https://saketlab.github.io/anumaan/reference/daly_calc_incidence_from_cfr.md)
   : Calculate syndrome incidence from deaths, CFR, and CR_L
   (formula-based)
@@ -421,8 +419,10 @@ GBD-methodology burden calculations
   : Calculate Fatal Resistance Prevalence (R_k)
 - [`daly_calc_syndrome_fraction()`](https://saketlab.github.io/anumaan/reference/daly_calc_syndrome_fraction.md)
   : Calculate Infectious Syndrome Fraction (M_LJ)
+- [`daly_calc_yld_associated()`](https://saketlab.github.io/anumaan/reference/daly_calc_yld_associated.md)
+  : Compute YLD Associated with Resistance (Direct, Profile-Specific)
 - [`daly_calc_yld_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yld_attributable.md)
-  : Compute YLDs Attributable to Resistance
+  : Compute YLD Attributable to Resistance (Direct, Profile-Specific)
 - [`daly_calc_yll_associated()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.md)
   : Compute YLL Associated with AMR (Patient-Level, Facility-Direct)
 - [`daly_calc_yll_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.md)
@@ -431,8 +431,6 @@ GBD-methodology burden calculations
   : Compute Patient-Level Post-Infection LOS
 - [`daly_count_incident_cases()`](https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.md)
   : Count incident cases by syndrome from facility data
-- [`daly_derive_hai_cai_for_los()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_los.md)
-  : Derive Infection Type (HAI / CAI) per Patient
 - [`daly_derive_hai_cai_for_mortality()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.md)
   : Classify HAI/CAI Infection Type for the Mortality Cohort
 - [`daly_filter_profiles_to_rr_classes()`](https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.md)

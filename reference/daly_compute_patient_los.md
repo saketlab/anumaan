@@ -41,9 +41,8 @@ daly_compute_patient_los(
 
 - data:
 
-  Data frame (after
-  [`daly_derive_hai_cai_for_los()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_los.md)
-  has been run).
+  Data frame with an `infection_type_derived_col` column already
+  populated (`"HAI"` / `"CAI"` / other).
 
 - patient_id_col:
 
@@ -97,9 +96,9 @@ daly_compute_patient_los(
 
 - infection_type_derived_col:
 
-  Character. Column from
-  [`daly_derive_hai_cai_for_los()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_los.md).
-  Default `"infection_type_derived"`.
+  Character. Column holding each patient's HAI/CAI classification (e.g.
+  copied from `infection_type` by the caller). Default
+  `"infection_type_derived"`.
 
 - los_col:
 
