@@ -10,7 +10,7 @@ daly_fit_los_rr(
   facility_col = "center_name",
   organism_col = "organism_name",
   syndrome_col = "syndrome",
-  infection_type_col = "type_of_infection",
+  infection_type_col = "infection_type",
   antibiotic_class_col = "antibiotic_class",
   antibiotic_name_col = "antibiotic_name",
   antibiotic_value_col = "antibiotic_value",
@@ -47,7 +47,10 @@ per pathogen-class-hospital combination (hospital-specific RR).}
 
 \item{syndrome_col}{Character. Syndrome column.}
 
-\item{infection_type_col}{Character. Raw infection type column.}
+\item{infection_type_col}{Character. Column already holding the final
+HAI/CAI classification (e.g. \code{prep_derive_hai_cai()}'s output).
+Used as-is -- \strong{not} re-derived from admission/culture dates.
+Default \code{"infection_type"}.}
 
 \item{antibiotic_class_col}{Character. Antibiotic class column.}
 
@@ -77,7 +80,9 @@ per pathogen-class-hospital combination (hospital-specific RR).}
 
 \item{organism_name}{Character vector or NULL. Restrict to these pathogens.}
 
-\item{hai_threshold_hours}{Numeric. HAI derivation threshold.}
+\item{hai_threshold_hours}{Numeric. Unused -- retained only for backward
+API compatibility. HAI/CAI is read directly from \code{infection_type_col}
+rather than re-derived from a date gap.}
 
 \item{max_los}{Numeric. Maximum retained LOS in days.}
 

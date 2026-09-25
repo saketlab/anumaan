@@ -28,152 +28,6 @@
 .safe_fitdist <- function(x, dist) safe_fit(x, dist)
 
 
-# -- Step 1a -------------------------------------------------------------------
-
-#' Derive Infection Type (HAI / CAI) per Patient
-#'
-#' Classifies each row as HAI or CAI. Uses \code{infection_type_col} when it
-#' contains a valid value. For rows where that column is \code{NA},
-#' \code{"Not known"}, or \code{"NULL"}, derives the classification from the
-#' gap between \code{date_culture_col} and \code{date_admission_col}:
-#' \itemize{
-#'   \item gap <= \code{hai_threshold_hours} -> \strong{CAI}
-#'   \item gap >  \code{hai_threshold_hours} -> \strong{HAI}
-#' }
-#'
-#' @param data Data frame.
-#' @param infection_type_col Character. Raw infection type column.
-#'   Default \code{"type_of_infection"}.
-#' @param date_admission_col Character. Default \code{"date_of_admission"}.
-#' @param date_culture_col Character. Date of first positive culture.
-#'   Default \code{"date_of_first_positive_culture"}.
-#' @param hai_threshold_hours Numeric. Gap threshold in hours. Default \code{48}.
-#' @param patient_id_col Character. Unique patient identifier column.
-#'   Default \code{"PatientInformation_id"}.
-#'
-#' @return \code{data} with column \code{infection_type_derived}
-#'   (\code{"HAI"} / \code{"CAI"} / \code{"Unknown"}).
-#' @export
-daly_derive_hai_cai_for_los <- function(
-  data,
-  infection_type_col = "type_of_infection",
-  date_admission_col = "date_of_admission",
-  date_culture_col = "date_of_first_positive_culture",
-  hai_threshold_hours = 48,
-  patient_id_col = "PatientInformation_id"
-) {
-  required <- c(infection_type_col, date_admission_col, date_culture_col)
-  missing <- setdiff(required, names(data))
-  if (length(missing) > 0L) {
-    stop(sprintf(
-      "Column(s) not found in data: %s",
-      paste(missing, collapse = ", ")
-    ))
-  }
-
-  # Identify patients with ambiguous infection type AND at least one missing date.
-  # These patients cannot have HAI/CAI inferred and are assigned "Not Known".
-  ambiguous_mask <- {
-    inf_raw_check <- stringr::str_to_upper(stringr::str_trim(
-      as.character(data[[infection_type_col]])
-    ))
-    inf_raw_check %in% c("NOT KNOWN", "NOT_KNOWN", "UNKNOWN", "NULL", "NA", "") |
-      is.na(data[[infection_type_col]])
-  }
-  missing_admit <- is.na(data[[date_admission_col]])
-  missing_culture <- is.na(data[[date_culture_col]])
-  cannot_infer <- ambiguous_mask & (missing_admit | missing_culture)
-
-  if (any(cannot_infer)) {
-    n_cannot <- sum(cannot_infer)
-    message(sprintf(
-      paste0(
-        "Cannot infer infection type for %d patient(s): ",
-        "infection type is unknown/null AND at least one date is missing. ",
-        "Assigning 'Not Known'."
-      ),
-      n_cannot
-    ))
-    if (patient_id_col %in% names(data)) {
-      flagged <- data[cannot_infer, patient_id_col, drop = TRUE]
-      message("  Patient IDs with missing date(s):")
-      message(paste0("    ", paste(flagged, collapse = ", ")))
-    } else {
-      message(
-        "  Row indices with missing date(s): ",
-        paste(which(cannot_infer), collapse = ", ")
-      )
-    }
-    n_miss_admit <- sum(ambiguous_mask & missing_admit)
-    n_miss_culture <- sum(ambiguous_mask & missing_culture)
-    message(sprintf(
-      "  Breakdown: missing %s = %d | missing %s = %d",
-      date_admission_col, n_miss_admit,
-      date_culture_col,   n_miss_culture
-    ))
-  }
-
-  data <- data %>%
-    dplyr::mutate(
-      .inf_raw = stringr::str_to_upper(stringr::str_trim(
-        as.character(.data[[infection_type_col]])
-      )),
-      .gap_h = as.numeric(difftime(
-        as.Date(.data[[date_culture_col]]),
-        as.Date(.data[[date_admission_col]]),
-        units = "hours"
-      )),
-      .cannot_infer = .inf_raw %in% c(
-        "NOT KNOWN", "NOT_KNOWN", "UNKNOWN",
-        "NULL", "NA", ""
-      ) |
-        is.na(.data[[infection_type_col]]),
-      infection_type_derived = dplyr::case_when(
-        .inf_raw %in% c(
-          "HAI", "HOSPITAL ACQUIRED",
-          "HOSPITAL-ACQUIRED", "HOSPITAL_ACQUIRED"
-        ) |
-          grepl("HOSPITAL.ACQUIRED|HEALTH.CARE.ASSOCIATED|HEALTHCARE.ASSOCIATED|\\bHAI\\b",
-            .inf_raw,
-            perl = TRUE
-          ) ~ "HAI",
-        .inf_raw %in% c(
-          "CAI", "COMMUNITY ACQUIRED",
-          "COMMUNITY-ACQUIRED", "COMMUNITY_ACQUIRED"
-        ) |
-          grepl("COMMUNITY.ACQUIRED|\\bCAI\\b",
-            .inf_raw,
-            perl = TRUE
-          ) ~ "CAI",
-        # Ambiguous type (Not Known/NA) but BOTH dates present: infer from gap
-        .cannot_infer &
-          !is.na(.data[[date_admission_col]]) &
-          !is.na(.data[[date_culture_col]]) ~
-          dplyr::if_else(.gap_h <= hai_threshold_hours, "CAI", "HAI"),
-        # Ambiguous type and at least one date missing: cannot infer
-        .cannot_infer ~ "Not Known",
-        # Unrecognised label but BOTH dates present: infer from gap
-        !is.na(.data[[date_admission_col]]) &
-          !is.na(.data[[date_culture_col]]) ~
-          dplyr::if_else(.gap_h <= hai_threshold_hours, "CAI", "HAI"),
-        # Unrecognised label and dates missing: cannot resolve
-        TRUE ~ "Unknown"
-      )
-    ) %>%
-    dplyr::select(-".inf_raw", -".gap_h", -".cannot_infer")
-
-  n_hai <- sum(data$infection_type_derived == "HAI", na.rm = TRUE)
-  n_cai <- sum(data$infection_type_derived == "CAI", na.rm = TRUE)
-  n_not_known <- sum(data$infection_type_derived == "Not Known", na.rm = TRUE)
-  n_unknown <- sum(data$infection_type_derived == "Unknown", na.rm = TRUE)
-  message(sprintf(
-    "Infection type derived: HAI = %d | CAI = %d | Not Known = %d | Unknown = %d.",
-    n_hai, n_cai, n_not_known, n_unknown
-  ))
-  return(data)
-}
-
-
 # -- Step 1b -------------------------------------------------------------------
 
 #' Compute Patient-Level Post-Infection LOS
@@ -191,7 +45,8 @@ daly_derive_hai_cai_for_los <- function(
 #' provided, otherwise they are excluded. Rows with LOS <= 0 or
 #' LOS > \code{max_los} are dropped. Returns one row per patient.
 #'
-#' @param data Data frame (after \code{daly_derive_hai_cai_for_los()} has been run).
+#' @param data Data frame with an \code{infection_type_derived_col} column
+#'   already populated (\code{"HAI"} / \code{"CAI"} / other).
 #' @param patient_id_col Character. Default \code{"PatientInformation_id"}.
 #' @param facility_col Character. Default \code{"center_name"}.
 #' @param organism_col Character. Column containing organism/pathogen names.
@@ -204,8 +59,9 @@ daly_derive_hai_cai_for_los <- function(
 #'   \code{"date_of_first_positive_culture"}.
 #' @param final_outcome_col Character. Default \code{"final_outcome"}.
 #' @param final_outcome_value Character. Default \code{"Discharged"}.
-#' @param infection_type_derived_col Character. Column from
-#'   \code{daly_derive_hai_cai_for_los()}. Default \code{"infection_type_derived"}.
+#' @param infection_type_derived_col Character. Column holding each patient's
+#'   HAI/CAI classification (e.g. copied from \code{infection_type} by the
+#'   caller). Default \code{"infection_type_derived"}.
 #' @param syndrome_col Character. Syndrome column name. Only used when
 #'   \code{syndrome_name} is not \code{NULL}. Default \code{"syndrome"}.
 #' @param syndrome_name Character or \code{NULL}. If provided, only patients
@@ -537,7 +393,10 @@ daly_compute_patient_los <- function(
 #'   per pathogen-class-hospital combination (hospital-specific RR).
 #' @param organism_col Character. Pathogen column.
 #' @param syndrome_col Character. Syndrome column.
-#' @param infection_type_col Character. Raw infection type column.
+#' @param infection_type_col Character. Column already holding the final
+#'   HAI/CAI classification (e.g. \code{prep_derive_hai_cai()}'s output).
+#'   Used as-is -- \strong{not} re-derived from admission/culture dates.
+#'   Default \code{"infection_type"}.
 #' @param antibiotic_class_col Character. Antibiotic class column.
 #' @param antibiotic_name_col Character. Antibiotic name column.
 #' @param antibiotic_value_col Character. Antibiotic susceptibility column.
@@ -552,7 +411,9 @@ daly_compute_patient_los <- function(
 #' @param comorbidity_col Character or NULL. Comorbidity column.
 #' @param syndrome_name Character or NULL. Restrict to one syndrome.
 #' @param organism_name Character vector or NULL. Restrict to these pathogens.
-#' @param hai_threshold_hours Numeric. HAI derivation threshold.
+#' @param hai_threshold_hours Numeric. Unused -- retained only for backward
+#'   API compatibility. HAI/CAI is read directly from \code{infection_type_col}
+#'   rather than re-derived from a date gap.
 #' @param max_los Numeric. Maximum retained LOS in days.
 #' @param min_n Integer. Minimum patients required in a class model.
 #' @param min_resistant Integer. Minimum resistant patients required.
@@ -570,7 +431,7 @@ daly_fit_los_rr <- function(
   facility_col = "center_name",
   organism_col = "organism_name",
   syndrome_col = "syndrome",
-  infection_type_col = "type_of_infection",
+  infection_type_col = "infection_type",
   antibiotic_class_col = "antibiotic_class",
   antibiotic_name_col = "antibiotic_name",
   antibiotic_value_col = "antibiotic_value",
@@ -628,15 +489,13 @@ daly_fit_los_rr <- function(
     message("No facility_col provided: hospital effect will not be included. Returning pooled RR.")
   }
 
-  # Step 1: derive HAI / CAI
-  data <- daly_derive_hai_cai_for_los(
-    data = data,
-    infection_type_col = infection_type_col,
-    date_admission_col = date_admission_col,
-    date_culture_col = date_culture_col,
-    hai_threshold_hours = hai_threshold_hours,
-    patient_id_col = patient_id_col
-  )
+  # Step 1: HAI / CAI classification is already computed upstream (e.g. by
+  # prep_derive_hai_cai()) and available in infection_type_col -- read it
+  # directly rather than re-deriving it from the admission/culture date gap.
+  if (!infection_type_col %in% names(data)) {
+    stop(sprintf("infection_type_col '%s' not found in data.", infection_type_col))
+  }
+  data$infection_type_derived <- data[[infection_type_col]]
 
   # Step 2: compute patient-level LOS
   # HAI: LOS = discharge date - first positive culture date
@@ -935,7 +794,10 @@ daly_fit_los_rr <- function(
 #' @param organism_col Character. Organism name column.
 #' @param syndrome_col Character. Syndrome column (used only when
 #'   \code{syndrome_name} is not \code{NULL}).
-#' @param infection_type_col Character. Column used to derive HAI/CAI.
+#' @param infection_type_col Character. Column already holding the final
+#'   HAI/CAI classification (e.g. \code{prep_derive_hai_cai()}'s output).
+#'   Used as-is -- \strong{not} re-derived from admission/culture dates.
+#'   Default \code{"infection_type"}.
 #' @param antibiotic_class_col Character. Antibiotic class column.
 #' @param antibiotic_name_col Character. Antibiotic name column.
 #' @param antibiotic_value_col Character. Antibiotic value column (S/I/R).
@@ -949,8 +811,9 @@ daly_fit_los_rr <- function(
 #'   pathogen(s); otherwise all pathogens in the filtered data.
 #' @param facility_name Character or \code{NULL}. If provided, filters data
 #'   to the specified facility before fitting. Default \code{NULL}.
-#' @param hai_threshold_hours Numeric. Hours after admission before a culture
-#'   is classified as HAI. Default \code{48}.
+#' @param hai_threshold_hours Numeric. Unused -- retained only for backward
+#'   API compatibility. HAI/CAI is read directly from \code{infection_type_col}
+#'   rather than re-derived from a date gap.
 #' @param distributions Character vector. Candidate distributions to fit.
 #'   Default \code{"gamma"}.
 #' @param max_los Numeric. Maximum plausible LOS in days. Default \code{200}.
@@ -979,7 +842,7 @@ daly_fit_los_rr_distribution <- function(
   facility_col = "center_name",
   organism_col = "organism_name",
   syndrome_col = "syndrome",
-  infection_type_col = "type_of_infection",
+  infection_type_col = "infection_type",
   antibiotic_class_col = "antibiotic_class",
   antibiotic_name_col = "antibiotic_name",
   antibiotic_value_col = "antibiotic_value",
@@ -1016,14 +879,10 @@ daly_fit_los_rr_distribution <- function(
     ))
   }
 
-  # -- Derive infection type (HAI / CAI) --------------------------------------
-  data <- daly_derive_hai_cai_for_los(
-    data,
-    infection_type_col  = infection_type_col,
-    date_admission_col  = date_admission_col,
-    date_culture_col    = date_culture_col,
-    hai_threshold_hours = hai_threshold_hours
-  )
+  # -- HAI / CAI classification is already computed upstream (e.g. by
+  # prep_derive_hai_cai()) and available in infection_type_col -- read it
+  # directly rather than re-deriving it from the admission/culture date gap.
+  data$infection_type_derived <- data[[infection_type_col]]
 
   # -- Filter to discharged patients + optional syndrome + optional facility --
   df <- dplyr::filter(data, .data[[final_outcome_col]] == final_outcome_value)
@@ -2673,6 +2532,17 @@ daly_add_rr_mappings <- function(data,
 #' pathogen -- i.e. it assumes syndrome-invariant LOS prolongation. Refit
 #' with \code{syndrome_name = NULL} for a RR pooled across syndromes.
 #'
+#' Optionally, when \code{los_r_col} and \code{los_s_col} are supplied, also
+#' propagates the \strong{absolute} mean LOS for the profile's dominant class
+#' (resistant and susceptible) as \code{LOSR_years} / \code{LOSS_years}. This
+#' does not change the RR assignment above; it is an additive lookup against
+#' the dominant class already selected by the max rule, using whichever
+#' absolute-LOS columns are present in \code{rr_table} (e.g. \code{mean_LOS_R}
+#' / \code{mean_LOS_S} from \code{daly_fit_los_rr_distribution()}, or
+#' \code{mean_los_resistant} / \code{mean_los_susceptible} from
+#' \code{daly_fit_los_rr()}). \code{LOSR_years}/\code{LOSS_years} are set to
+#' \code{NA} for the all-susceptible profile, which has no dominant class.
+#'
 #' @param profiles_output Named list from compute_resistance_profiles().
 #' @param rr_table Data frame from daly_fit_los_rr() or daly_fit_los_rr_distribution().
 #'   Must have columns pathogen_col, class_col, rr_col, and optionally
@@ -2682,10 +2552,25 @@ daly_add_rr_mappings <- function(data,
 #' @param rr_col Character. Default \code{"RR_LOS"}.
 #' @param fallback_rr Numeric. RR for resistant classes with no match.
 #'   Default \code{1} (no attributable effect).
+#' @param los_r_col Character or \code{NULL}. Column in \code{rr_table} with
+#'   absolute mean LOS for resistant patients (e.g. \code{"mean_LOS_R"}).
+#'   When supplied together with \code{los_s_col}, \code{LOSR_years} /
+#'   \code{LOSS_years} are added to the output. Default \code{NULL} (no
+#'   absolute LOS propagated; behaviour identical to before this parameter
+#'   existed).
+#' @param los_s_col Character or \code{NULL}. Column in \code{rr_table} with
+#'   absolute mean LOS for susceptible patients (e.g. \code{"mean_LOS_S"}).
+#'   Required when \code{los_r_col} is supplied.
+#' @param los_unit Character. Unit of \code{los_r_col} / \code{los_s_col} in
+#'   \code{rr_table}: \code{"years"} (used as-is) or \code{"days"} (divided
+#'   by 365, matching the day-to-year conversion already used in
+#'   \code{daly_fit_los_rr_distribution()}). Default \code{"years"}. Ignored
+#'   when \code{los_r_col} is \code{NULL}.
 #'
 #' @return Named list (one entry per pathogen): original profiles data frame
-#'   augmented with RR_LOS_profile, dominant_class, and (if available)
-#'   CI_lower_profile / CI_upper_profile.
+#'   augmented with RR_LOS_profile, dominant_class, (if available)
+#'   CI_lower_profile / CI_upper_profile, and (when \code{los_r_col} /
+#'   \code{los_s_col} are supplied) LOSR_years / LOSS_years.
 #' @export
 daly_assign_rr_to_profiles <- function(
   profiles_output,
@@ -2693,7 +2578,10 @@ daly_assign_rr_to_profiles <- function(
   pathogen_col = "pathogen",
   class_col = "antibiotic_class",
   rr_col = "RR_LOS",
-  fallback_rr = 1
+  fallback_rr = 1,
+  los_r_col = NULL,
+  los_s_col = NULL,
+  los_unit = c("years", "days")
 ) {
   if (!is.list(profiles_output) ||
     !all(sapply(
@@ -2710,6 +2598,21 @@ daly_assign_rr_to_profiles <- function(
     ))
   }
 
+  do_los <- !is.null(los_r_col) || !is.null(los_s_col)
+  if (do_los) {
+    if (is.null(los_r_col) || is.null(los_s_col)) {
+      stop("los_r_col and los_s_col must both be supplied together, or both left NULL.")
+    }
+    los_unit <- match.arg(los_unit)
+    missing_los <- setdiff(c(los_r_col, los_s_col), names(rr_table))
+    if (length(missing_los) > 0L) {
+      stop(sprintf(
+        "Column(s) not found in rr_table: %s",
+        paste(missing_los, collapse = ", ")
+      ))
+    }
+  }
+
   has_ci <- all(c("CI_lower", "CI_upper") %in% names(rr_table))
   out <- list()
 
@@ -2722,12 +2625,16 @@ daly_assign_rr_to_profiles <- function(
     rr_lookup <- setNames(rr_k[[rr_col]], rr_k[[class_col]])
     ci_lo_lookup <- if (has_ci) setNames(rr_k$CI_lower, rr_k[[class_col]]) else NULL
     ci_hi_lookup <- if (has_ci) setNames(rr_k$CI_upper, rr_k[[class_col]]) else NULL
+    los_r_lookup <- if (do_los) setNames(rr_k[[los_r_col]], rr_k[[class_col]]) else NULL
+    los_s_lookup <- if (do_los) setNames(rr_k[[los_s_col]], rr_k[[class_col]]) else NULL
 
     n_prof <- nrow(profiles)
     rr_profile <- numeric(n_prof)
     dom_class <- character(n_prof)
     ci_lo_prof <- if (has_ci) numeric(n_prof) else NULL
     ci_hi_prof <- if (has_ci) numeric(n_prof) else NULL
+    losr_prof <- if (do_los) rep(NA_real_, n_prof) else NULL
+    loss_prof <- if (do_los) rep(NA_real_, n_prof) else NULL
 
     for (i in seq_len(n_prof)) {
       resist_cls <- classes[as.integer(profiles[i, classes]) == 1L]
@@ -2739,6 +2646,7 @@ daly_assign_rr_to_profiles <- function(
           ci_lo_prof[i] <- 1.0
           ci_hi_prof[i] <- 1.0
         }
+        # LOSR_years/LOSS_years left NA: no dominant class for this profile.
         next
       }
 
@@ -2758,6 +2666,12 @@ daly_assign_rr_to_profiles <- function(
           ci_hi_lookup[[dc]], fallback_rr
         )
       }
+
+      if (do_los) {
+        dc <- dom_class[i]
+        losr_prof[i] <- if (dc %in% names(los_r_lookup)) los_r_lookup[[dc]] else NA_real_
+        loss_prof[i] <- if (dc %in% names(los_s_lookup)) los_s_lookup[[dc]] else NA_real_
+      }
     }
 
     profiles$RR_LOS_profile <- round(rr_profile, 4L)
@@ -2766,11 +2680,28 @@ daly_assign_rr_to_profiles <- function(
       profiles$CI_lower_profile <- round(ci_lo_prof, 4L)
       profiles$CI_upper_profile <- round(ci_hi_prof, 4L)
     }
+    if (do_los) {
+      if (los_unit == "days") {
+        losr_prof <- losr_prof / 365
+        loss_prof <- loss_prof / 365
+      }
+      profiles$LOSR_years <- round(losr_prof, 6L)
+      profiles$LOSS_years <- round(loss_prof, 6L)
+    }
 
     out[[path]] <- profiles
     message(sprintf(
-      "'%s': relative LOS assigned to %d profiles. Max relative LOS = %.4f (dominant class: %s).",
-      path, n_prof, max(rr_profile), dom_class[which.max(rr_profile)]
+      "'%s': relative LOS assigned to %d profiles. Max relative LOS = %.4f (dominant class: %s).%s",
+      path, n_prof, max(rr_profile), dom_class[which.max(rr_profile)],
+      if (do_los) {
+        sprintf(
+          " Absolute LOS also assigned (%d/%d resistant profiles with a matched dominant-class LOS).",
+          sum(!is.na(losr_prof) & dom_class != "all_susceptible"),
+          sum(dom_class != "all_susceptible")
+        )
+      } else {
+        ""
+      }
     ))
   }
 
