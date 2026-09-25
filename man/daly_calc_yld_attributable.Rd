@@ -2,42 +2,108 @@
 % Please edit documentation in R/daly_yld.R
 \name{daly_calc_yld_attributable}
 \alias{daly_calc_yld_attributable}
-\title{Compute YLDs Attributable to Resistance}
+\title{Compute YLD Attributable to Resistance (Direct, Profile-Specific)}
 \usage{
 daly_calc_yld_attributable(
-  yld_k_tbl,
-  paf_los_list,
+  profiles_with_los,
+  P_Lk_prime_tbl,
+  yld_ref = NULL,
+  DW_sepsis = NULL,
   pathogen_col = "pathogen",
-  yld_col = "YLD"
+  plk_col = "P_Lk_prime",
+  incidence_col = "N_NF_L",
+  facility_col = NULL,
+  facility_name = NULL,
+  facility_state_map = NULL,
+  state_col = "state",
+  state_name = NULL,
+  probability_col = "probability",
+  dominant_class_col = "dominant_class",
+  losr_col = "LOSR_years",
+  loss_col = "LOSS_years"
 )
 }
 \arguments{
-\item{yld_k_tbl}{Data frame from \code{calculate_YLD()} containing at
-least a pathogen column and a YLD column.}
+\item{profiles_with_los}{Named list (one entry per pathogen) from
+\code{daly_assign_rr_to_profiles(..., los_r_col = ..., los_s_col = ...)}.
+Each entry must have \code{probability_col}, \code{dominant_class_col},
+and \code{losr_col} columns.}
 
-\item{paf_los_list}{Named list from \code{daly_calc_paf_los()}.}
+\item{P_Lk_prime_tbl}{Data frame: the \code{P_Lk_prime} (pooled) or
+\code{facility_level} element from
+\code{daly_calc_pathogen_fraction_nonfatal()}. Must contain
+\code{pathogen_col}, \code{plk_col}, and \code{incidence_col}.}
 
-\item{pathogen_col}{Character.  Pathogen column in \code{yld_k_tbl}.
-Default \code{"pathogen"}.}
+\item{yld_ref}{Data frame with columns \code{location_name} and
+\code{DW_sepsis}. Ignored when \code{DW_sepsis} is supplied.}
 
-\item{yld_col}{Character.  YLD column in \code{yld_k_tbl}.
-Default \code{"YLD"}.}
+\item{DW_sepsis}{Numeric scalar or \code{NULL}. Disability weight used
+directly for every row when supplied (recommended -- see "Disability
+weight caveat").}
+
+\item{pathogen_col}{Character. Default \code{"pathogen"}.}
+
+\item{plk_col}{Character. P'_Lk column in \code{P_Lk_prime_tbl}. Default
+\code{"P_Lk_prime"}.}
+
+\item{incidence_col}{Character. I_L column in \code{P_Lk_prime_tbl}.
+Default \code{"N_NF_L"} (the column already produced by
+\code{daly_calc_pathogen_fraction_nonfatal()}).}
+
+\item{facility_col}{Character or \code{NULL}. Facility identifier column
+in \code{P_Lk_prime_tbl}. Default \code{NULL}.}
+
+\item{facility_name}{Character or \code{NULL}. Restrict to a single
+facility. Default \code{NULL}.}
+
+\item{facility_state_map}{Data frame with \code{facility_col} and
+\code{state_col}, mapping each facility to a state. Used only when
+\code{DW_sepsis} is not supplied and \code{facility_col} is present.}
+
+\item{state_col}{Character. Default \code{"state"}.}
+
+\item{state_name}{Character or \code{NULL}. State for the pooled/no-facility
+DW lookup. \code{NULL} uses the "India" row. Ignored when
+\code{DW_sepsis} is supplied.}
+
+\item{probability_col}{Character. R'_k_delta column in
+\code{profiles_with_los}. Default \code{"probability"}.}
+
+\item{dominant_class_col}{Character. d*(delta) column. Default
+\code{"dominant_class"}.}
+
+\item{losr_col}{Character. LOSR_k,d*(delta) column (years). Default
+\code{"LOSR_years"}.}
+
+\item{loss_col}{Character. LOSS_k,d*(delta) column (years) in
+\code{profiles_with_los}. Default \code{"LOSS_years"}.}
 }
 \value{
-\code{yld_k_tbl} augmented with columns \code{PAF_k},
-  \code{denominator}, and \code{YLD_attributable}.
+\code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
+  \code{profile_term} (= sum_delta R'_k_delta * (LOSR_k_delta -
+  LOSS_k_delta)), and \code{YLD_attributable}.
 }
 \description{
-Multiplies \code{YLD_k} (from \code{calculate_YLD()}) by the LOS-based
-PAF (from \code{daly_calc_paf_los()}).
+Primary, direct implementation of the profile-specific attributable-YLD
+equation:
 }
 \details{
-YLD_attributable_k = YLD_k * PAF_k
+YLD_attrib_k = I_L * P'_Lk * DW_L *
+    sum_\{delta in D_k\} [R'_k_delta * (LOSR_k,d*(delta) - LOSS_k,d*(delta))]
 
-Answers: "How much disability burden exists *only because* infections were
-resistant instead of susceptible?"  This is a counterfactual -- it measures
-the excess burden driven purely by resistance.
+The excess \code{(LOSR - LOSS)} term makes this a genuine counterfactual:
+how much MORE disability burden exists because these infections were
+resistant, versus if they had been susceptible to the same (dominant)
+class. D_k excludes the all-susceptible profile from the sum entirely
+(rather than including a zero \code{LOSR - LOSS} term for it) -- see
+\code{daly_calc_yld_associated()} for why.
 
-Note: YLD_attributable_k < YLD_associated_k always, because
-  PAF_k = Fraction_k * (1 - 1/E_RR_k)  <  Fraction_k.
+Obtains I_L, P'_Lk, DW_L, R'_k_delta, d*(delta), LOSR, and LOSS the same
+way as \code{daly_calc_yld_associated()} -- see that function's
+documentation for full component-by-component sourcing and the
+disability-weight caveat. Does \strong{not} require a baseline YLD or a
+PAF_LOS computed first; unlike the pre-existing multiplicative pathway
+(\code{daly_calc_paf_los()} multiplied against a pooled baseline YLD),
+this is the direct equation. \code{daly_calc_paf_los()} remains available
+standalone for diagnostics / comparison against this direct calculation.
 }

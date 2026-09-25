@@ -23,7 +23,8 @@ daly_compute_patient_los(
 )
 }
 \arguments{
-\item{data}{Data frame (after \code{daly_derive_hai_cai_for_los()} has been run).}
+\item{data}{Data frame with an \code{infection_type_derived_col} column
+already populated (\code{"HAI"} / \code{"CAI"} / other).}
 
 \item{patient_id_col}{Character. Default \code{"PatientInformation_id"}.}
 
@@ -54,8 +55,9 @@ with this syndrome are retained before LOS computation. Default \code{NULL}.}
 
 \item{final_outcome_value}{Character. Default \code{"Discharged"}.}
 
-\item{infection_type_derived_col}{Character. Column from
-\code{daly_derive_hai_cai_for_los()}. Default \code{"infection_type_derived"}.}
+\item{infection_type_derived_col}{Character. Column holding each patient's
+HAI/CAI classification (e.g. copied from \code{infection_type} by the
+caller). Default \code{"infection_type_derived"}.}
 
 \item{los_col}{Character or \code{NULL}. Optional name of a pre-computed
 LOS column (e.g. recorded directly in the data). Used only for patients
