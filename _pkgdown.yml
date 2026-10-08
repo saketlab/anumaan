@@ -342,6 +342,7 @@ reference:
   - plot_top_organisms
   - plot_abx_susceptibility
   - plot_abx_heatmap
+  - plot_abx_complex_heatmap
   - plot_outcome_distribution
   - plot_outcome_by_organism
   - plot_death_discharged
