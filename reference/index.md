@@ -466,6 +466,8 @@ Exploratory plots for AMR surveillance data
   : Plot Antibiotic Susceptibility Pattern (Stacked R/S Bars)
 - [`plot_abx_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_abx_heatmap.md)
   : Plot Antibiotic Resistance Heatmap
+- [`plot_abx_complex_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_abx_complex_heatmap.md)
+  : Plot Antibiotic Resistance ComplexHeatmap
 - [`plot_outcome_distribution()`](https://saketlab.github.io/anumaan/reference/plot_outcome_distribution.md)
   : Plot Distribution of Final Outcomes
 - [`plot_outcome_by_organism()`](https://saketlab.github.io/anumaan/reference/plot_outcome_by_organism.md)
