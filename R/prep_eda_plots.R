@@ -37,7 +37,8 @@ eda_theme <- function(base_size = 14, legend_position = "top") {
       ),
       panel.spacing = ggplot2::unit(1.2, "lines"),
       legend.position = legend_position,
-      plot.title = ggplot2::element_text(face = "bold", hjust = 0.5)
+      plot.title = ggplot2::element_text(face = "bold", hjust = 0.5),
+      axis.title = ggplot2::element_text(face = "bold")
     )
 }
 
@@ -940,6 +941,225 @@ plot_abx_heatmap <- function(data,
   }
 
   return(p)
+}
+
+
+# ANTIBIOTIC RESISTANCE COMPLEXHEATMAP (clustered)
+
+
+#' Plot Antibiotic Resistance ComplexHeatmap
+#'
+#' Produces a clustered \code{ComplexHeatmap::Heatmap()} of the proportion of
+#' patients Resistant, with \strong{centres on rows} and \strong{antibiotics
+#' on columns}. Unlike \code{\link{plot_abx_heatmap}} (a \code{ggplot2} tile
+#' heatmap with a fixed row/column order), this version hierarchically
+#' clusters both rows and columns by default, which groups centres with
+#' similar resistance profiles and antibiotics with similar resistance
+#' patterns together.
+#'
+#' Only R and S results are used. The same \strong{worst-phenotype rule} as
+#' \code{plot_abx_heatmap()} is applied: per patient x organism x antibiotic,
+#' any single R marks the episode as R. Centre/antibiotic combinations with no
+#' tests are shown as 0 (fully susceptible) in the underlying matrix -- there
+#' is no "no data" grey cell in this version, since \code{Heatmap()} requires
+#' a complete numeric matrix.
+#'
+#' Requires the Bioconductor package \code{ComplexHeatmap} and the CRAN
+#' package \code{circlize}, neither of which is a hard dependency of
+#' \code{anumaan}. Install with:
+#' \code{if (!requireNamespace("BiocManager", quietly = TRUE))
+#' install.packages("BiocManager"); BiocManager::install("ComplexHeatmap")}
+#' and \code{install.packages("circlize")}.
+#'
+#' @param data           Data frame. Long-format AMR dataset.
+#' @param patient_col    Character. Patient ID column.
+#'   Default \code{"PatientInformation_id"}.
+#' @param antibiotic_col Character. Antibiotic name column.
+#'   Default \code{"antibiotic_name"}.
+#' @param value_col      Character. Susceptibility result column (R/S values).
+#'   Default \code{"antibiotic_value"}.
+#' @param organism_col   Character. Organism name column.
+#'   Default \code{"organism_name"}.
+#' @param center_col     Character. Centre/facility column.
+#'   Default \code{"center_name"}.
+#' @param low_colour     Character. Colour for proportion = 0 (fully
+#'   susceptible). Default \code{"#1a9850"} (green).
+#' @param mid_colour     Character. Colour for the midpoint.
+#'   Default \code{"#fee08b"} (yellow).
+#' @param high_colour    Character. Colour for proportion = 1 (fully
+#'   resistant). Default \code{"#d73027"} (red).
+#' @param midpoint       Numeric. Midpoint of the colour gradient (0-1).
+#'   Default \code{0.5}.
+#' @param cluster_rows    Logical. Hierarchically cluster centres.
+#'   Default \code{TRUE}.
+#' @param cluster_columns Logical. Hierarchically cluster antibiotics.
+#'   Default \code{TRUE}.
+#' @param legend_name    Character. Heatmap legend title.
+#'   Default \code{"Resistance"}.
+#' @param row_title      Character. Row-axis title. Default \code{"Centres"}.
+#' @param column_title   Character. Column-axis title.
+#'   Default \code{"Antibiotics"}.
+#' @param base_size      Numeric. Base font size for titles/labels.
+#'   Default 14.
+#' @param column_names_max_height \code{grid::unit}. Vertical space reserved
+#'   for the (45-degree-rotated) column-name labels below the heatmap body.
+#'   Increase this (and/or \code{height}) if long labels -- e.g. antibiotic
+#'   class names -- are being clipped. Default \code{grid::unit(10, "cm")}.
+#' @param save_path      Character or \code{NULL}. If supplied, the heatmap is
+#'   drawn to a PNG at this path (via \code{grDevices::png()} +
+#'   \code{ComplexHeatmap::draw()}) in addition to being returned.
+#'   Default \code{NULL} (not saved).
+#' @param width          Numeric. PNG width in inches. Used only when
+#'   \code{save_path} is supplied. Default 15.
+#' @param height         Numeric. PNG height in inches. Used only when
+#'   \code{save_path} is supplied. Default 8.
+#' @param dpi            Numeric. PNG resolution. Used only when
+#'   \code{save_path} is supplied. Default 300.
+#'
+#' @return A \code{ComplexHeatmap::Heatmap} object (draw with
+#'   \code{ComplexHeatmap::draw(ht)} if not saving to file).
+#' @export
+#'
+plot_abx_complex_heatmap <- function(data,
+                                     patient_col = "PatientInformation_id",
+                                     antibiotic_col = "antibiotic_name",
+                                     value_col = "antibiotic_value",
+                                     organism_col = "organism_name",
+                                     center_col = "center_name",
+                                     low_colour = "#1a9850",
+                                     mid_colour = "#fee08b",
+                                     high_colour = "#d73027",
+                                     midpoint = 0.5,
+                                     cluster_rows = TRUE,
+                                     cluster_columns = TRUE,
+                                     legend_name = "Resistance",
+                                     row_title = "Centres",
+                                     column_title = "Antibiotics",
+                                     base_size = 14,
+                                     column_names_max_height = grid::unit(10, "cm"),
+                                     save_path = NULL,
+                                     width = 15,
+                                     height = 8,
+                                     dpi = 300) {
+  if (!requireNamespace("ComplexHeatmap", quietly = TRUE)) {
+    stop(paste(
+      "Package 'ComplexHeatmap' is required for plot_abx_complex_heatmap().",
+      "Install it from Bioconductor with:",
+      "if (!requireNamespace(\"BiocManager\", quietly = TRUE))",
+      "install.packages(\"BiocManager\");",
+      "BiocManager::install(\"ComplexHeatmap\")"
+    ))
+  }
+  if (!requireNamespace("circlize", quietly = TRUE)) {
+    stop(paste(
+      "Package 'circlize' is required for plot_abx_complex_heatmap().",
+      "Install it with install.packages(\"circlize\")."
+    ))
+  }
+
+  # 1. validate columns
+  required_cols <- c(patient_col, antibiotic_col, value_col, organism_col, center_col)
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(sprintf(
+      "Column(s) not found in data: %s",
+      paste(missing_cols, collapse = ", ")
+    ))
+  }
+
+  # 2. tidy-eval symbols
+  pt_sym <- rlang::sym(patient_col)
+  abx_sym <- rlang::sym(antibiotic_col)
+  val_sym <- rlang::sym(value_col)
+  org_sym <- rlang::sym(organism_col)
+  ctr_sym <- rlang::sym(center_col)
+
+  # 3. clean: keep only valid R/S rows, drop blank names
+  abx_clean <- data %>%
+    dplyr::filter(
+      !!val_sym %in% c("R", "S"),
+      !is.na(!!abx_sym), trimws(as.character(!!abx_sym)) != "",
+      !is.na(!!org_sym), trimws(as.character(!!org_sym)) != ""
+    ) %>%
+    dplyr::distinct(
+      !!ctr_sym, !!pt_sym, !!org_sym, !!abx_sym, !!val_sym
+    )
+
+  # 4. worst-phenotype rule
+  abx_episode <- abx_clean %>%
+    dplyr::group_by(!!ctr_sym, !!pt_sym, !!org_sym, !!abx_sym) %>%
+    dplyr::summarise(
+      final_abx = ifelse(any(!!val_sym == "R"), "R", "S"),
+      .groups   = "drop"
+    )
+
+  # 5. resistance proportion per centre x antibiotic
+  abx_heatmap <- abx_episode %>%
+    dplyr::group_by(!!ctr_sym, !!abx_sym, final_abx) %>%
+    dplyr::summarise(
+      n       = dplyr::n_distinct(!!pt_sym),
+      .groups = "drop"
+    ) %>%
+    dplyr::group_by(!!ctr_sym, !!abx_sym) %>%
+    dplyr::mutate(
+      total       = sum(n),
+      proportion  = n / total
+    ) %>%
+    dplyr::ungroup()
+
+  # 6. centre x antibiotic proportion-resistant matrix
+  heat_matrix <- abx_heatmap %>%
+    dplyr::filter(final_abx == "R") %>%
+    dplyr::select(!!ctr_sym, !!abx_sym, proportion) %>%
+    tidyr::pivot_wider(names_from = !!abx_sym, values_from = proportion) %>%
+    tibble::column_to_rownames(center_col) %>%
+    as.matrix()
+
+  heat_matrix[is.na(heat_matrix)] <- 0
+
+  # 7. colour scale
+  col_fun <- circlize::colorRamp2(
+    c(0, midpoint, 1),
+    c(low_colour, mid_colour, high_colour)
+  )
+
+  # 8. build heatmap
+  ht <- ComplexHeatmap::Heatmap(
+    heat_matrix,
+    name = legend_name,
+    col  = col_fun,
+    cluster_rows    = cluster_rows,
+    cluster_columns = cluster_columns,
+    show_row_dend    = FALSE,
+    show_column_dend = FALSE,
+    row_title    = row_title,
+    column_title = column_title,
+    row_title_gp    = grid::gpar(fontsize = base_size, fontface = "bold"),
+    column_title_gp = grid::gpar(fontsize = base_size, fontface = "bold"),
+    column_names_rot = 45,
+    column_names_gp = grid::gpar(fontsize = base_size - 2),
+    column_names_max_height = column_names_max_height,
+    row_names_gp    = grid::gpar(fontsize = base_size - 2),
+    heatmap_legend_param = list(
+      title_gp  = grid::gpar(fontsize = base_size, fontface = "bold"),
+      labels_gp = grid::gpar(fontsize = base_size - 2)
+    )
+  )
+
+  # 9. optional: save to PNG
+  if (!is.null(save_path)) {
+    grDevices::png(save_path, width = width, height = height, units = "in", res = dpi)
+    # padding = c(bottom, left, top, right). 45-degree-rotated column labels
+    # (e.g. long antibiotic class names) project diagonally up-and-left from
+    # each tick; for the leftmost column(s) that projection runs past x = 0
+    # unless there's a generous left margin -- 40mm covers the longest class
+    # names in practice (e.g. "Third-generation-cephalosporins").
+    ComplexHeatmap::draw(ht, padding = grid::unit(c(10, 40, 2, 10), "mm"))
+    grDevices::dev.off()
+    message(sprintf("  [write] %s", basename(save_path)))
+  }
+
+  return(ht)
 }
 
 
