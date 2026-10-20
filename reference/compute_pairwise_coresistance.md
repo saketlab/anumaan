@@ -112,14 +112,36 @@ marginal resistance or GBD core list is applied here.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-marg <- compute_marginal_resistance(amr_clean, ...)
+set.seed(1)
+ast_class <- data.frame(
+  isolate_id       = rep(sprintf("ISO%02d", 1:80), each = 3),
+  organism_name    = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 120),
+  org_group        = "Enterobacterales",
+  antibiotic_class = rep(c("Carbapenems", "3GC", "Fluoroquinolones"), times = 80),
+  antibiotic_value = sample(c("S", "R"), 240, replace = TRUE)
+)
+marg <- compute_marginal_resistance(ast_class)
+#> Collapsed to class level: 80 isolates | 2 pathogens | 3 classes.
+#> No classes with marginal_resistance <= 0.
+#> min_n_tested = 30: all 6 pathogen-class combination(s) passed the threshold.
+#> class_long after min_n_tested filter: 240 isolate-class row(s) retained.
+marg$marginal
+#> # A tibble: 6 × 6
+#>   organism_name         org_group        antibiotic_class n_tested n_resistant
+#>   <chr>                 <chr>            <chr>               <int>       <int>
+#> 1 Escherichia coli      Enterobacterales 3GC                    40          22
+#> 2 Escherichia coli      Enterobacterales Fluoroquinolones       40          20
+#> 3 Escherichia coli      Enterobacterales Carbapenems            40          16
+#> 4 Klebsiella pneumoniae Enterobacterales Fluoroquinolones       40          24
+#> 5 Klebsiella pneumoniae Enterobacterales 3GC                    40          19
+#> 6 Klebsiella pneumoniae Enterobacterales Carbapenems            40          18
+#> # ℹ 1 more variable: marginal_resistance <dbl>
 co_res <- compute_pairwise_coresistance(marg)
-
-# Prevalence matrix for K. pneumoniae
+#> 'Escherichia coli': 3 classes, 40 isolates -- co-resistance matrix built.
+#> 'Klebsiella pneumoniae': 3 classes, 40 isolates -- co-resistance matrix built.
 co_res[["Klebsiella pneumoniae"]]$prevalence
-
-# Co-tested counts
-co_res[["Klebsiella pneumoniae"]]$T_matrix
-} # }
+#>                    3GC Carbapenems Fluoroquinolones
+#> 3GC                 NA       0.225            0.325
+#> Carbapenems      0.225          NA            0.225
+#> Fluoroquinolones 0.325       0.225               NA
 ```

@@ -145,25 +145,34 @@ A list:
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-yll_assoc <- daly_calc_yll_associated(data = cohort, ...)
-mort_or <- fit_mortality_rr_logistic(data = rr_data, ...)
-profiles_or <- assign_rr_to_profiles(profiles_out,
-  rr_table = mort_or,
-  rr_col = "OR_death"
+cohort <- data.frame(
+  patient_id    = sprintf("P%02d", 1:6),
+  final_outcome = c("Death", "Death", "Discharged", "Death", "Discharged", "Death"),
+  organism_name = rep(c("Escherichia coli", "Klebsiella pneumoniae"), 3),
+  age_bin       = c("40-45", "60-65", "20-25", "0-1", "70-75", "85+"),
+  sex           = c("Male", "Female", "Male", "Female", "Male", "Female")
 )
-paf_mort <- daly_calc_paf_mortality(profiles_or)
-
-yll_attr <- daly_calc_yll_attributable(
-  yll_patient_data = yll_assoc$patient_data,
-  paf_mort         = paf_mort,
-  pathogen_col     = "organism_name",
-  patient_col      = "PatientInformation_id",
-  age_bin_col      = "Age_bin",
-  sex_col          = ".sex_norm",
-  facility_col     = "center_name",
-  syndrome_col     = "infectious_syndrome",
-  stratify_by      = c("location", "infectious_syndrome")
+yll <- daly_calc_yll_associated(cohort,
+  outcome_col = "final_outcome", pathogen_col = "organism_name",
+  patient_col = "patient_id", age_bin_col = "age_bin", sex_col = "sex"
 )
-} # }
+#> Computing polymicrobial weights (global)...
+#> Death cohort: 4 rows | 4 patients | 2 pathogens
+#> YLL associated: total = 131.60 years | 2 pathogens | 4 patients
+paf_mort <- list(
+  "Escherichia coli"      = list(PAF_k_mort = 0.20),
+  "Klebsiella pneumoniae" = list(PAF_k_mort = 0.35)
+)
+yll_attr <- daly_calc_yll_attributable(yll$patient_data, paf_mort,
+  pathogen_col = "organism_name", patient_col = "patient_id",
+  age_bin_col = "age_bin"
+)
+#> PAF mode: PAF_k scalar
+#> YLL attributable: total = 41.09 years | associated = 131.60 years | 2 pathogens | 4 patients
+yll_attr$per_pathogen
+#> # A tibble: 2 × 5
+#>   organism_name        n_patients YLL_associated_k YLL_attributable_k PAF_k_mort
+#>   <chr>                     <int>            <dbl>              <dbl>      <dbl>
+#> 1 Escherichia coli              1             33.1               6.62       0.2 
+#> 2 Klebsiella pneumoni…          3             98.5              34.5        0.35
 ```

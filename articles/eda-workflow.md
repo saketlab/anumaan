@@ -47,20 +47,20 @@ actually produces. When passing real preprocessed output into these
 functions, map the arguments to Pipeline 1’s real output columns
 explicitly:
 
-| EDA argument     | Pipeline 1’s actual output column                                                                                                                                                                                                                            |
-|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `patient_col`    | `patient_id`                                                                                                                                                                                                                                                 |
-| `organism_col`   | `organism_normalized` (from [`prep_standardize_organisms()`](https://saketlab.github.io/anumaan/reference/prep_standardize_organisms.md))                                                                                                                    |
-| `antibiotic_col` | `antibiotic_normalized` (from [`prep_standardize_antibiotics()`](https://saketlab.github.io/anumaan/reference/prep_standardize_antibiotics.md))                                                                                                              |
-| `value_col`      | `ast_value_harmonized` (from [`prep_harmonize_ast()`](https://saketlab.github.io/anumaan/reference/prep_harmonize_ast.md))                                                                                                                                   |
-| `sample_col`     | `specimen_normalized` (from [`prep_standardize_specimens()`](https://saketlab.github.io/anumaan/reference/prep_standardize_specimens.md))                                                                                                                    |
-| `agebin_col`     | `Age_bin` (from [`prep_assign_age_bins()`](https://saketlab.github.io/anumaan/reference/prep_assign_age_bins.md))                                                                                                                                            |
-| `age_col`        | `Age` (from [`prep_fill_age()`](https://saketlab.github.io/anumaan/reference/prep_fill_age.md))                                                                                                                                                              |
-| `admission_col`  | `date_of_admission`                                                                                                                                                                                                                                          |
-| `culture_col`    | `date_of_culture`                                                                                                                                                                                                                                            |
-| `discharge_col`  | `date_of_final_outcome`                                                                                                                                                                                                                                      |
-| `center_col`     | `center_name` (a user-supplied raw column – Pipeline 1 does not invent hospital identity, it just carries it through)                                                                                                                                        |
-| `outcome_col`    | `final_outcome` (the raw outcome text persists unchanged; [`prep_standardize_final_outcome()`](https://saketlab.github.io/anumaan/reference/prep_standardize_final_outcome.md) *adds* a separate `outcome_std` column alongside it rather than replacing it) |
+| EDA argument | Pipeline 1’s actual output column |
+|----|----|
+| `patient_col` | `patient_id` |
+| `organism_col` | `organism_normalized` (from [`prep_standardize_organisms()`](https://saketlab.github.io/anumaan/reference/prep_standardize_organisms.md)) |
+| `antibiotic_col` | `antibiotic_normalized` (from [`prep_standardize_antibiotics()`](https://saketlab.github.io/anumaan/reference/prep_standardize_antibiotics.md)) |
+| `value_col` | `ast_value_harmonized` (from [`prep_harmonize_ast()`](https://saketlab.github.io/anumaan/reference/prep_harmonize_ast.md)) |
+| `sample_col` | `specimen_normalized` (from [`prep_standardize_specimens()`](https://saketlab.github.io/anumaan/reference/prep_standardize_specimens.md)) |
+| `agebin_col` | `Age_bin` (from [`prep_assign_age_bins()`](https://saketlab.github.io/anumaan/reference/prep_assign_age_bins.md)) |
+| `age_col` | `Age` (from [`prep_fill_age()`](https://saketlab.github.io/anumaan/reference/prep_fill_age.md)) |
+| `admission_col` | `date_of_admission` |
+| `culture_col` | `date_of_culture` |
+| `discharge_col` | `date_of_final_outcome` |
+| `center_col` | `center_name` (a user-supplied raw column – Pipeline 1 does not invent hospital identity, it just carries it through) |
+| `outcome_col` | `final_outcome` (the raw outcome text persists unchanged; [`prep_standardize_final_outcome()`](https://saketlab.github.io/anumaan/reference/prep_standardize_final_outcome.md) *adds* a separate `outcome_std` column alongside it rather than replacing it) |
 
 Every example below uses these Pipeline-1-aligned names, with the
 arguments passed explicitly rather than relying on defaults.
@@ -78,27 +78,31 @@ vignette’s `prepped` object, scaled up to two hospitals so the
 set.seed(42)
 n_pts <- 60
 centers <- c("General Hospital", "City Medical Center")
-organisms <- c("Escherichia coli", "Klebsiella pneumoniae",
-                "Staphylococcus aureus", "Pseudomonas aeruginosa")
+organisms <- c(
+  "Escherichia coli", "Klebsiella pneumoniae",
+  "Staphylococcus aureus", "Pseudomonas aeruginosa"
+)
 antibiotics <- c("Amikacin", "Ciprofloxacin", "Meropenem", "Ceftriaxone")
 
 eda_data <- data.frame(
-  patient_id             = paste0("pt_", sprintf("%03d", rep(1:n_pts, each = 3))),
-  center_name            = rep(sample(centers, n_pts, replace = TRUE), each = 3),
-  organism_normalized    = rep(sample(organisms, n_pts, replace = TRUE), each = 3),
-  antibiotic_normalized  = rep(antibiotics, length.out = n_pts * 3),
-  ast_value_harmonized   = sample(c("R", "S"), n_pts * 3, replace = TRUE, prob = c(0.4, 0.6)),
-  specimen_normalized    = rep(sample(c("Blood", "Urine", "Sputum"), n_pts, replace = TRUE), each = 3),
-  final_outcome          = rep(sample(c("Death", "Discharged", "LAMA", "Transferred to other hospital"),
-                                       n_pts, replace = TRUE, prob = c(0.15, 0.65, 0.1, 0.1)), each = 3),
-  date_of_final_outcome  = rep(as.Date("2024-01-01") + sample(1:300, n_pts, replace = TRUE), each = 3),
-  is_polymicrobial       = rep(sample(c(0, 1), n_pts, replace = TRUE, prob = c(0.75, 0.25)), each = 3),
-  date_of_admission      = rep(as.Date("2024-01-01") + sample(1:300, n_pts, replace = TRUE), each = 3),
-  location               = rep(sample(c("ICU", "Ward"), n_pts, replace = TRUE), each = 3),
-  infection_type         = rep(sample(c("HAI", "CAI"), n_pts, replace = TRUE), each = 3),
-  Age_bin                = rep(sample(c("<1", "1-5", "18-45", "45-65", "65+"), n_pts, replace = TRUE), each = 3),
-  Age                    = rep(sample(0:85, n_pts, replace = TRUE), each = 3),
-  infectious_syndrome    = rep(sample(c("BSI", "UTI", "RTI"), n_pts, replace = TRUE), each = 3),
+  patient_id = paste0("pt_", sprintf("%03d", rep(1:n_pts, each = 3))),
+  center_name = rep(sample(centers, n_pts, replace = TRUE), each = 3),
+  organism_normalized = rep(sample(organisms, n_pts, replace = TRUE), each = 3),
+  antibiotic_normalized = rep(antibiotics, length.out = n_pts * 3),
+  ast_value_harmonized = sample(c("R", "S"), n_pts * 3, replace = TRUE, prob = c(0.4, 0.6)),
+  specimen_normalized = rep(sample(c("Blood", "Urine", "Sputum"), n_pts, replace = TRUE), each = 3),
+  final_outcome = rep(sample(c("Death", "Discharged", "LAMA", "Transferred to other hospital"),
+    n_pts,
+    replace = TRUE, prob = c(0.15, 0.65, 0.1, 0.1)
+  ), each = 3),
+  date_of_final_outcome = rep(as.Date("2024-01-01") + sample(1:300, n_pts, replace = TRUE), each = 3),
+  is_polymicrobial = rep(sample(c(0, 1), n_pts, replace = TRUE, prob = c(0.75, 0.25)), each = 3),
+  date_of_admission = rep(as.Date("2024-01-01") + sample(1:300, n_pts, replace = TRUE), each = 3),
+  location = rep(sample(c("ICU", "Ward"), n_pts, replace = TRUE), each = 3),
+  infection_type = rep(sample(c("HAI", "CAI"), n_pts, replace = TRUE), each = 3),
+  Age_bin = rep(sample(c("<1", "1-5", "18-45", "45-65", "65+"), n_pts, replace = TRUE), each = 3),
+  Age = rep(sample(0:85, n_pts, replace = TRUE), each = 3),
+  infectious_syndrome = rep(sample(c("BSI", "UTI", "RTI"), n_pts, replace = TRUE), each = 3),
   stringsAsFactors = FALSE
 )
 eda_data$date_of_culture <- eda_data$date_of_admission + sample(0:5, nrow(eda_data), replace = TRUE)
@@ -127,7 +131,8 @@ eda_theme(base_size = 14)
 
 ``` r
 plot_top_organisms(
-  eda_data, n = 3, mode = "faceted",
+  eda_data,
+  n = 3, mode = "faceted",
   patient_col = "patient_id", organism_col = "organism_normalized", center_col = "center_name"
 )
 ```
@@ -147,7 +152,8 @@ are not double-counted.
 
 ``` r
 plot_abx_susceptibility(
-  eda_data, n = 3, mode = "overall",
+  eda_data,
+  n = 3, mode = "overall",
   patient_col = "patient_id", antibiotic_col = "antibiotic_normalized",
   value_col = "ast_value_harmonized", organism_col = "organism_normalized",
   center_col = "center_name"
@@ -160,7 +166,8 @@ plot_abx_susceptibility(
 
 ``` r
 plot_abx_heatmap(
-  eda_data, mode = "all",
+  eda_data,
+  mode = "all",
   patient_col = "patient_id", antibiotic_col = "antibiotic_normalized",
   value_col = "ast_value_harmonized", organism_col = "organism_normalized",
   center_col = "center_name"
@@ -173,7 +180,8 @@ plot_abx_heatmap(
 
 ``` r
 plot_resistance_by_sample(
-  eda_data, n = 3, mode = "overall",
+  eda_data,
+  n = 3, mode = "overall",
   patient_col = "patient_id", sample_col = "specimen_normalized",
   organism_col = "organism_normalized", antibiotic_col = "antibiotic_normalized",
   value_col = "ast_value_harmonized", center_col = "center_name"
@@ -186,7 +194,8 @@ plot_resistance_by_sample(
 
 ``` r
 plot_resistance_by_agebin(
-  eda_data, mode = "overall",
+  eda_data,
+  mode = "overall",
   patient_col = "patient_id", organism_col = "organism_normalized",
   antibiotic_col = "antibiotic_normalized", value_col = "ast_value_harmonized",
   agebin_col = "Age_bin", center_col = "center_name"
@@ -197,7 +206,8 @@ plot_resistance_by_agebin(
 
 ``` r
 plot_resistance_by_organism(
-  eda_data, n = 3, mode = "overall",
+  eda_data,
+  n = 3, mode = "overall",
   patient_col = "patient_id", organism_col = "organism_normalized",
   antibiotic_col = "antibiotic_normalized", value_col = "ast_value_harmonized",
   center_col = "center_name"
@@ -216,7 +226,8 @@ the same clinical event across centres.
 
 ``` r
 plot_outcome_distribution(
-  eda_data, mode = "overall",
+  eda_data,
+  mode = "overall",
   patient_col = "patient_id", outcome_col = "final_outcome", center_col = "center_name"
 )
 ```
@@ -232,7 +243,8 @@ fuller picture.
 
 ``` r
 plot_outcome_by_organism(
-  eda_data, n = 3, resistance_filter = "R", mode = "overall",
+  eda_data,
+  n = 3, resistance_filter = "R", mode = "overall",
   patient_col = "patient_id", organism_col = "organism_normalized",
   antibiotic_col = "antibiotic_normalized", value_col = "ast_value_harmonized",
   outcome_col = "final_outcome", center_col = "center_name"
@@ -245,7 +257,8 @@ plot_outcome_by_organism(
 
 ``` r
 plot_death_discharged(
-  eda_data, n = 3, mode = "overall",
+  eda_data,
+  n = 3, mode = "overall",
   patient_col = "patient_id", organism_col = "organism_normalized",
   outcome_col = "final_outcome", center_col = "center_name",
   antibiotic_col = "antibiotic_normalized", value_col = "ast_value_harmonized"
@@ -258,7 +271,8 @@ plot_death_discharged(
 
 ``` r
 plot_outcome_by_agebin(
-  eda_data, mode = "overall",
+  eda_data,
+  mode = "overall",
   patient_col = "patient_id", agebin_col = "Age_bin",
   outcome_col = "final_outcome", center_col = "center_name"
 )
@@ -268,7 +282,8 @@ plot_outcome_by_agebin(
 
 ``` r
 plot_outcome_by_year(
-  eda_data, mode = "overall",
+  eda_data,
+  mode = "overall",
   patient_col = "patient_id", outcome_col = "final_outcome",
   date_col = "date_of_final_outcome", center_col = "center_name"
 )
@@ -290,7 +305,8 @@ plot_patients_by_hospital(eda_data, patient_col = "patient_id", center_col = "ce
 
 ``` r
 plot_mono_poly_by_facility(
-  eda_data, patient_col = "patient_id", poly_col = "is_polymicrobial", center_col = "center_name"
+  eda_data,
+  patient_col = "patient_id", poly_col = "is_polymicrobial", center_col = "center_name"
 )
 ```
 
@@ -304,7 +320,8 @@ column is not already available.
 
 ``` r
 plot_hai_cai_by_facility(
-  eda_data, patient_col = "patient_id", center_col = "center_name",
+  eda_data,
+  patient_col = "patient_id", center_col = "center_name",
   admission_col = "date_of_admission", culture_col = "date_of_culture"
 )
 ```
@@ -315,7 +332,8 @@ plot_hai_cai_by_facility(
 
 ``` r
 plot_location_by_facility(
-  eda_data, patient_col = "patient_id", location_col = "location", center_col = "center_name"
+  eda_data,
+  patient_col = "patient_id", location_col = "location", center_col = "center_name"
 )
 ```
 
@@ -325,7 +343,8 @@ plot_location_by_facility(
 
 ``` r
 plot_infection_type_by_location(
-  eda_data, style = "bar", patient_col = "patient_id", center_col = "center_name",
+  eda_data,
+  style = "bar", patient_col = "patient_id", center_col = "center_name",
   location_col = "location", infection_col = "infection_type"
 )
 ```
@@ -336,7 +355,8 @@ plot_infection_type_by_location(
 
 ``` r
 plot_syndrome_distribution(
-  eda_data, mode = "overall", patient_col = "patient_id",
+  eda_data,
+  mode = "overall", patient_col = "patient_id",
   syndrome_col = "infectious_syndrome", center_col = "center_name"
 )
 ```
@@ -349,7 +369,8 @@ plot_syndrome_distribution(
 
 ``` r
 plot_los_ridge(
-  eda_data, mode = "all", patient_col = "patient_id", center_col = "center_name",
+  eda_data,
+  mode = "all", patient_col = "patient_id", center_col = "center_name",
   admission_col = "date_of_admission", discharge_col = "date_of_final_outcome"
 )
 ```
@@ -368,7 +389,8 @@ plot_age_ridge(eda_data, mode = "all", patient_col = "patient_id", age_col = "Ag
 
 ``` r
 plot_los_by_agebin(
-  eda_data, mode = "overall", patient_col = "patient_id", agebin_col = "Age_bin",
+  eda_data,
+  mode = "overall", patient_col = "patient_id", agebin_col = "Age_bin",
   age_col = "Age", center_col = "center_name",
   admission_col = "date_of_admission", discharge_col = "date_of_final_outcome"
 )
@@ -423,11 +445,11 @@ is for Pipeline 1. A typical review pass:
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
@@ -442,7 +464,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9036
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9037
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] janeaustenr_1.0.0  tidyr_1.3.2        sass_0.4.10        generics_0.1.4    
@@ -457,7 +479,7 @@ sessionInfo()
 #> [37] R6_2.6.1           ggridges_0.5.7     lifecycle_1.0.5    car_3.1-5         
 #> [41] fs_2.1.0           ragg_1.5.2         pkgconfig_2.0.3    desc_1.4.3        
 #> [45] pkgdown_2.2.1      pillar_1.11.1      bslib_0.12.0       gtable_0.3.6      
-#> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.61         
+#> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.62         
 #> [53] tibble_3.3.1       tidyselect_1.2.1   knitr_1.52         farver_2.1.2      
 #> [57] htmltools_0.5.9    SnowballC_0.7.1    labeling_0.4.3     carData_3.0-6     
 #> [61] rmarkdown_2.32     compiler_4.6.1     S7_0.2.2

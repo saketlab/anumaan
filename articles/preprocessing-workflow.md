@@ -224,9 +224,6 @@ prep_validate_date_logic(
 ``` r
 prepped <- prep_standardize_organisms(prepped, organism_col = "organism_name")
 prepped <- prep_assign_organism_group(prepped, organism_col = "organism_normalized")
-#> 
-#> Other 
-#>     6
 prepped <- prep_extract_genus(prepped, organism_col = "organism_normalized")
 prepped <- prep_extract_species(prepped, organism_col = "organism_normalized")
 prepped <- prep_flag_organism_unmatched(prepped, organism_col = "organism_normalized")
@@ -276,13 +273,7 @@ that appear in 2021-era extracts, including `Brain abscess`,
 prepped <- prep_standardize_specimens(prepped, specimen_col = "specimen_type")
 prepped <- prep_standardize_sex(prepped, col = "gender")
 prepped <- prep_standardize_final_outcome(prepped, col = "final_outcome")
-#> 
-#>     Died Survived     <NA> 
-#>        2        3        1
 prepped <- prep_standardize_infection_type(prepped, col = "infection_type")
-#> 
-#>  CAI  HAI <NA> 
-#>    1    3    2
 
 prepped[, c(
   "specimen_type",
@@ -350,17 +341,11 @@ prep_standardize_specimens(specimen_9021)[, c(
 ``` r
 prepped <- prep_standardize_antibiotics(prepped, antibiotic_col = "antibiotic_name")
 prepped <- prep_clean_ast_values(prepped, value_col = "antibiotic_value")
-#> 
-#>    I    R    S <NA> 
-#>    1    1    2    2
 prepped <- prep_harmonize_ast(
   prepped,
   antibiotic_col = "antibiotic_normalized",
   ast_col = "antibiotic_value"
 )
-#> 
-#>    I    R    S <NA> 
-#>    1    1    2    2
 prepped <- prep_check_organism_ast_consistency(
   prepped,
   organism_col = "organism_normalized",
@@ -406,9 +391,6 @@ prepped <- prep_fill_age(
   date_col = "date_of_culture",
   overwrite = FALSE
 )
-#>            age_method age_confidence n
-#> 1 calculated_from_dob           high 5
-#> 2                <NA>           <NA> 1
 
 prepped <- prep_assign_age_bins(prepped, age_col = "Age", bins = "GBD_standard")
 
@@ -438,8 +420,6 @@ prepped <- prep_derive_los_from_dates(
   outcome_col = "date_of_final_outcome",
   los_col = "los_days"
 )
-#>   mean_los median_los min_los max_los
-#> 1      8.5          8       7      12
 
 prepped[, c("patient_id", "date_of_admission", "date_of_final_outcome", "los_days")]
 #>   patient_id date_of_admission date_of_final_outcome los_days
@@ -462,14 +442,8 @@ prepped <- prep_derive_hai_cai(
   hai_cutoff = 2,
   overwrite = FALSE
 )
-#>   infection_type infection_type_method n
-#> 1            HAI  inferred_2day_cutoff 4
-#> 2            CAI  inferred_2day_cutoff 2
 
 prepped <- prep_flag_hai_inferred(prepped)
-#> 
-#> inferred 
-#>        6
 
 prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_type", "infection_type_method", "infection_type_src")]
 #>   patient_id date_of_admission date_of_culture infection_type
@@ -577,15 +551,12 @@ on the gap in days:
 
 ``` r
 readmit_demo <- data.frame(
-  patient_id     = rep("pt_101", 4),
+  patient_id = rep("pt_101", 4),
   admission_date = as.Date(c("2021-01-01", "2021-01-10", "2021-03-05", "2021-09-20")),
   stringsAsFactors = FALSE
 )
 
 prep_flag_readmission(readmit_demo, patient_col = "patient_id", admission_col = "admission_date")
-#> 
-#>              index   late_readmission linked_readmission    new_readmission 
-#>                  1                  1                  1                  1
 #> # A tibble: 4 × 3
 #>   patient_id admission_date readmission_class 
 #>   <chr>      <date>         <chr>             
@@ -605,17 +576,12 @@ labels become `NA` rather than being guessed at.
 
 ``` r
 messy_readmit <- data.frame(
-  patient_id        = paste0("pt_", 1:5),
+  patient_id = paste0("pt_", 1:5),
   readmission_class = c("First", "READMIT", "Same_Episode", "late", "unmapped_value"),
   stringsAsFactors = FALSE
 )
 
 prep_classify_readmission(messy_readmit)
-#> 
-#>              index   late_readmission linked_readmission    new_readmission 
-#>                  1                  1                  1                  1 
-#>               <NA> 
-#>                  1
 #>   patient_id  readmission_class
 #> 1       pt_1              index
 #> 2       pt_2    new_readmission
@@ -713,11 +679,6 @@ prep_deduplicate_ast(ast_dups, mode = "detect")[, c(
   "ast_value_harmonized",
   "is_ast_duplicate"
 )]
-#> # A tibble: 1 × 6
-#>   patient_id organism_normalized antibiotic_normalized culture_date
-#>   <chr>      <chr>               <chr>                 <date>      
-#> 1 pt_020     escherichia coli    amikacin              2021-01-15  
-#> # ℹ 2 more variables: conflicting_values <chr>, n_rows <int>
 #>   patient_id antibiotic_normalized ast_value_harmonized is_ast_duplicate
 #> 1     pt_020              amikacin                    S             TRUE
 #> 2     pt_020              amikacin                    R             TRUE
@@ -729,11 +690,6 @@ prep_deduplicate_ast(ast_dups, mode = "remove", strategy = "resistant_wins")[, c
   "antibiotic_normalized",
   "ast_value_harmonized"
 )]
-#> # A tibble: 1 × 6
-#>   patient_id organism_normalized antibiotic_normalized culture_date
-#>   <chr>      <chr>               <chr>                 <date>      
-#> 1 pt_020     escherichia coli    amikacin              2021-01-15  
-#> # ℹ 2 more variables: conflicting_values <chr>, n_rows <int>
 #> # A tibble: 2 × 3
 #>   patient_id antibiotic_normalized ast_value_harmonized
 #>   <chr>      <chr>                 <chr>               
@@ -768,15 +724,6 @@ class_level <- prep_collapse_class_level(
   susceptibility_col = "antibiotic_value",
   extra_cols         = "organism_group"
 )
-#> # A tibble: 6 × 5
-#>   antibiotic_class     R  `NA`     S     I
-#>   <chr>            <int> <int> <int> <int>
-#> 1 Aminoglycosides      1     0     0     0
-#> 2 Colistin             0     1     0     0
-#> 3 Fluoroquinolones     0     0     1     0
-#> 4 Penicillins          0     0     0     1
-#> 5 Vancomycin           0     0     1     0
-#> 6 NA                   0     1     0     0
 
 class_level <- dplyr::rename(class_level, class_result_event = class_resistance)
 ```
@@ -859,11 +806,6 @@ poly_flagged <- prep_flag_polymicrobial(
   patient_col = "event_id",
   organism_col = "organism_normalized"
 )
-#> # A tibble: 2 × 2
-#>   n_organisms n_groups
-#>         <int>    <int>
-#> 1           1        1
-#> 2           2        1
 
 poly_weighted <- prep_compute_poly_weights(
   poly_flagged,
@@ -872,10 +814,6 @@ poly_weighted <- prep_compute_poly_weights(
   polymicrobial_col = "is_polymicrobial",
   method = "equal"
 )
-#> # A tibble: 1 × 4
-#>   mean_weight median_weight min_weight max_weight
-#>         <dbl>         <dbl>      <dbl>      <dbl>
-#> 1         0.5           0.5        0.5        0.5
 
 poly_split <- prep_split_poly_episode(poly_weighted, strategy = "fractional")
 

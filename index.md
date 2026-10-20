@@ -9,7 +9,7 @@ data.
 library(anumaan)
 
 # Process your AMR data with one function
-result <- amr_preprocess(raw_data)
+result <- run_preprocess(raw_data)
 clean_data <- result$data
 ```
 

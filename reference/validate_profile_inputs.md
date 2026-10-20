@@ -90,26 +90,21 @@ any mandatory check fails.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-report <- validate_profile_inputs(
-  data = my_ast_data,
-  col_map = list(
-    isolate_col = "isolate_id",
-    pathogen_col = "organism",
-    ast_col = "result",
-    patient_col = "pid",
-    date_col = "culture_date",
-    geography_col = "state",
-    specimen_col = "specimen",
-    age_col = "age_years",
-    dob_col = NULL,
-    antibiotic_col = "drug_name",
-    class_col = NULL,
-    location_col = "ward",
-    outcome_col = "discharge_status"
-  ),
-  stratify_by = c("geography", "year"),
-  outcome_col = "discharge_status"
+ast_long <- data.frame(
+  isolate_id = rep(sprintf("ISO%02d", 1:6), each = 2),
+  patient_id = rep(sprintf("P%02d", 1:6), each = 2),
+  pathogen = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 6),
+  antibiotic_name = rep(c("Meropenem", "Ceftriaxone"), 6),
+  ast_value = rep(c("R", "S", "S", "R"), 3),
+  date_of_culture = as.Date("2024-01-01") + rep(0:5, each = 2),
+  specimen_type = "Blood",
+  state = "Maharashtra",
+  age = 40
 )
-} # }
+report <- validate_profile_inputs(ast_long)
+#> 
+#> [validate_profile_inputs] 11 passed | 1 warnings | 0 failed
+#>   [!] Antibiotic class column 'antibiotic_class' absent. Will derive classes from antibiotic names via WHO AWaRe reference.
+names(report)
+#> [1] "check_name" "status"     "message"    "n_affected"
 ```

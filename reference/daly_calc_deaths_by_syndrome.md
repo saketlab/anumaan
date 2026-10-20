@@ -146,44 +146,26 @@ antimicrobial resistance in 2019. Lancet. 2022.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Mode 1: pass pre-computed components, all syndromes
-d_j <- daly_calc_deaths_by_cause(pop_data = vr, cause_col = "icd10")
-s_j <- daly_calc_infection_fraction(pop_data = vr, cause_col = "icd10")
-m_lj <- daly_calc_syndrome_fraction(
-  pop_data = vr, cause_col = "icd10", syndrome_col = "syndrome"
+vital_reg <- data.frame(
+  cause_of_death     = c("A41.9", "A41.9", "J18.9", "J18.9", "I21.9", "N39.0"),
+  is_infection_death = c(TRUE, TRUE, TRUE, TRUE, FALSE, TRUE),
+  syndrome           = c("BSI", "BSI", "LRI", "LRI", NA, "UTI")
 )
-d_l <- daly_calc_deaths_by_syndrome(
-  d_j = d_j, s_j = s_j, m_lj = m_lj,
-  cause_col = "icd10", syndrome_col = "syndrome"
-)
-
-# Mode 2: raw population data, filter to one syndrome
-d_l <- daly_calc_deaths_by_syndrome(
-  pop_data     = vital_reg,
-  cause_col    = "icd10_cause",
-  syndrome_col = "infectious_syndrome",
-  syndrome     = "Bloodstream infection"
-)
-
-# Mode 3: facility fallback, one facility, all syndromes
-d_l <- daly_calc_deaths_by_syndrome(
-  facility_data = amr_data,
-  syndrome_col  = "specimen_normalized",
-  outcome_col   = "final_outcome",
-  death_value   = "Died",
-  patient_col   = "patient_id",
-  facility_col  = "location",
-  facility_name = "Mumbai"
-)
-
-# Mode 3: facility fallback, all facilities, one syndrome, stratified by age
-d_l <- daly_calc_deaths_by_syndrome(
-  facility_data = amr_data,
-  syndrome_col  = "specimen_normalized",
-  syndrome      = "Blood",
-  death_value   = "Died",
-  groupby_cols  = c("Age_bin")
-)
-} # }
+d_l <- daly_calc_deaths_by_syndrome(pop_data = vital_reg)
+#> Mode 2: Computing D_L from raw population data (all components computed internally)...
+#> Computing D_J from population-level data...
+#> D_J computed: 6 total deaths across 4 cause(s).
+#> Computing S_J from population-level data...
+#> S_J computed: mean infection fraction = 0.750 across 4 cause(s).
+#> Computing M_LJ from population-level data...
+#> M_LJ computed: 3 cause-syndrome combination(s) across 3 cause(s).
+#> Mode 1: Computing D_L from pre-computed D_J, S_J, M_LJ components...
+#> D_L computed: 5.0 total deaths across 3 syndrome(s).
+d_l
+#> # A tibble: 3 × 4
+#>   syndrome   D_L D_L_method            D_L_confidence
+#>   <chr>    <dbl> <chr>                 <chr>         
+#> 1 BSI          2 population_components high          
+#> 2 LRI          2 population_components high          
+#> 3 UTI          1 population_components high          
 ```

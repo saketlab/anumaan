@@ -17,3 +17,7 @@ export_report_html(report, file)
 - file:
 
   Output file path
+
+## Value
+
+Called for its side effect of writing `file`; returns `NULL` invisibly.

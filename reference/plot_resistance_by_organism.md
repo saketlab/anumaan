@@ -89,3 +89,7 @@ plot_resistance_by_organism(
 - syndrome_name:
 
   Optional value of `syndrome_col` to keep.
+
+## Value
+
+A `ggplot` object.

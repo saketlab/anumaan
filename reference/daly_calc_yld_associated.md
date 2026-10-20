@@ -37,8 +37,8 @@ daly_calc_yld_associated(
 - P_Lk_prime_tbl:
 
   Data frame: the `P_Lk_prime` (pooled) or `facility_level` element from
-  `daly_calc_pathogen_fraction_nonfatal()`. Must contain `pathogen_col`,
-  `plk_col`, and `incidence_col`.
+  [`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md).
+  Must contain `pathogen_col`, `plk_col`, and `incidence_col`.
 
 - yld_ref:
 
@@ -61,7 +61,8 @@ daly_calc_yld_associated(
 - incidence_col:
 
   Character. I_L column in `P_Lk_prime_tbl`. Default `"N_NF_L"` (the
-  column already produced by `daly_calc_pathogen_fraction_nonfatal()`).
+  column already produced by
+  [`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md)).
 
 - facility_col:
 
@@ -126,10 +127,10 @@ is facility-level) from its own inputs.
 
 - **I_L** and **P'\_Lk**: read directly from `P_Lk_prime_tbl` – the
   `P_Lk_prime` (pooled) or `facility_level` element already returned by
-  `daly_calc_pathogen_fraction_nonfatal()`, which computes both the
-  non-fatal incidence count and the pathogen fraction from the same
-  observed cohort. Incidence is never back-calculated from deaths, CFR,
-  or LOS.
+  [`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md),
+  which computes both the non-fatal incidence count and the pathogen
+  fraction from the same observed cohort. Incidence is never
+  back-calculated from deaths, CFR, or LOS.
 
 - **DW_L**: resolved exactly as in the package's pre-existing YLD weight
   mechanism – either the `DW_sepsis` scalar, or a lookup in `yld_ref`

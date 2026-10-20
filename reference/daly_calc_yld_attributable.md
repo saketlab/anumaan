@@ -38,8 +38,8 @@ daly_calc_yld_attributable(
 - P_Lk_prime_tbl:
 
   Data frame: the `P_Lk_prime` (pooled) or `facility_level` element from
-  `daly_calc_pathogen_fraction_nonfatal()`. Must contain `pathogen_col`,
-  `plk_col`, and `incidence_col`.
+  [`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md).
+  Must contain `pathogen_col`, `plk_col`, and `incidence_col`.
 
 - yld_ref:
 
@@ -62,7 +62,8 @@ daly_calc_yld_attributable(
 - incidence_col:
 
   Character. I_L column in `P_Lk_prime_tbl`. Default `"N_NF_L"` (the
-  column already produced by `daly_calc_pathogen_fraction_nonfatal()`).
+  column already produced by
+  [`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md)).
 
 - facility_col:
 

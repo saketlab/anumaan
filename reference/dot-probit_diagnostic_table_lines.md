@@ -21,9 +21,8 @@ Compact diagnostic-summary table for the interpretation page
 
 - degeneracy_stats:
 
-  Result of
-  [`.omega_degeneracy_stats()`](https://saketlab.github.io/anumaan/reference/dot-omega_degeneracy_stats.md),
-  or `NULL` for identity-residual fits.
+  Result of `.omega_degeneracy_stats()`, or `NULL` for identity-residual
+  fits.
 
 - residual_structure:
 

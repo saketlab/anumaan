@@ -58,12 +58,20 @@ antimicrobial resistance in 2019. Lancet. 2022.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-s_j <- daly_calc_infection_fraction(
-  pop_data           = vital_reg,
-  cause_col          = "icd10_cause",
-  infection_flag_col = "is_infectious",
-  groupby_cols       = c("Age_bin", "gender")
+vital_reg <- data.frame(
+  cause_of_death     = c("A41.9", "A41.9", "J18.9", "J18.9", "I21.9", "N39.0"),
+  is_infection_death = c(TRUE, TRUE, TRUE, TRUE, FALSE, TRUE),
+  syndrome           = c("BSI", "BSI", "LRI", "LRI", NA, "UTI")
 )
-} # }
+s_j <- daly_calc_infection_fraction(vital_reg)
+#> Computing S_J from population-level data...
+#> S_J computed: mean infection fraction = 0.750 across 4 cause(s).
+s_j
+#> # A tibble: 4 × 6
+#>   cause_of_death   D_J infection_deaths   S_J S_J_method S_J_confidence
+#>   <chr>          <int>            <dbl> <dbl> <chr>      <chr>         
+#> 1 A41.9              2                2     1 population high          
+#> 2 I21.9              1                0     0 population high          
+#> 3 J18.9              2                2     1 population high          
+#> 4 N39.0              1                1     1 population high          
 ```

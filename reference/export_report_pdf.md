@@ -17,3 +17,7 @@ export_report_pdf(report, file)
 - file:
 
   Output file path
+
+## Value
+
+Does not return; always signals an error.

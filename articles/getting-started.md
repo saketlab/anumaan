@@ -190,15 +190,15 @@ remotes::install_github("saketlab/anumaan", build_vignettes = TRUE)
 
 ### Optional dependencies
 
-| Feature                        | Packages                                                                                                                |
-|--------------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| Convex QP solver (recommended) | `osqp`, `Matrix`                                                                                                        |
-| Convex QP solver (fallback)    | `quadprog`                                                                                                              |
-| Mixed-effects LOS modelling    | `lme4`, `glmmTMB`                                                                                                       |
-| Spatial analysis               | `sf`, `spdep`, `leaflet`                                                                                                |
-| Python ICD-10 embedding        | `reticulate` + `alethia`                                                                                                |
-| pkgdown site build             | `pkgdown`                                                                                                               |
-| Enhanced EDA theme             | `ggpubr` (plots fall back to [`ggplot2::theme_bw()`](https://ggplot2.tidyverse.org/reference/ggtheme.html) when absent) |
+| Feature | Packages |
+|----|----|
+| Convex QP solver (recommended) | `osqp`, `Matrix` |
+| Convex QP solver (fallback) | `quadprog` |
+| Mixed-effects LOS modelling | `lme4`, `glmmTMB` |
+| Spatial analysis | `sf`, `spdep`, `leaflet` |
+| Python ICD-10 embedding | `reticulate` + `alethia` |
+| pkgdown site build | `pkgdown` |
+| Enhanced EDA theme | `ggpubr` (plots fall back to [`ggplot2::theme_bw()`](https://ggplot2.tidyverse.org/reference/ggtheme.html) when absent) |
 
 ------------------------------------------------------------------------
 
@@ -207,15 +207,15 @@ remotes::install_github("saketlab/anumaan", build_vignettes = TRUE)
 All three pipelines expect **long format** input — one row per isolate ×
 antibiotic combination:
 
-| Column             | Role                                                           |
-|--------------------|----------------------------------------------------------------|
-| `patient_id`       | Unique patient identifier                                      |
-| `isolate_id`       | Unique isolate identifier (counting unit for resistance stats) |
-| `organism_name`    | Organism name (raw)                                            |
-| `antibiotic_name`  | Antibiotic name (raw)                                          |
-| `antibiotic_value` | Susceptibility result: R, I, or S                              |
-| `date_of_culture`  | Culture collection date                                        |
-| `specimen_type`    | Specimen source                                                |
+| Column | Role |
+|----|----|
+| `patient_id` | Unique patient identifier |
+| `isolate_id` | Unique isolate identifier (counting unit for resistance stats) |
+| `organism_name` | Organism name (raw) |
+| `antibiotic_name` | Antibiotic name (raw) |
+| `antibiotic_value` | Susceptibility result: R, I, or S |
+| `date_of_culture` | Culture collection date |
+| `specimen_type` | Specimen source |
 
 Optional but used when present: `date_of_admission`,
 `date_of_final_outcome`, `DOB`, `Age`, `gender`, `final_outcome`,
@@ -232,7 +232,7 @@ stewardship specimen labels such as `Brain abscess`, `Instrument`,
 ## Package Reference
 
 Full function documentation is at the [Reference
-page](https://saketlab.github.io/anumaan/reference/index.md).
+page](https://saketlab.github.io/anumaan/reference/index.html).
 
 ``` r
 # Search all functions

@@ -29,10 +29,10 @@ The pipeline has two stages:
 
 Input can come from two sources:
 
-| Source                                                               | Entry point                                                                                                                                                                                                                                                                                                                                          |
-|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Pre-computed aggregate marginals (GBD, GLASS, national surveillance) | [`validate_aggregate_inputs()`](https://saketlab.github.io/anumaan/reference/validate_aggregate_inputs.md) → [`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md)                                                                                                                                |
-| Facility line-list AST data (after preprocessing)                    | [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md) → [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md) → [`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md) |
+| Source | Entry point |
+|----|----|
+| Pre-computed aggregate marginals (GBD, GLASS, national surveillance) | [`validate_aggregate_inputs()`](https://saketlab.github.io/anumaan/reference/validate_aggregate_inputs.md) → [`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md) |
+| Facility line-list AST data (after preprocessing) | [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md) → [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md) → [`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md) |
 
 ------------------------------------------------------------------------
 
@@ -48,13 +48,13 @@ them directly as a tibble and validate before running the QP.
 
 ``` r
 marginals <- tibble::tibble(
-  pathogen         = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 3),
+  pathogen = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 3),
   antibiotic_class = rep(
     c("Carbapenems", "3GC", "Fluoroquinolones"),
     times = 2
   ),
-  n_tested    = c(420L, 460L, 390L, 280L, 310L, 265L),
-  n_resistant = c(126L, 299L, 195L,  45L, 155L, 133L)
+  n_tested = c(420L, 460L, 390L, 280L, 310L, 265L),
+  n_resistant = c(126L, 299L, 195L, 45L, 155L, 133L)
 ) %>%
   dplyr::mutate(marginal_resistance = n_resistant / n_tested)
 
@@ -88,7 +88,7 @@ generates all 2^n binary combinations for a given ordered class set.
 This is the profile space the QP optimises over.
 
 ``` r
-classes  <- c("Carbapenems", "3GC", "Fluoroquinolones")
+classes <- c("Carbapenems", "3GC", "Fluoroquinolones")
 profiles <- enumerate_binary_profiles(classes)
 profiles
 #> # A tibble: 8 × 4
@@ -115,10 +115,10 @@ constructs the constraint matrix M and target vector v that encode the
 marginal and pairwise constraints fed into the QP.
 
 ``` r
-kp      <- marginals[marginals$pathogen == "Klebsiella pneumoniae", ]
-r_marg  <- setNames(kp$marginal_resistance, kp$antibiotic_class)
+kp <- marginals[marginals$pathogen == "Klebsiella pneumoniae", ]
+r_marg <- setNames(kp$marginal_resistance, kp$antibiotic_class)
 profiles_enum <- enumerate_binary_profiles(names(r_marg))
-cm      <- build_constraint_matrix(profiles_enum, r_marg)
+cm <- build_constraint_matrix(profiles_enum, r_marg)
 
 cat("M dimension (constraints x profiles):", dim(cm$M), "\n")
 #> M dimension (constraints x profiles): 6 8
@@ -144,12 +144,16 @@ enumerates, builds constraints, and solves the QP. The solver prefers
 
 ``` r
 panel_map <- list(
-  "Klebsiella pneumoniae"  = c("Carbapenems",
-                                "3GC",
-                                "Fluoroquinolones"),
-  "Escherichia coli"       = c("Carbapenems",
-                                "3GC",
-                                "Fluoroquinolones")
+  "Klebsiella pneumoniae" = c(
+    "Carbapenems",
+    "3GC",
+    "Fluoroquinolones"
+  ),
+  "Escherichia coli" = c(
+    "Carbapenems",
+    "3GC",
+    "Fluoroquinolones"
+  )
 )
 
 profiles_out <- estimate_profiles_convex(
@@ -166,29 +170,31 @@ profiles_out <- estimate_profiles_convex(
 
 ``` r
 profiles_out %>%
-  dplyr::select(pathogen, profile_delta, profile_probability,
-                convergence_flag, max_abs_residual) %>%
+  dplyr::select(
+    pathogen, profile_delta, profile_probability,
+    convergence_flag, max_abs_residual
+  ) %>%
   dplyr::filter(profile_probability > 0.005) %>%
   dplyr::arrange(pathogen, dplyr::desc(profile_probability))
 #> # A tibble: 16 × 5
 #>    pathogen  profile_delta profile_probability convergence_flag max_abs_residual
 #>    <chr>     <chr>                       <dbl> <lgl>                       <dbl>
-#>  1 Escheric… SSS                         0.125 FALSE                       0.339
-#>  2 Escheric… RSS                         0.125 FALSE                       0.339
-#>  3 Escheric… SRS                         0.125 FALSE                       0.339
-#>  4 Escheric… RRS                         0.125 FALSE                       0.339
-#>  5 Escheric… SSR                         0.125 FALSE                       0.339
-#>  6 Escheric… RSR                         0.125 FALSE                       0.339
-#>  7 Escheric… SRR                         0.125 FALSE                       0.339
-#>  8 Escheric… RRR                         0.125 FALSE                       0.339
-#>  9 Klebsiel… SSS                         0.125 FALSE                       0.2  
-#> 10 Klebsiel… RSS                         0.125 FALSE                       0.2  
-#> 11 Klebsiel… SRS                         0.125 FALSE                       0.2  
-#> 12 Klebsiel… RRS                         0.125 FALSE                       0.2  
-#> 13 Klebsiel… SSR                         0.125 FALSE                       0.2  
-#> 14 Klebsiel… RSR                         0.125 FALSE                       0.2  
-#> 15 Klebsiel… SRR                         0.125 FALSE                       0.2  
-#> 16 Klebsiel… RRR                         0.125 FALSE                       0.2
+#>  1 Escheric… SSR                        0.226  TRUE                            0
+#>  2 Escheric… RSS                        0.224  TRUE                            0
+#>  3 Escheric… RSR                        0.196  TRUE                            0
+#>  4 Escheric… SSS                        0.194  TRUE                            0
+#>  5 Escheric… RRR                        0.0553 TRUE                            0
+#>  6 Escheric… SRS                        0.0550 TRUE                            0
+#>  7 Escheric… SRR                        0.0253 TRUE                            0
+#>  8 Escheric… RRS                        0.0250 TRUE                            0
+#>  9 Klebsiel… RSS                        0.238  TRUE                            0
+#> 10 Klebsiel… RSR                        0.217  TRUE                            0
+#> 11 Klebsiel… SSR                        0.133  TRUE                            0
+#> 12 Klebsiel… SSS                        0.112  TRUE                            0
+#> 13 Klebsiel… RRR                        0.108  TRUE                            0
+#> 14 Klebsiel… RRS                        0.0873 TRUE                            0
+#> 15 Klebsiel… SRS                        0.0627 TRUE                            0
+#> 16 Klebsiel… SRR                        0.0423 TRUE                            0
 ```
 
 The `profile_class_set` column records the exact ordered class set that
@@ -214,15 +220,16 @@ three-step pipeline that feeds the same QP engine.
 set.seed(101)
 # Minimal long-format AST data: one row per isolate x antibiotic class
 ast_class <- data.frame(
-  isolate_id       = rep(paste0("ISO", sprintf("%03d", 1:80)), each = 3),
-  organism_name    = rep(
+  isolate_id = rep(paste0("ISO", sprintf("%03d", 1:80)), each = 3),
+  organism_name = rep(
     ifelse(seq_len(80) <= 50, "Klebsiella pneumoniae", "Escherichia coli"),
     each = 3
   ),
-  org_group        = "Enterobacterales",
+  org_group = "Enterobacterales",
   antibiotic_class = rep(c("Carbapenems", "3GC", "Fluoroquinolones"), times = 80),
   antibiotic_value = sample(
-    c("S", "R"), 240, replace = TRUE, prob = c(0.60, 0.40)
+    c("S", "R"), 240,
+    replace = TRUE, prob = c(0.60, 0.40)
   ),
   stringsAsFactors = FALSE
 )
@@ -284,25 +291,25 @@ rp_out[["Klebsiella pneumoniae"]]$profiles %>%
   dplyr::filter(probability > 0.005) %>%
   dplyr::arrange(dplyr::desc(probability))
 #>   profile probability 3GC Carbapenems Fluoroquinolones
-#> 1     SSS       0.125   0           0                0
-#> 2     RSS       0.125   1           0                0
-#> 3     SRS       0.125   0           1                0
-#> 4     RRS       0.125   1           1                0
-#> 5     SSR       0.125   0           0                1
-#> 6     RSR       0.125   1           0                1
-#> 7     SRR       0.125   0           1                1
-#> 8     RRR       0.125   1           1                1
+#> 1     SSR  0.23470187   0           0                1
+#> 2     SSS  0.18529813   0           0                0
+#> 3     RSR  0.14529813   1           0                1
+#> 4     RSS  0.09470187   1           0                0
+#> 5     SRS  0.09470187   0           1                0
+#> 6     RRR  0.09470187   1           1                1
+#> 7     RRS  0.08529813   1           1                0
+#> 8     SRR  0.06529813   0           1                1
 ```
 
 ``` r
 # Constraint residuals: how well does the solution reproduce the inputs?
 round(rp_out[["Klebsiella pneumoniae"]]$constraint_residuals, 6)
 #>                          marg_3GC                  marg_Carbapenems 
-#>                              0.08                              0.16 
+#>                                 0                                 0 
 #>             marg_Fluoroquinolones              pair_3GC_Carbapenems 
-#>                             -0.04                              0.07 
+#>                                 0                                 0 
 #>         pair_3GC_Fluoroquinolones pair_Carbapenems_Fluoroquinolones 
-#>                              0.01                              0.09
+#>                                 0                                 0
 ```
 
 #### 1.6 Check Constraint Satisfaction
@@ -325,21 +332,23 @@ checks <- check_profile_constraints(
 )
 
 checks %>%
-  dplyr::select(pathogen, constraint_type, constraint_name,
-                target, reconstructed, abs_residual, pass)
+  dplyr::select(
+    pathogen, constraint_type, constraint_name,
+    target, reconstructed, abs_residual, pass
+  )
 #> # A tibble: 22 × 7
 #>    pathogen    constraint_type constraint_name target reconstructed abs_residual
 #>    <chr>       <chr>           <chr>            <dbl>         <dbl>        <dbl>
-#>  1 Escherichi… nonneg          min_probability NA             0.125      NA     
-#>  2 Escherichi… sum_to_one      sum_probability  1             1           0     
-#>  3 Escherichi… marginal        marg_3GC         0.4           0.5         0.1   
-#>  4 Escherichi… marginal        marg_Carbapene…  0.333         0.5         0.167 
-#>  5 Escherichi… marginal        marg_Fluoroqui…  0.467         0.5         0.0333
-#>  6 Escherichi… pairwise        pair_3GC_Carba…  0.167         0.25        0.0833
-#>  7 Escherichi… pairwise        pair_3GC_Fluor…  0.133         0.25        0.117 
-#>  8 Escherichi… pairwise        pair_Carbapene…  0.2           0.25        0.05  
-#>  9 Escherichi… marginal        marg_Fluoroqui…  0.467         0.5         0.0333
-#> 10 Escherichi… marginal        marg_3GC         0.4           0.5         0.1   
+#>  1 Escherichi… nonneg          min_probability NA            0.0448    NA       
+#>  2 Escherichi… sum_to_one      sum_probability  1            1          0       
+#>  3 Escherichi… marginal        marg_3GC         0.4          0.400      2.29e-10
+#>  4 Escherichi… marginal        marg_Carbapene…  0.333        0.333      8.95e-10
+#>  5 Escherichi… marginal        marg_Fluoroqui…  0.467        0.467      6.21e-11
+#>  6 Escherichi… pairwise        pair_3GC_Carba…  0.167        0.167      4.75e-10
+#>  7 Escherichi… pairwise        pair_3GC_Fluor…  0.133        0.133      5.25e-10
+#>  8 Escherichi… pairwise        pair_Carbapene…  0.2          0.200      4.75e-10
+#>  9 Escherichi… marginal        marg_Fluoroqui…  0.467        0.467      6.21e-11
+#> 10 Escherichi… marginal        marg_3GC         0.4          0.400      2.29e-10
 #> # ℹ 12 more rows
 #> # ℹ 1 more variable: pass <lgl>
 ```
@@ -366,10 +375,18 @@ boot <- bootstrap_profiles_convex(
 boot[["Klebsiella pneumoniae"]] %>%
   dplyr::filter(probability_mean > 0.005) %>%
   dplyr::arrange(dplyr::desc(probability_mean))
-#> # A tibble: 0 × 7
-#> # ℹ 7 variables: profile <chr>, probability_mean <dbl>,
-#> #   probability_median <dbl>, lower <dbl>, upper <dbl>,
-#> #   n_replicates_converged <int>, convergence_rate <dbl>
+#> # A tibble: 8 × 7
+#>   profile probability_mean probability_median  lower  upper
+#>   <chr>              <dbl>              <dbl>  <dbl>  <dbl>
+#> 1 RSS               0.238              0.239  0.208  0.270 
+#> 2 RSR               0.217              0.217  0.192  0.249 
+#> 3 SSR               0.133              0.132  0.113  0.151 
+#> 4 SSS               0.112              0.112  0.0943 0.133 
+#> 5 RRR               0.108              0.107  0.0916 0.125 
+#> 6 RRS               0.0871             0.0873 0.0681 0.108 
+#> 7 SRS               0.0626             0.0626 0.0530 0.0718
+#> 8 SRR               0.0419             0.0414 0.0299 0.0559
+#> # ℹ 2 more variables: n_replicates_converged <int>, convergence_rate <dbl>
 ```
 
 ### Option 2: Bayesian Multivariate Probit (Pathway 2)
@@ -400,7 +417,7 @@ input to the Stan model.
 ``` r
 set.seed(123)
 n_events <- 150
-centers  <- c("Hospital A", "Hospital B", "Hospital C")
+centers <- c("Hospital A", "Hospital B", "Hospital C")
 
 event_class_data <- tibble::tibble(
   event_id       = paste0("EV", sprintf("%04d", 1:n_events)),
@@ -414,7 +431,7 @@ event_class_data <- tibble::tibble(
 true_p <- c(Carbapenems = 0.35, Fluoroquinolones = 0.55, Aminoglycosides = 0.30)
 for (cls in names(true_p)) {
   vals <- rbinom(n_events, 1, true_p[[cls]])
-  vals[sample.int(n_events, size = floor(0.15 * n_events))] <- NA  # some untested
+  vals[sample.int(n_events, size = floor(0.15 * n_events))] <- NA # some untested
   event_class_data[[cls]] <- vals
 }
 
@@ -437,16 +454,18 @@ identifiable (`fit$eligibility_report$pairwise`).
 
 ``` r
 fit <- fit_bayesian_multivariate_probit(
-  event_class_data   = event_class_data,
-  class_cols         = class_cols,
-  fixed_effects      = c("Age_normalised", "gender"),
-  random_effects     = c("center_name"),
-  pathogen           = "Klebsiella pneumoniae",
-  outcome_col        = "final_outcome",
+  event_class_data = event_class_data,
+  class_cols = class_cols,
+  fixed_effects = c("Age_normalised", "gender"),
+  random_effects = c("center_name"),
+  pathogen = "Klebsiella pneumoniae",
+  outcome_col = "final_outcome",
   residual_structure = "identity",
-  prior_config       = list(beta_sd = 1.5, tau_sd = 1.0),
-  sampler_config     = list(chains = 2, iter_warmup = 200, iter_sampling = 200,
-                             seed = 123, parallel_chains = 2, adapt_delta = 0.9)
+  prior_config = list(beta_sd = 1.5, tau_sd = 1.0),
+  sampler_config = list(
+    chains = 2, iter_warmup = 200, iter_sampling = 200,
+    seed = 123, parallel_chains = 2, adapt_delta = 0.9
+  )
 )
 
 fit$diagnostics
@@ -539,8 +558,10 @@ observed profiles.
 ``` r
 val_marginal <- validate_marginal_calibration(fit, n_posterior_draws_for_validation = 200L, seed = 123L)
 val_pairwise <- validate_pairwise_calibration(fit, n_posterior_draws_for_validation = 200L, seed = 123L)
-val_complete <- validate_complete_profile_calibration(fit, n_posterior_draws_for_validation = 200L,
-                                                       seed = 123L, min_complete_events = 5L)
+val_complete <- validate_complete_profile_calibration(fit,
+  n_posterior_draws_for_validation = 200L,
+  seed = 123L, min_complete_events = 5L
+)
 
 compute_profile_validation_status(
   marginal_tbl          = val_marginal,
@@ -579,7 +600,8 @@ compute_prior_predictive_status(prior_pred)
 #> [1] 0.0857
 
 ppc_stats <- compute_probit_ppc_statistics(
-  fit, n_states = 100L, seed = 123L,
+  fit,
+  n_states = 100L, seed = 123L,
   statistics = c("marginal", "resistant_count", "pairwise")
 )
 compute_posterior_predictive_status(ppc_stats)
@@ -703,15 +725,15 @@ rolls all four into one `profile_validation_status` verdict.
 
 **Quick reference: which check answers which question**
 
-| Question                                   | Function                                                                                                                                                                                                                                              | Needs `Omega`?       |
-|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
-| Did the sampler converge?                  | `fit$diagnostics`                                                                                                                                                                                                                                     | –                    |
-| What’s the estimated resistance profile?   | [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md) + [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md)       | correlated fits only |
-| Does simulated data resemble real data?    | [`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md) + [`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md) | correlated fits only |
-| Is the model calibrated on single classes? | [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md)                                                                                                                                    | no                   |
-| Is the model calibrated on class pairs?    | [`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md)                                                                                                                                    | correlated fits only |
-| Is the model calibrated on full profiles?  | [`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md)                                                                                                                    | correlated fits only |
-| Can it predict held-out AST results?       | [`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md)                                                                                                                                                    | correlated fits only |
+| Question | Function | Needs `Omega`? |
+|----|----|----|
+| Did the sampler converge? | `fit$diagnostics` | – |
+| What’s the estimated resistance profile? | [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md) + [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md) | correlated fits only |
+| Does simulated data resemble real data? | [`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md) + [`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md) | correlated fits only |
+| Is the model calibrated on single classes? | [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md) | no |
+| Is the model calibrated on class pairs? | [`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md) | correlated fits only |
+| Is the model calibrated on full profiles? | [`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md) | correlated fits only |
+| Can it predict held-out AST results? | [`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md) | correlated fits only |
 
 A model can score well on some of these and poorly on others at the same
 time – e.g. a correlated-residual fit with unresolved sampler
@@ -760,11 +782,11 @@ two separate verdicts, not one combined score.
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> Running under: Ubuntu 26.04.1 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
 #> 
 #> locale:
 #>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
@@ -779,7 +801,7 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9036
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9037
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 
@@ -787,7 +809,7 @@ sessionInfo()
 #>  [9] textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0     lattice_0.22-9   
 #> [13] R6_2.6.1          generics_0.1.4    knitr_1.52        tibble_3.3.1     
 #> [17] desc_1.4.3        osqp_1.0.0        bslib_0.12.0      pillar_1.11.1    
-#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.61        
+#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.62        
 #> [25] quadprog_1.5-8    fs_2.1.0          sass_0.4.10       S7_0.2.2         
 #> [29] otel_0.2.0        cli_3.6.6         withr_3.0.3       pkgdown_2.2.1    
 #> [33] magrittr_2.0.5    digest_0.6.39     grid_4.6.1        lifecycle_1.0.5  

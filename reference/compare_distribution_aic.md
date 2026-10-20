@@ -29,5 +29,5 @@ Data frame with columns `Weibull_AIC`, `Lognormal_AIC`, `Gamma_AIC`.
 ``` r
 compare_distribution_aic(rlnorm(200, meanlog = 2, sdlog = 0.5))
 #>   Weibull_AIC Lognormal_AIC Gamma_AIC
-#> 1    1150.919      1123.855   1129.85
+#> 1    1130.215      1097.016  1106.504
 ```

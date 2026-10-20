@@ -199,21 +199,43 @@ to limit each pathogen to its most-tested classes (e.g.,
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-marg <- compute_marginal_resistance(amr_clean)
-co_res <- compute_pairwise_coresistance(marg)
-rp <- compute_resistance_profiles(marg, co_res)
-
-# All profiles and probabilities for K. pneumoniae
-rp[["Klebsiella pneumoniae"]]$profiles
-
-# Constraint residuals (quality check)
-rp[["Klebsiella pneumoniae"]]$constraint_residuals
-
-# Single pathogen
-rp_kp <- compute_resistance_profiles(
-  marg, co_res,
-  pathogens = "Klebsiella pneumoniae"
-)
-} # }
+if (requireNamespace("quadprog", quietly = TRUE)) {
+  set.seed(1)
+  ast_class <- data.frame(
+    isolate_id       = rep(sprintf("ISO%02d", 1:80), each = 3),
+    organism_name    = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 120),
+    org_group        = "Enterobacterales",
+    antibiotic_class = rep(c("Carbapenems", "3GC", "Fluoroquinolones"), times = 80),
+    antibiotic_value = sample(c("S", "R"), 240, replace = TRUE)
+  )
+  marg <- compute_marginal_resistance(ast_class)
+  marg$marginal
+  co_res <- compute_pairwise_coresistance(marg)
+  co_res[["Klebsiella pneumoniae"]]$prevalence
+  rp <- compute_resistance_profiles(marg, co_res, exclude_near_zero = FALSE)
+  rp[["Klebsiella pneumoniae"]]$profiles
+}
+#> Collapsed to class level: 80 isolates | 2 pathogens | 3 classes.
+#> No classes with marginal_resistance <= 0.
+#> min_n_tested = 30: all 6 pathogen-class combination(s) passed the threshold.
+#> class_long after min_n_tested filter: 240 isolate-class row(s) retained.
+#> 'Escherichia coli': 3 classes, 40 isolates -- co-resistance matrix built.
+#> 'Klebsiella pneumoniae': 3 classes, 40 isolates -- co-resistance matrix built.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#>   profile probability 3GC Carbapenems Fluoroquinolones
+#> 1     SSS  0.11678388   0           0                0
+#> 2     RSS  0.05821612   1           0                0
+#> 3     SRS  0.13321612   0           1                0
+#> 4     RRS  0.09178388   1           1                0
+#> 5     SSR  0.18321612   0           0                1
+#> 6     RSR  0.19178388   1           0                1
+#> 7     SRR  0.09178388   0           1                1
+#> 8     RRR  0.13321612   1           1                1
 ```

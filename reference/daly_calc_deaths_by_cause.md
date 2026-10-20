@@ -58,19 +58,20 @@ antimicrobial resistance in 2019. Lancet. 2022.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# One row per death record
-d_j <- daly_calc_deaths_by_cause(
-  pop_data  = vital_reg,
-  cause_col = "icd10_cause"
+vital_reg <- data.frame(
+  cause_of_death     = c("A41.9", "A41.9", "J18.9", "J18.9", "I21.9", "N39.0"),
+  is_infection_death = c(TRUE, TRUE, TRUE, TRUE, FALSE, TRUE),
+  syndrome           = c("BSI", "BSI", "LRI", "LRI", NA, "UTI")
 )
-
-# Pre-aggregated counts, stratified by age and sex
-d_j <- daly_calc_deaths_by_cause(
-  pop_data     = vital_reg,
-  cause_col    = "icd10_cause",
-  deaths_col   = "n_deaths",
-  groupby_cols = c("Age_bin", "gender")
-)
-} # }
+d_j <- daly_calc_deaths_by_cause(vital_reg)
+#> Computing D_J from population-level data...
+#> D_J computed: 6 total deaths across 4 cause(s).
+d_j
+#> # A tibble: 4 × 4
+#>   cause_of_death   D_J D_J_method D_J_confidence
+#>   <chr>          <int> <chr>      <chr>         
+#> 1 A41.9              2 population high          
+#> 2 I21.9              1 population high          
+#> 3 J18.9              2 population high          
+#> 4 N39.0              1 population high          
 ```

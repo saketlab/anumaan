@@ -30,6 +30,6 @@ Data frame with columns `Mean_LOS`, `Median_LOS`, `SD_LOS`,
 ``` r
 fit <- fitdistrplus::fitdist(rlnorm(200), "lnorm")
 summarise_distribution(fit, "lnorm")
-#>         Mean_LOS Median_LOS SD_LOS                  Parameters
-#> meanlog     1.55       0.98    1.9 meanlog=-0.023, sdlog=0.959
+#>         Mean_LOS Median_LOS SD_LOS                 Parameters
+#> meanlog     1.62       0.89   2.47 meanlog=-0.12, sdlog=1.097
 ```

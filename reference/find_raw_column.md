@@ -7,3 +7,7 @@ Find Raw Column by Aliases
 ``` r
 find_raw_column(data, aliases)
 ```
+
+## Value
+
+The matching column name, or `NULL` if none is found.

@@ -30,7 +30,7 @@ A `fitdist` object, or `NULL` on failure.
 safe_fit(rlnorm(100), "lnorm")
 #> Fitting of the distribution ' lnorm ' by maximum likelihood 
 #> Parameters:
-#>           estimate Std. Error
-#> meanlog -0.1632808 0.09814576
-#> sdlog    0.9814576 0.06939921
+#>             estimate Std. Error
+#> meanlog -0.004476225 0.09817305
+#> sdlog    0.981730542 0.06941851
 ```

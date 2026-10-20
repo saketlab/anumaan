@@ -52,15 +52,19 @@ Wide format data frame (one row per event)
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Basic wide format
-wide_data <- prep_create_wide_ast_matrix(data)
-
-# Class-level wide format
-wide_data <- prep_create_wide_ast_matrix(
-  data,
-  antibiotic_col = "antibiotic_class",
-  prefix = "class_"
+ast <- data.frame(
+  event_id              = rep(c("E1", "E2"), each = 3),
+  organism_normalized   = rep(c("Escherichia coli", "Klebsiella pneumoniae"), each = 3),
+  antibiotic_normalized = rep(c("Meropenem", "Imipenem", "Ciprofloxacin"), 2),
+  antibiotic_class      = rep(c("Carbapenems", "Carbapenems", "Fluoroquinolones"), 2),
+  antibiotic_value      = c("S", "R", "R", "S", "S", "R")
 )
-} # }
+prep_create_wide_ast_matrix(ast, keep_cols = "organism_normalized")
+#> Creating wide format: pivoting 'antibiotic_normalized' column...
+#> Created wide format: 2 events x 3 antibiotics
+#> # A tibble: 2 × 5
+#>   event_id organism_normalized   abx_Ciprofloxacin abx_Imipenem abx_Meropenem
+#>   <chr>    <chr>                 <chr>             <chr>        <chr>        
+#> 1 E1       Escherichia coli      R                 R            S            
+#> 2 E2       Klebsiella pneumoniae R                 S            S            
 ```

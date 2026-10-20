@@ -98,15 +98,29 @@ An `amr_config` object (list with class)
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Use defaults
 config <- amr_config()
-
-# Customize for specific hospital
-config <- amr_config(
-  hai_cutoff = 3,
-  mdr_definition = 5,
-  strict_validation = FALSE
-)
-} # }
+config <- amr_config(hai_cutoff = 3, mdr_definition = 5)
+config
+#> AMR Preprocessing Configuration
+#> ================================
+#> 
+#> Phase 1 - Standardization:
+#>   Fuzzy column matching: TRUE
+#>   Strict validation: FALSE
+#>   Date columns: auto-detected
+#> 
+#> Phase 2 - Enrichment:
+#>   HAI cutoff: 3 days
+#>   Infer department: TRUE
+#> 
+#> Phase 3 - Derivation:
+#>   Event gap: 14 days
+#>   Mortality window: 14 days
+#>   Age bins: custom
+#>   Contaminant method: auto
+#>   MDR/XDR definition: 5
+#> 
+#> Processing Rules:
+#>   Intermediate as Resistant: TRUE
+#>   Verbose: TRUE
 ```

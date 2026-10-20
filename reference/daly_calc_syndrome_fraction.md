@@ -65,13 +65,20 @@ antimicrobial resistance in 2019. Lancet. 2022.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-m_lj <- daly_calc_syndrome_fraction(
-  pop_data           = vital_reg,
-  cause_col          = "icd10_cause",
-  syndrome_col       = "infectious_syndrome",
-  infection_flag_col = "is_infectious",
-  groupby_cols       = c("Age_bin")
+vital_reg <- data.frame(
+  cause_of_death     = c("A41.9", "A41.9", "J18.9", "J18.9", "I21.9", "N39.0"),
+  is_infection_death = c(TRUE, TRUE, TRUE, TRUE, FALSE, TRUE),
+  syndrome           = c("BSI", "BSI", "LRI", "LRI", NA, "UTI")
 )
-} # }
+m_lj <- daly_calc_syndrome_fraction(vital_reg)
+#> Computing M_LJ from population-level data...
+#> M_LJ computed: 3 cause-syndrome combination(s) across 3 cause(s).
+m_lj
+#> # A tibble: 3 × 7
+#>   cause_of_death syndrome infection_deaths_LJ infection_deaths_J  M_LJ
+#>   <chr>          <chr>                  <int>              <int> <dbl>
+#> 1 A41.9          BSI                        2                  2     1
+#> 2 J18.9          LRI                        2                  2     1
+#> 3 N39.0          UTI                        1                  1     1
+#> # ℹ 2 more variables: M_LJ_method <chr>, M_LJ_confidence <chr>
 ```

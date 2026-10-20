@@ -60,15 +60,14 @@ validate_complete_profile_calibration(
   replicate count `M` used per posterior draw per complete event to
   estimate model-implied full-profile probabilities via \\Z = \mu +
   L\_\Omega \epsilon\\, \\Y = I(Z \> 0)\\ (the same simulation mechanism
-  [`.ppc_generate_correlated()`](https://saketlab.github.io/anumaan/reference/dot-ppc_generate_correlated.md)
-  uses). Worst-case Monte Carlo SE on a cohort of `n` complete events is
-  approximately \\0.5/\sqrt{Mn}\\; the default `200` keeps that under
-  ~0.7pp even at the `min_complete_events` floor of 30, while remaining
-  far cheaper than reusing `n_posterior_draws_for_validation`
-  (e.g. 2000) as the inner replicate count would be. Ignored for
-  identity residual structure, where profile probabilities are computed
-  exactly (the independent product of \\\Phi(\mu_d)\\ terms), not
-  simulated.
+  `.ppc_generate_correlated()` uses). Worst-case Monte Carlo SE on a
+  cohort of `n` complete events is approximately \\0.5/\sqrt{Mn}\\; the
+  default `200` keeps that under ~0.7pp even at the
+  `min_complete_events` floor of 30, while remaining far cheaper than
+  reusing `n_posterior_draws_for_validation` (e.g. 2000) as the inner
+  replicate count would be. Ignored for identity residual structure,
+  where profile probabilities are computed exactly (the independent
+  product of \\\Phi(\mu_d)\\ terms), not simulated.
 
 ## Value
 

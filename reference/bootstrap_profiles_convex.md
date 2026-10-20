@@ -163,21 +163,244 @@ milliseconds; B = 500 replicates will complete in seconds. For \\n \geq
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-marg <- compute_marginal_resistance(amr_clean)
-co_res <- compute_pairwise_coresistance(marg)
-
-boot <- bootstrap_profiles_convex(
-  marginals = marg$marginal,
-  coresistance_output = co_res,
-  B = 500,
-  seed = 42
-)
-
-# 95% intervals for K. pneumoniae
-boot[["Klebsiella pneumoniae"]]
-
-# Point estimate
-attr(boot[["Klebsiella pneumoniae"]], "point_estimate")
-} # }
+if (requireNamespace("quadprog", quietly = TRUE)) {
+  marginals <- data.frame(
+    pathogen = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 3),
+    antibiotic_class = rep(c("Carbapenems", "3GC", "Fluoroquinolones"), 2),
+    n_tested = c(420L, 460L, 390L, 280L, 310L, 265L),
+    n_resistant = c(126L, 299L, 195L, 45L, 155L, 133L)
+  )
+  marginals$marginal_resistance <- marginals$n_resistant / marginals$n_tested
+  boot <- bootstrap_profiles_convex(marginals,
+    B = 20L, seed = 42L,
+    pathogen_col = "pathogen", class_col = "antibiotic_class"
+  )
+  head(boot[["Klebsiella pneumoniae"]])
+}
+#> [bootstrap_profiles_convex] Computing point estimate before bootstrap (B=20, seed=42)...
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> [bootstrap_profiles_convex] Running 20 bootstrap replicates on 2 pathogen(s) with 1 core(s)...
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> Processing 2 pathogen(s) with 1 core(s)...
+#> 
+#> [1/2] Processing 'Escherichia coli'...
+#> 'Escherichia coli': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Escherichia coli': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> 
+#> [2/2] Processing 'Klebsiella pneumoniae'...
+#> 'Klebsiella pneumoniae': 3 pair(s) used independence fallback: pair_3GC_Carbapenems; pair_3GC_Fluoroquinolones; pair_Carbapenems_Fluoroquinolones
+#> 'Klebsiella pneumoniae': n=3 classes -> 8 profiles. Max |residual| = 0.00000.
+#> [bootstrap] 'Escherichia coli': 8 profiles | 20/20 replicates converged | interval width: 95.0%
+#> [bootstrap] 'Klebsiella pneumoniae': 8 profiles | 20/20 replicates converged | interval width: 95.0%
+#> 
+#> [bootstrap_profiles_convex] Done. 2 pathogen(s) | 20/20 valid replicates.
+#> # A tibble: 6 × 7
+#>   profile probability_mean probability_median  lower  upper
+#>   <chr>              <dbl>              <dbl>  <dbl>  <dbl>
+#> 1 SSS               0.114              0.114  0.0950 0.136 
+#> 2 RSS               0.242              0.242  0.219  0.266 
+#> 3 SRS               0.0631             0.0620 0.0563 0.0715
+#> 4 RRS               0.0887             0.0900 0.0677 0.109 
+#> 5 SSR               0.131              0.127  0.110  0.154 
+#> 6 RSR               0.214              0.214  0.195  0.243 
+#> # ℹ 2 more variables: n_replicates_converged <int>, convergence_rate <dbl>
 ```

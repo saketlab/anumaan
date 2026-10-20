@@ -23,7 +23,7 @@ daly_calc_yll_associated(
   poly_weight_method = "monomicrobial_proportion",
   min_mono_per_facility = 30L,
   gap_days = 14,
-  le_path = system.file("extdata", "life_expectancy_all.xlsx", package = "anumaan"),
+  le_path = system.file("extdata", "life_expectancy_all.csv", package = "anumaan"),
   male_value = "Male",
   female_value = "Female",
   age_bin_map = c(`<1` = "0-1"),
@@ -110,8 +110,8 @@ daly_calc_yll_associated(
 
 - le_path:
 
-  Character. Path to the India life expectancy xlsx file. Defaults to
-  the bundled `inst/extdata` copy.
+  Character. Path to the India life expectancy CSV (or xlsx) file.
+  Defaults to the bundled `inst/extdata` copy.
 
 - male_value:
 
@@ -201,24 +201,24 @@ pool is smaller than `min_mono_per_facility`. If `date_culture_col` is
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-yll <- daly_calc_yll_associated(
-  data             = cohort_df,
-  outcome_col      = "final_outcome",
-  death_value      = "Death",
-  pathogen_col     = "organism_name",
-  patient_col      = "PatientInformation_id",
-  age_bin_col      = "Age_bin",
-  sex_col          = "gender",
-  facility_col     = "center_name",
-  syndrome_col     = "infectious_syndrome",
-  date_culture_col = "culture_date",
-  specimen_col     = "sample_type",
-  stratify_by      = c("location", "infectious_syndrome")
+cohort <- data.frame(
+  patient_id    = sprintf("P%02d", 1:6),
+  final_outcome = c("Death", "Death", "Discharged", "Death", "Discharged", "Death"),
+  organism_name = rep(c("Escherichia coli", "Klebsiella pneumoniae"), 3),
+  age_bin       = c("40-45", "60-65", "20-25", "0-1", "70-75", "85+"),
+  sex           = c("Male", "Female", "Male", "Female", "Male", "Female")
 )
-yll$total
+yll <- daly_calc_yll_associated(cohort,
+  outcome_col = "final_outcome", pathogen_col = "organism_name",
+  patient_col = "patient_id", age_bin_col = "age_bin", sex_col = "sex"
+)
+#> Computing polymicrobial weights (global)...
+#> Death cohort: 4 rows | 4 patients | 2 pathogens
+#> YLL associated: total = 131.60 years | 2 pathogens | 4 patients
 yll$per_pathogen
-yll$by_age_sex
-yll$stratified
-} # }
+#> # A tibble: 2 × 3
+#>   organism_name         n_patients YLL_associated_k
+#>   <chr>                      <int>            <dbl>
+#> 1 Escherichia coli               1             33.1
+#> 2 Klebsiella pneumoniae          3             98.5
 ```

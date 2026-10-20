@@ -389,6 +389,8 @@ GBD-methodology burden calculations
   Profile
 - [`daly_calc_pathogen_fraction_fatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_fatal.md)
   : Calculate fatal pathogen distribution (P\_{Lk})
+- [`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md)
+  : Calculate non-fatal pathogen distribution (P'\_{Lk})
 - [`daly_calc_resistance_prevalence_fatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_resistance_prevalence_fatal.md)
   : Calculate Fatal Resistance Prevalence (R_k)
 - [`daly_calc_syndrome_fraction()`](https://saketlab.github.io/anumaan/reference/daly_calc_syndrome_fraction.md)

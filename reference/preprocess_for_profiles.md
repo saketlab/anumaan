@@ -131,30 +131,82 @@ one count per patient.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-result <- preprocess_for_profiles(
-  data = raw_ast,
-  col_map = list(
-    isolate_col = "isolate_id",
-    pathogen_col = "organism",
-    ast_col = "result",
-    patient_col = "pid",
-    date_col = "culture_date",
-    geography_col = "state",
-    specimen_col = "specimen",
-    age_col = "age",
-    antibiotic_col = "drug_name"
-  ),
-  panel_map = list(
-    "Klebsiella pneumoniae" = c("3GC", "Carbapenems", "Fluoroquinolones"),
-    "Escherichia coli"      = c("3GC", "Fluoroquinolones", "Aminoglycosides")
-  ),
-  stratify_by = c("geography", "year"),
-  outcome_col = "final_outcome"
+ast_long <- data.frame(
+  isolate_id = rep(sprintf("ISO%02d", 1:6), each = 2),
+  patient_id = rep(sprintf("P%02d", 1:6), each = 2),
+  pathogen = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 6),
+  antibiotic_name = rep(c("Meropenem", "Ceftriaxone"), 6),
+  ast_value = rep(c("R", "S", "S", "R"), 3),
+  date_of_culture = as.Date("2024-01-01") + rep(0:5, each = 2),
+  specimen_type = "Blood",
+  state = "Maharashtra",
+  age = 40
 )
-
-result$data_wide # ready for compute_marginals_from_data()
-result$preprocessing_log # step-by-step row counts
-result$panel_exclusions # classes dropped per organism
-} # }
+res <- preprocess_for_profiles(ast_long,
+  panel_map = list(
+    "Klebsiella pneumoniae" = c("Carbapenems", "Third-generation-cephalosporins"),
+    "Escherichia coli" = c("Carbapenems", "Third-generation-cephalosporins")
+  )
+)
+#> 
+#> [preprocess_for_profiles] Step 0: Validating inputs...
+#> 
+#> [validate_profile_inputs] 11 passed | 1 warnings | 0 failed
+#>   [!] Antibiotic class column 'antibiotic_class' absent. Will derive classes from antibiotic names via WHO AWaRe reference.
+#> 
+#> [preprocess_for_profiles] Step 1: Format handling...
+#> 
+#> [preprocess_for_profiles] Step 2: Harmonising AST values...
+#> Cleaning antibiotic values: 2 unique values found
+#> Cleaned: 2 unique values -> 2 (S/I/R)
+#> 
+#> Value distribution:
+#> 
+#> R S 
+#> 6 6 
+#> No intermediate (I) values found. Returning data unchanged.
+#> [prep_harmonize_ast] 12/12 rows harmonized; 0 intermediate values recoded.
+#> 
+#> [preprocess_for_profiles] Step 3: Antibiotic standardisation and class assignment...
+#>   No antibiotic class column found. Deriving from antibiotic names via WHO AWaRe reference.
+#> Normalizing 2 unique antibiotic names against WHO reference (257 antibiotics)...
+#> Normalized: 2 unique names -> 2
+#> With antibiotic_class: 12 (100.0%)
+#> 
+#> [preprocess_for_profiles] Step 4b: Deduplicating isolate x drug rows...
+#> 
+#> [preprocess_for_profiles] Step 4: Collapsing to class level (any R -> class R)...
+#> Collapsing to antibiotic class level...
+#> Collapsed: 12 rows -> 12 class-level rows
+#> 
+#> Class-level resistance distribution:
+#> # A tibble: 2 × 3
+#>   antibiotic_class                    R     S
+#>   <chr>                           <int> <int>
+#> 1 Carbapenems                         3     3
+#> 2 Third-generation-cephalosporins     3     3
+#> 
+#> [preprocess_for_profiles] Step 5: Deriving year from date column...
+#> 
+#> [preprocess_for_profiles] Step 6: Applying organism-specific class panels...
+#> 
+#> [preprocess_for_profiles] Step 7: Pivoting to wide format (classes as columns)...
+#> Creating wide format: pivoting 'antibiotic_class' column...
+#> Created wide format: 6 events x 2 antibiotics
+#> 
+#> [preprocess_for_profiles] Complete. Output: 6 isolate(s) x 10 column(s). Steps logged: 10.
+res$preprocessing_log
+#> # A tibble: 10 × 5
+#>    step                n_rows_in n_rows_out message                       status
+#>    <chr>                   <int>      <int> <chr>                         <chr> 
+#>  1 0_validate                 12         12 Validation passed. Format: l… ok    
+#>  2 1_format                   12         12 Long format confirmed. No pi… ok    
+#>  3 2_harmonise_ast            12         12 AST values harmonised into '… ok    
+#>  4 3a_standardize_abx         12         12 Antibiotic names standardise… ok    
+#>  5 3b_class_assignment        12         12 Antibiotic class column reso… ok    
+#>  6 4b_dedup                   12         12 Dedup: 0 duplicate isolate-d… ok    
+#>  7 4_collapse_class           12         12 Class-level collapse: 12 dru… ok    
+#>  8 5_year_derivation          12         12 Year derived from 'date_of_c… ok    
+#>  9 6_panel_filter             12         12 Panel filter: 12 -> 12 rows.… ok    
+#> 10 7_wide_pivot               12          6 Long -> wide: 6 isolates x 2… ok    
 ```

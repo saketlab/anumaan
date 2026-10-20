@@ -26,5 +26,5 @@ object or `NULL`.
 fits <- fit_distributions(rlnorm(200, 2, 0.5))
 fits$lnorm$estimate
 #>   meanlog     sdlog 
-#> 2.0396379 0.5113832 
+#> 2.0028006 0.5019778 
 ```

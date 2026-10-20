@@ -1,0 +1,8 @@
+{
+  "name": "anumaan",
+  "short_name": "anumaan",
+  "icons": [{ "src": "favicon-96x96.png", "sizes": "96x96", "type": "image/png" }],
+  "theme_color": "#2B2A6B",
+  "background_color": "#2B2A6B",
+  "display": "standalone"
+}

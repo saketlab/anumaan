@@ -68,23 +68,35 @@ Data frame in long format
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# Specify antibiotic columns explicitly
-long_data <- prep_pivot_ast_wide_to_long(
-  data = raw_data,
-  antibiotic_cols = c("AMIKACIN", "GENTAMICIN", "CIPROFLOXACIN")
+wide <- data.frame(
+  patient_id      = c("P01", "P02", "P03"),
+  organism_name   = c("Escherichia coli", "Klebsiella pneumoniae", "Escherichia coli"),
+  date_of_culture = as.Date(c("2024-01-02", "2024-01-05", "2024-01-09")),
+  Amikacin        = c("S", "R", "S"),
+  Meropenem       = c("S", "R", NA),
+  Ciprofloxacin   = c("R", "R", "S")
 )
-
-# Auto-detect columns by pattern (columns 12-53)
-long_data <- prep_pivot_ast_wide_to_long(
-  data = raw_data,
-  antibiotic_cols = names(raw_data)[12:53]
+long <- prep_pivot_ast_wide_to_long(wide,
+  antibiotic_cols = c("Amikacin", "Meropenem", "Ciprofloxacin"),
+  id_cols = c("patient_id", "organism_name", "date_of_culture"),
+  create_event_id = TRUE
 )
-
-# Auto-detect uppercase antibiotic names
-long_data <- prep_pivot_ast_wide_to_long(
-  data = raw_data,
-  pattern = "^[A-Z]+$"
-)
-} # }
+#> Creating event_id column from row numbers...
+#> Pivoting 3 antibiotic columns to long format...
+#> Pivoted: 3 rows -> 9 rows (wide -> long)
+#> Removed 1 rows with missing/empty values
+#> Final long format: 8 rows x 6 columns (3 antibiotics, 3 events)
+long
+#> # A tibble: 8 × 6
+#>   patient_id organism_name         date_of_culture event_id antibiotic_name
+#>   <chr>      <chr>                 <date>             <int> <chr>          
+#> 1 P01        Escherichia coli      2024-01-02             1 Amikacin       
+#> 2 P01        Escherichia coli      2024-01-02             1 Meropenem      
+#> 3 P01        Escherichia coli      2024-01-02             1 Ciprofloxacin  
+#> 4 P02        Klebsiella pneumoniae 2024-01-05             2 Amikacin       
+#> 5 P02        Klebsiella pneumoniae 2024-01-05             2 Meropenem      
+#> 6 P02        Klebsiella pneumoniae 2024-01-05             2 Ciprofloxacin  
+#> 7 P03        Escherichia coli      2024-01-09             3 Amikacin       
+#> 8 P03        Escherichia coli      2024-01-09             3 Ciprofloxacin  
+#> # ℹ 1 more variable: antibiotic_value <chr>
 ```
