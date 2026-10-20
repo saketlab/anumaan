@@ -131,7 +131,7 @@ summary(result)
 #> Pipeline Information:
 #>   Version: 0.1.0
 #>   Phases run: standardize, enrich, derive
-#>   Execution time: 0.19 seconds
+#>   Execution time: 0.20 seconds
 #> 
 #> Data Transformation:
 #>   Output: 4 rows x 49 columns
