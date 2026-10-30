@@ -203,33 +203,65 @@ reference:
   - prep_build_nonfatal_cohort
 
 - title: "Resistance profiles (core)"
-  desc: "Marginal resistance, co-resistance matrices, and low-level profile computation"
+  desc: "Low-level profile enumeration, shared across pipelines"
   contents:
-  - compute_marginal_resistance
-  - compute_pairwise_coresistance
-  - compute_resistance_profiles
-  - select_resistance_class
   - enumerate_binary_profiles
-  - build_constraint_matrix
 
-- title: "Pathway 1: Convex Profile Estimation"
+- title: "Joint Bernoulli resistance-profile pipeline"
   desc: >
-    End-to-end pipeline for estimating resistance-profile probability distributions
-    from facility-level or aggregate surveillance data via convex optimisation (GBD
-    equation 7.5.1.3). Supports geography, year, and outcome stratification;
-    optional override with externally modelled marginals (e.g. GBD ST-GPR).
-    Use \code{estimate_resistance_profiles(method = "convex")} as the top-level
-    dispatcher for both Pathway 1 and Pathway 2.
+    Generic pipeline for estimating resistance-profile probability
+    distributions from facility event-level AST data: a saturated
+    log-linear joint Bernoulli model over the full 2^D state space, with
+    exact marginalization of untested classes (no simulation or
+    approximation). ONE joint model is fit across every configured
+    stratum at once -- never a silent separate fit per stratum -- with
+    shared (never stratum-indexed) interaction coefficients and the
+    stratifier (hospital, state, district, country, or none) encoded as
+    fixed effects in the covariate design via
+    profile_build_fixed_effect_design(), a config-level choice, never
+    hardcoded to "hospital". Covers the whole lifecycle: cohort selection,
+    pre-fit assumption review, data-support screening, panel feasibility,
+    prior predictive checks, Stan design and fitting, run monitoring,
+    sampler/MCSE diagnostics, posterior predictive checks, held-out
+    validation, final estimation with credible intervals, sensitivity
+    analysis, simulation-based calibration, release reporting, and
+    plotting.
   contents:
-  - estimate_resistance_profiles
-  - validate_profile_inputs
-  - preprocess_for_profiles
-  - validate_aggregate_inputs
-  - compute_marginals_from_data
-  - compute_pairwise_from_data
-  - estimate_profiles_convex
-  - check_profile_constraints
-  - bootstrap_profiles_convex
+  - profile_select_cohort
+  - profile_check_assumptions
+  - profile_audit_support
+  - profile_plan_precision
+  - profile_define_cohort
+  - profile_precision_bound
+  - profile_check_panel_feasibility
+  - profile_audit_interaction_support
+  - profile_prepare_model_data
+  - profile_summarize_cohort_eligibility
+  - profile_enumerate_states
+  - profile_interaction_design
+  - profile_bernoulli_terms
+  - profile_compatible_states
+  - profile_build_fixed_effect_design
+  - profile_build_design
+  - profile_prior_predictive
+  - profile_run_simulation_study
+  - profile_fit_joint_bernoulli
+  - profile_monitor_run
+  - profile_check_sampler
+  - profile_ppc
+  - profile_validate_masked
+  - profile_validate_heldout
+  - profile_validate_newpatient
+  - profile_validate_temporal
+  - profile_estimate
+  - profile_sensitivity
+  - profile_sensitivity_scenarios
+  - profile_release
+  - profile_render_report
+  - profile_aggregate_for_daly
+  - profile_plot_calibration_forest
+  - profile_plot_profile_heatmap
+  - profile_plot_pairwise_heatmap
 
 - title: "Pathway 2: Bayesian Profile Estimation"
   desc: >
@@ -246,8 +278,6 @@ reference:
     CPU and OpenCL backends are both supported as execution choices; backend
     selection changes compilation/sampling only, not the underlying model.
     Run once per pathogen; orchestrate across pathogens in the analysis repository.
-    Use \code{estimate_resistance_profiles(method = "bayesian")} as the top-level
-    entry point.
   contents:
   - fit_bayesian_multivariate_probit
   - validate_compute_backend
@@ -257,7 +287,6 @@ reference:
   - assess_gibbs_profile_stability
   - aggregate_profiles_for_daly
   - summarize_fit_correlation_matrix
-  - plot_probit_diagnostics
   - plot_omega_correlation_heatmap
   - plot_omega_convergence_heatmap
   - plot_omega_summary_table
@@ -284,32 +313,6 @@ reference:
   - validate_complete_profile_calibration
   - compute_profile_validation_status
   - mask_and_validate_ast
-
-- title: "Pathway 2: Predictive Checking"
-  desc: >
-    Posterior, prior, and mixed predictive checking (Stan User's Guide,
-    "Posterior and Prior Predictive Checks":
-    \url{https://mc-stan.org/docs/stan-users-guide/posterior-predictive-checks.html}),
-    a third and distinct question from both profile estimation and model
-    validation above: "can the fitted model generate WHOLE REPLICATED
-    DATASETS that resemble the one actually observed?" (posterior predictive,
-    \code{posterior_predictive_status}) and "what data are implied by the
-    priors before conditioning on any observed outcomes?" (prior predictive,
-    \code{prior_predictive_status}). Kept as distinct status fields from
-    \code{diagnostic_status} and \code{profile_validation_status} -- never
-    merged into one generic status anywhere in this package. Mixed predictive
-    checking (new random-effect levels, retaining fitted hyperparameters) is
-    available only when fitted random-effect blocks exist; fixed-only models
-    use posterior predictive checking instead.
-  contents:
-  - simulate_probit_posterior_predictive
-  - compute_probit_ppc_statistics
-  - plot_probit_posterior_predictive_checks
-  - compute_posterior_predictive_status
-  - simulate_probit_prior_predictive
-  - compute_prior_predictive_status
-  - compute_prior_predictive_fingerprint
-  - simulate_probit_mixed_predictive
 
 - title: "Burden estimation (YLL/YLD/DALY)"
   desc: "GBD-methodology burden calculations"

@@ -355,49 +355,91 @@ prep_flag_invalid_ast <- function(data, col = "ast_value_harmonized") {
 #' Deduplicates AST records in two sequential steps:
 #' \enumerate{
 #'   \item \strong{Exact-duplicate removal}: drops rows that are fully identical
-#'     across all five key columns (patient + organism + antibiotic + date + value).
-#'     These are true redundant records with no ambiguity.
+#'     across every key column plus the value column (e.g. patient + organism +
+#'     antibiotic + date + value). These are true redundant records with no
+#'     ambiguity.
 #'   \item \strong{Conflict resolution}: handles the remaining cases where the same
-#'     patient + organism + antibiotic + date group has \emph{different} values.
+#'     key group has \emph{different} values -- by construction, every group with
+#'     more than one row left after step 1 is a genuine conflict (same key,
+#'     different value), never an unresolved exact duplicate.
 #' }
+#'
+#' The key is \code{c(group_col, patient_col, organism_col, antibiotic_col,
+#' date_col)}, with \code{group_col}/\code{organism_col}/\code{date_col}
+#' dropped from the key when \code{NULL} -- lets this function key on exactly
+#' the columns a given caller's data actually has (e.g. a hospital/stratum
+#' identifier via \code{group_col} when patient/event ids are not already
+#' globally unique across strata, or no \code{organism_col}/\code{date_col}
+#' at all once that information is already folded into an event id upstream).
 #'
 #' \describe{
 #'   \item{\code{"detect"}}{After exact-dedup, flags conflicting rows with
 #'     \code{is_ast_duplicate = TRUE} and prints a QC summary. Returns the data
 #'     with the flag column so you can inspect before deciding how to resolve.}
 #'   \item{\code{"remove"}}{Runs both steps: removes exact duplicates, then applies
-#'     \code{strategy} to keep one row per key combination for any remaining conflicts.}
+#'     \code{strategy} to resolve any remaining conflicts.}
 #' }
 #'
 #' @param data Data frame with AST data in long format.
 #' @param mode Character. \code{"detect"} (flag only) or \code{"remove"} (flag then resolve).
 #'   Default \code{"detect"}.
 #' @param strategy Character. Resolution strategy used only when \code{mode = "remove"}.
-#'   One of \code{"resistant_wins"} (default), \code{"susceptible_wins"}, or \code{"first"}.
-#' @param patient_col Character. Patient ID column. Default \code{"patient_id"}.
-#' @param organism_col Character. Organism column. Default \code{"organism_normalized"}.
-#' @param antibiotic_col Character. Antibiotic column. Default \code{"antibiotic_normalized"}.
-#' @param date_col Character. Culture date column. Default \code{"culture_date"}.
+#'   \code{"resistant_wins"} (default) and \code{"susceptible_wins"} pick one row
+#'   per key group by clinical priority; \code{"first"} keeps whichever row came
+#'   first (only appropriate once a caller has verified row order is
+#'   meaningful or doesn't matter); \code{"error"} stops instead of resolving --
+#'   a conflicting duplicate is never silently resolved by taking the first row
+#'   or any priority order unless that policy was explicitly chosen; use this
+#'   when a conflict should always be surfaced, not quietly picked for you.
+#'   \code{"drop_conflicts"} removes every row belonging to a conflicting key
+#'   group entirely (never guesses which value is right) -- the surviving
+#'   data has zero rows for that key, rather than one unverified row.
+#' @param group_col Character or \code{NULL}. Additional stratum identifier
+#'   (e.g. hospital) included in the key when supplied, so that a
+#'   patient/organism/antibiotic/date combination that legitimately recurs
+#'   in two different strata (e.g. a hospital-local patient id reused at a
+#'   different hospital) is never treated as one conflicting record. Default
+#'   \code{NULL} (key is patient/organism/antibiotic/date only, as before).
+#' @param patient_col Character. Patient (or event) ID column. Default \code{"patient_id"}.
+#' @param organism_col Character or \code{NULL}. Organism column; \code{NULL}
+#'   drops it from the key (e.g. when the data has already been subset to one
+#'   organism). Default \code{"organism_normalized"}.
+#' @param antibiotic_col Character. Antibiotic (or antibiotic-class) column. Default \code{"antibiotic_normalized"}.
+#' @param date_col Character or \code{NULL}. Culture date column; \code{NULL}
+#'   drops it from the key (e.g. when date has already been folded into an
+#'   event id upstream). Default \code{"culture_date"}.
 #' @param ast_col Character. Harmonized AST value column. Default \code{"ast_value_harmonized"}.
+#' @param return_diagnostics Logical. When \code{TRUE}, return a list with
+#'   \code{data} (the usual return value), \code{exact_duplicates_removed}
+#'   (the rows dropped in step 1, with their key columns, for a caller that
+#'   needs its own per-key-group tally), and \code{conflict_groups} (the
+#'   conflict summary data frame, one row per conflicting key group). Default
+#'   \code{FALSE} (return just the data frame, as before).
 #'
 #' @return
 #' \itemize{
 #'   \item \code{mode = "detect"}: original data with \code{is_ast_duplicate} logical column added.
-#'   \item \code{mode = "remove"}: data with conflicts resolved (one row per key) and no flag column.
+#'   \item \code{mode = "remove"}: data with conflicts resolved (one row per key,
+#'     or zero rows for a key group dropped by \code{strategy = "drop_conflicts"})
+#'     and no flag column.
 #' }
+#' When \code{return_diagnostics = TRUE}, either of the above is wrapped as
+#' \code{$data} in the list described above.
 #' @export
 prep_deduplicate_ast <- function(data,
                                  mode = c("detect", "remove"),
-                                 strategy = c("resistant_wins", "susceptible_wins", "first"),
+                                 strategy = c("resistant_wins", "susceptible_wins", "first", "error", "drop_conflicts"),
+                                 group_col = NULL,
                                  patient_col = "patient_id",
                                  organism_col = "organism_normalized",
                                  antibiotic_col = "antibiotic_normalized",
                                  date_col = "culture_date",
-                                 ast_col = "ast_value_harmonized") {
+                                 ast_col = "ast_value_harmonized",
+                                 return_diagnostics = FALSE) {
   mode <- match.arg(mode)
   strategy <- match.arg(strategy)
 
-  key_cols <- c(patient_col, organism_col, antibiotic_col, date_col)
+  key_cols <- c(group_col, patient_col, organism_col, antibiotic_col, date_col)
   exact_key_cols <- c(key_cols, ast_col)
   missing <- setdiff(exact_key_cols, names(data))
   if (length(missing) > 0) {
@@ -405,12 +447,17 @@ prep_deduplicate_ast <- function(data,
       "[prep_deduplicate_ast] Column(s) not found: %s. Returning data unchanged.",
       paste(missing, collapse = ", ")
     ))
-    return(data)
+    return(if (return_diagnostics) list(data = data, exact_duplicates_removed = data[0, , drop = FALSE], conflict_groups = data.frame()) else data)
   }
 
-  # Step 1 (always): remove exact duplicates on all 5 key columns
+  # Step 1 (always): remove exact duplicates on every key column + the value column
   n_before_exact <- nrow(data)
+  data$.orig_row <- seq_len(nrow(data))
+  data_before_dedup <- data
   data <- dplyr::distinct(data, dplyr::across(dplyr::all_of(exact_key_cols)), .keep_all = TRUE)
+  exact_duplicates_removed <- data_before_dedup[!data_before_dedup$.orig_row %in% data$.orig_row, , drop = FALSE]
+  exact_duplicates_removed$.orig_row <- NULL
+  data$.orig_row <- NULL
   n_exact_removed <- n_before_exact - nrow(data)
   if (n_exact_removed > 0) {
     message(sprintf(
@@ -419,7 +466,10 @@ prep_deduplicate_ast <- function(data,
     ))
   }
 
-  # Step 2 (always): detect conflicts (same 4-key group, different values)
+  # Step 2 (always): detect conflicts. By construction, every key group with
+  # more than one row remaining after step 1 has DIFFERING ast_col values
+  # (identical ones were already collapsed) -- so this is exactly the set of
+  # genuine conflicts, not an approximation.
   conflict_summary <- data %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
     dplyr::summarise(
@@ -452,12 +502,44 @@ prep_deduplicate_ast <- function(data,
     .msg_print(utils::head(conflict_summary[, c(key_cols, "conflicting_values", "n_rows")], 10))
   }
 
+  .finish <- function(data) {
+    if (return_diagnostics) {
+      list(data = data, exact_duplicates_removed = exact_duplicates_removed, conflict_groups = conflict_summary)
+    } else {
+      data
+    }
+  }
+
   if (mode == "detect") {
-    return(data)
+    return(.finish(data))
   }
 
   # Step 3 (remove only): resolve conflicts via strategy
   n_before <- nrow(data)
+
+  if (strategy == "error") {
+    if (n_groups > 0) {
+      first_bad <- conflict_summary[1, key_cols, drop = FALSE]
+      stop(sprintf(
+        "[prep_deduplicate_ast] %d key group(s) (keyed by %s) have CONFLICTING ast values across duplicate rows -- never resolved by taking the first row or any priority order unless that policy is explicitly chosen. First conflict: %s, values=%s. Pass strategy = \"resistant_wins\"/\"susceptible_wins\"/\"first\"/\"drop_conflicts\" to resolve instead of erroring.",
+        n_groups, paste(key_cols, collapse = "+"),
+        paste(sprintf("%s=%s", key_cols, unlist(first_bad)), collapse = ", "),
+        conflict_summary$conflicting_values[1]
+      ), call. = FALSE)
+    }
+    data$is_ast_duplicate <- NULL
+    return(.finish(data))
+  }
+
+  if (strategy == "drop_conflicts") {
+    data <- dplyr::anti_join(data, conflict_summary %>% dplyr::select(dplyr::all_of(key_cols)), by = key_cols)
+    data$is_ast_duplicate <- NULL
+    message(sprintf(
+      "[prep_deduplicate_ast] Strategy 'drop_conflicts': removed %d row(s) across %d conflicting key group(s) (kept zero rows for each, rather than guessing).",
+      n_before - nrow(data), n_groups
+    ))
+    return(.finish(data))
+  }
 
   if (strategy %in% c("resistant_wins", "susceptible_wins")) {
     priority <- if (strategy == "resistant_wins") {
@@ -486,7 +568,7 @@ prep_deduplicate_ast <- function(data,
     "[prep_deduplicate_ast] Strategy '%s': removed %d duplicate row(s).",
     strategy, n_before - nrow(data)
   ))
-  return(data)
+  return(.finish(data))
 }
 
 

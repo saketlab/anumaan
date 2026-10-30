@@ -40,264 +40,23 @@ estimands.
 
 The pipeline has two stages:
 
-1. **Resistance profile estimation** — converts resistance prevalence data
-   into probability distributions over all 2^n binary resistance profiles
-   (S/R per antibiotic class). Uses convex optimisation (GBD eq. 7.5.1.3).
+1. **Resistance profile estimation** — converts event-level AST data into
+   probability distributions over all 2^D binary resistance profiles (S/R
+   per antibiotic class).
 2. **Burden calculation** — applies relative-risk weights to profiles and
    computes YLL, YLD, and total DALY burden.
 
-Input can come from two sources:
-
-| Source | Entry point |
-|---|---|
-| Pre-computed aggregate marginals (GBD, GLASS, national surveillance) | `validate_aggregate_inputs()` → `estimate_profiles_convex()` |
-| Facility line-list AST data (after preprocessing) | `compute_marginal_resistance()` → `compute_pairwise_coresistance()` → `compute_resistance_profiles()` |
+Resistance profile estimation historically had two pathways: a convex-
+optimisation route over pre-computed aggregate marginals ("Pathway 1"), and
+the Bayesian multivariate probit route below ("Pathway 2") fit directly to
+facility event-level AST data. Pathway 1 had zero callers anywhere in
+production use and was retired; this vignette covers Pathway 2 only.
 
 ---
 
 # Resistance Profile Estimation
 
-## Option 1: Convex Optimisation (Pathway 1)
-
-### 1.1 Aggregate Input: Validate Marginals
-
-When working from pre-computed marginal resistance rates (e.g. GBD ST-GPR
-country estimates or national surveillance summaries), supply them directly as
-a tibble and validate before running the QP.
-
-```{r aggregate-marginals}
-marginals <- tibble::tibble(
-  pathogen = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 3),
-  antibiotic_class = rep(
-    c("Carbapenems", "3GC", "Fluoroquinolones"),
-    times = 2
-  ),
-  n_tested = c(420L, 460L, 390L, 280L, 310L, 265L),
-  n_resistant = c(126L, 299L, 195L, 45L, 155L, 133L)
-) %>%
-  dplyr::mutate(marginal_resistance = n_resistant / n_tested)
-
-marginals
-```
-
-```{r validate-aggregate}
-validate_aggregate_inputs(
-  marginals,
-  pathogen_col    = "pathogen",
-  class_col       = "antibiotic_class",
-  rate_col        = "marginal_resistance",
-  n_tested_col    = "n_tested",
-  n_resistant_col = "n_resistant"
-)
-```
-
-### 1.2 Profile Enumeration
-
-`enumerate_binary_profiles()` generates all 2^n binary combinations for a
-given ordered class set. This is the profile space the QP optimises over.
-
-```{r enumerate-profiles}
-classes <- c("Carbapenems", "3GC", "Fluoroquinolones")
-profiles <- enumerate_binary_profiles(classes)
-profiles
-```
-
-Each row is one resistance phenotype. `SSS` = pan-susceptible reference;
-`RRR` = pan-resistant. The ordered `classes` vector defines the bit positions
-and must stay consistent throughout the pipeline.
-
-### 1.3 Constraint Matrix
-
-`build_constraint_matrix()` constructs the constraint matrix M and target
-vector v that encode the marginal and pairwise constraints fed into the QP.
-
-```{r constraint-matrix}
-kp <- marginals[marginals$pathogen == "Klebsiella pneumoniae", ]
-r_marg <- setNames(kp$marginal_resistance, kp$antibiotic_class)
-profiles_enum <- enumerate_binary_profiles(names(r_marg))
-cm <- build_constraint_matrix(profiles_enum, r_marg)
-
-cat("M dimension (constraints x profiles):", dim(cm$M), "\n")
-cat("Constraint targets (marginals + pairwise independence fallback):\n")
-round(cm$v, 4)
-```
-
-Marginal rows of M: entry = 1 if that class is resistant in that profile.
-Pairwise rows: entry = 1 if both classes in the pair are resistant.
-
-### 1.4 Estimate Profile Probabilities
-
-`estimate_profiles_convex()` runs the full pipeline for all pathogens in one
-call: validates, enumerates, builds constraints, and solves the QP. The solver
-prefers `osqp` (sparse, fast) with `quadprog` as fallback.
-
-```{r estimate-profiles}
-panel_map <- list(
-  "Klebsiella pneumoniae" = c(
-    "Carbapenems",
-    "3GC",
-    "Fluoroquinolones"
-  ),
-  "Escherichia coli" = c(
-    "Carbapenems",
-    "3GC",
-    "Fluoroquinolones"
-  )
-)
-
-profiles_out <- estimate_profiles_convex(
-  marginals    = marginals,
-  pairwise     = NULL,
-  panel_map    = panel_map,
-  lambda       = 1e-8,
-  pathogen_col = "pathogen",
-  class_col    = "antibiotic_class",
-  rate_col     = "marginal_resistance",
-  n_tested_col = "n_tested"
-)
-```
-
-```{r show-profiles}
-profiles_out %>%
-  dplyr::select(
-    pathogen, profile_delta, profile_probability,
-    convergence_flag, max_abs_residual
-  ) %>%
-  dplyr::filter(profile_probability > 0.005) %>%
-  dplyr::arrange(pathogen, dplyr::desc(profile_probability))
-```
-
-The `profile_class_set` column records the exact ordered class set that
-defines the binary code — this must be carried forward to any downstream
-DALY attribution to prevent class-order ambiguity.
-
-```{r profile-class-set}
-profiles_out %>%
-  dplyr::distinct(pathogen, profile_class_set, estimator)
-```
-
-### 1.5 Facility Line-List Pathway
-
-When working from isolate-level AST data (after preprocessing), use the
-three-step pipeline that feeds the same QP engine.
-
-```{r line-list-data}
-set.seed(101)
-# Minimal long-format AST data: one row per isolate x antibiotic class
-ast_class <- data.frame(
-  isolate_id = rep(paste0("ISO", sprintf("%03d", 1:80)), each = 3),
-  organism_name = rep(
-    ifelse(seq_len(80) <= 50, "Klebsiella pneumoniae", "Escherichia coli"),
-    each = 3
-  ),
-  org_group = "Enterobacterales",
-  antibiotic_class = rep(c("Carbapenems", "3GC", "Fluoroquinolones"), times = 80),
-  antibiotic_value = sample(
-    c("S", "R"), 240,
-    replace = TRUE, prob = c(0.60, 0.40)
-  ),
-  stringsAsFactors = FALSE
-)
-```
-
-```{r step1-marginal}
-# Step 1 -- marginal resistance per pathogen x class
-marg_out <- compute_marginal_resistance(
-  ast_class,
-  pathogen_col         = "organism_name",
-  org_group_col        = "org_group",
-  isolate_col          = "isolate_id",
-  antibiotic_class_col = "antibiotic_class",
-  antibiotic_value_col = "antibiotic_value",
-  min_n_tested         = 10L
-)
-
-marg_out$marginal
-```
-
-```{r step2-pairwise}
-# Step 2 -- pairwise co-resistance matrices per pathogen
-co_out <- compute_pairwise_coresistance(
-  marg_out,
-  pathogen_col         = "organism_name",
-  isolate_col          = "isolate_id",
-  antibiotic_class_col = "antibiotic_class",
-  min_co_tested        = 5L
-)
-
-round(co_out[["Klebsiella pneumoniae"]]$prevalence, 3)
-```
-
-```{r step3-profiles}
-# Step 3 -- profile probabilities via QP
-rp_out <- compute_resistance_profiles(
-  marg_out,
-  co_out,
-  pathogen_col         = "organism_name",
-  antibiotic_class_col = "antibiotic_class",
-  exclude_near_zero    = FALSE
-)
-
-rp_out[["Klebsiella pneumoniae"]]$profiles %>%
-  dplyr::filter(probability > 0.005) %>%
-  dplyr::arrange(dplyr::desc(probability))
-```
-
-```{r constraint-residuals}
-# Constraint residuals: how well does the solution reproduce the inputs?
-round(rp_out[["Klebsiella pneumoniae"]]$constraint_residuals, 6)
-```
-
-### 1.6 Check Constraint Satisfaction
-
-`check_profile_constraints()` formally verifies that the estimated
-probabilities satisfy non-negativity, sum-to-one, and reproduce the input
-marginal rates within tolerance. It accepts the named-list format from
-`compute_resistance_profiles()` directly.
-
-```{r check-constraints}
-checks <- check_profile_constraints(
-  rp_out,
-  marginals    = marg_out$marginal,
-  tolerance    = 1e-3,
-  pathogen_col = "organism_name",
-  class_col    = "antibiotic_class",
-  rate_col     = "marginal_resistance"
-)
-
-checks %>%
-  dplyr::select(
-    pathogen, constraint_type, constraint_name,
-    target, reconstructed, abs_residual, pass
-  )
-```
-
-### 1.7 Bootstrap Uncertainty Intervals
-
-`bootstrap_profiles_convex()` resamples resistant counts from a Binomial
-distribution and refits the QP B times, returning percentile confidence
-intervals for each profile probability.
-
-```{r bootstrap-profiles}
-boot <- bootstrap_profiles_convex(
-  marginals       = marginals,
-  B               = 300L,
-  seed            = 42L,
-  alpha           = 0.05,
-  pathogen_col    = "pathogen",
-  class_col       = "antibiotic_class",
-  n_tested_col    = "n_tested",
-  n_resistant_col = "n_resistant"
-)
-
-boot[["Klebsiella pneumoniae"]] %>%
-  dplyr::filter(probability_mean > 0.005) %>%
-  dplyr::arrange(dplyr::desc(probability_mean))
-```
-
-## Option 2: Bayesian Multivariate Probit (Pathway 2)
-
-Pathway 2 fits a Bayesian hierarchical multivariate probit model directly to
+## Bayesian Multivariate Probit
 facility-level, event-level AST data. Unlike Pathway 1, it can incorporate
 fixed-effect covariates (age, gender, location, ...) and optional random
 effects (hospital, admission, ...), and estimate resistance *jointly* across
@@ -481,73 +240,9 @@ call -- it applies default thresholds (mean absolute error, interval
 coverage) across all three tables and returns one combined `status`, rather
 than requiring the caller to eyeball three separate tibbles.
 
-### 2.6 Predictive Checks
+### 2.6 Post-Fit Checklist: What to Run, and Why
 
-Beyond calibration against the fitted data, prior and posterior predictive
-checks simulate data *from* the model to check the priors are reasonable
-before fitting, and that the fitted model reproduces the observed data's
-statistical structure after fitting.
-
-```{r probit-predictive, eval = FALSE}
-prior_pred <- simulate_probit_prior_predictive(fit, n_states = 100L, seed = 123L)
-compute_prior_predictive_status(prior_pred)
-#> $summary$fraction_probability_lt_0.001
-#> [1] 0.478
-#> $summary$fraction_all_resistant
-#> [1] 0.0857
-
-ppc_stats <- compute_probit_ppc_statistics(
-  fit,
-  n_states = 100L, seed = 123L,
-  statistics = c("marginal", "resistant_count", "pairwise")
-)
-compute_posterior_predictive_status(ppc_stats)
-#> $status
-#> [1] "pass"
-#> $family_status$marginal$status
-#> [1] "ok"
-#> $family_status$pairwise$status
-#> [1] "ok"
-```
-
-`plot_probit_diagnostics(fit, output_dir, experiment_id, pathogen)` (needs
-`bayesplot`) writes trace/rank/pair plots for the monitored parameters to a
-PDF, and `plot_probit_posterior_predictive_checks()` visualises the
-`ppc_stats` tables -- both are for interactive review, not part of the
-scripted pipeline.
-
-### 2.7 Unified Dispatcher
-
-`estimate_resistance_profiles()` wraps both pathways behind one interface --
-switch pathway with `method`:
-
-```{r probit-dispatcher, eval = FALSE}
-# Pathway 1 (convex)
-estimate_resistance_profiles(data = marginals, method = "convex", panel_map = panel_map)
-
-# Pathway 2 (Bayesian) -- runs steps 2.1-2.4 above in one call
-estimate_resistance_profiles(
-  data = event_class_data, method = "bayesian",
-  class_cols = class_cols, fixed_effects = c("Age_normalised", "gender"),
-  random_effects = c("center_name"), pathogen = "Klebsiella pneumoniae",
-  outcome_col = "final_outcome", residual_structure = "identity",
-  sampler_config = list(chains = 2, iter_warmup = 200, iter_sampling = 200, seed = 123)
-)
-#> [estimate_resistance_profiles] Pathway 2 complete.
-#> $profiles      # same shape as aggregate_profiles_for_daly() output above
-#> $eligibility
-#> $diagnostics
-#> $fitted_models
-#> $config_used
-```
-
-Both pathways' `profiles`/`agg` output are the deliverable of this vignette
--- downstream burden calculation (RR assignment, YLL/YLD) is not yet covered
-here.
-
-### 2.8 Post-Fit Checklist: What to Run, and Why
-
-Sections 2.2-2.6 introduced each Pathway 2 function individually; this
+Sections 2.2-2.5 introduced each Pathway 2 function individually; this
 section ties them into one ordered checklist, since it's easy to run only
 some of them and miss a gap. Every function below reads `fit`, the object
 returned by `fit_bayesian_multivariate_probit()` -- none of them require
@@ -575,24 +270,7 @@ event's profile is a fact about the data, not a claim from the model.
 one row per hospital x pathogen x profile (`R_ALL_mean/lower/upper`,
 DALY-eligibility flags gated by `sampler_acceptable` and panel support).
 
-**3. Does the model generate data that looks like the real data?**
-`simulate_probit_posterior_predictive()` draws replicated datasets from the
-posterior (Bernoulli(`Phi(mu)`) for identity; `Z = mu + L_Omega %*% eps`,
-`Y = I(Z > 0)` for correlated -- genuine correlated simulation either way).
-`compute_probit_ppc_statistics()` computes discrepancy statistics (marginal
-rate, pairwise co-resistance, complete-profile summary stats, hospital
-heterogeneity) on observed vs. every replicate.
-`compute_posterior_predictive_status()` classifies each statistic as
-extreme/severe and rolls up to an overall status. This is a strict trigger,
-not a fraction-based one -- even a single severely-extreme statistic in a
-family sets the whole run's status to `"fail_major_ppc_misfit"`, so always
-read the per-family `n_severe`/`fraction_extreme` breakdown underneath the
-top-line status rather than the label alone. `simulate_probit_prior_predictive()`
-(before fitting) and `simulate_probit_mixed_predictive()` (new, unseen
-groups) answer the adjacent but different questions "is the prior
-reasonable?" and "does this generalise beyond the fitted groups?".
-
-**4. Are the model's stated probabilities calibrated against reality?**
+**3. Are the model's stated probabilities calibrated against reality?**
 `validate_marginal_calibration()`, `validate_pairwise_calibration()`, and
 `validate_complete_profile_calibration()` (Section 2.5) compare observed
 rates to model-implied probabilities at increasing joint complexity --
@@ -613,7 +291,6 @@ masked cells for a real out-of-sample score, at proportionally higher cost.
 |---|---|---|
 | Did the sampler converge? | `fit$diagnostics` | -- |
 | What's the estimated resistance profile? | `compute_event_profile_probabilities()` + `aggregate_profiles_for_daly()` | correlated fits only |
-| Does simulated data resemble real data? | `simulate_probit_posterior_predictive()` + `compute_probit_ppc_statistics()` | correlated fits only |
 | Is the model calibrated on single classes? | `validate_marginal_calibration()` | no |
 | Is the model calibrated on class pairs? | `validate_pairwise_calibration()` | correlated fits only |
 | Is the model calibrated on full profiles? | `validate_complete_profile_calibration()` | correlated fits only |
@@ -635,29 +312,18 @@ verdicts, not one combined score.
 ```
 Preprocessing output (prep_* pipeline)
           │
-          ├─────────────────────────────┬─────────────────────────────────────┐
-          ▼ Option 1: Convex (Pathway 1) ▼                Option 2: Bayesian Probit (Pathway 2)
-  compute_marginal_resistance()          fit_bayesian_multivariate_probit()
-          │  (Step 1: marginals)                 │  (facility event-level AST + covariates)
-          ▼                                       ▼
-  compute_pairwise_coresistance()        compute_event_profile_probabilities()
-          │  (Step 2: pairwise co-R)             │  (posterior draws -> profile probs)
-          ▼                                       ▼
-  compute_resistance_profiles()          aggregate_profiles_for_daly()
-          │  (Step 3: QP -> profiles)            │  (+ validate_*_calibration(),
-          │                                       │    predictive checks)
-          │    Alternative entry (aggregate       │
-          │    marginals): validate_aggregate_    │
-          │    inputs() -> estimate_profiles_     │
-          │    convex()                           │
-          │                                       │
-          │         (or, either pathway via one call:
-          │          estimate_resistance_profiles(method = "convex" | "bayesian"))
-          │                                       │
-          └───────────────────┬───────────────────┘
-                               ▼
-                  Resistance profile probabilities (this vignette's scope ends here;
-                  downstream burden calculation -- RR assignment, YLL/YLD -- not yet covered)
+          ▼
+  fit_bayesian_multivariate_probit()
+          │  (facility event-level AST + covariates)
+          ▼
+  compute_event_profile_probabilities()
+          │  (posterior draws -> profile probs)
+          ▼
+  aggregate_profiles_for_daly()
+          │  (+ validate_*_calibration(), mask_and_validate_ast())
+          ▼
+  Resistance profile probabilities (this vignette's scope ends here;
+  downstream burden calculation -- RR assignment, YLL/YLD -- not yet covered)
 ```
 
 ---

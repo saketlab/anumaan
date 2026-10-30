@@ -91,73 +91,15 @@ test_that("plot_probit_worst_offender_diagnostics() returns NULL when monitored_
   expect_null(plot_probit_worst_offender_diagnostics(broken_fit, broken_fit$draws, "test"))
 })
 
-test_that(".probit_interpretation_text() picks the energy-failure issue as primary and the fixed-effect Rhat issue as secondary when both apply", {
-  diag <- list(ebfmi_min = 0.1, n_divergent = 0)
-  beta_summary <- data.frame(family = "Hospital", pct_rhat_gt_1_01 = 90, worst_rhat = 1.05, min_ess_bulk = 50)
-  grouped_diag <- data.frame(
-    parameter_group = "beta", n_parameters = 10, pct_rhat_above_1_01 = 90,
-    max_rhat = 1.05, min_ess_bulk = 50, stringsAsFactors = FALSE
-  )
-  txt <- .probit_interpretation_text(diag, "fail_energy", "FAIL", beta_summary, NULL, "identity",
-    grouped_diag = grouped_diag
-  )
-  primary_line <- txt[grepl("^PRIMARY ISSUE:", txt)]
-  secondary_line <- txt[grepl("^SECONDARY ISSUE:", txt)]
-  expect_true(any(grepl("energy exploration", primary_line)))
-  expect_true(any(grepl("Hospital", secondary_line)))
-  expect_false(any(grepl("Hospital", primary_line)))
-})
-
-test_that(".probit_interpretation_text() picks the fixed-effect Rhat issue as primary when energy/Omega are clean, and mentions Omega detail only for correlated fits", {
-  diag <- list(ebfmi_min = 0.8, n_divergent = 0)
-  beta_summary <- data.frame(family = "Hospital", pct_rhat_gt_1_01 = 40, worst_rhat = 1.03, min_ess_bulk = 200)
-  degeneracy_stats <- list(pct_near_degenerate = 5, med_condition_number = 10, degenerate_threshold = 0.05)
-  grouped_diag <- data.frame(
-    parameter_group = c("beta", "Omega"), n_parameters = c(10, 6),
-    pct_rhat_above_1_01 = c(40, 0), max_rhat = c(1.03, 1.005),
-    min_ess_bulk = c(200, 300), stringsAsFactors = FALSE
-  )
-
-  txt_corr <- .probit_interpretation_text(diag, "warning_rhat", "WARNING", beta_summary, degeneracy_stats, "correlated",
-    grouped_diag = grouped_diag
-  )
-  primary_line <- txt_corr[grepl("^PRIMARY ISSUE:", txt_corr)]
-  expect_true(any(grepl("Hospital", primary_line)))
-  expect_true(any(grepl("^Omega", txt_corr)))
-
-  txt_identity <- .probit_interpretation_text(diag, "warning_rhat", "WARNING", beta_summary, NULL, "identity")
-  expect_false(any(grepl("^Omega", txt_identity)))
-})
-
-test_that(".probit_interpretation_text() names the specific worst-converging Omega pair when one exceeds the Rhat threshold", {
-  diag <- list(ebfmi_min = 0.8, n_divergent = 0)
-  beta_summary <- data.frame(family = "Hospital", pct_rhat_gt_1_01 = 5, worst_rhat = 1.005, min_ess_bulk = 500)
-  degeneracy_stats <- list(pct_near_degenerate = 2, med_condition_number = 8, degenerate_threshold = 0.05)
-  corr_summary_bad <- data.frame(
-    class_1 = c("Aminoglycosides", "Penicillins"), class_2 = c("Fluoroquinolones", "Carbapenems"),
-    rhat = c(1.05, 1.001), stringsAsFactors = FALSE
-  )
-  txt <- .probit_interpretation_text(diag, "pass", "PASS", beta_summary, degeneracy_stats, "correlated",
-    corr_summary = corr_summary_bad
-  )
-  omega_line <- txt[grepl("^Omega", txt)]
-  expect_true(grepl("least-converged Omega element is AMG x FQ", omega_line))
-
-  corr_summary_ok <- corr_summary_bad
-  corr_summary_ok$rhat <- c(1.005, 1.001)
-  txt_ok <- .probit_interpretation_text(diag, "pass", "PASS", beta_summary, degeneracy_stats, "correlated",
-    corr_summary = corr_summary_ok
-  )
-  omega_line_ok <- txt_ok[grepl("^Omega", txt_ok)]
-  expect_false(grepl("least-converged Omega element", omega_line_ok))
-})
-
-test_that(".probit_interpretation_text() reports a clean pass with no concerns", {
-  diag <- list(ebfmi_min = 0.8, n_divergent = 0)
-  beta_summary <- data.frame(
-    family = c("Hospital", "Age"), pct_rhat_gt_1_01 = c(0, 0),
-    worst_rhat = c(1.0, 1.0), min_ess_bulk = c(900, 900)
-  )
-  txt <- .probit_interpretation_text(diag, "pass", "PASS", beta_summary, NULL, "identity")
-  expect_true(any(grepl("No divergence, energy, treedepth, or Rhat concerns", txt)))
-})
+# The four ".probit_interpretation_text() ..." tests that lived here exercised
+# a function removed along with R/plot_probit_diagnostics.R. Its replacement,
+# .probit_classify_fitting_issues() (R/plot_diagnostic_recommendations.R), has
+# a different signature and return shape (list(primary=, secondary=,
+# not_indicated=, bucket=) instead of a flat "PRIMARY ISSUE:"/"SECONDARY
+# ISSUE:" character vector) and does not appear to replicate one piece of the
+# old behavior -- naming the specific worst-converging Omega pair (e.g.
+# "AMG x FQ") when one pair's Rhat exceeds the threshold. Rather than guess at
+# a mechanical port of tests for a feature that may have been deliberately
+# dropped, new tests against .probit_classify_fitting_issues()'s actual
+# current behavior belong in their own follow-up, written against that
+# function directly.

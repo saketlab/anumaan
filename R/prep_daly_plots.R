@@ -1,64 +1,9 @@
 # prep_daly_plots.R
-# DALY burden computation and plotting functions (YLL / YLD)
-
-
-# COMPUTATION
-
-#' Compute Hospital-Level DALY Breakdown
-#'
-#' Distributes pooled YLL/YLD totals to individual hospitals proportionally
-#' by deaths and discharges, and computes per-1 000 rates.
-#'
-#' @param hospital_counts Data frame with columns: \code{center_name},
-#'   \code{deaths_h}, \code{discharged_h}, \code{cases_h}.
-#' @param total_deaths Numeric. Pooled total deaths across all hospitals.
-#' @param total_discharged Numeric. Pooled total discharges.
-#' @param yll_base Numeric. Total baseline YLL.
-#' @param yll_associated Numeric. Total YLL associated with resistance.
-#' @param yll_attributable Numeric. Total YLL attributable to resistance.
-#' @param yld_base Numeric. Total baseline YLD.
-#' @param yld_associated Numeric. Total YLD associated.
-#' @param yld_attributable Numeric. Total YLD attributable.
-#'
-#' @return Data frame with hospital-level YLL, YLD, DALY (absolute and
-#'   per 1 000 cases) columns.
-#' @export
-compute_hospital_daly <- function(hospital_counts,
-                                  total_deaths,
-                                  total_discharged,
-                                  yll_base,
-                                  yll_associated,
-                                  yll_attributable,
-                                  yld_base,
-                                  yld_associated,
-                                  yld_attributable) {
-  hospital_counts %>%
-    dplyr::mutate(
-      .death_frac = deaths_h / total_deaths,
-      .disch_frac = discharged_h / total_discharged,
-      .per_1k = 1000 / cases_h,
-      # Absolute
-      YLL_base = yll_base * .data$.death_frac,
-      YLD_base = yld_base * .data$.disch_frac,
-      YLL_associated = yll_associated * .data$.death_frac,
-      YLD_associated = yld_associated * .data$.disch_frac,
-      DALY_associated = .data$YLL_associated + .data$YLD_associated,
-      YLL_attributable = yll_attributable * .data$.death_frac,
-      YLD_attributable = yld_attributable * .data$.disch_frac,
-      DALY_attributable = .data$YLL_attributable + .data$YLD_attributable,
-      # Per 1 000 cases
-      YLL_base_per_1000 = .data$YLL_base * .data$.per_1k,
-      YLD_base_per_1000 = .data$YLD_base * .data$.per_1k,
-      YLL_assoc_per_1000 = .data$YLL_associated * .data$.per_1k,
-      YLD_assoc_per_1000 = .data$YLD_associated * .data$.per_1k,
-      DALY_assoc_per_1000 = .data$DALY_associated * .data$.per_1k,
-      YLL_attr_per_1000 = .data$YLL_attributable * .data$.per_1k,
-      YLD_attr_per_1000 = .data$YLD_attributable * .data$.per_1k,
-      DALY_attr_per_1000 = .data$DALY_attributable * .data$.per_1k
-    ) %>%
-    dplyr::select(-".death_frac", -".disch_frac", -".per_1k") %>%
-    dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 4)))
-}
+# DALY burden plotting functions (YLL / YLD)
+#
+# compute_hospital_daly() moved to daly_yll.R on 2026-10-27 (pure DALY
+# arithmetic misplaced in this prep_*.R plotting file). plot_burden_by_hospital()
+# below still documents it as its typical upstream producer.
 
 
 # YLL / YLD ASSOCIATED vs ATTRIBUTABLE \u2014 GROUPED BAR BY HOSPITAL

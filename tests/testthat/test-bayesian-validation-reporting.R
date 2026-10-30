@@ -120,24 +120,8 @@ test_that("summarize_fit_correlation_matrix returns valid pairwise correlations"
   expect_true(all(cm$correlation_mean > 0))
 })
 
-test_that("diagnostic and posterior-predictive reports are written to PDF", {
-  skip_without_stan()
-  out_dir <- tempfile("diag")
-  path <- suppressMessages(plot_probit_diagnostics(.bvr_fit(), out_dir, "exp1", "bug"))
-  expect_true(file.exists(path))
-  expect_gt(file.size(path), 1000)
-
-  draws <- suppressMessages(simulate_probit_posterior_predictive(.bvr_fit(),
-    n_states = 20L, seed = 1L,
-    return_replicates = TRUE
-  ))
-  st <- suppressMessages(compute_probit_ppc_statistics(draws))
-  pdf <- tempfile(fileext = ".pdf")
-  # passing the replicates also draws the small-multiples pages
-  suppressMessages(plot_probit_posterior_predictive_checks(st,
-    ppc_replicates = draws,
-    output_pdf_path = pdf, title_base = "t", n_small_multiples = 4L
-  ))
-  expect_true(file.exists(pdf))
-  expect_gt(file.size(pdf), 1000)
-})
+# The "diagnostic and posterior-predictive reports are written to PDF" test
+# that lived here exercised plot_probit_diagnostics(),
+# simulate_probit_posterior_predictive(), compute_probit_ppc_statistics(),
+# and plot_probit_posterior_predictive_checks() -- all removed along with
+# R/plot_probit_diagnostics.R and R/probit_posterior_predictive.R.

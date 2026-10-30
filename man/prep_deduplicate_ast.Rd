@@ -7,12 +7,14 @@
 prep_deduplicate_ast(
   data,
   mode = c("detect", "remove"),
-  strategy = c("resistant_wins", "susceptible_wins", "first"),
+  strategy = c("resistant_wins", "susceptible_wins", "first", "error", "drop_conflicts"),
+  group_col = NULL,
   patient_col = "patient_id",
   organism_col = "organism_normalized",
   antibiotic_col = "antibiotic_normalized",
   date_col = "culture_date",
-  ast_col = "ast_value_harmonized"
+  ast_col = "ast_value_harmonized",
+  return_diagnostics = FALSE
 )
 }
 \arguments{
@@ -22,40 +24,82 @@ prep_deduplicate_ast(
 Default \code{"detect"}.}
 
 \item{strategy}{Character. Resolution strategy used only when \code{mode = "remove"}.
-One of \code{"resistant_wins"} (default), \code{"susceptible_wins"}, or \code{"first"}.}
+\code{"resistant_wins"} (default) and \code{"susceptible_wins"} pick one row
+per key group by clinical priority; \code{"first"} keeps whichever row came
+first (only appropriate once a caller has verified row order is
+meaningful or doesn't matter); \code{"error"} stops instead of resolving --
+a conflicting duplicate is never silently resolved by taking the first row
+or any priority order unless that policy was explicitly chosen; use this
+when a conflict should always be surfaced, not quietly picked for you.
+\code{"drop_conflicts"} removes every row belonging to a conflicting key
+group entirely (never guesses which value is right) -- the surviving
+data has zero rows for that key, rather than one unverified row.}
 
-\item{patient_col}{Character. Patient ID column. Default \code{"patient_id"}.}
+\item{group_col}{Character or \code{NULL}. Additional stratum identifier
+(e.g. hospital) included in the key when supplied, so that a
+patient/organism/antibiotic/date combination that legitimately recurs
+in two different strata (e.g. a hospital-local patient id reused at a
+different hospital) is never treated as one conflicting record. Default
+\code{NULL} (key is patient/organism/antibiotic/date only, as before).}
 
-\item{organism_col}{Character. Organism column. Default \code{"organism_normalized"}.}
+\item{patient_col}{Character. Patient (or event) ID column. Default \code{"patient_id"}.}
 
-\item{antibiotic_col}{Character. Antibiotic column. Default \code{"antibiotic_normalized"}.}
+\item{organism_col}{Character or \code{NULL}. Organism column; \code{NULL}
+drops it from the key (e.g. when the data has already been subset to one
+organism). Default \code{"organism_normalized"}.}
 
-\item{date_col}{Character. Culture date column. Default \code{"culture_date"}.}
+\item{antibiotic_col}{Character. Antibiotic (or antibiotic-class) column. Default \code{"antibiotic_normalized"}.}
+
+\item{date_col}{Character or \code{NULL}. Culture date column; \code{NULL}
+drops it from the key (e.g. when date has already been folded into an
+event id upstream). Default \code{"culture_date"}.}
 
 \item{ast_col}{Character. Harmonized AST value column. Default \code{"ast_value_harmonized"}.}
+
+\item{return_diagnostics}{Logical. When \code{TRUE}, return a list with
+\code{data} (the usual return value), \code{exact_duplicates_removed}
+(the rows dropped in step 1, with their key columns, for a caller that
+needs its own per-key-group tally), and \code{conflict_groups} (the
+conflict summary data frame, one row per conflicting key group). Default
+\code{FALSE} (return just the data frame, as before).}
 }
 \value{
 \itemize{
   \item \code{mode = "detect"}: original data with \code{is_ast_duplicate} logical column added.
-  \item \code{mode = "remove"}: data with conflicts resolved (one row per key) and no flag column.
+  \item \code{mode = "remove"}: data with conflicts resolved (one row per key,
+    or zero rows for a key group dropped by \code{strategy = "drop_conflicts"})
+    and no flag column.
 }
+When \code{return_diagnostics = TRUE}, either of the above is wrapped as
+\code{$data} in the list described above.
 }
 \description{
 Deduplicates AST records in two sequential steps:
 \enumerate{
   \item \strong{Exact-duplicate removal}: drops rows that are fully identical
-    across all five key columns (patient + organism + antibiotic + date + value).
-    These are true redundant records with no ambiguity.
+    across every key column plus the value column (e.g. patient + organism +
+    antibiotic + date + value). These are true redundant records with no
+    ambiguity.
   \item \strong{Conflict resolution}: handles the remaining cases where the same
-    patient + organism + antibiotic + date group has \emph{different} values.
+    key group has \emph{different} values -- by construction, every group with
+    more than one row left after step 1 is a genuine conflict (same key,
+    different value), never an unresolved exact duplicate.
 }
 }
 \details{
+The key is \code{c(group_col, patient_col, organism_col, antibiotic_col,
+date_col)}, with \code{group_col}/\code{organism_col}/\code{date_col}
+dropped from the key when \code{NULL} -- lets this function key on exactly
+the columns a given caller's data actually has (e.g. a hospital/stratum
+identifier via \code{group_col} when patient/event ids are not already
+globally unique across strata, or no \code{organism_col}/\code{date_col}
+at all once that information is already folded into an event id upstream).
+
 \describe{
   \item{\code{"detect"}}{After exact-dedup, flags conflicting rows with
     \code{is_ast_duplicate = TRUE} and prints a QC summary. Returns the data
     with the flag column so you can inspect before deciding how to resolve.}
   \item{\code{"remove"}}{Runs both steps: removes exact duplicates, then applies
-    \code{strategy} to keep one row per key combination for any remaining conflicts.}
+    \code{strategy} to resolve any remaining conflicts.}
 }
 }

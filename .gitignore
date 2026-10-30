@@ -8,6 +8,11 @@
 *.Rcheck/
 anumaan.Rcheck
 src/*.o
+
+# cmdstanr compiles inst/stan/<name>.stan to a same-named executable (plus
+# .hpp/.o) in the same directory -- never track those, only the .stan source.
+inst/stan/*
+!inst/stan/*.stan
 src/*.so
 src/*.dll
 
