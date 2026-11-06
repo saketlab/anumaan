@@ -223,8 +223,11 @@ Build outcome cohorts and track patient counts through pipeline stages
 ## Resistance profiles (core)
 
 Marginal resistance, co-resistance matrices, and low-level profile
-computation
+computation, shared across pipelines
 
+- [`enumerate_binary_profiles()`](https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.md)
+  : Enumerate All Binary Resistance Profiles for a Set of Antibiotic
+  Classes
 - [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md)
   : Compute Marginal Resistance per Pathogen and Antibiotic Class
 - [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md)
@@ -233,9 +236,6 @@ computation
   : Compute Resistance Profile Probabilities per Pathogen
 - [`select_resistance_class()`](https://saketlab.github.io/anumaan/reference/select_resistance_class.md)
   : Select Resistance Class for Burden Attribution
-- [`enumerate_binary_profiles()`](https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.md)
-  : Enumerate All Binary Resistance Profiles for a Set of Antibiotic
-  Classes
 - [`build_constraint_matrix()`](https://saketlab.github.io/anumaan/reference/build_constraint_matrix.md)
   : Build QP Constraint Matrix and Target Vector
 
@@ -245,8 +245,7 @@ End-to-end pipeline for estimating resistance-profile probability
 distributions from facility-level or aggregate surveillance data via
 convex optimisation (GBD equation 7.5.1.3). Supports geography, year,
 and outcome stratification; optional override with externally modelled
-marginals (e.g. GBD ST-GPR). Use as the top-level dispatcher for both
-Pathway 1 and Pathway 2.
+marginals (e.g. GBD ST-GPR). Use as the top-level entry point.
 
 - [`estimate_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/estimate_resistance_profiles.md)
   : Estimate Resistance Profiles: Pathway 1 (Convex) or Pathway 2
@@ -268,6 +267,100 @@ Pathway 1 and Pathway 2.
 - [`bootstrap_profiles_convex()`](https://saketlab.github.io/anumaan/reference/bootstrap_profiles_convex.md)
   : Bootstrap Uncertainty Intervals for Resistance Profile Probabilities
 
+## Joint Bernoulli resistance-profile pipeline
+
+Generic pipeline for estimating resistance-profile probability
+distributions from facility event-level AST data: a saturated log-linear
+joint Bernoulli model over the full 2^D state space, with exact
+marginalization of untested classes (no simulation or approximation).
+ONE joint model is fit across every configured stratum at once – never a
+silent separate fit per stratum – with shared (never stratum-indexed)
+interaction coefficients and the stratifier (hospital, state, district,
+country, or none) encoded as fixed effects in the covariate design via
+profile_build_fixed_effect_design(), a config-level choice, never
+hardcoded to “hospital”. Covers the whole lifecycle: cohort selection,
+pre-fit assumption review, data-support screening, panel feasibility,
+prior predictive checks, Stan design and fitting, run monitoring,
+sampler/MCSE diagnostics, posterior predictive checks, held-out
+validation, final estimation with credible intervals, sensitivity
+analysis, simulation-based calibration, release reporting, and plotting.
+
+- [`profile_select_cohort()`](https://saketlab.github.io/anumaan/reference/profile_select_cohort.md)
+  : Select and Record the Modeling Cohort From Raw Event Data
+- [`profile_check_assumptions()`](https://saketlab.github.io/anumaan/reference/profile_check_assumptions.md)
+  : Structured Pre-Fit Assumption Register
+- [`profile_audit_support()`](https://saketlab.github.io/anumaan/reference/profile_audit_support.md)
+  : Tabulate Class-Level Testing Support, by Group
+- [`profile_plan_precision()`](https://saketlab.github.io/anumaan/reference/profile_plan_precision.md)
+  : Evaluate Precision Against a Set of Named Tiers
+- [`profile_define_cohort()`](https://saketlab.github.io/anumaan/reference/profile_define_cohort.md)
+  : Build an Eligible-Group Roster From Precision-Evaluated Support
+- [`profile_precision_bound()`](https://saketlab.github.io/anumaan/reference/profile_precision_bound.md)
+  : Minimum Complete-Event Count for a Simultaneous Profile-Precision
+  Bound
+- [`profile_check_panel_feasibility()`](https://saketlab.github.io/anumaan/reference/profile_check_panel_feasibility.md)
+  : Pathogen x Candidate-Panel x Hospital Feasibility Table
+- [`profile_audit_interaction_support()`](https://saketlab.github.io/anumaan/reference/profile_audit_interaction_support.md)
+  : Audit Direct Co-Tested Support for Each Interaction Order of a
+  Candidate Panel
+- [`profile_prepare_model_data()`](https://saketlab.github.io/anumaan/reference/profile_prepare_model_data.md)
+  : Build the Wide Model Dataset for a Chosen Panel
+- [`profile_summarize_cohort_eligibility()`](https://saketlab.github.io/anumaan/reference/profile_summarize_cohort_eligibility.md)
+  : Per-Group Cohort Eligibility Summary (One Report, Every Eligibility
+  Fact)
+- [`profile_enumerate_states()`](https://saketlab.github.io/anumaan/reference/profile_enumerate_states.md)
+  : Enumerate the 2^D Joint Resistance States
+- [`profile_interaction_design()`](https://saketlab.github.io/anumaan/reference/profile_interaction_design.md)
+  : Interaction-Order Design Matrix Over the State Space
+- [`profile_bernoulli_terms()`](https://saketlab.github.io/anumaan/reference/profile_bernoulli_terms.md)
+  : Full Parameter Manifest for a D-Class Joint Bernoulli Model
+- [`profile_compatible_states()`](https://saketlab.github.io/anumaan/reference/profile_compatible_states.md)
+  : Which Joint States Are Compatible With a Partially-Observed Event
+- [`profile_build_fixed_effect_design()`](https://saketlab.github.io/anumaan/reference/profile_build_fixed_effect_design.md)
+  : Build a Covariate Design Matrix With a Config-Chosen Fixed-Effect
+  Stratifier
+- [`profile_build_design()`](https://saketlab.github.io/anumaan/reference/profile_build_design.md)
+  : Build Stan-Ready Design for a D-Class Joint Bernoulli Resistance
+  Model
+- [`profile_prior_predictive()`](https://saketlab.github.io/anumaan/reference/profile_prior_predictive.md)
+  : Prior Predictive Checks for a Joint Bernoulli Design
+- [`profile_run_simulation_study()`](https://saketlab.github.io/anumaan/reference/profile_run_simulation_study.md)
+  : SBC + Recovery/Robustness Simulation Harness
+- [`profile_fit_joint_bernoulli()`](https://saketlab.github.io/anumaan/reference/profile_fit_joint_bernoulli.md)
+  : Fit the Joint Bernoulli Resistance-Profile Model
+- [`profile_monitor_run()`](https://saketlab.github.io/anumaan/reference/profile_monitor_run.md)
+  : Run-State Monitor for a profile_fit_joint_bernoulli() Run
+- [`profile_check_sampler()`](https://saketlab.github.io/anumaan/reference/profile_check_sampler.md)
+  : Check Sampler Validity and Render Diagnostic Plots
+- [`profile_ppc()`](https://saketlab.github.io/anumaan/reference/profile_ppc.md)
+  : Posterior Predictive Checks for a Joint Bernoulli Fit
+- [`profile_validate_masked()`](https://saketlab.github.io/anumaan/reference/profile_validate_masked.md)
+  : Masked-Cell Validation (In-Sample, No Refit)
+- [`profile_validate_heldout()`](https://saketlab.github.io/anumaan/reference/profile_validate_heldout.md)
+  : Masked-Cell Validation (Genuine Holdout, Refits the Model)
+- [`profile_validate_newpatient()`](https://saketlab.github.io/anumaan/reference/profile_validate_newpatient.md)
+  : New-Patient Held-Out Validation (Within Represented Hospitals)
+- [`profile_validate_temporal()`](https://saketlab.github.io/anumaan/reference/profile_validate_temporal.md)
+  : Temporal Held-Out Validation
+- [`profile_estimate()`](https://saketlab.github.io/anumaan/reference/profile_estimate.md)
+  : Estimate Resistance Profiles From a Fitted Joint Bernoulli Model
+- [`profile_sensitivity()`](https://saketlab.github.io/anumaan/reference/profile_sensitivity.md)
+  : Sensitivity Contrast Across Alternative Model Fits
+- [`profile_sensitivity_scenarios()`](https://saketlab.github.io/anumaan/reference/profile_sensitivity_scenarios.md)
+  : Named Sensitivity-Scenario Catalog
+- [`profile_release()`](https://saketlab.github.io/anumaan/reference/profile_release.md)
+  : Final Per-Group Release Table
+- [`profile_render_report()`](https://saketlab.github.io/anumaan/reference/profile_render_report.md)
+  : Fixed-Order Evidence Report, With a Release Gate
+- [`profile_aggregate_for_daly()`](https://saketlab.github.io/anumaan/reference/profile_aggregate_for_daly.md)
+  : Aggregate Posterior Profile Estimates for DALY Use
+- [`profile_plot_calibration_forest()`](https://saketlab.github.io/anumaan/reference/profile_plot_calibration_forest.md)
+  : Observed-vs-Model Calibration Forest Plot
+- [`profile_plot_profile_heatmap()`](https://saketlab.github.io/anumaan/reference/profile_plot_profile_heatmap.md)
+  : Hospital x Profile-State Heatmap
+- [`profile_plot_pairwise_heatmap()`](https://saketlab.github.io/anumaan/reference/profile_plot_pairwise_heatmap.md)
+  : Pairwise Co-Resistance Heatmap, One Hospital
+
 ## Pathway 2: Bayesian Profile Estimation
 
 Bayesian hierarchical multivariate probit model for estimating
@@ -282,8 +375,7 @@ identity (default, no residual correlation) and correlated (full
 LKJ-Cholesky residual covariance). CPU and OpenCL backends are both
 supported as execution choices; backend selection changes
 compilation/sampling only, not the underlying model. Run once per
-pathogen; orchestrate across pathogens in the analysis repository. Use
-as the top-level entry point.
+pathogen; orchestrate across pathogens in the analysis repository.
 
 - [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
   : Fit Bayesian Hierarchical Multivariate Probit Model for Resistance
@@ -309,9 +401,6 @@ as the top-level entry point.
   R_NF Summaries
 - [`summarize_fit_correlation_matrix()`](https://saketlab.github.io/anumaan/reference/summarize_fit_correlation_matrix.md)
   : Summarize a posterior D x D correlation matrix from stored fit draws
-- [`plot_probit_diagnostics()`](https://saketlab.github.io/anumaan/reference/plot_probit_diagnostics.md)
-  : Generate diagnostic plots for a fitted Bayesian multivariate probit
-  model
 - [`plot_omega_correlation_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_omega_correlation_heatmap.md)
   : Posterior-median latent cross-class correlation heatmap (Omega)
 - [`plot_omega_convergence_heatmap()`](https://saketlab.github.io/anumaan/reference/plot_omega_convergence_heatmap.md)
@@ -352,40 +441,6 @@ with .
   : Summarise Validation Checks into a Profile-Validation Status
 - [`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md)
   : Masked-AST Holdout Validation
-
-## Pathway 2: Predictive Checking
-
-Posterior, prior, and mixed predictive checking (Stan User’s Guide,
-“Posterior and Prior Predictive Checks”: ), a third and distinct
-question from both profile estimation and model validation above: “can
-the fitted model generate WHOLE REPLICATED DATASETS that resemble the
-one actually observed?” (posterior predictive, ) and “what data are
-implied by the priors before conditioning on any observed outcomes?”
-(prior predictive, ). Kept as distinct status fields from and – never
-merged into one generic status anywhere in this package. Mixed
-predictive checking (new random-effect levels, retaining fitted
-hyperparameters) is available only when fitted random-effect blocks
-exist; fixed-only models use posterior predictive checking instead.
-
-- [`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md)
-  : Simulate posterior predictive replicate datasets from a fitted
-  probit model
-- [`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md)
-  : Compute AMR-specific posterior predictive discrepancy statistics
-- [`plot_probit_posterior_predictive_checks()`](https://saketlab.github.io/anumaan/reference/plot_probit_posterior_predictive_checks.md)
-  : Plot posterior predictive checks for a fitted probit model
-- [`compute_posterior_predictive_status()`](https://saketlab.github.io/anumaan/reference/compute_posterior_predictive_status.md)
-  : Classify overall posterior predictive fit from a
-  discrepancy-statistics table
-- [`simulate_probit_prior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_prior_predictive.md)
-  : Simulate prior predictive replicate datasets for a probit model
-- [`compute_prior_predictive_status()`](https://saketlab.github.io/anumaan/reference/compute_prior_predictive_status.md)
-  : Classify plausibility of the prior predictive distribution
-- [`compute_prior_predictive_fingerprint()`](https://saketlab.github.io/anumaan/reference/compute_prior_predictive_fingerprint.md)
-  : Fingerprint the prior-generative configuration of a fitted model
-- [`simulate_probit_mixed_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_mixed_predictive.md)
-  : Simulate mixed predictive replicate datasets: new random-effect
-  levels for a requested block, retaining fitted hyperparameters
 
 ## Burden estimation (YLL/YLD/DALY)
 
@@ -430,13 +485,15 @@ GBD-methodology burden calculations
 - [`daly_calc_yll_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.md)
   : Compute YLL Attributable to AMR
 - [`daly_compute_patient_los()`](https://saketlab.github.io/anumaan/reference/daly_compute_patient_los.md)
-  : Compute Patient-Level Post-Infection LOS
+  : Compute Patient-Level Length of Stay
 - [`daly_count_incident_cases()`](https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.md)
   : Count incident cases by syndrome from facility data
 - [`daly_derive_hai_cai_for_mortality()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.md)
   : Classify HAI/CAI Infection Type for the Mortality Cohort
 - [`daly_filter_profiles_to_rr_classes()`](https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.md)
   : Filter Resistance Profiles to Classes with RR Estimates
+- [`daly_fit_los_distn_by_profile()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_distn_by_profile.md)
+  : Estimate Profile-Specific Median LOS (Section 5.3)
 - [`daly_fit_los_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.md)
   : Fit relative LOS using Gamma GLM with log link
 - [`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md)
@@ -465,8 +522,6 @@ Length-of-stay distribution fitting and comparison
   : Summarise a Fitted Distribution
 - [`plot_los_distributions()`](https://saketlab.github.io/anumaan/reference/plot_los_distributions.md)
   : Plot LOS Distribution with Fitted Overlays
-- [`prepare_los_data()`](https://saketlab.github.io/anumaan/reference/prepare_los_data.md)
-  : Prepare LOS Dataset
 - [`get_los_by_resistance()`](https://saketlab.github.io/anumaan/reference/get_los_by_resistance.md)
   : Extract LOS Vectors by Resistance Status
 

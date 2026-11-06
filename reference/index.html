@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9037</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -674,7 +674,7 @@
       </dl></div><div class="section level2">
       <h2 id="resistance-profiles-core-">Resistance profiles (core)<a class="anchor" aria-label="anchor" href="#resistance-profiles-core-"></a></h2>
 
-      <div class="section-desc"><p>Marginal resistance, co-resistance matrices, and low-level profile computation</p></div>
+      <div class="section-desc"><p>Marginal resistance, co-resistance matrices, and low-level profile computation, shared across pipelines</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -682,6 +682,13 @@
 
 
       <dl><dt>
+
+          <code><a href="enumerate_binary_profiles.html">enumerate_binary_profiles()</a></code>
+
+        </dt>
+        <dd>Enumerate All Binary Resistance Profiles for a Set of Antibiotic Classes</dd>
+
+        <dt>
 
           <code><a href="compute_marginal_resistance.html">compute_marginal_resistance()</a></code>
 
@@ -711,13 +718,6 @@
 
         <dt>
 
-          <code><a href="enumerate_binary_profiles.html">enumerate_binary_profiles()</a></code>
-
-        </dt>
-        <dd>Enumerate All Binary Resistance Profiles for a Set of Antibiotic Classes</dd>
-
-        <dt>
-
           <code><a href="build_constraint_matrix.html">build_constraint_matrix()</a></code>
 
         </dt>
@@ -725,7 +725,7 @@
       </dl></div><div class="section level2">
       <h2 id="pathway-convex-profile-estimation">Pathway 1: Convex Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-convex-profile-estimation"></a></h2>
 
-      <div class="section-desc"><p>End-to-end pipeline for estimating resistance-profile probability distributions from facility-level or aggregate surveillance data via convex optimisation (GBD equation 7.5.1.3). Supports geography, year, and outcome stratification; optional override with externally modelled marginals (e.g. GBD ST-GPR). Use  as the top-level dispatcher for both Pathway 1 and Pathway 2.</p></div>
+      <div class="section-desc"><p>End-to-end pipeline for estimating resistance-profile probability distributions from facility-level or aggregate surveillance data via convex optimisation (GBD equation 7.5.1.3). Supports geography, year, and outcome stratification; optional override with externally modelled marginals (e.g. GBD ST-GPR). Use  as the top-level entry point.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -795,9 +795,263 @@
         </dt>
         <dd>Bootstrap Uncertainty Intervals for Resistance Profile Probabilities</dd>
       </dl></div><div class="section level2">
+      <h2 id="joint-bernoulli-resistance-profile-pipeline">Joint Bernoulli resistance-profile pipeline<a class="anchor" aria-label="anchor" href="#joint-bernoulli-resistance-profile-pipeline"></a></h2>
+
+      <div class="section-desc"><p>Generic pipeline for estimating resistance-profile probability distributions from facility event-level AST data: a saturated log-linear joint Bernoulli model over the full 2^D state space, with exact marginalization of untested classes (no simulation or approximation). ONE joint model is fit across every configured stratum at once – never a silent separate fit per stratum – with shared (never stratum-indexed) interaction coefficients and the stratifier (hospital, state, district, country, or none) encoded as fixed effects in the covariate design via profile_build_fixed_effect_design(), a config-level choice, never hardcoded to “hospital”. Covers the whole lifecycle: cohort selection, pre-fit assumption review, data-support screening, panel feasibility, prior predictive checks, Stan design and fitting, run monitoring, sampler/MCSE diagnostics, posterior predictive checks, held-out validation, final estimation with credible intervals, sensitivity analysis, simulation-based calibration, release reporting, and plotting.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="profile_select_cohort.html">profile_select_cohort()</a></code>
+
+        </dt>
+        <dd>Select and Record the Modeling Cohort From Raw Event Data</dd>
+
+        <dt>
+
+          <code><a href="profile_check_assumptions.html">profile_check_assumptions()</a></code>
+
+        </dt>
+        <dd>Structured Pre-Fit Assumption Register</dd>
+
+        <dt>
+
+          <code><a href="profile_audit_support.html">profile_audit_support()</a></code>
+
+        </dt>
+        <dd>Tabulate Class-Level Testing Support, by Group</dd>
+
+        <dt>
+
+          <code><a href="profile_plan_precision.html">profile_plan_precision()</a></code>
+
+        </dt>
+        <dd>Evaluate Precision Against a Set of Named Tiers</dd>
+
+        <dt>
+
+          <code><a href="profile_define_cohort.html">profile_define_cohort()</a></code>
+
+        </dt>
+        <dd>Build an Eligible-Group Roster From Precision-Evaluated Support</dd>
+
+        <dt>
+
+          <code><a href="profile_precision_bound.html">profile_precision_bound()</a></code>
+
+        </dt>
+        <dd>Minimum Complete-Event Count for a Simultaneous Profile-Precision Bound</dd>
+
+        <dt>
+
+          <code><a href="profile_check_panel_feasibility.html">profile_check_panel_feasibility()</a></code>
+
+        </dt>
+        <dd>Pathogen x Candidate-Panel x Hospital Feasibility Table</dd>
+
+        <dt>
+
+          <code><a href="profile_audit_interaction_support.html">profile_audit_interaction_support()</a></code>
+
+        </dt>
+        <dd>Audit Direct Co-Tested Support for Each Interaction Order of a Candidate Panel</dd>
+
+        <dt>
+
+          <code><a href="profile_prepare_model_data.html">profile_prepare_model_data()</a></code>
+
+        </dt>
+        <dd>Build the Wide Model Dataset for a Chosen Panel</dd>
+
+        <dt>
+
+          <code><a href="profile_summarize_cohort_eligibility.html">profile_summarize_cohort_eligibility()</a></code>
+
+        </dt>
+        <dd>Per-Group Cohort Eligibility Summary (One Report, Every Eligibility Fact)</dd>
+
+        <dt>
+
+          <code><a href="profile_enumerate_states.html">profile_enumerate_states()</a></code>
+
+        </dt>
+        <dd>Enumerate the 2^D Joint Resistance States</dd>
+
+        <dt>
+
+          <code><a href="profile_interaction_design.html">profile_interaction_design()</a></code>
+
+        </dt>
+        <dd>Interaction-Order Design Matrix Over the State Space</dd>
+
+        <dt>
+
+          <code><a href="profile_bernoulli_terms.html">profile_bernoulli_terms()</a></code>
+
+        </dt>
+        <dd>Full Parameter Manifest for a D-Class Joint Bernoulli Model</dd>
+
+        <dt>
+
+          <code><a href="profile_compatible_states.html">profile_compatible_states()</a></code>
+
+        </dt>
+        <dd>Which Joint States Are Compatible With a Partially-Observed Event</dd>
+
+        <dt>
+
+          <code><a href="profile_build_fixed_effect_design.html">profile_build_fixed_effect_design()</a></code>
+
+        </dt>
+        <dd>Build a Covariate Design Matrix With a Config-Chosen Fixed-Effect Stratifier</dd>
+
+        <dt>
+
+          <code><a href="profile_build_design.html">profile_build_design()</a></code>
+
+        </dt>
+        <dd>Build Stan-Ready Design for a D-Class Joint Bernoulli Resistance Model</dd>
+
+        <dt>
+
+          <code><a href="profile_prior_predictive.html">profile_prior_predictive()</a></code>
+
+        </dt>
+        <dd>Prior Predictive Checks for a Joint Bernoulli Design</dd>
+
+        <dt>
+
+          <code><a href="profile_run_simulation_study.html">profile_run_simulation_study()</a></code>
+
+        </dt>
+        <dd>SBC + Recovery/Robustness Simulation Harness</dd>
+
+        <dt>
+
+          <code><a href="profile_fit_joint_bernoulli.html">profile_fit_joint_bernoulli()</a></code>
+
+        </dt>
+        <dd>Fit the Joint Bernoulli Resistance-Profile Model</dd>
+
+        <dt>
+
+          <code><a href="profile_monitor_run.html">profile_monitor_run()</a></code>
+
+        </dt>
+        <dd>Run-State Monitor for a profile_fit_joint_bernoulli() Run</dd>
+
+        <dt>
+
+          <code><a href="profile_check_sampler.html">profile_check_sampler()</a></code>
+
+        </dt>
+        <dd>Check Sampler Validity and Render Diagnostic Plots</dd>
+
+        <dt>
+
+          <code><a href="profile_ppc.html">profile_ppc()</a></code>
+
+        </dt>
+        <dd>Posterior Predictive Checks for a Joint Bernoulli Fit</dd>
+
+        <dt>
+
+          <code><a href="profile_validate_masked.html">profile_validate_masked()</a></code>
+
+        </dt>
+        <dd>Masked-Cell Validation (In-Sample, No Refit)</dd>
+
+        <dt>
+
+          <code><a href="profile_validate_heldout.html">profile_validate_heldout()</a></code>
+
+        </dt>
+        <dd>Masked-Cell Validation (Genuine Holdout, Refits the Model)</dd>
+
+        <dt>
+
+          <code><a href="profile_validate_newpatient.html">profile_validate_newpatient()</a></code>
+
+        </dt>
+        <dd>New-Patient Held-Out Validation (Within Represented Hospitals)</dd>
+
+        <dt>
+
+          <code><a href="profile_validate_temporal.html">profile_validate_temporal()</a></code>
+
+        </dt>
+        <dd>Temporal Held-Out Validation</dd>
+
+        <dt>
+
+          <code><a href="profile_estimate.html">profile_estimate()</a></code>
+
+        </dt>
+        <dd>Estimate Resistance Profiles From a Fitted Joint Bernoulli Model</dd>
+
+        <dt>
+
+          <code><a href="profile_sensitivity.html">profile_sensitivity()</a></code>
+
+        </dt>
+        <dd>Sensitivity Contrast Across Alternative Model Fits</dd>
+
+        <dt>
+
+          <code><a href="profile_sensitivity_scenarios.html">profile_sensitivity_scenarios()</a></code>
+
+        </dt>
+        <dd>Named Sensitivity-Scenario Catalog</dd>
+
+        <dt>
+
+          <code><a href="profile_release.html">profile_release()</a></code>
+
+        </dt>
+        <dd>Final Per-Group Release Table</dd>
+
+        <dt>
+
+          <code><a href="profile_render_report.html">profile_render_report()</a></code>
+
+        </dt>
+        <dd>Fixed-Order Evidence Report, With a Release Gate</dd>
+
+        <dt>
+
+          <code><a href="profile_aggregate_for_daly.html">profile_aggregate_for_daly()</a></code>
+
+        </dt>
+        <dd>Aggregate Posterior Profile Estimates for DALY Use</dd>
+
+        <dt>
+
+          <code><a href="profile_plot_calibration_forest.html">profile_plot_calibration_forest()</a></code>
+
+        </dt>
+        <dd>Observed-vs-Model Calibration Forest Plot</dd>
+
+        <dt>
+
+          <code><a href="profile_plot_profile_heatmap.html">profile_plot_profile_heatmap()</a></code>
+
+        </dt>
+        <dd>Hospital x Profile-State Heatmap</dd>
+
+        <dt>
+
+          <code><a href="profile_plot_pairwise_heatmap.html">profile_plot_pairwise_heatmap()</a></code>
+
+        </dt>
+        <dd>Pairwise Co-Resistance Heatmap, One Hospital</dd>
+      </dl></div><div class="section level2">
       <h2 id="pathway-bayesian-profile-estimation">Pathway 2: Bayesian Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-bayesian-profile-estimation"></a></h2>
 
-      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with zero or an arbitrary, user-declared number of named random-intercept blocks (see  – e.g. hospital, patient, admission, or any other grouping the analysis layer declares; the package does not hardcode which blocks are scientifically appropriate for a given dataset). Use  for a fixed-effects-only model and supply  when profiles are to be grouped. Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). CPU and OpenCL backends are both supported as execution choices; backend selection changes compilation/sampling only, not the underlying model. Run once per pathogen; orchestrate across pathogens in the analysis repository. Use  as the top-level entry point.</p></div>
+      <div class="section-desc"><p>Bayesian hierarchical multivariate probit model for estimating resistance-profile distributions from facility-level AST data. Fits a Stan model (via cmdstanr) with zero or an arbitrary, user-declared number of named random-intercept blocks (see  – e.g. hospital, patient, admission, or any other grouping the analysis layer declares; the package does not hardcode which blocks are scientifically appropriate for a given dataset). Use  for a fixed-effects-only model and supply  when profiles are to be grouped. Two residual structures are supported: identity (default, no residual correlation) and correlated (full LKJ-Cholesky residual covariance). CPU and OpenCL backends are both supported as execution choices; backend selection changes compilation/sampling only, not the underlying model. Run once per pathogen; orchestrate across pathogens in the analysis repository.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -859,13 +1113,6 @@
 
         </dt>
         <dd>Summarize a posterior D x D correlation matrix from stored fit draws</dd>
-
-        <dt>
-
-          <code><a href="plot_probit_diagnostics.html">plot_probit_diagnostics()</a></code>
-
-        </dt>
-        <dd>Generate diagnostic plots for a fitted Bayesian multivariate probit model</dd>
 
         <dt>
 
@@ -966,71 +1213,6 @@
 
         </dt>
         <dd>Masked-AST Holdout Validation</dd>
-      </dl></div><div class="section level2">
-      <h2 id="pathway-predictive-checking">Pathway 2: Predictive Checking<a class="anchor" aria-label="anchor" href="#pathway-predictive-checking"></a></h2>
-
-      <div class="section-desc"><p>Posterior, prior, and mixed predictive checking (Stan User’s Guide, “Posterior and Prior Predictive Checks”: ), a third and distinct question from both profile estimation and model validation above: “can the fitted model generate WHOLE REPLICATED DATASETS that resemble the one actually observed?” (posterior predictive, ) and “what data are implied by the priors before conditioning on any observed outcomes?” (prior predictive, ). Kept as distinct status fields from  and  – never merged into one generic status anywhere in this package. Mixed predictive checking (new random-effect levels, retaining fitted hyperparameters) is available only when fitted random-effect blocks exist; fixed-only models use posterior predictive checking instead.</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="simulate_probit_posterior_predictive.html">simulate_probit_posterior_predictive()</a></code>
-
-        </dt>
-        <dd>Simulate posterior predictive replicate datasets from a fitted probit model</dd>
-
-        <dt>
-
-          <code><a href="compute_probit_ppc_statistics.html">compute_probit_ppc_statistics()</a></code>
-
-        </dt>
-        <dd>Compute AMR-specific posterior predictive discrepancy statistics</dd>
-
-        <dt>
-
-          <code><a href="plot_probit_posterior_predictive_checks.html">plot_probit_posterior_predictive_checks()</a></code>
-
-        </dt>
-        <dd>Plot posterior predictive checks for a fitted probit model</dd>
-
-        <dt>
-
-          <code><a href="compute_posterior_predictive_status.html">compute_posterior_predictive_status()</a></code>
-
-        </dt>
-        <dd>Classify overall posterior predictive fit from a discrepancy-statistics table</dd>
-
-        <dt>
-
-          <code><a href="simulate_probit_prior_predictive.html">simulate_probit_prior_predictive()</a></code>
-
-        </dt>
-        <dd>Simulate prior predictive replicate datasets for a probit model</dd>
-
-        <dt>
-
-          <code><a href="compute_prior_predictive_status.html">compute_prior_predictive_status()</a></code>
-
-        </dt>
-        <dd>Classify plausibility of the prior predictive distribution</dd>
-
-        <dt>
-
-          <code><a href="compute_prior_predictive_fingerprint.html">compute_prior_predictive_fingerprint()</a></code>
-
-        </dt>
-        <dd>Fingerprint the prior-generative configuration of a fitted model</dd>
-
-        <dt>
-
-          <code><a href="simulate_probit_mixed_predictive.html">simulate_probit_mixed_predictive()</a></code>
-
-        </dt>
-        <dd>Simulate mixed predictive replicate datasets: new random-effect levels for a requested block, retaining fitted hyperparameters</dd>
       </dl></div><div class="section level2">
       <h2 id="burden-estimation-yll-yld-daly-">Burden estimation (YLL/YLD/DALY)<a class="anchor" aria-label="anchor" href="#burden-estimation-yll-yld-daly-"></a></h2>
 
@@ -1172,7 +1354,7 @@
           <code><a href="daly_compute_patient_los.html">daly_compute_patient_los()</a></code>
 
         </dt>
-        <dd>Compute Patient-Level Post-Infection LOS</dd>
+        <dd>Compute Patient-Level Length of Stay</dd>
 
         <dt>
 
@@ -1194,6 +1376,13 @@
 
         </dt>
         <dd>Filter Resistance Profiles to Classes with RR Estimates</dd>
+
+        <dt>
+
+          <code><a href="daly_fit_los_distn_by_profile.html">daly_fit_los_distn_by_profile()</a></code>
+
+        </dt>
+        <dd>Estimate Profile-Specific Median LOS (Section 5.3)</dd>
 
         <dt>
 
@@ -1280,13 +1469,6 @@
 
         </dt>
         <dd>Plot LOS Distribution with Fitted Overlays</dd>
-
-        <dt>
-
-          <code><a href="prepare_los_data.html">prepare_los_data()</a></code>
-
-        </dt>
-        <dd>Prepare LOS Dataset</dd>
 
         <dt>
 

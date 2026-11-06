@@ -20,380 +20,27 @@ model, validation framework, or DALY estimands.
 
 The pipeline has two stages:
 
-1.  **Resistance profile estimation** — converts resistance prevalence
-    data into probability distributions over all 2^n binary resistance
-    profiles (S/R per antibiotic class). Uses convex optimisation (GBD
-    eq. 7.5.1.3).
+1.  **Resistance profile estimation** — converts event-level AST data
+    into probability distributions over all 2^D binary resistance
+    profiles (S/R per antibiotic class).
 2.  **Burden calculation** — applies relative-risk weights to profiles
     and computes YLL, YLD, and total DALY burden.
 
-Input can come from two sources:
-
-| Source | Entry point |
-|----|----|
-| Pre-computed aggregate marginals (GBD, GLASS, national surveillance) | [`validate_aggregate_inputs()`](https://saketlab.github.io/anumaan/reference/validate_aggregate_inputs.md) → [`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md) |
-| Facility line-list AST data (after preprocessing) | [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md) → [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md) → [`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md) |
+Resistance profile estimation historically had two pathways: a convex-
+optimisation route over pre-computed aggregate marginals (“Pathway 1”),
+and the Bayesian multivariate probit route below (“Pathway 2”) fit
+directly to facility event-level AST data. Pathway 1 had zero callers
+anywhere in production use and was retired; this vignette covers Pathway
+2 only.
 
 ------------------------------------------------------------------------
 
 ## Resistance Profile Estimation
 
-### Option 1: Convex Optimisation (Pathway 1)
+### Bayesian Multivariate Probit
 
-#### 1.1 Aggregate Input: Validate Marginals
-
-When working from pre-computed marginal resistance rates (e.g. GBD
-ST-GPR country estimates or national surveillance summaries), supply
-them directly as a tibble and validate before running the QP.
-
-``` r
-marginals <- tibble::tibble(
-  pathogen = rep(c("Klebsiella pneumoniae", "Escherichia coli"), each = 3),
-  antibiotic_class = rep(
-    c("Carbapenems", "3GC", "Fluoroquinolones"),
-    times = 2
-  ),
-  n_tested = c(420L, 460L, 390L, 280L, 310L, 265L),
-  n_resistant = c(126L, 299L, 195L, 45L, 155L, 133L)
-) %>%
-  dplyr::mutate(marginal_resistance = n_resistant / n_tested)
-
-marginals
-#> # A tibble: 6 × 5
-#>   pathogen             antibiotic_class n_tested n_resistant marginal_resistance
-#>   <chr>                <chr>               <int>       <int>               <dbl>
-#> 1 Klebsiella pneumoni… Carbapenems           420         126               0.3  
-#> 2 Klebsiella pneumoni… 3GC                   460         299               0.65 
-#> 3 Klebsiella pneumoni… Fluoroquinolones      390         195               0.5  
-#> 4 Escherichia coli     Carbapenems           280          45               0.161
-#> 5 Escherichia coli     3GC                   310         155               0.5  
-#> 6 Escherichia coli     Fluoroquinolones      265         133               0.502
-```
-
-``` r
-validate_aggregate_inputs(
-  marginals,
-  pathogen_col    = "pathogen",
-  class_col       = "antibiotic_class",
-  rate_col        = "marginal_resistance",
-  n_tested_col    = "n_tested",
-  n_resistant_col = "n_resistant"
-)
-```
-
-#### 1.2 Profile Enumeration
-
-[`enumerate_binary_profiles()`](https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.md)
-generates all 2^n binary combinations for a given ordered class set.
-This is the profile space the QP optimises over.
-
-``` r
-classes <- c("Carbapenems", "3GC", "Fluoroquinolones")
-profiles <- enumerate_binary_profiles(classes)
-profiles
-#> # A tibble: 8 × 4
-#>   profile_delta Carbapenems `3GC` Fluoroquinolones
-#>   <chr>               <int> <int>            <int>
-#> 1 SSS                     0     0                0
-#> 2 RSS                     1     0                0
-#> 3 SRS                     0     1                0
-#> 4 RRS                     1     1                0
-#> 5 SSR                     0     0                1
-#> 6 RSR                     1     0                1
-#> 7 SRR                     0     1                1
-#> 8 RRR                     1     1                1
-```
-
-Each row is one resistance phenotype. `SSS` = pan-susceptible reference;
-`RRR` = pan-resistant. The ordered `classes` vector defines the bit
-positions and must stay consistent throughout the pipeline.
-
-#### 1.3 Constraint Matrix
-
-[`build_constraint_matrix()`](https://saketlab.github.io/anumaan/reference/build_constraint_matrix.md)
-constructs the constraint matrix M and target vector v that encode the
-marginal and pairwise constraints fed into the QP.
-
-``` r
-kp <- marginals[marginals$pathogen == "Klebsiella pneumoniae", ]
-r_marg <- setNames(kp$marginal_resistance, kp$antibiotic_class)
-profiles_enum <- enumerate_binary_profiles(names(r_marg))
-cm <- build_constraint_matrix(profiles_enum, r_marg)
-
-cat("M dimension (constraints x profiles):", dim(cm$M), "\n")
-#> M dimension (constraints x profiles): 6 8
-cat("Constraint targets (marginals + pairwise independence fallback):\n")
-#> Constraint targets (marginals + pairwise independence fallback):
-round(cm$v, 4)
-#>      Carbapenems              3GC Fluoroquinolones                  
-#>            0.300            0.650            0.500            0.195 
-#>                                   
-#>            0.150            0.325
-```
-
-Marginal rows of M: entry = 1 if that class is resistant in that
-profile. Pairwise rows: entry = 1 if both classes in the pair are
-resistant.
-
-#### 1.4 Estimate Profile Probabilities
-
-[`estimate_profiles_convex()`](https://saketlab.github.io/anumaan/reference/estimate_profiles_convex.md)
-runs the full pipeline for all pathogens in one call: validates,
-enumerates, builds constraints, and solves the QP. The solver prefers
-`osqp` (sparse, fast) with `quadprog` as fallback.
-
-``` r
-panel_map <- list(
-  "Klebsiella pneumoniae" = c(
-    "Carbapenems",
-    "3GC",
-    "Fluoroquinolones"
-  ),
-  "Escherichia coli" = c(
-    "Carbapenems",
-    "3GC",
-    "Fluoroquinolones"
-  )
-)
-
-profiles_out <- estimate_profiles_convex(
-  marginals    = marginals,
-  pairwise     = NULL,
-  panel_map    = panel_map,
-  lambda       = 1e-8,
-  pathogen_col = "pathogen",
-  class_col    = "antibiotic_class",
-  rate_col     = "marginal_resistance",
-  n_tested_col = "n_tested"
-)
-```
-
-``` r
-profiles_out %>%
-  dplyr::select(
-    pathogen, profile_delta, profile_probability,
-    convergence_flag, max_abs_residual
-  ) %>%
-  dplyr::filter(profile_probability > 0.005) %>%
-  dplyr::arrange(pathogen, dplyr::desc(profile_probability))
-#> # A tibble: 16 × 5
-#>    pathogen  profile_delta profile_probability convergence_flag max_abs_residual
-#>    <chr>     <chr>                       <dbl> <lgl>                       <dbl>
-#>  1 Escheric… SSR                        0.226  TRUE                            0
-#>  2 Escheric… RSS                        0.224  TRUE                            0
-#>  3 Escheric… RSR                        0.196  TRUE                            0
-#>  4 Escheric… SSS                        0.194  TRUE                            0
-#>  5 Escheric… RRR                        0.0553 TRUE                            0
-#>  6 Escheric… SRS                        0.0550 TRUE                            0
-#>  7 Escheric… SRR                        0.0253 TRUE                            0
-#>  8 Escheric… RRS                        0.0250 TRUE                            0
-#>  9 Klebsiel… RSS                        0.238  TRUE                            0
-#> 10 Klebsiel… RSR                        0.217  TRUE                            0
-#> 11 Klebsiel… SSR                        0.133  TRUE                            0
-#> 12 Klebsiel… SSS                        0.112  TRUE                            0
-#> 13 Klebsiel… RRR                        0.108  TRUE                            0
-#> 14 Klebsiel… RRS                        0.0873 TRUE                            0
-#> 15 Klebsiel… SRS                        0.0627 TRUE                            0
-#> 16 Klebsiel… SRR                        0.0423 TRUE                            0
-```
-
-The `profile_class_set` column records the exact ordered class set that
-defines the binary code — this must be carried forward to any downstream
-DALY attribution to prevent class-order ambiguity.
-
-``` r
-profiles_out %>%
-  dplyr::distinct(pathogen, profile_class_set, estimator)
-#> # A tibble: 2 × 3
-#>   pathogen              profile_class_set                estimator
-#>   <chr>                 <chr>                            <chr>    
-#> 1 Klebsiella pneumoniae 3GC|Carbapenems|Fluoroquinolones convex   
-#> 2 Escherichia coli      3GC|Carbapenems|Fluoroquinolones convex
-```
-
-#### 1.5 Facility Line-List Pathway
-
-When working from isolate-level AST data (after preprocessing), use the
-three-step pipeline that feeds the same QP engine.
-
-``` r
-set.seed(101)
-# Minimal long-format AST data: one row per isolate x antibiotic class
-ast_class <- data.frame(
-  isolate_id = rep(paste0("ISO", sprintf("%03d", 1:80)), each = 3),
-  organism_name = rep(
-    ifelse(seq_len(80) <= 50, "Klebsiella pneumoniae", "Escherichia coli"),
-    each = 3
-  ),
-  org_group = "Enterobacterales",
-  antibiotic_class = rep(c("Carbapenems", "3GC", "Fluoroquinolones"), times = 80),
-  antibiotic_value = sample(
-    c("S", "R"), 240,
-    replace = TRUE, prob = c(0.60, 0.40)
-  ),
-  stringsAsFactors = FALSE
-)
-```
-
-``` r
-# Step 1 -- marginal resistance per pathogen x class
-marg_out <- compute_marginal_resistance(
-  ast_class,
-  pathogen_col         = "organism_name",
-  org_group_col        = "org_group",
-  isolate_col          = "isolate_id",
-  antibiotic_class_col = "antibiotic_class",
-  antibiotic_value_col = "antibiotic_value",
-  min_n_tested         = 10L
-)
-
-marg_out$marginal
-#> # A tibble: 6 × 6
-#>   organism_name         org_group        antibiotic_class n_tested n_resistant
-#>   <chr>                 <chr>            <chr>               <int>       <int>
-#> 1 Escherichia coli      Enterobacterales Fluoroquinolones       30          14
-#> 2 Escherichia coli      Enterobacterales 3GC                    30          12
-#> 3 Escherichia coli      Enterobacterales Carbapenems            30          10
-#> 4 Klebsiella pneumoniae Enterobacterales Fluoroquinolones       50          27
-#> 5 Klebsiella pneumoniae Enterobacterales 3GC                    50          21
-#> 6 Klebsiella pneumoniae Enterobacterales Carbapenems            50          17
-#> # ℹ 1 more variable: marginal_resistance <dbl>
-```
-
-``` r
-# Step 2 -- pairwise co-resistance matrices per pathogen
-co_out <- compute_pairwise_coresistance(
-  marg_out,
-  pathogen_col         = "organism_name",
-  isolate_col          = "isolate_id",
-  antibiotic_class_col = "antibiotic_class",
-  min_co_tested        = 5L
-)
-
-round(co_out[["Klebsiella pneumoniae"]]$prevalence, 3)
-#>                   3GC Carbapenems Fluoroquinolones
-#> 3GC                NA        0.18             0.24
-#> Carbapenems      0.18          NA             0.16
-#> Fluoroquinolones 0.24        0.16               NA
-```
-
-``` r
-# Step 3 -- profile probabilities via QP
-rp_out <- compute_resistance_profiles(
-  marg_out,
-  co_out,
-  pathogen_col         = "organism_name",
-  antibiotic_class_col = "antibiotic_class",
-  exclude_near_zero    = FALSE
-)
-
-rp_out[["Klebsiella pneumoniae"]]$profiles %>%
-  dplyr::filter(probability > 0.005) %>%
-  dplyr::arrange(dplyr::desc(probability))
-#>   profile probability 3GC Carbapenems Fluoroquinolones
-#> 1     SSR  0.23470187   0           0                1
-#> 2     SSS  0.18529813   0           0                0
-#> 3     RSR  0.14529813   1           0                1
-#> 4     RSS  0.09470187   1           0                0
-#> 5     SRS  0.09470187   0           1                0
-#> 6     RRR  0.09470187   1           1                1
-#> 7     RRS  0.08529813   1           1                0
-#> 8     SRR  0.06529813   0           1                1
-```
-
-``` r
-# Constraint residuals: how well does the solution reproduce the inputs?
-round(rp_out[["Klebsiella pneumoniae"]]$constraint_residuals, 6)
-#>                          marg_3GC                  marg_Carbapenems 
-#>                                 0                                 0 
-#>             marg_Fluoroquinolones              pair_3GC_Carbapenems 
-#>                                 0                                 0 
-#>         pair_3GC_Fluoroquinolones pair_Carbapenems_Fluoroquinolones 
-#>                                 0                                 0
-```
-
-#### 1.6 Check Constraint Satisfaction
-
-[`check_profile_constraints()`](https://saketlab.github.io/anumaan/reference/check_profile_constraints.md)
-formally verifies that the estimated probabilities satisfy
-non-negativity, sum-to-one, and reproduce the input marginal rates
-within tolerance. It accepts the named-list format from
-[`compute_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/compute_resistance_profiles.md)
-directly.
-
-``` r
-checks <- check_profile_constraints(
-  rp_out,
-  marginals    = marg_out$marginal,
-  tolerance    = 1e-3,
-  pathogen_col = "organism_name",
-  class_col    = "antibiotic_class",
-  rate_col     = "marginal_resistance"
-)
-
-checks %>%
-  dplyr::select(
-    pathogen, constraint_type, constraint_name,
-    target, reconstructed, abs_residual, pass
-  )
-#> # A tibble: 22 × 7
-#>    pathogen    constraint_type constraint_name target reconstructed abs_residual
-#>    <chr>       <chr>           <chr>            <dbl>         <dbl>        <dbl>
-#>  1 Escherichi… nonneg          min_probability NA            0.0448    NA       
-#>  2 Escherichi… sum_to_one      sum_probability  1            1          0       
-#>  3 Escherichi… marginal        marg_3GC         0.4          0.400      2.29e-10
-#>  4 Escherichi… marginal        marg_Carbapene…  0.333        0.333      8.95e-10
-#>  5 Escherichi… marginal        marg_Fluoroqui…  0.467        0.467      6.21e-11
-#>  6 Escherichi… pairwise        pair_3GC_Carba…  0.167        0.167      4.75e-10
-#>  7 Escherichi… pairwise        pair_3GC_Fluor…  0.133        0.133      5.25e-10
-#>  8 Escherichi… pairwise        pair_Carbapene…  0.2          0.200      4.75e-10
-#>  9 Escherichi… marginal        marg_Fluoroqui…  0.467        0.467      6.21e-11
-#> 10 Escherichi… marginal        marg_3GC         0.4          0.400      2.29e-10
-#> # ℹ 12 more rows
-#> # ℹ 1 more variable: pass <lgl>
-```
-
-#### 1.7 Bootstrap Uncertainty Intervals
-
-[`bootstrap_profiles_convex()`](https://saketlab.github.io/anumaan/reference/bootstrap_profiles_convex.md)
-resamples resistant counts from a Binomial distribution and refits the
-QP B times, returning percentile confidence intervals for each profile
-probability.
-
-``` r
-boot <- bootstrap_profiles_convex(
-  marginals       = marginals,
-  B               = 300L,
-  seed            = 42L,
-  alpha           = 0.05,
-  pathogen_col    = "pathogen",
-  class_col       = "antibiotic_class",
-  n_tested_col    = "n_tested",
-  n_resistant_col = "n_resistant"
-)
-
-boot[["Klebsiella pneumoniae"]] %>%
-  dplyr::filter(probability_mean > 0.005) %>%
-  dplyr::arrange(dplyr::desc(probability_mean))
-#> # A tibble: 8 × 7
-#>   profile probability_mean probability_median  lower  upper
-#>   <chr>              <dbl>              <dbl>  <dbl>  <dbl>
-#> 1 RSS               0.238              0.239  0.208  0.270 
-#> 2 RSR               0.217              0.217  0.192  0.249 
-#> 3 SSR               0.133              0.132  0.113  0.151 
-#> 4 SSS               0.112              0.112  0.0943 0.133 
-#> 5 RRR               0.108              0.107  0.0916 0.125 
-#> 6 RRS               0.0871             0.0873 0.0681 0.108 
-#> 7 SRS               0.0626             0.0626 0.0530 0.0718
-#> 8 SRR               0.0419             0.0414 0.0299 0.0559
-#> # ℹ 2 more variables: n_replicates_converged <int>, convergence_rate <dbl>
-```
-
-### Option 2: Bayesian Multivariate Probit (Pathway 2)
-
-Pathway 2 fits a Bayesian hierarchical multivariate probit model
-directly to facility-level, event-level AST data. Unlike Pathway 1, it
-can incorporate fixed-effect covariates (age, gender, location, …) and
+facility-level, event-level AST data. Unlike Pathway 1, it can
+incorporate fixed-effect covariates (age, gender, location, …) and
 optional random effects (hospital, admission, …), and estimate
 resistance *jointly* across antibiotic classes rather than
 reconstructing joint profiles purely from marginal + pairwise
@@ -584,74 +231,9 @@ thresholds (mean absolute error, interval coverage) across all three
 tables and returns one combined `status`, rather than requiring the
 caller to eyeball three separate tibbles.
 
-#### 2.6 Predictive Checks
+#### 2.6 Post-Fit Checklist: What to Run, and Why
 
-Beyond calibration against the fitted data, prior and posterior
-predictive checks simulate data *from* the model to check the priors are
-reasonable before fitting, and that the fitted model reproduces the
-observed data’s statistical structure after fitting.
-
-``` r
-prior_pred <- simulate_probit_prior_predictive(fit, n_states = 100L, seed = 123L)
-compute_prior_predictive_status(prior_pred)
-#> $summary$fraction_probability_lt_0.001
-#> [1] 0.478
-#> $summary$fraction_all_resistant
-#> [1] 0.0857
-
-ppc_stats <- compute_probit_ppc_statistics(
-  fit,
-  n_states = 100L, seed = 123L,
-  statistics = c("marginal", "resistant_count", "pairwise")
-)
-compute_posterior_predictive_status(ppc_stats)
-#> $status
-#> [1] "pass"
-#> $family_status$marginal$status
-#> [1] "ok"
-#> $family_status$pairwise$status
-#> [1] "ok"
-```
-
-`plot_probit_diagnostics(fit, output_dir, experiment_id, pathogen)`
-(needs `bayesplot`) writes trace/rank/pair plots for the monitored
-parameters to a PDF, and
-[`plot_probit_posterior_predictive_checks()`](https://saketlab.github.io/anumaan/reference/plot_probit_posterior_predictive_checks.md)
-visualises the `ppc_stats` tables – both are for interactive review, not
-part of the scripted pipeline.
-
-#### 2.7 Unified Dispatcher
-
-[`estimate_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/estimate_resistance_profiles.md)
-wraps both pathways behind one interface – switch pathway with `method`:
-
-``` r
-# Pathway 1 (convex)
-estimate_resistance_profiles(data = marginals, method = "convex", panel_map = panel_map)
-
-# Pathway 2 (Bayesian) -- runs steps 2.1-2.4 above in one call
-estimate_resistance_profiles(
-  data = event_class_data, method = "bayesian",
-  class_cols = class_cols, fixed_effects = c("Age_normalised", "gender"),
-  random_effects = c("center_name"), pathogen = "Klebsiella pneumoniae",
-  outcome_col = "final_outcome", residual_structure = "identity",
-  sampler_config = list(chains = 2, iter_warmup = 200, iter_sampling = 200, seed = 123)
-)
-#> [estimate_resistance_profiles] Pathway 2 complete.
-#> $profiles      # same shape as aggregate_profiles_for_daly() output above
-#> $eligibility
-#> $diagnostics
-#> $fitted_models
-#> $config_used
-```
-
-Both pathways’ `profiles`/`agg` output are the deliverable of this
-vignette – downstream burden calculation (RR assignment, YLL/YLD) is not
-yet covered here.
-
-#### 2.8 Post-Fit Checklist: What to Run, and Why
-
-Sections 2.2-2.6 introduced each Pathway 2 function individually; this
+Sections 2.2-2.5 introduced each Pathway 2 function individually; this
 section ties them into one ordered checklist, since it’s easy to run
 only some of them and miss a gap. Every function below reads `fit`, the
 object returned by
@@ -682,29 +264,7 @@ rolls the per-event, per-draw output up to one row per hospital x
 pathogen x profile (`R_ALL_mean/lower/upper`, DALY-eligibility flags
 gated by `sampler_acceptable` and panel support).
 
-**3. Does the model generate data that looks like the real data?**
-[`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md)
-draws replicated datasets from the posterior (Bernoulli(`Phi(mu)`) for
-identity; `Z = mu + L_Omega %*% eps`, `Y = I(Z > 0)` for correlated –
-genuine correlated simulation either way).
-[`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md)
-computes discrepancy statistics (marginal rate, pairwise co-resistance,
-complete-profile summary stats, hospital heterogeneity) on observed
-vs. every replicate.
-[`compute_posterior_predictive_status()`](https://saketlab.github.io/anumaan/reference/compute_posterior_predictive_status.md)
-classifies each statistic as extreme/severe and rolls up to an overall
-status. This is a strict trigger, not a fraction-based one – even a
-single severely-extreme statistic in a family sets the whole run’s
-status to `"fail_major_ppc_misfit"`, so always read the per-family
-`n_severe`/`fraction_extreme` breakdown underneath the top-line status
-rather than the label alone.
-[`simulate_probit_prior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_prior_predictive.md)
-(before fitting) and
-[`simulate_probit_mixed_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_mixed_predictive.md)
-(new, unseen groups) answer the adjacent but different questions “is the
-prior reasonable?” and “does this generalise beyond the fitted groups?”.
-
-**4. Are the model’s stated probabilities calibrated against reality?**
+**3. Are the model’s stated probabilities calibrated against reality?**
 [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md),
 [`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md),
 and
@@ -729,7 +289,6 @@ rolls all four into one `profile_validation_status` verdict.
 |----|----|----|
 | Did the sampler converge? | `fit$diagnostics` | – |
 | What’s the estimated resistance profile? | [`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md) + [`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md) | correlated fits only |
-| Does simulated data resemble real data? | [`simulate_probit_posterior_predictive()`](https://saketlab.github.io/anumaan/reference/simulate_probit_posterior_predictive.md) + [`compute_probit_ppc_statistics()`](https://saketlab.github.io/anumaan/reference/compute_probit_ppc_statistics.md) | correlated fits only |
 | Is the model calibrated on single classes? | [`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md) | no |
 | Is the model calibrated on class pairs? | [`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md) | correlated fits only |
 | Is the model calibrated on full profiles? | [`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md) | correlated fits only |
@@ -750,29 +309,18 @@ two separate verdicts, not one combined score.
 
     Preprocessing output (prep_* pipeline)
               │
-              ├─────────────────────────────┬─────────────────────────────────────┐
-              ▼ Option 1: Convex (Pathway 1) ▼                Option 2: Bayesian Probit (Pathway 2)
-      compute_marginal_resistance()          fit_bayesian_multivariate_probit()
-              │  (Step 1: marginals)                 │  (facility event-level AST + covariates)
-              ▼                                       ▼
-      compute_pairwise_coresistance()        compute_event_profile_probabilities()
-              │  (Step 2: pairwise co-R)             │  (posterior draws -> profile probs)
-              ▼                                       ▼
-      compute_resistance_profiles()          aggregate_profiles_for_daly()
-              │  (Step 3: QP -> profiles)            │  (+ validate_*_calibration(),
-              │                                       │    predictive checks)
-              │    Alternative entry (aggregate       │
-              │    marginals): validate_aggregate_    │
-              │    inputs() -> estimate_profiles_     │
-              │    convex()                           │
-              │                                       │
-              │         (or, either pathway via one call:
-              │          estimate_resistance_profiles(method = "convex" | "bayesian"))
-              │                                       │
-              └───────────────────┬───────────────────┘
-                                   ▼
-                      Resistance profile probabilities (this vignette's scope ends here;
-                      downstream burden calculation -- RR assignment, YLL/YLD -- not yet covered)
+              ▼
+      fit_bayesian_multivariate_probit()
+              │  (facility event-level AST + covariates)
+              ▼
+      compute_event_profile_probabilities()
+              │  (posterior draws -> profile probs)
+              ▼
+      aggregate_profiles_for_daly()
+              │  (+ validate_*_calibration(), mask_and_validate_ast())
+              ▼
+      Resistance profile probabilities (this vignette's scope ends here;
+      downstream burden calculation -- RR assignment, YLL/YLD -- not yet covered)
 
 ------------------------------------------------------------------------
 
@@ -780,7 +328,7 @@ two separate verdicts, not one combined score.
 
 ``` r
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
 #> Running under: Ubuntu 26.04.1 LTS
 #> 
@@ -801,19 +349,16 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9037
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9039
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] Matrix_1.7-5      jsonlite_2.0.0    compiler_4.6.1    tidyselect_1.2.1 
-#>  [5] Rcpp_1.1.2        tidyr_1.3.2       jquerylib_0.1.4   systemfonts_1.3.2
-#>  [9] textshaping_1.0.5 yaml_2.3.12       fastmap_1.2.0     lattice_0.22-9   
-#> [13] R6_2.6.1          generics_0.1.4    knitr_1.52        tibble_3.3.1     
-#> [17] desc_1.4.3        osqp_1.0.0        bslib_0.12.0      pillar_1.11.1    
-#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      xfun_0.62        
-#> [25] quadprog_1.5-8    fs_2.1.0          sass_0.4.10       S7_0.2.2         
-#> [29] otel_0.2.0        cli_3.6.6         withr_3.0.3       pkgdown_2.2.1    
-#> [33] magrittr_2.0.5    digest_0.6.39     grid_4.6.1        lifecycle_1.0.5  
-#> [37] vctrs_0.7.3       evaluate_1.0.5    glue_1.8.1        ragg_1.5.2       
-#> [41] purrr_1.2.2       rmarkdown_2.32    tools_4.6.1       pkgconfig_2.0.3  
-#> [45] htmltools_0.5.9
+#>  [1] vctrs_0.7.3       cli_3.6.6         knitr_1.52        rlang_1.3.0      
+#>  [5] xfun_0.62         otel_0.2.0        generics_0.1.4    textshaping_1.0.5
+#>  [9] jsonlite_2.0.0    glue_1.8.1        htmltools_0.5.9   ragg_1.5.2       
+#> [13] sass_0.4.10       rmarkdown_2.32    tibble_3.3.1      evaluate_1.0.5   
+#> [17] jquerylib_0.1.4   fastmap_1.2.0     yaml_2.3.12       lifecycle_1.0.5  
+#> [21] compiler_4.6.2    fs_2.1.0          pkgconfig_2.0.3   systemfonts_1.3.2
+#> [25] digest_0.6.39     R6_2.6.1          tidyselect_1.2.1  pillar_1.11.1    
+#> [29] magrittr_2.0.5    bslib_0.12.0      tools_4.6.2       pkgdown_2.2.1    
+#> [33] cachem_1.1.0      desc_1.4.3
 ```

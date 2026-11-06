@@ -39,7 +39,7 @@ The CI reported for each profile is that of its dominant (max-RR) class."><meta 
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9037</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -136,7 +136,7 @@ Default <code>1</code> (no attributable effect).</p></dd>
 
 <dt id="arg-los-r-col">los_r_col<a class="anchor" aria-label="anchor" href="#arg-los-r-col"></a></dt>
 <dd><p>Character or <code>NULL</code>. Column in <code>rr_table</code> with
-absolute mean LOS for resistant patients (e.g. <code>"mean_LOS_R"</code>).
+absolute LOS for resistant patients (e.g. <code>"median_LOS_R"</code>).
 When supplied together with <code>los_s_col</code>, <code>LOSR_years</code> /
 <code>LOSS_years</code> are added to the output. Default <code>NULL</code> (no
 absolute LOS propagated; behaviour identical to before this parameter
@@ -145,7 +145,7 @@ existed).</p></dd>
 
 <dt id="arg-los-s-col">los_s_col<a class="anchor" aria-label="anchor" href="#arg-los-s-col"></a></dt>
 <dd><p>Character or <code>NULL</code>. Column in <code>rr_table</code> with
-absolute mean LOS for susceptible patients (e.g. <code>"mean_LOS_S"</code>).
+absolute LOS for susceptible patients (e.g. <code>"median_LOS_S"</code>).
 Required when <code>los_r_col</code> is supplied.</p></dd>
 
 
@@ -171,15 +171,27 @@ values are syndrome-specific but get applied here to all profiles of a
 pathogen – i.e. it assumes syndrome-invariant LOS prolongation. Refit
 with <code>syndrome_name = NULL</code> for a RR pooled across syndromes.</p>
 <p>Optionally, when <code>los_r_col</code> and <code>los_s_col</code> are supplied, also
-propagates the <strong>absolute</strong> mean LOS for the profile's dominant class
+propagates the <strong>absolute</strong> LOS for the profile's dominant class
 (resistant and susceptible) as <code>LOSR_years</code> / <code>LOSS_years</code>. This
 does not change the RR assignment above; it is an additive lookup against
 the dominant class already selected by the max rule, using whichever
-absolute-LOS columns are present in <code>rr_table</code> (e.g. <code>mean_LOS_R</code>
-/ <code>mean_LOS_S</code> from <code><a href="daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code>, or
+absolute-LOS columns are present in <code>rr_table</code> (e.g. the fitted
+medians <code>median_LOS_R</code> / <code>median_LOS_S</code> from
+<code><a href="daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code>, or the sample means
 <code>mean_los_resistant</code> / <code>mean_los_susceptible</code> from
 <code><a href="daly_fit_los_rr.html">daly_fit_los_rr()</a></code>). <code>LOSR_years</code>/<code>LOSS_years</code> are set to
 <code>NA</code> for the all-susceptible profile, which has no dominant class.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="two-options-for-profile-level-los">Two options for profile-level LOS<a class="anchor" aria-label="anchor" href="#two-options-for-profile-level-los"></a></h2>
+
+
+<p>Used together with <code><a href="daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code>, this
+function is <strong>option 2</strong>: per-class LOS estimates mapped to profiles
+by the max rule. <strong>Option 1</strong> is
+<code><a href="daly_fit_los_distn_by_profile.html">daly_fit_los_distn_by_profile()</a></code> (Section 5.3), which estimates LOS
+directly for each patient-level resistance profile against the fully
+susceptible profile.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

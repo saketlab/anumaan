@@ -1,7 +1,15 @@
 # Compute Hospital-Level DALY Breakdown
 
 Distributes pooled YLL/YLD totals to individual hospitals proportionally
-by deaths and discharges, and computes per-1 000 rates.
+by deaths and discharges, and computes per-1 000 rates. Relocated here
+from `prep_daly_plots.R` on 2026-10-27 (pure DALY arithmetic, not
+preprocessing); kept alongside
+[`daly_calc_yll_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.md)
+/
+[`daly_calc_yll_associated()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.md)
+since the `yll_*` totals it takes are their output, though it combines
+them with the `yld_*` totals (produced in `daly_yld.R`) into
+hospital-level DALY.
 
 ## Usage
 

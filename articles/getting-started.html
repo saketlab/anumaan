@@ -58,7 +58,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9037</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -108,7 +108,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Getting Started with anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-10-20</h4>
+            <h4 data-toc-skip class="date">2026-11-06</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -204,34 +204,30 @@ Estimation</a></p>
 resistance-profile probability distributions and GBD-style burden
 estimates. It covers:</p>
 <ul>
-<li>Resistance profile estimation via convex optimisation (Pathway 1) —
-works from either facility line-list data or pre-computed aggregate
-marginals (GBD ST-GPR, GLASS, national surveillance networks)</li>
-<li>Marginal and pairwise co-resistance computation with Pearson
-back-calculation</li>
-<li>Profile probability estimation solving a simplex-constrained QP</li>
-<li>Bootstrap uncertainty intervals for profile probabilities</li>
+<li>Resistance profile estimation via a Bayesian multivariate probit
+model fit directly to facility event-level AST data</li>
+<li>Observed-vs-model calibration checks (marginal, pairwise,
+complete-profile) and masked-AST holdout validation</li>
 <li>Years of Life Lost (YLL) — associated and attributable</li>
 <li>Years Lived with Disability (YLD) — associated and attributable</li>
 <li>Total DALY burden per pathogen, hospital, and organism group</li>
 </ul>
 <p>All estimation functions start with <code>daly_</code>.
-Profile-specific functions are <code>compute_*</code>,
-<code>estimate_*</code>, <code>enumerate_*</code>, <code>build_*</code>,
-<code>validate_*</code>, <code>check_*</code>, and
-<code>bootstrap_*</code>.</p>
+Profile-specific functions are
+<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code>,
+<code><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>,
+<code><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code>, and
+<code>validate_*_calibration()</code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># From aggregate marginals (GBD / GLASS / national surveillance)</span></span>
-<span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_profiles_convex.html">estimate_profiles_convex</a></span><span class="op">(</span></span>
-<span>  marginals <span class="op">=</span> <span class="va">your_marginals_table</span>,</span>
-<span>  panel_map <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    <span class="st">"Klebsiella pneumoniae"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit</a></span><span class="op">(</span></span>
+<span>  event_class_data <span class="op">=</span> <span class="va">event_level_ast</span>,</span>
+<span>  class_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>,</span>
+<span>  fixed_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span><span class="op">)</span>,</span>
+<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"center_name"</span><span class="op">)</span>,</span>
+<span>  pathogen <span class="op">=</span> <span class="st">"Klebsiella pneumoniae"</span></span>
 <span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Assign LOS relative risk and compute fatal resistance prevalence</span></span>
-<span><span class="va">profiles_rr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles</a></span><span class="op">(</span><span class="va">profiles</span>, <span class="va">rr_table</span><span class="op">)</span></span>
-<span><span class="va">R_k</span>         <span class="op">&lt;-</span> <span class="fu"><a href="../reference/daly_calc_resistance_prevalence_fatal.html">daly_calc_resistance_prevalence_fatal</a></span><span class="op">(</span><span class="va">profiles_rr</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">agg</span>      <span class="op">&lt;-</span> <span class="fu"><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly</a></span><span class="op">(</span><span class="va">profiles</span>, hospital_col <span class="op">=</span> <span class="st">"center_name"</span><span class="op">)</span></span></code></pre></div>
 <p>See the full walkthrough in the <a href="daly-pipeline.html">DALY
 Burden Estimation vignette</a>.</p>
 <div class="section level3">
@@ -300,38 +296,47 @@ profiles, and downstream DALY quantities remain unchanged.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Convex QP solver (recommended)</td>
+<td>Bayesian multivariate probit fitting
+(<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code>)</td>
 <td>
-<code>osqp</code>, <code>Matrix</code>
+<code>cmdstanr</code>, <code>posterior</code>
 </td>
 </tr>
 <tr class="even">
-<td>Convex QP solver (fallback)</td>
-<td><code>quadprog</code></td>
+<td>Joint Bernoulli resistance-profile fitting
+(<code><a href="../reference/profile_fit_joint_bernoulli.html">profile_fit_joint_bernoulli()</a></code>)</td>
+<td>
+<code>cmdstanr</code>, <code>posterior</code>
+</td>
 </tr>
 <tr class="odd">
+<td>Sampler diagnostic plots (<code><a href="../reference/profile_check_sampler.html">profile_check_sampler()</a></code> and
+others)</td>
+<td><code>bayesplot</code></td>
+</tr>
+<tr class="even">
 <td>Mixed-effects LOS modelling</td>
 <td>
 <code>lme4</code>, <code>glmmTMB</code>
 </td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Spatial analysis</td>
 <td>
 <code>sf</code>, <code>spdep</code>, <code>leaflet</code>
 </td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Python ICD-10 embedding</td>
 <td>
 <code>reticulate</code> + <code>alethia</code>
 </td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>pkgdown site build</td>
 <td><code>pkgdown</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Enhanced EDA theme</td>
 <td>
 <code>ggpubr</code> (plots fall back to
@@ -412,8 +417,8 @@ page</a>.</p>
 <span><span class="co"># Common entry points</span></span>
 <span><span class="op">?</span><span class="va">run_preprocess</span></span>
 <span><span class="op">?</span><span class="va">amr_config</span></span>
-<span><span class="op">?</span><span class="va">estimate_profiles_convex</span></span>
-<span><span class="op">?</span><span class="va">compute_resistance_profiles</span></span></code></pre></div>
+<span><span class="op">?</span><span class="va">fit_bayesian_multivariate_probit</span></span>
+<span><span class="op">?</span><span class="va">aggregate_profiles_for_daly</span></span></code></pre></div>
 <p>Report bugs at <a href="https://github.com/saketlab/anumaan/issues" class="external-link uri">https://github.com/saketlab/anumaan/issues</a>.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -53,17 +53,17 @@ daly_assign_rr_to_profiles(
 
 - los_r_col:
 
-  Character or `NULL`. Column in `rr_table` with absolute mean LOS for
-  resistant patients (e.g. `"mean_LOS_R"`). When supplied together with
-  `los_s_col`, `LOSR_years` / `LOSS_years` are added to the output.
+  Character or `NULL`. Column in `rr_table` with absolute LOS for
+  resistant patients (e.g. `"median_LOS_R"`). When supplied together
+  with `los_s_col`, `LOSR_years` / `LOSS_years` are added to the output.
   Default `NULL` (no absolute LOS propagated; behaviour identical to
   before this parameter existed).
 
 - los_s_col:
 
-  Character or `NULL`. Column in `rr_table` with absolute mean LOS for
-  susceptible patients (e.g. `"mean_LOS_S"`). Required when `los_r_col`
-  is supplied.
+  Character or `NULL`. Column in `rr_table` with absolute LOS for
+  susceptible patients (e.g. `"median_LOS_S"`). Required when
+  `los_r_col` is supplied.
 
 - los_unit:
 
@@ -88,14 +88,24 @@ i.e. it assumes syndrome-invariant LOS prolongation. Refit with
 `syndrome_name = NULL` for a RR pooled across syndromes.
 
 Optionally, when `los_r_col` and `los_s_col` are supplied, also
-propagates the **absolute** mean LOS for the profile's dominant class
+propagates the **absolute** LOS for the profile's dominant class
 (resistant and susceptible) as `LOSR_years` / `LOSS_years`. This does
 not change the RR assignment above; it is an additive lookup against the
 dominant class already selected by the max rule, using whichever
-absolute-LOS columns are present in `rr_table` (e.g. `mean_LOS_R` /
-`mean_LOS_S` from
+absolute-LOS columns are present in `rr_table` (e.g. the fitted medians
+`median_LOS_R` / `median_LOS_S` from
 [`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md),
-or `mean_los_resistant` / `mean_los_susceptible` from
+or the sample means `mean_los_resistant` / `mean_los_susceptible` from
 [`daly_fit_los_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.md)).
 `LOSR_years`/`LOSS_years` are set to `NA` for the all-susceptible
 profile, which has no dominant class.
+
+## Two options for profile-level LOS
+
+Used together with
+[`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md),
+this function is **option 2**: per-class LOS estimates mapped to
+profiles by the max rule. **Option 1** is
+[`daly_fit_los_distn_by_profile()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_distn_by_profile.md)
+(Section 5.3), which estimates LOS directly for each patient-level
+resistance profile against the fully susceptible profile.

@@ -31,7 +31,9 @@ get_los_by_resistance(
 - los_data:
 
   Data frame from
-  [`prepare_los_data()`](https://saketlab.github.io/anumaan/reference/prepare_los_data.md).
+  [`daly_compute_patient_los()`](https://saketlab.github.io/anumaan/reference/daly_compute_patient_los.md)
+  (columns `patient_id_col`, `LOS_days`, and `center_col` when `center`
+  is supplied).
 
 - organism:
 

@@ -31,7 +31,7 @@ using a Gamma generalized linear model with log link:"><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9037</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -163,7 +163,9 @@ Default <code>"infection_type"</code>.</p></dd>
 
 
 <dt id="arg-date-culture-col">date_culture_col<a class="anchor" aria-label="anchor" href="#arg-date-culture-col"></a></dt>
-<dd><p>Character. First positive culture date column.</p></dd>
+<dd><p>Character. Unused – retained only for backward API
+compatibility. LOS is computed as final outcome date - admission date and
+does not depend on the culture date.</p></dd>
 
 
 <dt id="arg-final-outcome-col">final_outcome_col<a class="anchor" aria-label="anchor" href="#arg-final-outcome-col"></a></dt>

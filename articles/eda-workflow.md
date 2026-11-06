@@ -443,7 +443,7 @@ is for Pipeline 1. A typical review pass:
 
 ``` r
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
+#> R version 4.6.2 (2026-10-29)
 #> Platform: x86_64-pc-linux-gnu
 #> Running under: Ubuntu 26.04.1 LTS
 #> 
@@ -464,17 +464,17 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9037
+#> [1] dplyr_1.2.1        anumaan_0.1.0.9039
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] janeaustenr_1.0.0  tidyr_1.3.2        sass_0.4.10        generics_0.1.4    
-#>  [5] rstatix_1.1.0      stringi_1.8.9      lattice_0.22-9     digest_0.6.39     
-#>  [9] magrittr_2.0.5     evaluate_1.0.5     grid_4.6.1         RColorBrewer_1.1-3
-#> [13] fastmap_1.2.0      jsonlite_2.0.0     Matrix_1.7-5       tidytext_0.4.3    
+#>  [5] rstatix_1.1.0      stringi_1.8.9      lattice_0.23-1     digest_0.6.39     
+#>  [9] magrittr_2.0.5     evaluate_1.0.5     grid_4.6.2         RColorBrewer_1.1-3
+#> [13] fastmap_1.2.0      jsonlite_2.0.0     Matrix_1.7-6       tidytext_0.4.3    
 #> [17] backports_1.5.1    Formula_1.2-6      purrr_1.2.2        scales_1.4.0      
 #> [21] textshaping_1.0.5  jquerylib_0.1.4    abind_1.4-8        cli_3.6.6         
 #> [25] rlang_1.3.0        tokenizers_0.3.0   withr_3.0.3        cachem_1.1.0      
-#> [29] yaml_2.3.12        otel_0.2.0         tools_4.6.1        ggsignif_0.6.4    
+#> [29] yaml_2.3.12        otel_0.2.0         tools_4.6.2        ggsignif_0.6.4    
 #> [33] ggplot2_4.0.3      ggpubr_1.0.0       broom_1.0.13       vctrs_0.7.3       
 #> [37] R6_2.6.1           ggridges_0.5.7     lifecycle_1.0.5    car_3.1-5         
 #> [41] fs_2.1.0           ragg_1.5.2         pkgconfig_2.0.3    desc_1.4.3        
@@ -482,5 +482,5 @@ sessionInfo()
 #> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.62         
 #> [53] tibble_3.3.1       tidyselect_1.2.1   knitr_1.52         farver_2.1.2      
 #> [57] htmltools_0.5.9    SnowballC_0.7.1    labeling_0.4.3     carData_3.0-6     
-#> [61] rmarkdown_2.32     compiler_4.6.1     S7_0.2.2
+#> [61] rmarkdown_2.32     compiler_4.6.2     S7_0.2.2
 ```

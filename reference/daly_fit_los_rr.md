@@ -91,7 +91,9 @@ daly_fit_los_rr(
 
 - date_culture_col:
 
-  Character. First positive culture date column.
+  Character. Unused – retained only for backward API compatibility. LOS
+  is computed as final outcome date - admission date and does not depend
+  on the culture date.
 
 - final_outcome_col:
 

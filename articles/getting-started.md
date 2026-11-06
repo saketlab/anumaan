@@ -99,33 +99,31 @@ The DALY pipeline takes analysis-ready preprocessed data and produces
 resistance-profile probability distributions and GBD-style burden
 estimates. It covers:
 
-- Resistance profile estimation via convex optimisation (Pathway 1) —
-  works from either facility line-list data or pre-computed aggregate
-  marginals (GBD ST-GPR, GLASS, national surveillance networks)
-- Marginal and pairwise co-resistance computation with Pearson
-  back-calculation
-- Profile probability estimation solving a simplex-constrained QP
-- Bootstrap uncertainty intervals for profile probabilities
+- Resistance profile estimation via a Bayesian multivariate probit model
+  fit directly to facility event-level AST data
+- Observed-vs-model calibration checks (marginal, pairwise,
+  complete-profile) and masked-AST holdout validation
 - Years of Life Lost (YLL) — associated and attributable
 - Years Lived with Disability (YLD) — associated and attributable
 - Total DALY burden per pathogen, hospital, and organism group
 
 All estimation functions start with `daly_`. Profile-specific functions
-are `compute_*`, `estimate_*`, `enumerate_*`, `build_*`, `validate_*`,
-`check_*`, and `bootstrap_*`.
+are
+[`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md),
+[`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md),
+[`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md),
+and `validate_*_calibration()`.
 
 ``` r
-# From aggregate marginals (GBD / GLASS / national surveillance)
-profiles <- estimate_profiles_convex(
-  marginals = your_marginals_table,
-  panel_map = list(
-    "Klebsiella pneumoniae" = c("Carbapenems", "3GC", "Fluoroquinolones")
-  )
+fit <- fit_bayesian_multivariate_probit(
+  event_class_data = event_level_ast,
+  class_cols = c("Carbapenems", "3GC", "Fluoroquinolones"),
+  fixed_effects = c("Age_normalised", "gender"),
+  random_effects = c("center_name"),
+  pathogen = "Klebsiella pneumoniae"
 )
-
-# Assign LOS relative risk and compute fatal resistance prevalence
-profiles_rr <- daly_assign_rr_to_profiles(profiles, rr_table)
-R_k         <- daly_calc_resistance_prevalence_fatal(profiles_rr)
+profiles <- compute_event_profile_probabilities(fit)
+agg      <- aggregate_profiles_for_daly(profiles, hospital_col = "center_name")
 ```
 
 See the full walkthrough in the [DALY Burden Estimation
@@ -192,8 +190,9 @@ remotes::install_github("saketlab/anumaan", build_vignettes = TRUE)
 
 | Feature | Packages |
 |----|----|
-| Convex QP solver (recommended) | `osqp`, `Matrix` |
-| Convex QP solver (fallback) | `quadprog` |
+| Bayesian multivariate probit fitting ([`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)) | `cmdstanr`, `posterior` |
+| Joint Bernoulli resistance-profile fitting ([`profile_fit_joint_bernoulli()`](https://saketlab.github.io/anumaan/reference/profile_fit_joint_bernoulli.md)) | `cmdstanr`, `posterior` |
+| Sampler diagnostic plots ([`profile_check_sampler()`](https://saketlab.github.io/anumaan/reference/profile_check_sampler.md) and others) | `bayesplot` |
 | Mixed-effects LOS modelling | `lme4`, `glmmTMB` |
 | Spatial analysis | `sf`, `spdep`, `leaflet` |
 | Python ICD-10 embedding | `reticulate` + `alethia` |
@@ -241,8 +240,8 @@ help(package = "anumaan")
 # Common entry points
 ?run_preprocess
 ?amr_config
-?estimate_profiles_convex
-?compute_resistance_profiles
+?fit_bayesian_multivariate_probit
+?aggregate_profiles_for_daly
 ```
 
 Report bugs at <https://github.com/saketlab/anumaan/issues>.
