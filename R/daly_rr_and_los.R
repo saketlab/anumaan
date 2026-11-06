@@ -1,24 +1,33 @@
 # daly_rr_and_los.R
 # LOS relative risk, mortality OR, and resistance-profile fitting functions
 
-.compute_mean_from_fit <- function(fit, dist) {
+# Theoretical median of a fitted LOS distribution.
+#   Weibull (shape k, scale lambda):   lambda * log(2)^(1/k)
+#   Log-normal (meanlog mu, sdlog s):  exp(mu)
+#   Gamma (shape a, rate b):           no closed form -> qgamma(0.5, a, b)
+# Returns NA for unsupported distributions, invalid parameters, or errors.
+.compute_median_from_fit <- function(fit, dist) {
   tryCatch(
     {
-      if (dist == "weibull") {
-        k <- fit$estimate["shape"]
-        l <- fit$estimate["scale"]
-        l * gamma(1 + 1 / k)
+      med <- if (dist == "weibull") {
+        k <- unname(fit$estimate["shape"])
+        l <- unname(fit$estimate["scale"])
+        if (!is.finite(k) || !is.finite(l) || k <= 0 || l <= 0) NA_real_
+        else l * log(2)^(1 / k)
       } else if (dist == "lnorm") {
-        mu <- fit$estimate["meanlog"]
-        sg <- fit$estimate["sdlog"]
-        exp(mu + sg^2 / 2)
+        mu <- unname(fit$estimate["meanlog"])
+        sg <- unname(fit$estimate["sdlog"])
+        if (!is.finite(mu) || !is.finite(sg) || sg <= 0) NA_real_
+        else exp(mu)
       } else if (dist == "gamma") {
-        a <- fit$estimate["shape"]
-        r <- fit$estimate["rate"]
-        a / r
+        a <- unname(fit$estimate["shape"])
+        r <- unname(fit$estimate["rate"])
+        if (!is.finite(a) || !is.finite(r) || a <= 0 || r <= 0) NA_real_
+        else stats::qgamma(0.5, shape = a, rate = r)
       } else {
         NA_real_
       }
+      if (length(med) != 1L || !is.finite(med)) NA_real_ else med
     },
     error = function(e) NA_real_
   )
@@ -27,79 +36,83 @@
 #' @keywords internal
 .safe_fitdist <- function(x, dist) safe_fit(x, dist)
 
+# Fit candidate distributions to one LOS vector, select the lowest AIC, and
+# return the theoretical median of the selected distribution.
+# Non-finite and non-positive LOS values are dropped first. Returns NA
+# median/dist/aic when nothing can be fitted.
+.fit_best_dist_median <- function(los_vec, distributions) {
+  out_na <- list(median = NA_real_, dist = NA_character_, aic = NA_real_)
+  los_vec <- los_vec[is.finite(los_vec) & los_vec > 0]
+  if (length(los_vec) == 0L) {
+    return(out_na)
+  }
+  fits <- Filter(
+    Negate(is.null),
+    stats::setNames(lapply(distributions, .safe_fitdist, x = los_vec), distributions)
+  )
+  if (length(fits) == 0L) {
+    return(out_na)
+  }
+  aics <- vapply(fits, function(f) as.numeric(f$aic), numeric(1))
+  best <- names(which.min(aics))
+  list(
+    median = .compute_median_from_fit(fits[[best]], best),
+    dist = best,
+    aic = unname(aics[[best]])
+  )
+}
+
 
 # Step 1b
-#' Compute Patient-Level Post-Infection LOS
+#' Compute Patient-Level Length of Stay
 #'
-#' Computes LOS with infection-type-specific clock start:
-#' \itemize{
-#'   \item \strong{CAI}: LOS = date_discharge - date_admission
-#'   \item \strong{HAI}: LOS = date_discharge - date_culture
-#'   \item \strong{Unknown / Not known}: LOS = date_discharge - date_culture
-#'     (if culture date present), else date_discharge - date_admission. If
-#'     neither reference date is available the patient is excluded.
-#' }
-#' Only discharged patients are retained. A checkpoint reports how many are
-#' missing a discharge date; those patients fall back to \code{los_col} when
-#' provided, otherwise they are excluded. Rows with LOS <= 0 or
-#' LOS > \code{max_los} are dropped. Returns one row per patient.
+#' Computes hospital length of stay with a single definition for every
+#' patient, regardless of infection type (HAI/CAI) or culture date:
+#' \deqn{LOS = final\ outcome\ (discharge)\ date - admission\ date}
+#' Only patients whose final outcome equals \code{final_outcome_value}
+#' (default \code{"Discharged"}) are retained. LOS is \code{NA} when either
+#' date is missing; such patients are excluded. A checkpoint reports how many
+#' discharged patients are missing a discharge date. Rows with LOS <= 0 or
+#' LOS > \code{max_los} are dropped.
 #'
-#' @param data Data frame with an \code{infection_type_derived_col} column
-#'   already populated (\code{"HAI"} / \code{"CAI"} / other).
+#' @param data Data frame.
 #' @param patient_id_col Character. Default \code{"PatientInformation_id"}.
 #' @param facility_col Character. Default \code{"center_name"}.
-#' @param organism_col Character. Column containing organism/pathogen names.
-#'   Used for episode grouping: a new episode is only created when the culture
-#'   date gap exceeds 14 days AND the organism differs from the episode's first
-#'   organism. Default \code{"organism_name"}.
 #' @param date_admission_col Character. Default \code{"date_of_admission"}.
-#' @param date_discharge_col Character. Default \code{"final_outcome_date"}.
-#' @param date_culture_col Character. Default
-#'   \code{"date_of_first_positive_culture"}.
+#' @param date_discharge_col Character. Final outcome / discharge date column.
+#'   Default \code{"final_outcome_date"}.
 #' @param final_outcome_col Character. Default \code{"final_outcome"}.
 #' @param final_outcome_value Character. Default \code{"Discharged"}.
-#' @param infection_type_derived_col Character. Column holding each patient's
-#'   HAI/CAI classification (e.g. copied from \code{infection_type} by the
-#'   caller). Default \code{"infection_type_derived"}.
 #' @param syndrome_col Character. Syndrome column name. Only used when
 #'   \code{syndrome_name} is not \code{NULL}. Default \code{"syndrome"}.
 #' @param syndrome_name Character or \code{NULL}. If provided, only patients
 #'   with this syndrome are retained before LOS computation. Default \code{NULL}.
-#' @param los_col Character or \code{NULL}. Optional name of a pre-computed
-#'   LOS column (e.g. recorded directly in the data). Used only for patients
-#'   whose discharge date is missing. Values that are \code{NA}, zero, or
-#'   negative are treated as invalid and those patients are excluded.
-#'   Default \code{NULL}.
 #' @param facility_name Character or \code{NULL}. If provided, filters data
 #'   to the specified facility before computing LOS. Default \code{NULL}.
 #' @param max_los Numeric. Upper cap on LOS in days; patients exceeding this
 #'   are excluded. Default \code{200}.
 #'
-#' @return Data frame: one row per patient with \code{patient_id_col},
-#'   \code{facility_col}, \code{infection_type_derived_col}, \code{LOS_days}.
+#' @return Data frame with one row per distinct patient x facility x LOS
+#'   (\code{patient_id_col}, \code{facility_col}, \code{LOS_days}).
 #' @export
 daly_compute_patient_los <- function(
   data,
   patient_id_col = "PatientInformation_id",
   facility_col = "center_name",
   facility_name = NULL,
-  organism_col = "organism_name",
   syndrome_col = "syndrome",
   syndrome_name = NULL,
   date_admission_col = "date_of_admission",
   date_discharge_col = "final_outcome_date",
-  date_culture_col = "date_of_first_positive_culture",
   final_outcome_col = "final_outcome",
   final_outcome_value = "Discharged",
-  infection_type_derived_col = "infection_type_derived",
-  los_col = NULL,
   max_los = 200
 ) {
   # Column validation
   required <- c(
-    patient_id_col, facility_col, organism_col,
-    date_admission_col, date_discharge_col, date_culture_col,
-    final_outcome_col, infection_type_derived_col
+    patient_id_col, facility_col,
+    date_admission_col, date_discharge_col,
+    final_outcome_col
   )
   if (!is.null(syndrome_name)) required <- c(required, syndrome_col)
   missing <- setdiff(required, names(data))
@@ -108,10 +121,6 @@ daly_compute_patient_los <- function(
       "Column(s) not found in data: %s",
       paste(missing, collapse = ", ")
     ))
-  }
-
-  if (!is.null(los_col) && !los_col %in% names(data)) {
-    stop(sprintf("los_col '%s' not found in data.", los_col))
   }
 
   # Facility filtering
@@ -163,130 +172,29 @@ daly_compute_patient_los <- function(
       "Checkpoint: %d of %d discharged patient(s) are missing a discharge date.",
       n_no_disc, n_total
     ))
-    if (!is.null(los_col)) {
-      message(sprintf(
-        "  -> Will fall back to '%s' column for those patients (values <= 0 or NA will be excluded).",
-        los_col
-      ))
-    } else {
-      message(
-        "  -> No los_col provided; patients with missing discharge date will be excluded."
-      )
-    }
+    message(
+      "  -> Patients with a missing discharge date are excluded (LOS = NA)."
+    )
   }
 
-  # Pre-compute episode-minimum culture dates
-  # A new episode starts only when BOTH conditions are met:
-  #   1. Gap from the current episode's start date > 14 days
-  #   2. Organism differs from the current episode's first organism
-  # If the same organism returns after > 14 days it is treated as the same
-  # infection event; the original (first) culture date is used for LOS.
-  episode_min_cult <- data %>%
-    dplyr::filter(
-      .data[[final_outcome_col]] == final_outcome_value,
-      !is.na(.data[[date_culture_col]])
-    ) %>%
-    dplyr::distinct(
-      !!rlang::sym(patient_id_col),
-      !!rlang::sym(date_culture_col),
-      !!rlang::sym(organism_col)
-    ) %>%
-    dplyr::mutate(.raw_cult = as.Date(.data[[date_culture_col]])) %>%
-    dplyr::arrange(!!rlang::sym(patient_id_col), .raw_cult) %>%
-    dplyr::group_by(!!rlang::sym(patient_id_col)) %>%
-    dplyr::mutate(
-      .ep_id = {
-        n <- dplyr::n()
-        ep <- integer(n)
-        org_vec <- .data[[organism_col]]
-        ep_start <- .raw_cult[1L]
-        ep_org <- org_vec[1L]
-        current_ep <- 0L
-        for (i in seq_len(n)) {
-          if (i > 1L &&
-            as.numeric(.raw_cult[i] - ep_start) > 14L &&
-            !identical(org_vec[i], ep_org)) {
-            current_ep <- current_ep + 1L
-            ep_start <- .raw_cult[i]
-            ep_org <- org_vec[i]
-          }
-          ep[i] <- current_ep
-        }
-        ep
-      }
-    ) %>%
-    dplyr::group_by(!!rlang::sym(patient_id_col), .ep_id) %>%
-    dplyr::mutate(.cult_ep_min = min(.raw_cult)) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(
-      !!rlang::sym(patient_id_col),
-      !!rlang::sym(date_culture_col),
-      !!rlang::sym(organism_col),
-      .cult_ep_min
-    )
-
-  # LOS computation
-  unknown_types_lc <- c("unknown", "not known")
-
+  # LOS computation: one definition for every patient, independent of
+  # infection type (HAI/CAI) and culture date.
+  # LOS = final outcome (discharge) date - admission date; NA if either is missing.
   los_data <- data %>%
     dplyr::filter(.data[[final_outcome_col]] == final_outcome_value) %>%
-    dplyr::left_join(episode_min_cult,
-      by = c(patient_id_col, date_culture_col, organism_col)
-    ) %>%
     dplyr::mutate(
       .adm = as.Date(.data[[date_admission_col]]),
       .disc = as.Date(.data[[date_discharge_col]]),
-      .cult = .cult_ep_min,
-      .inf_lc = tolower(trimws(as.character(.data[[infection_type_derived_col]]))),
-      LOS_days = dplyr::case_when(
-        # Patients WITH a discharge date
-        # HAI: clock starts at culture date
-        !is.na(.disc) & .inf_lc == "hai" ~
-          as.numeric(.disc - .cult),
-        # CAI: clock starts at admission date
-        !is.na(.disc) & .inf_lc == "cai" ~
-          as.numeric(.disc - .adm),
-        # Unknown / Not known: prefer culture date, fall back to admission date
-        !is.na(.disc) & .inf_lc %in% unknown_types_lc & !is.na(.cult) ~
-          as.numeric(.disc - .cult),
-        !is.na(.disc) & .inf_lc %in% unknown_types_lc & is.na(.cult) & !is.na(.adm) ~
-          as.numeric(.disc - .adm),
-        # Unknown / Not known with no reference date: exclude
-        !is.na(.disc) & .inf_lc %in% unknown_types_lc ~
-          NA_real_,
-        # All other infection types with discharge date: fallback to admission
-        !is.na(.disc) ~
-          as.numeric(.disc - .adm),
-        # Patients WITHOUT a discharge date: resolved below
-        TRUE ~ NA_real_
-      )
+      LOS_days = as.numeric(.disc - .adm)
     )
-
-  # For patients missing a discharge date, fall back to los_col if provided.
-  # Values <= 0 or NA in los_col are treated as invalid and excluded.
-  if (!is.null(los_col)) {
-    los_data <- los_data %>%
-      dplyr::mutate(
-        LOS_days = dplyr::if_else(
-          is.na(.disc),
-          dplyr::if_else(
-            !is.na(.data[[los_col]]) & as.numeric(.data[[los_col]]) > 0,
-            as.numeric(.data[[los_col]]),
-            NA_real_
-          ),
-          LOS_days
-        )
-      )
-  }
 
   # Final filtering and deduplication
   los_data <- los_data %>%
-    dplyr::select(-".adm", -".disc", -".cult", -".cult_ep_min", -".inf_lc") %>%
+    dplyr::select(-".adm", -".disc") %>%
     dplyr::filter(!is.na(LOS_days), LOS_days > 0L, LOS_days <= max_los) %>%
     dplyr::distinct(
       !!rlang::sym(patient_id_col),
       !!rlang::sym(facility_col),
-      !!rlang::sym(infection_type_derived_col),
       LOS_days
     )
 
@@ -399,7 +307,9 @@ daly_compute_patient_los <- function(
 #' @param antibiotic_value_col Character. Antibiotic susceptibility column.
 #' @param date_admission_col Character. Admission date column.
 #' @param date_discharge_col Character. Discharge / final outcome date column.
-#' @param date_culture_col Character. First positive culture date column.
+#' @param date_culture_col Character. Unused -- retained only for backward API
+#'   compatibility. LOS is computed as final outcome date - admission date and
+#'   does not depend on the culture date.
 #' @param final_outcome_col Character. Final outcome column.
 #' @param final_outcome_value Character. Value indicating discharged patients.
 #' @param age_col Character. Age column.
@@ -452,7 +362,7 @@ daly_fit_los_rr <- function(
   required_cols <- c(
     patient_id_col, organism_col,
     antibiotic_class_col, antibiotic_name_col, antibiotic_value_col,
-    date_admission_col, date_discharge_col, date_culture_col,
+    date_admission_col, date_discharge_col,
     final_outcome_col
   )
 
@@ -495,21 +405,18 @@ daly_fit_los_rr <- function(
   data$infection_type_derived <- data[[infection_type_col]]
 
   # Step 2: compute patient-level LOS
-  # HAI: LOS = discharge date - first positive culture date
-  # CAI: LOS = discharge date - admission date
+  # LOS = final outcome (discharge) date - admission date, for all infection
+  # types. HAI is still used below as a covariate in the LOS model.
   los_df <- daly_compute_patient_los(
     data = data,
     patient_id_col = patient_id_col,
     facility_col = facility_col,
-    organism_col = organism_col,
     syndrome_col = syndrome_col,
     syndrome_name = syndrome_name,
     date_admission_col = date_admission_col,
     date_discharge_col = date_discharge_col,
-    date_culture_col = date_culture_col,
     final_outcome_col = final_outcome_col,
     final_outcome_value = final_outcome_value,
-    infection_type_derived_col = "infection_type_derived",
     max_los = max_los
   )
 
@@ -597,7 +504,7 @@ daly_fit_los_rr <- function(
   model_base <- los_df |>
     dplyr::inner_join(
       patient_covars,
-      by = c(patient_id_col, facility_col, "infection_type_derived")
+      by = c(patient_id_col, facility_col)
     ) |>
     dplyr::inner_join(resistance_wide, by = patient_id_col)
 
@@ -775,9 +682,16 @@ daly_fit_los_rr <- function(
 #' Estimate Per-Class LOS Relative Risk via Parametric Distribution Fitting
 #'
 #' For each pathogen x antibiotic class, splits patients into resistant (R) and
-#' susceptible (S) groups, fits a parametric distribution (default: gamma) to
-#' each group's LOS, and returns:
-#'   RR_LOS = mean_LOS(R) / mean_LOS(S)
+#' susceptible (S) groups, fits the candidate parametric distribution(s)
+#' (default: gamma) to each group's LOS, selects the best fit by AIC, and takes
+#' the \strong{theoretical median} of the selected distribution:
+#'   RR_LOS = median_LOS(R) / median_LOS(S)
+#'
+#' Theoretical medians: Weibull (shape k, scale lambda)
+#' \eqn{\lambda (\ln 2)^{1/k}}; log-normal (meanlog mu) \eqn{e^{\mu}};
+#' gamma (shape alpha, rate beta) \code{qgamma(0.5, alpha, beta)} (no closed
+#' form). A class is skipped when either group has fewer than \code{min_n}
+#' patients or its distribution fit fails.
 #'
 #' This is an alternative to \code{daly_fit_los_rr()} that avoids regression
 #' and models the full LOS distribution per group. The output flat data frame
@@ -799,7 +713,9 @@ daly_fit_los_rr <- function(
 #' @param antibiotic_value_col Character. Antibiotic value column (S/I/R).
 #' @param date_admission_col Character. Date of admission column.
 #' @param date_discharge_col Character. Date of discharge column.
-#' @param date_culture_col Character. Date of culture column.
+#' @param date_culture_col Character. Unused -- retained only for backward API
+#'   compatibility. LOS is computed as final outcome date - admission date and
+#'   does not depend on the culture date.
 #' @param final_outcome_col Character. Final outcome column.
 #' @param final_outcome_value Character. Value indicating discharge.
 #' @param syndrome_name Character or \code{NULL}. Restrict to this syndrome.
@@ -820,9 +736,11 @@ daly_fit_los_rr <- function(
 #'   \describe{
 #'     \item{pathogen}{Pathogen name.}
 #'     \item{antibiotic_class}{Antibiotic class name.}
-#'     \item{RR_LOS}{Fitted mean ratio: mean_LOS(R) / mean_LOS(S).}
-#'     \item{mean_LOS_R}{Fitted mean LOS for resistant patients.}
-#'     \item{mean_LOS_S}{Fitted mean LOS for susceptible patients.}
+#'     \item{RR_LOS}{Ratio of fitted medians: median_LOS(R) / median_LOS(S).}
+#'     \item{median_LOS_R}{Fitted median LOS (days) for resistant patients.}
+#'     \item{median_LOS_S}{Fitted median LOS (days) for susceptible patients.}
+#'     \item{median_LOS_R_years, median_LOS_S_years}{The same medians in years
+#'       (days / 365).}
 #'     \item{best_dist_R}{Distribution fitted to the R group.}
 #'     \item{best_dist_S}{Distribution fitted to the S group.}
 #'     \item{n_R}{Number of resistant patients.}
@@ -830,7 +748,19 @@ daly_fit_los_rr <- function(
 #'     \item{syndrome_scope}{Syndrome filter applied, or "all".}
 #'   }
 #'
-#' @seealso \code{\link{daly_fit_los_rr}}, \code{daly_assign_rr_to_profiles}
+#' @section Two options for profile-level LOS:
+#' This function is \strong{option 2} (per-class with max rule): its output is
+#' passed to \code{\link{daly_assign_rr_to_profiles}()} (with
+#' \code{los_r_col = "median_LOS_R"}, \code{los_s_col = "median_LOS_S"}), which
+#' gives each resistance profile the estimate of its dominant resistant class.
+#' The S group is "susceptible to that class", not fully susceptible.
+#' \strong{Option 1} is \code{\link{daly_fit_los_distn_by_profile}()}, which follows
+#' Section 5.3 directly by fitting LOS per patient-level resistance profile
+#' against the fully susceptible profile; use it when patient-level profiles
+#' are available and adequately populated.
+#'
+#' @seealso \code{\link{daly_fit_los_rr}}, \code{\link{daly_assign_rr_to_profiles}},
+#'   \code{\link{daly_fit_los_distn_by_profile}} (option 1)
 #' @export
 daly_fit_los_rr_distribution <- function(
   data,
@@ -864,7 +794,7 @@ daly_fit_los_rr_distribution <- function(
     infection_type_col, antibiotic_class_col,
     antibiotic_name_col, antibiotic_value_col,
     date_admission_col, date_discharge_col,
-    date_culture_col, final_outcome_col
+    final_outcome_col
   )
   if (!is.null(syndrome_name)) required <- c(required, syndrome_col)
   missing_cols <- setdiff(required, names(data))
@@ -906,8 +836,13 @@ daly_fit_los_rr_distribution <- function(
     sort(unique(df[[organism_col]]))
   }
 
-  # Inner helper: fit distribution(s) and return analytical mean
-  .fit_dist_mean <- function(los_vec) {
+  # Inner helper: fit candidate distribution(s), select the best by AIC, and
+  # return the theoretical median of the selected distribution
+  .fit_dist_median <- function(los_vec) {
+    los_vec <- los_vec[is.finite(los_vec) & los_vec > 0]
+    if (length(los_vec) == 0L) {
+      return(list(median = NA_real_, dist = NA_character_))
+    }
     fits <- Filter(
       Negate(is.null),
       setNames(
@@ -916,11 +851,11 @@ daly_fit_los_rr_distribution <- function(
       )
     )
     if (length(fits) == 0L) {
-      return(list(mean = NA_real_, dist = NA_character_))
+      return(list(median = NA_real_, dist = NA_character_))
     }
     aics <- sapply(fits, `[[`, "aic")
     best <- names(which.min(aics))
-    list(mean = .compute_mean_from_fit(fits[[best]], best), dist = best)
+    list(median = .compute_median_from_fit(fits[[best]], best), dist = best)
   }
 
   all_rr <- list()
@@ -936,19 +871,17 @@ daly_fit_los_rr_distribution <- function(
       next
     }
 
-    # Patient LOS
+    # Patient LOS (final outcome date - admission date)
     los_pat <- daly_compute_patient_los(
       path_df,
-      patient_id_col             = patient_id_col,
-      facility_col               = facility_col,
-      facility_name              = NULL,
-      date_admission_col         = date_admission_col,
-      date_discharge_col         = date_discharge_col,
-      date_culture_col           = date_culture_col,
-      final_outcome_col          = final_outcome_col,
-      final_outcome_value        = final_outcome_value,
-      infection_type_derived_col = "infection_type_derived",
-      max_los                    = max_los
+      patient_id_col      = patient_id_col,
+      facility_col        = facility_col,
+      facility_name       = NULL,
+      date_admission_col  = date_admission_col,
+      date_discharge_col  = date_discharge_col,
+      final_outcome_col   = final_outcome_col,
+      final_outcome_value = final_outcome_value,
+      max_los             = max_los
     )
     if (nrow(los_pat) == 0L) {
       message(sprintf("'%s': no patients with valid LOS, skipping.", path))
@@ -1004,25 +937,26 @@ daly_fit_los_rr_distribution <- function(
         next
       }
 
-      est_r <- .fit_dist_mean(los_r)
-      est_s <- .fit_dist_mean(los_s)
+      est_r <- .fit_dist_median(los_r)
+      est_s <- .fit_dist_median(los_s)
 
-      if (is.na(est_r$mean) || is.na(est_s$mean) || est_s$mean <= 0) {
+      if (is.na(est_r$median) || is.na(est_s$median) || est_s$median <= 0) {
         message(sprintf(
-          "'%s' | class '%s': distribution fitting failed (mean_R=%s, mean_S=%s), skipping.",
+          "'%s' | class '%s': distribution fitting failed (median_R=%s, median_S=%s), skipping.",
           path, orig_class,
-          if (is.na(est_r$mean)) "NA" else round(est_r$mean, 3L),
-          if (is.na(est_s$mean)) "NA" else round(est_s$mean, 3L)
+          if (is.na(est_r$median)) "NA" else round(est_r$median, 3L),
+          if (is.na(est_s$median)) "NA" else round(est_s$median, 3L)
         ))
         next
       }
 
-      rr_los <- est_r$mean / est_s$mean
+      # Relative LOS = ratio of fitted medians (resistant / susceptible)
+      rr_los <- est_r$median / est_s$median
 
       if (rr_los > 10) {
         message(sprintf(
-          "'%s' | class '%s': extreme RR_LOS = %.2f (mean_R=%.2f / mean_S=%.2f) -- check data.",
-          path, orig_class, rr_los, est_r$mean, est_s$mean
+          "'%s' | class '%s': extreme RR_LOS = %.2f (median_R=%.2f / median_S=%.2f) -- check data.",
+          path, orig_class, rr_los, est_r$median, est_s$median
         ))
       } else if (rr_los < 1) {
         message(sprintf(
@@ -1036,10 +970,10 @@ daly_fit_los_rr_distribution <- function(
         antibiotic_class = orig_class,
         facility_name    = if (!is.null(facility_name)) facility_name else NA_character_,
         RR_LOS           = round(rr_los, 4L),
-        mean_LOS_R       = round(est_r$mean, 3L),
-        mean_LOS_S       = round(est_s$mean, 3L),
-        mean_LOS_R_years = round(est_r$mean / 365, 6L),
-        mean_LOS_S_years = round(est_s$mean / 365, 6L),
+        median_LOS_R       = round(est_r$median, 3L),
+        median_LOS_S       = round(est_s$median, 3L),
+        median_LOS_R_years = round(est_r$median / 365, 6L),
+        median_LOS_S_years = round(est_s$median / 365, 6L),
         best_dist_R      = est_r$dist,
         best_dist_S      = est_s$dist,
         n_R              = n_r,
@@ -1051,7 +985,7 @@ daly_fit_los_rr_distribution <- function(
     }
 
     message(sprintf(
-      "'%s': %d class relative LOS(s) estimated (gamma distribution, syndrome=%s).",
+      "'%s': %d class relative LOS(s) estimated (fitted median LOS, syndrome=%s).",
       path, n_fitted,
       if (!is.null(syndrome_name)) syndrome_name else "all"
     ))
@@ -1062,12 +996,305 @@ daly_fit_los_rr_distribution <- function(
     return(data.frame(
       pathogen = character(), antibiotic_class = character(),
       facility_name = character(), RR_LOS = numeric(),
-      mean_LOS_R = numeric(), mean_LOS_S = numeric(),
+      median_LOS_R = numeric(), median_LOS_S = numeric(),
       stringsAsFactors = FALSE
     ))
   }
 
   return(dplyr::bind_rows(all_rr))
+}
+
+
+# Step 2c
+#' Estimate Profile-Specific Median LOS (Section 5.3)
+#'
+#' For each resistance profile \eqn{\delta} of each pathogen \eqn{k}, fits
+#' parametric distributions (default: Weibull, log-normal, gamma) to the LOS
+#' of the patients with that profile, \eqn{\{LOS_i : \delta_i = \delta\}},
+#' selects the distribution with the lowest AIC, and takes the
+#' \strong{theoretical median} of the selected distribution:
+#' \deqn{LOS_{k\delta} = Median_{f_\delta}(LOS)}
+#' The same procedure applied to the fully susceptible reference profile
+#' \eqn{\delta_S} gives \eqn{LOS_{k\delta_S}}, and
+#' \code{RR_LOS = LOS_{k delta} / LOS_{k delta_S}}.
+#'
+#' \strong{Profiles are not derived here.} Each patient's resistance profile
+#' must be supplied in \code{profile_data} (e.g. the \code{profile_delta}
+#' labels from the \code{profile_*} pipeline). Patients without a profile, or
+#' with conflicting profiles, are excluded and reported in a message.
+#'
+#' LOS is computed by \code{\link{daly_compute_patient_los}()}
+#' (final outcome date - admission date, discharged patients only,
+#' 0 < LOS <= \code{max_los}). Theoretical medians: Weibull
+#' \eqn{\lambda (\ln 2)^{1/k}}; log-normal \eqn{e^{\mu}}; gamma
+#' \code{qgamma(0.5, shape, rate)}.
+#'
+#' @param data Data frame used for LOS (patient, facility, organism, dates,
+#'   final outcome).
+#' @param profile_data Data frame with one profile per patient (or per
+#'   patient x pathogen): columns \code{profile_id_col}, \code{profile_col},
+#'   and optionally \code{profile_pathogen_col}.
+#' @param patient_id_col Character. Patient identifier in \code{data}.
+#' @param facility_col Character. Facility / centre column in \code{data}.
+#' @param organism_col Character. Organism column in \code{data}; used to
+#'   assign pathogens when \code{profile_pathogen_col} is \code{NULL}.
+#' @param syndrome_col Character. Syndrome column (used only with
+#'   \code{syndrome_name}).
+#' @param date_admission_col Character. Admission date column.
+#' @param date_discharge_col Character. Final outcome / discharge date column.
+#' @param final_outcome_col Character. Final outcome column.
+#' @param final_outcome_value Character. Value indicating discharge.
+#' @param profile_id_col Character. ID column in \code{profile_data} matching
+#'   \code{patient_id_col}. Default \code{patient_id_col}.
+#' @param profile_col Character. Profile label column in \code{profile_data}
+#'   (e.g. \code{"RRSS"}). Default \code{"profile_delta"}.
+#' @param profile_pathogen_col Character or \code{NULL}. Pathogen column in
+#'   \code{profile_data}, when profiles are pathogen-specific. If \code{NULL},
+#'   pathogens are taken from \code{organism_col} in \code{data}.
+#' @param ref_profile Character or \code{NULL}. Label of the fully susceptible
+#'   reference profile. If \code{NULL}, the label consisting only of
+#'   \code{"S"} characters (e.g. \code{"SSSS"}) is used per pathogen.
+#' @param syndrome_name Character or \code{NULL}. Restrict to this syndrome.
+#' @param organism_name Character vector or \code{NULL}. Restrict to these
+#'   pathogens.
+#' @param facility_name Character or \code{NULL}. Restrict to this facility.
+#' @param distributions Character vector of candidate distributions.
+#'   Default \code{c("weibull", "lnorm", "gamma")}.
+#' @param max_los Numeric. Maximum LOS in days. Default \code{365}.
+#' @param min_n Integer. Minimum LOS observations required to fit a profile.
+#'   Default \code{10L}.
+#'
+#' @return Data frame with one row per pathogen x profile: \code{pathogen},
+#'   \code{profile_delta}, \code{is_reference}, \code{n_patients}, \code{n_los}
+#'   (LOS observations), \code{median_LOS} (days), \code{median_LOS_years},
+#'   \code{best_dist}, \code{aic}, \code{median_LOS_ref}, \code{RR_LOS},
+#'   \code{status} (\code{"fitted"}, \code{"insufficient_n"},
+#'   \code{"fit_failed"}) and \code{syndrome_scope}. Profiles that cannot be
+#'   fitted are kept with \code{NA} estimates.
+#'
+#' @section Two options for profile-level LOS:
+#' The package offers two ways to obtain LOS for each resistance profile:
+#' \enumerate{
+#'   \item \strong{Profile-specific (this function; Section 5.3).} Fits the
+#'     LOS of the patients who actually have each profile \eqn{\delta} and
+#'     compares it with the fully susceptible profile \eqn{\delta_S}.
+#'     Requires patient-level profiles (e.g. from the \code{profile_*}
+#'     pipeline) and enough patients per profile (\code{min_n}).
+#'   \item \strong{Per-class with max rule.}
+#'     \code{\link{daly_fit_los_rr_distribution}()} fits resistant vs
+#'     susceptible LOS separately for each antibiotic class, then
+#'     \code{\link{daly_assign_rr_to_profiles}()} gives each profile the
+#'     estimate of its dominant (highest-RR) resistant class. Needs no
+#'     patient-level profiles and pools data across profiles, so it is a
+#'     fallback or sensitivity analysis when profiles are sparse; its
+#'     reference group is "susceptible to that class", not fully susceptible.
+#' }
+#' Note: the YLD functions (\code{\link{daly_calc_yld_associated}()},
+#' \code{\link{daly_calc_yld_attributable}()}) currently read the
+#' \code{LOSR_years}/\code{LOSS_years} columns produced by option 2; the output
+#' of this function is not yet joined into that format.
+#'
+#' @seealso \code{\link{daly_fit_los_rr_distribution}} and
+#'   \code{\link{daly_assign_rr_to_profiles}} (option 2)
+#' @export
+daly_fit_los_distn_by_profile <- function(
+  data,
+  profile_data,
+  patient_id_col = "PatientInformation_id",
+  facility_col = "center_name",
+  organism_col = "organism_name",
+  syndrome_col = "syndrome",
+  date_admission_col = "date_of_admission",
+  date_discharge_col = "final_outcome_date",
+  final_outcome_col = "final_outcome",
+  final_outcome_value = "Discharged",
+  profile_id_col = patient_id_col,
+  profile_col = "profile_delta",
+  profile_pathogen_col = NULL,
+  ref_profile = NULL,
+  syndrome_name = NULL,
+  organism_name = NULL,
+  facility_name = NULL,
+  distributions = c("weibull", "lnorm", "gamma"),
+  max_los = 365,
+  min_n = 10L
+) {
+  if (!requireNamespace("fitdistrplus", quietly = TRUE)) {
+    stop("Package 'fitdistrplus' is required: install.packages('fitdistrplus')")
+  }
+
+  # Column validation
+  prof_required <- c(profile_id_col, profile_col, profile_pathogen_col)
+  missing_prof <- setdiff(prof_required, names(profile_data))
+  if (length(missing_prof) > 0L) {
+    stop(sprintf(
+      "Column(s) not found in profile_data: %s",
+      paste(missing_prof, collapse = ", ")
+    ))
+  }
+  if (is.null(profile_pathogen_col) && !organism_col %in% names(data)) {
+    stop(sprintf(
+      "organism_col '%s' not found in data (needed when profile_pathogen_col is NULL).",
+      organism_col
+    ))
+  }
+
+  # Step 1: LOS (final outcome date - admission date)
+  los <- daly_compute_patient_los(
+    data,
+    patient_id_col = patient_id_col,
+    facility_col = facility_col,
+    facility_name = facility_name,
+    syndrome_col = syndrome_col,
+    syndrome_name = syndrome_name,
+    date_admission_col = date_admission_col,
+    date_discharge_col = date_discharge_col,
+    final_outcome_col = final_outcome_col,
+    final_outcome_value = final_outcome_value,
+    max_los = max_los
+  )
+  los <- data.frame(
+    .pid = as.character(los[[patient_id_col]]),
+    LOS_days = los$LOS_days,
+    stringsAsFactors = FALSE
+  )
+
+  # Step 2: supplied profiles, one per patient (x pathogen)
+  prof <- data.frame(
+    .pid = as.character(profile_data[[profile_id_col]]),
+    .path = if (is.null(profile_pathogen_col)) NA_character_ else
+      as.character(profile_data[[profile_pathogen_col]]),
+    .profile = trimws(as.character(profile_data[[profile_col]])),
+    stringsAsFactors = FALSE
+  )
+  prof <- unique(prof[!is.na(prof$.pid) & !is.na(prof$.profile) & prof$.profile != "", ])
+  prof_key <- paste(prof$.pid, prof$.path, sep = "||")
+  conflict <- prof_key %in% prof_key[duplicated(prof_key)]
+  if (any(conflict)) {
+    message(sprintf(
+      "Excluding %d patient(s) with more than one profile in profile_data.",
+      length(unique(prof_key[conflict]))
+    ))
+    prof <- prof[!conflict, ]
+  }
+
+  # Pathogen assignment
+  if (is.null(profile_pathogen_col)) {
+    orgs <- unique(data.frame(
+      .pid = as.character(data[[patient_id_col]]),
+      .org = as.character(data[[organism_col]]),
+      stringsAsFactors = FALSE
+    ))
+    orgs <- orgs[!is.na(orgs$.org) & trimws(orgs$.org) != "", ]
+    prof$.path <- NULL
+    prof <- merge(prof, orgs, by = ".pid")
+    names(prof)[names(prof) == ".org"] <- ".path"
+  }
+
+  n_los_pat <- length(unique(los$.pid))
+  model_data <- merge(los, prof, by = ".pid")
+  n_unmatched <- n_los_pat - length(unique(model_data$.pid))
+  if (n_unmatched > 0L) {
+    message(sprintf(
+      "%d patient(s) with valid LOS have no profile in profile_data and are excluded.",
+      n_unmatched
+    ))
+  }
+  if (nrow(model_data) == 0L) {
+    warning("No patients with both a valid LOS and a supplied profile.")
+    return(data.frame())
+  }
+
+  pathogens <- if (!is.null(organism_name)) {
+    organism_name
+  } else {
+    sort(unique(model_data$.path))
+  }
+
+  results <- list()
+  for (path in pathogens) {
+    pdat <- model_data[.name_key(model_data$.path) == .name_key(path), ]
+    if (nrow(pdat) == 0L) {
+      message(sprintf("'%s': no patients with LOS and profile, skipping.", path))
+      next
+    }
+
+    profiles <- sort(unique(pdat$.profile))
+    ref <- if (!is.null(ref_profile)) {
+      ref_profile
+    } else {
+      cand <- profiles[grepl("^S+$", profiles)]
+      if (length(cand) == 1L) cand else NA_character_
+    }
+    if (is.na(ref) || !ref %in% profiles) {
+      message(sprintf(
+        "'%s': fully susceptible reference profile not found; RR_LOS will be NA.",
+        path
+      ))
+    }
+
+    rows <- lapply(profiles, function(pr) {
+      los_vec <- pdat$LOS_days[pdat$.profile == pr]
+      n_los <- length(los_vec)
+      est <- if (n_los >= min_n) {
+        .fit_best_dist_median(los_vec, distributions)
+      } else {
+        list(median = NA_real_, dist = NA_character_, aic = NA_real_)
+      }
+      status <- if (n_los < min_n) {
+        "insufficient_n"
+      } else if (is.na(est$median)) {
+        "fit_failed"
+      } else {
+        "fitted"
+      }
+      data.frame(
+        pathogen = path,
+        profile_delta = pr,
+        is_reference = identical(pr, ref),
+        n_patients = length(unique(pdat$.pid[pdat$.profile == pr])),
+        n_los = n_los,
+        median_LOS = round(est$median, 3L),
+        median_LOS_years = round(est$median / 365, 6L),
+        best_dist = est$dist,
+        aic = est$aic,
+        status = status,
+        stringsAsFactors = FALSE
+      )
+    })
+    out <- do.call(rbind, rows)
+
+    ref_median <- if (!is.na(ref) && ref %in% out$profile_delta) {
+      out$median_LOS[out$profile_delta == ref]
+    } else {
+      NA_real_
+    }
+    out$median_LOS_ref <- ref_median
+    out$RR_LOS <- if (is.na(ref_median) || ref_median <= 0) {
+      NA_real_
+    } else {
+      round(out$median_LOS / ref_median, 4L)
+    }
+    out$syndrome_scope <- if (!is.null(syndrome_name)) syndrome_name else "all"
+    results[[length(results) + 1L]] <- out
+
+    message(sprintf(
+      "'%s': %d of %d profile(s) fitted (reference '%s').",
+      path, sum(out$status == "fitted"), nrow(out), ref
+    ))
+  }
+
+  if (length(results) == 0L) {
+    warning("No profile-specific LOS could be estimated.")
+    return(data.frame())
+  }
+  out <- do.call(rbind, results)
+  rownames(out) <- NULL
+  out[, c(
+    "pathogen", "profile_delta", "is_reference", "n_patients", "n_los",
+    "median_LOS", "median_LOS_years", "best_dist", "aic",
+    "median_LOS_ref", "RR_LOS", "status", "syndrome_scope"
+  )]
 }
 
 
@@ -2257,53 +2484,6 @@ plot_los_distributions <- function(los_vec, title, bins = 35, fits = NULL) {
 }
 
 
-#' Prepare LOS Dataset
-#'
-#' Calculates length of stay from admission and outcome dates, filters to
-#' discharged patients with valid LOS within a plausible range.
-#'
-#' @param data Data frame with patient-level records.
-#' @param admission_col Character. Column name for admission date.
-#'   Default \code{"date_of_admission"}.
-#' @param outcome_date_col Character. Column name for outcome/discharge date.
-#'   Default \code{"final_outcome_date"}.
-#' @param outcome_col Character. Column name for outcome status.
-#'   Default \code{"final_outcome"}.
-#' @param patient_id_col Character. Column name for patient identifier.
-#'   Default \code{"PatientInformation_id"}.
-#' @param max_los Numeric. Maximum plausible LOS in days. Default 200.
-#'
-#' @return Data frame with one row per patient-admission, including
-#'   \code{LOS_days}.
-#' @export
-prepare_los_data <- function(data,
-                             admission_col = "date_of_admission",
-                             outcome_date_col = "final_outcome_date",
-                             outcome_col = "final_outcome",
-                             patient_id_col = "PatientInformation_id",
-                             max_los = 200) {
-  data %>%
-    dplyr::mutate(
-      .adm_date = as.Date(.data[[admission_col]]),
-      .out_date = as.Date(.data[[outcome_date_col]]),
-      LOS_days  = as.numeric(.out_date - .adm_date)
-    ) %>%
-    dplyr::filter(
-      .data[[outcome_col]] == "Discharged",
-      !is.na(.data$LOS_days),
-      .data$LOS_days > 0,
-      .data$LOS_days <= max_los
-    ) %>%
-    dplyr::distinct(
-      .data[[patient_id_col]],
-      .data$.adm_date,
-      .data$.out_date,
-      .data$LOS_days
-    ) %>%
-    dplyr::select(-".adm_date", -".out_date")
-}
-
-
 #' Extract LOS Vectors by Resistance Status
 #'
 #' For a given organism (and optionally center), computes per-patient resistance
@@ -2313,7 +2493,9 @@ prepare_los_data <- function(data,
 #' @param abx_data Data frame of antibiotic susceptibility results with columns
 #'   for patient ID, organism, antibiotic name, and susceptibility value
 #'   (already cleaned to "R"/"S").
-#' @param los_data Data frame from \code{prepare_los_data()}.
+#' @param los_data Data frame from \code{\link{daly_compute_patient_los}()}
+#'   (columns \code{patient_id_col}, \code{LOS_days}, and \code{center_col}
+#'   when \code{center} is supplied).
 #' @param organism Character. Organism name (lowercase, trimmed) to filter on.
 #' @param center Optional character. Center name to filter on. Default
 #'   \code{NULL} (all centers).
@@ -2515,15 +2697,24 @@ daly_add_rr_mappings <- function(data,
 #' with \code{syndrome_name = NULL} for a RR pooled across syndromes.
 #'
 #' Optionally, when \code{los_r_col} and \code{los_s_col} are supplied, also
-#' propagates the \strong{absolute} mean LOS for the profile's dominant class
+#' propagates the \strong{absolute} LOS for the profile's dominant class
 #' (resistant and susceptible) as \code{LOSR_years} / \code{LOSS_years}. This
 #' does not change the RR assignment above; it is an additive lookup against
 #' the dominant class already selected by the max rule, using whichever
-#' absolute-LOS columns are present in \code{rr_table} (e.g. \code{mean_LOS_R}
-#' / \code{mean_LOS_S} from \code{daly_fit_los_rr_distribution()}, or
+#' absolute-LOS columns are present in \code{rr_table} (e.g. the fitted
+#' medians \code{median_LOS_R} / \code{median_LOS_S} from
+#' \code{daly_fit_los_rr_distribution()}, or the sample means
 #' \code{mean_los_resistant} / \code{mean_los_susceptible} from
 #' \code{daly_fit_los_rr()}). \code{LOSR_years}/\code{LOSS_years} are set to
 #' \code{NA} for the all-susceptible profile, which has no dominant class.
+#'
+#' @section Two options for profile-level LOS:
+#' Used together with \code{\link{daly_fit_los_rr_distribution}()}, this
+#' function is \strong{option 2}: per-class LOS estimates mapped to profiles
+#' by the max rule. \strong{Option 1} is
+#' \code{\link{daly_fit_los_distn_by_profile}()} (Section 5.3), which estimates LOS
+#' directly for each patient-level resistance profile against the fully
+#' susceptible profile.
 #'
 #' @param profiles_output Named list from compute_resistance_profiles().
 #' @param rr_table Data frame from daly_fit_los_rr() or daly_fit_los_rr_distribution().
@@ -2535,13 +2726,13 @@ daly_add_rr_mappings <- function(data,
 #' @param fallback_rr Numeric. RR for resistant classes with no match.
 #'   Default \code{1} (no attributable effect).
 #' @param los_r_col Character or \code{NULL}. Column in \code{rr_table} with
-#'   absolute mean LOS for resistant patients (e.g. \code{"mean_LOS_R"}).
+#'   absolute LOS for resistant patients (e.g. \code{"median_LOS_R"}).
 #'   When supplied together with \code{los_s_col}, \code{LOSR_years} /
 #'   \code{LOSS_years} are added to the output. Default \code{NULL} (no
 #'   absolute LOS propagated; behaviour identical to before this parameter
 #'   existed).
 #' @param los_s_col Character or \code{NULL}. Column in \code{rr_table} with
-#'   absolute mean LOS for susceptible patients (e.g. \code{"mean_LOS_S"}).
+#'   absolute LOS for susceptible patients (e.g. \code{"median_LOS_S"}).
 #'   Required when \code{los_r_col} is supplied.
 #' @param los_unit Character. Unit of \code{los_r_col} / \code{los_s_col} in
 #'   \code{rr_table}: \code{"years"} (used as-is) or \code{"days"} (divided

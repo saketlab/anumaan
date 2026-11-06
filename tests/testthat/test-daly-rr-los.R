@@ -58,26 +58,36 @@ test_that("daly_derive_hai_cai_for_mortality applies the 48 h admission-to-cultu
   expect_equal(out$infection_type_derived, c("CAI", "CAI", "HAI", "HAI"))
 })
 
-test_that("prepare_los_data and get_los_by_resistance split discharged LOS by phenotype", {
+test_that("daly_compute_patient_los and get_los_by_resistance split discharged LOS by phenotype", {
   los <- data.frame(
     PatientInformation_id = c("A", "A", "B", "C"),
+    center_name = "H1",
     date_of_admission = as.Date(c("2024-01-01", "2024-01-01", "2024-01-05", "2024-01-10")),
     final_outcome_date = as.Date(c("2024-01-11", "2024-01-11", "2024-01-08", "2024-12-31")),
     final_outcome = c("Discharged", "Discharged", "Death", "Discharged")
   )
-  prepped <- suppressMessages(prepare_los_data(los))
+  prepped <- suppressMessages(daly_compute_patient_los(los))
   # deduplicated, deaths dropped, LOS above max_los (200) dropped
   expect_equal(prepped$PatientInformation_id, "A")
   expect_equal(prepped$LOS_days, 10)
 
   d <- rr_cohort()
+  abx <- transform(d, organism_clean = organism_name, sus = antibiotic_value)
+  los_d <- suppressMessages(daly_compute_patient_los(d))
   split <- suppressMessages(get_los_by_resistance(
-    transform(d, organism_clean = organism_name, sus = antibiotic_value),
-    suppressMessages(prepare_los_data(d)),
+    abx, los_d,
     organism = "Klebsiella pneumoniae"
   ))
   expect_named(split, c("R", "S"))
   expect_gt(mean(split$R), mean(split$S))
+
+  # centre filter works because daly_compute_patient_los() returns center_name
+  split_h1 <- suppressMessages(get_los_by_resistance(
+    abx, los_d,
+    organism = "Klebsiella pneumoniae", center = "H1"
+  ))
+  expect_named(split_h1, c("R", "S"))
+  expect_lte(length(split_h1$R) + length(split_h1$S), length(split$R) + length(split$S))
 })
 
 test_that("LOS distribution fitting, summary, AIC comparison and plot work together", {

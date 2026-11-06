@@ -16,11 +16,11 @@ utils::globalVariables(c(
   ".",
 
   # Internal temporary columns created in dplyr pipelines
-  ".abg_key", ".abx", ".abx_val", ".adm_date", ".adm_dt", ".chain_seq",
+  ".abg_key", ".abx", ".abx_val", ".adm", ".adm_date", ".adm_dt", ".chain_seq",
   ".cult_ep_min", ".culture_distance", ".culture_key", ".disc", ".dt",
   ".dup_rank", ".ep_id", ".ep_idx", ".ep_start", ".event_keep_culture",
   ".event_keep_date", ".inf_raw", ".is_dup", ".is_icu", ".is_missing",
-  ".lag_abg", ".new_ep", ".org", ".out_date", ".prov_key", ".pt",
+  ".lag_abg", ".new_ep", ".org", ".prov_key", ".pt",
   ".raw_cult", ".spc", ".temp_organism", ".unit_norm", ".val",
 
   # Column names referenced via NSE in dplyr/tidyr pipelines

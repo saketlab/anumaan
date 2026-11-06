@@ -33,14 +33,14 @@ CI_lower / CI_upper.}
 Default \code{1} (no attributable effect).}
 
 \item{los_r_col}{Character or \code{NULL}. Column in \code{rr_table} with
-absolute mean LOS for resistant patients (e.g. \code{"mean_LOS_R"}).
+absolute LOS for resistant patients (e.g. \code{"median_LOS_R"}).
 When supplied together with \code{los_s_col}, \code{LOSR_years} /
 \code{LOSS_years} are added to the output. Default \code{NULL} (no
 absolute LOS propagated; behaviour identical to before this parameter
 existed).}
 
 \item{los_s_col}{Character or \code{NULL}. Column in \code{rr_table} with
-absolute mean LOS for susceptible patients (e.g. \code{"mean_LOS_S"}).
+absolute LOS for susceptible patients (e.g. \code{"median_LOS_S"}).
 Required when \code{los_r_col} is supplied.}
 
 \item{los_unit}{Character. Unit of \code{los_r_col} / \code{los_s_col} in
@@ -70,13 +70,24 @@ pathogen -- i.e. it assumes syndrome-invariant LOS prolongation. Refit
 with \code{syndrome_name = NULL} for a RR pooled across syndromes.
 
 Optionally, when \code{los_r_col} and \code{los_s_col} are supplied, also
-propagates the \strong{absolute} mean LOS for the profile's dominant class
+propagates the \strong{absolute} LOS for the profile's dominant class
 (resistant and susceptible) as \code{LOSR_years} / \code{LOSS_years}. This
 does not change the RR assignment above; it is an additive lookup against
 the dominant class already selected by the max rule, using whichever
-absolute-LOS columns are present in \code{rr_table} (e.g. \code{mean_LOS_R}
-/ \code{mean_LOS_S} from \code{daly_fit_los_rr_distribution()}, or
+absolute-LOS columns are present in \code{rr_table} (e.g. the fitted
+medians \code{median_LOS_R} / \code{median_LOS_S} from
+\code{daly_fit_los_rr_distribution()}, or the sample means
 \code{mean_los_resistant} / \code{mean_los_susceptible} from
 \code{daly_fit_los_rr()}). \code{LOSR_years}/\code{LOSS_years} are set to
 \code{NA} for the all-susceptible profile, which has no dominant class.
 }
+\section{Two options for profile-level LOS}{
+
+Used together with \code{\link{daly_fit_los_rr_distribution}()}, this
+function is \strong{option 2}: per-class LOS estimates mapped to profiles
+by the max rule. \strong{Option 1} is
+\code{\link{daly_fit_los_distn_by_profile}()} (Section 5.3), which estimates LOS
+directly for each patient-level resistance profile against the fully
+susceptible profile.
+}
+

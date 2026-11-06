@@ -38,8 +38,8 @@
     pathogen = c("Test_Pathogen", "Test_Pathogen"),
     antibiotic_class = c("A", "B"),
     RR_LOS = c(2.0, 1.5),
-    mean_LOS_R = c(20, 15), # days
-    mean_LOS_S = c(10, 10), # days
+    median_LOS_R = c(20, 15), # days
+    median_LOS_S = c(10, 10), # days
     stringsAsFactors = FALSE
   )
 }
@@ -62,7 +62,7 @@ test_that("daly_assign_rr_to_profiles() propagates absolute LOSR/LOSS to the dom
 
   out <- daly_assign_rr_to_profiles(
     profiles_output, rr_table,
-    los_r_col = "mean_LOS_R", los_s_col = "mean_LOS_S", los_unit = "days"
+    los_r_col = "median_LOS_R", los_s_col = "median_LOS_S", los_unit = "days"
   )
   df <- out$Test_Pathogen
 
@@ -87,12 +87,12 @@ test_that("daly_assign_rr_to_profiles() propagates absolute LOSR/LOSS to the dom
 test_that("daly_assign_rr_to_profiles() accepts LOS already in years without conversion", {
   profiles_output <- .synthetic_profiles_output()
   rr_table <- .synthetic_rr_table_days()
-  rr_table$mean_LOS_R_years <- rr_table$mean_LOS_R / 365
-  rr_table$mean_LOS_S_years <- rr_table$mean_LOS_S / 365
+  rr_table$median_LOS_R_years <- rr_table$median_LOS_R / 365
+  rr_table$median_LOS_S_years <- rr_table$median_LOS_S / 365
 
   out <- daly_assign_rr_to_profiles(
     profiles_output, rr_table,
-    los_r_col = "mean_LOS_R_years", los_s_col = "mean_LOS_S_years", los_unit = "years"
+    los_r_col = "median_LOS_R_years", los_s_col = "median_LOS_S_years", los_unit = "years"
   )
   df <- out$Test_Pathogen
   expect_equal(df$LOSR_years[df$profile == "SA"], round(20 / 365, 6L))
@@ -102,7 +102,7 @@ test_that("daly_assign_rr_to_profiles() requires los_r_col and los_s_col togethe
   profiles_output <- .synthetic_profiles_output()
   rr_table <- .synthetic_rr_table_days()
   expect_error(
-    daly_assign_rr_to_profiles(profiles_output, rr_table, los_r_col = "mean_LOS_R"),
+    daly_assign_rr_to_profiles(profiles_output, rr_table, los_r_col = "median_LOS_R"),
     "los_r_col and los_s_col must both be supplied"
   )
 })
@@ -112,7 +112,7 @@ test_that("daly_assign_rr_to_profiles() requires los_r_col and los_s_col togethe
   rr_table <- .synthetic_rr_table_days()
   daly_assign_rr_to_profiles(
     profiles_output, rr_table,
-    los_r_col = "mean_LOS_R", los_s_col = "mean_LOS_S", los_unit = "days"
+    los_r_col = "median_LOS_R", los_s_col = "median_LOS_S", los_unit = "days"
   )
 }
 
