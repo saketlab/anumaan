@@ -21,7 +21,9 @@ get_los_by_resistance(
 for patient ID, organism, antibiotic name, and susceptibility value
 (already cleaned to "R"/"S").}
 
-\item{los_data}{Data frame from \code{prepare_los_data()}.}
+\item{los_data}{Data frame from \code{\link{daly_compute_patient_los}()}
+(columns \code{patient_id_col}, \code{LOS_days}, and \code{center_col}
+when \code{center} is supplied).}
 
 \item{organism}{Character. Organism name (lowercase, trimmed) to filter on.}
 
