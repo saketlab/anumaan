@@ -634,6 +634,132 @@ profile_audit_support <- function(data,
 }
 
 
+#' Audit the Observed Frequency of Every Resistance Profile, Per Group
+#'
+#' Complements \code{\link{profile_audit_support}}'s aggregate
+#' \code{complete_panel} count with the full breakdown behind it: for a
+#' \code{D}-class panel, how many of a group's complete-panel events fall
+#' into each of the \code{2^D} specific resistance profiles (e.g.
+#' \code{"RRRR"}, \code{"RRSR"}, ..., \code{"SSSS"}), plus that profile's
+#' own empirical prevalence and Wilson confidence interval.
+#'
+#' This is a pre-fit, data-only tabulation -- it counts observed complete
+#' events, nothing else. It is deliberately a separate function from
+#' \code{\link{profile_plan_precision}} (whose profile-level check is one
+#' conservative worst-case-\eqn{p=0.5} Goodman bound over all \code{2^D}
+#' categories at once, from the total count alone, never the per-profile
+#' split) and from \code{\link{profile_ppc}} (which compares a FITTED
+#' model's posterior-replicated profiles against these same observed
+#' counts, and therefore requires a completed fit). Three distinct
+#' questions, three distinct outputs -- this function answers "how is the
+#' data actually distributed", not "is the total sample large enough in
+#' the worst case" or "does the fitted model reproduce it".
+#'
+#' Every one of the \code{2^D} profiles is reported for every group,
+#' zero-filled when unobserved -- a zero count is not treated as evidence
+#' of a zero probability; the Wilson interval at \code{n_hr = 0} still
+#' returns a valid (nondegenerate) upper bound. No arbitrary per-profile
+#' minimum count is imposed; precision is read directly off the reported
+#' interval width, which can differ enormously between the most and least
+#' common profile at the same hospital even when the aggregate
+#' \code{complete_panel} count is large.
+#'
+#' @inheritParams profile_audit_support
+#' @param conf_level Numeric in (0, 1). Confidence level for the per-profile
+#'   Wilson interval. Default 0.95.
+#'
+#' @return A data frame with one row per group x profile (every group
+#'   crossed with every one of the \code{2^D} profiles enumerated by
+#'   \code{\link{enumerate_binary_profiles}}, in the same class order as
+#'   \code{class_cols}): \code{group}, \code{profile} (e.g. \code{"RRSR"}),
+#'   \code{n_hr} (observed complete-event count for that exact profile),
+#'   \code{n_h} (the group's total complete-panel count -- identical to
+#'   \code{profile_audit_support(...)$profile$complete_panel}, repeated
+#'   per profile row for convenience), \code{prevalence} (\code{n_hr / n_h},
+#'   \code{NA} when \code{n_h = 0}), \code{ci_lower}, \code{ci_upper} (the
+#'   Wilson score interval around \code{prevalence} at \code{conf_level}).
+#' @export
+profile_audit_profile_distribution <- function(data,
+                                                group_col,
+                                                class_cols,
+                                                class_col = NULL,
+                                                value_col = "antibiotic_value",
+                                                resistant_values = c("R", "Resistant", "resistant"),
+                                                susceptible_values = c("S", "Susceptible", "susceptible"),
+                                                intermediate_values = c("I", "Intermediate", "intermediate"),
+                                                intermediate_as_resistant = TRUE,
+                                                event_id_col = NULL,
+                                                conf_level = 0.95,
+                                                unknown_action = c("error", "treat_as_untested"),
+                                                conflict_action = c("error", "drop_conflicts", "resistant_wins", "susceptible_wins", "first")) {
+  unknown_action <- match.arg(unknown_action)
+  conflict_action <- match.arg(conflict_action)
+  piv <- .profile_tested_long_wide(
+    data, group_col, class_cols, class_col, value_col,
+    resistant_values, susceptible_values, intermediate_values, event_id_col,
+    unknown_action = unknown_action, conflict_action = conflict_action,
+    intermediate_as_resistant = intermediate_as_resistant
+  )
+  wide_tested <- piv$wide_tested
+  wide_folded <- piv$wide_folded
+  all_groups <- piv$all_groups
+  result_col <- piv$result_col
+  result_col_folded <- piv$result_col_folded
+
+  # Same completeness definition as profile_audit_support()'s complete_panel:
+  # every class in class_cols has ANY result (R/I/S) at all.
+  class_cols_present <- intersect(vapply(class_cols, result_col, character(1)), names(wide_tested))
+  complete <- if (length(class_cols_present) == length(class_cols)) {
+    rowSums(!is.na(wide_tested[class_cols_present])) == length(class_cols)
+  } else {
+    rep(FALSE, nrow(wide_tested))
+  }
+
+  folded_cols <- vapply(class_cols, result_col_folded, character(1))
+  for (cl in folded_cols) if (!cl %in% names(wide_folded)) wide_folded[[cl]] <- NA_character_
+  profile_label <- rep(NA_character_, nrow(wide_folded))
+  if (any(complete)) {
+    label_mat <- as.matrix(wide_folded[complete, folded_cols, drop = FALSE])
+    profile_label[complete] <- do.call(paste0, as.data.frame(label_mat, stringsAsFactors = FALSE))
+  }
+
+  n_h_by_group <- vapply(all_groups, function(g) sum(complete & wide_tested$.group == g), integer(1))
+  names(n_h_by_group) <- all_groups
+
+  all_profiles <- enumerate_binary_profiles(class_cols)$profile_delta
+  skeleton <- expand.grid(group = all_groups, profile = all_profiles, stringsAsFactors = FALSE)
+
+  observed <- data.frame(
+    group = wide_tested$.group[complete], profile = profile_label[complete],
+    stringsAsFactors = FALSE
+  )
+  obs_counts <- if (nrow(observed) > 0L) {
+    as.data.frame(table(group = observed$group, profile = observed$profile), stringsAsFactors = FALSE)
+  } else {
+    data.frame(group = character(0), profile = character(0), Freq = integer(0))
+  }
+  names(obs_counts)[names(obs_counts) == "Freq"] <- "n_hr"
+
+  out <- merge(skeleton, obs_counts, by = c("group", "profile"), all.x = TRUE)
+  out$n_hr[is.na(out$n_hr)] <- 0L
+  out$n_h <- n_h_by_group[out$group]
+  out$prevalence <- ifelse(out$n_h > 0L, out$n_hr / out$n_h, NA_real_)
+
+  z <- stats::qnorm(1 - (1 - conf_level) / 2)
+  p <- out$prevalence
+  n <- out$n_h
+  denom <- 1 + z^2 / n
+  center <- (p + z^2 / (2 * n)) / denom
+  margin <- z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / denom
+  out$ci_lower <- pmax(0, center - margin)
+  out$ci_upper <- pmin(1, center + margin)
+  out$ci_lower[n == 0L] <- NA_real_
+  out$ci_upper[n == 0L] <- NA_real_
+
+  out[order(out$group, out$profile), c("group", "profile", "n_hr", "n_h", "prevalence", "ci_lower", "ci_upper")]
+}
+
+
 #' Evaluate Precision Against a Set of Named Tiers
 #'
 #' Takes the raw counts from \code{\link{profile_audit_support}} and computes, for

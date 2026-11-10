@@ -42,7 +42,9 @@ Default \code{NULL} (no overlap report).}
 }
 \value{
 Named list: \code{predictions}, \code{summary}, \code{calibration},
-  \code{refit_result}, \code{n_holdout_events}, \code{n_train_events},
+  \code{joint_profile_scores} (see \code{\link{profile_validate_newpatient}}
+  for its exact shape -- identical here), \code{refit_result},
+  \code{n_holdout_events}, \code{n_train_events},
   \code{cutoff_date} (echoed), and \code{patient_overlap} (list:
   \code{n_overlapping_patients}, \code{fraction_of_holdout_patients} --
   both \code{NA} when \code{patient_id} is not supplied).
