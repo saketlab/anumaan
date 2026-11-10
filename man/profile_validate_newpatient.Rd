@@ -10,6 +10,7 @@ profile_validate_newpatient(
   ids,
   patient_id,
   output_dir,
+  strata = NULL,
   holdout_patient_ids = NULL,
   holdout_fraction = 0.1,
   sampler_config = list(),
@@ -27,6 +28,18 @@ for every event.}
 
 \item{output_dir}{Character. Passed to
 \code{\link{profile_fit_joint_bernoulli}} for the training-only refit.}
+
+\item{strata}{Character/integer vector, length \code{nrow(Y)} (same row
+order as \code{patient_id}), or \code{NULL}. When supplied and
+\code{holdout_patient_ids} is \code{NULL}, \code{holdout_fraction} of
+DISTINCT patients is sampled WITHIN EACH STRATUM separately (e.g. one
+value per event giving that event's hospital) rather than pooled
+across the whole cohort -- avoids a hospital-blind draw leaving a
+small hospital with zero (or disproportionately many) held-out
+patients. A patient must have the SAME stratum value across all of
+their events (checked explicitly; errors otherwise, naming the
+patient). Default \code{NULL}: pooled sampling, the original
+behaviour, unchanged.}
 
 \item{holdout_patient_ids}{Character/integer vector or \code{NULL}.
 Explicit patient ids to hold out. Default \code{NULL}: sampled via
@@ -46,6 +59,12 @@ held-out prediction (also the patient-sampling seed, when
 \value{
 Named list: \code{predictions}, \code{summary}, \code{calibration}
   (same shape as \code{\link{profile_validate_masked}}),
+  \code{joint_profile_scores} (data frame, one row per held-out event
+  whose true complete profile is actually known -- i.e. every class
+  was genuinely tested for that event: \code{joint_log_loss},
+  \code{multiclass_brier} scoring the WHOLE profile as one unit, which
+  cell-level scores in \code{summary} cannot do -- empty with 0 rows
+  if no held-out event had a complete true profile),
   \code{refit_result} (the training-only fit -- check its sampler
   diagnostics via \code{\link{profile_check_sampler}} before trusting
   these scores), \code{n_holdout_events}, \code{n_train_events},

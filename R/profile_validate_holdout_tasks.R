@@ -92,7 +92,64 @@
   result$refit_result <- refit_result
   result$n_holdout_events <- length(holdout_idx)
   result$n_train_events <- length(train_idx)
+  result$joint_profile_scores <- .profile_joint_scores(est, Y, holdout_idx, ids)
   result
+}
+
+
+#' (Internal) Joint-Profile Log Loss and Multiclass Brier, for Held-Out
+#' Events With a Fully Known True Profile
+#'
+#' Cell-level scores (AUROC, Brier, average precision, calibration -- see
+#' \code{\link{.profile_score_mask_predictions}}) can agree perfectly
+#' between two models that disagree completely about the joint profile:
+#' two models both giving P(classD=R)=P(classC=R)=0.5 can place all of
+#' their JOINT mass on entirely different complete states. This scores
+#' the WHOLE profile as one unit instead, for exactly the held-out events
+#' where the true complete profile is actually known (every class
+#' genuinely tested) -- partially-tested held-out events contribute no
+#' row here, since there is no single true state to score against.
+#'
+#' \code{est$profile_probability} (from \code{\link{profile_estimate}},
+#' \code{estimand = "unconditional"}) is already the posterior-MEAN
+#' probability per event x state -- i.e. already \eqn{\bar q_{e,s}},
+#' averaged over draws; no further draw-level averaging happens here.
+#'
+#' @keywords internal
+.profile_joint_scores <- function(est, Y, holdout_idx, ids) {
+  D <- ncol(Y)
+  state_labels <- est$state_labels
+  S <- length(state_labels)
+  Y_holdout <- Y[holdout_idx, , drop = FALSE]
+  is_complete <- rowSums(!is.na(Y_holdout)) == D
+  if (!any(is_complete)) {
+    return(data.frame(
+      group = character(0), row = integer(0), true_state = character(0),
+      joint_log_loss = numeric(0), multiclass_brier = numeric(0), stringsAsFactors = FALSE
+    ))
+  }
+  complete_rows <- which(is_complete)
+  true_labels <- apply(Y_holdout[complete_rows, , drop = FALSE], 1L,
+                       function(row) paste(ifelse(row == 1, "R", "S"), collapse = ""))
+  s_true_idx <- match(true_labels, state_labels)
+  if (anyNA(s_true_idx)) {
+    stop("[.profile_joint_scores] A held-out event's true R/S pattern did not match any known state_labels -- class order mismatch.", call. = FALSE)
+  }
+
+  qbar <- est$profile_probability[complete_rows, , drop = FALSE] # n_complete x S
+  rows <- lapply(seq_along(complete_rows), function(i) {
+    q_true <- qbar[i, s_true_idx[i]]
+    onehot <- as.integer(seq_len(S) == s_true_idx[i])
+    data.frame(
+      group = ids$group[holdout_idx][complete_rows[i]],
+      row = holdout_idx[complete_rows[i]],
+      true_state = true_labels[i],
+      joint_log_loss = -log(max(q_true, 1e-12)),
+      multiclass_brier = sum((qbar[i, ] - onehot)^2),
+      stringsAsFactors = FALSE
+    )
+  })
+  do.call(rbind, rows)
 }
 
 
@@ -116,6 +173,17 @@
 #' @param patient_id Character/integer vector, length \code{nrow(Y)}, in
 #'   the SAME row order as \code{Y}/\code{ids} -- the patient identifier
 #'   for every event.
+#' @param strata Character/integer vector, length \code{nrow(Y)} (same row
+#'   order as \code{patient_id}), or \code{NULL}. When supplied and
+#'   \code{holdout_patient_ids} is \code{NULL}, \code{holdout_fraction} of
+#'   DISTINCT patients is sampled WITHIN EACH STRATUM separately (e.g. one
+#'   value per event giving that event's hospital) rather than pooled
+#'   across the whole cohort -- avoids a hospital-blind draw leaving a
+#'   small hospital with zero (or disproportionately many) held-out
+#'   patients. A patient must have the SAME stratum value across all of
+#'   their events (checked explicitly; errors otherwise, naming the
+#'   patient). Default \code{NULL}: pooled sampling, the original
+#'   behaviour, unchanged.
 #' @param holdout_patient_ids Character/integer vector or \code{NULL}.
 #'   Explicit patient ids to hold out. Default \code{NULL}: sampled via
 #'   \code{holdout_fraction} instead.
@@ -132,24 +200,58 @@
 #'
 #' @return Named list: \code{predictions}, \code{summary}, \code{calibration}
 #'   (same shape as \code{\link{profile_validate_masked}}),
+#'   \code{joint_profile_scores} (data frame, one row per held-out event
+#'   whose true complete profile is actually known -- i.e. every class
+#'   was genuinely tested for that event: \code{joint_log_loss},
+#'   \code{multiclass_brier} scoring the WHOLE profile as one unit, which
+#'   cell-level scores in \code{summary} cannot do -- empty with 0 rows
+#'   if no held-out event had a complete true profile),
 #'   \code{refit_result} (the training-only fit -- check its sampler
 #'   diagnostics via \code{\link{profile_check_sampler}} before trusting
 #'   these scores), \code{n_holdout_events}, \code{n_train_events},
 #'   \code{holdout_patient_ids} (echoed, for provenance).
 #' @export
 profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
+                                        strata = NULL,
                                         holdout_patient_ids = NULL,
                                         holdout_fraction = 0.1,
                                         sampler_config = list(),
                                         n_draws = 500L, seed = 123L) {
   N <- nrow(as.matrix(Y))
   if (length(patient_id) != N) stop("patient_id must have length nrow(Y).")
+  if (!is.null(strata) && length(strata) != N) {
+    stop("strata must have length nrow(Y) (one value per event, matching patient_id).", call. = FALSE)
+  }
 
   if (is.null(holdout_patient_ids)) {
     .local_seed(as.integer(seed))
     distinct_patients <- unique(patient_id)
-    n_hold <- max(1L, round(holdout_fraction * length(distinct_patients)))
-    holdout_patient_ids <- sort(sample(distinct_patients, n_hold))
+    if (is.null(strata)) {
+      n_hold <- max(1L, round(holdout_fraction * length(distinct_patients)))
+      holdout_patient_ids <- sort(sample(distinct_patients, n_hold))
+    } else {
+      patient_stratum <- vapply(distinct_patients, function(p) {
+        s <- unique(strata[patient_id == p])
+        if (length(s) > 1L) {
+          stop(sprintf(
+            "Patient '%s' has more than one distinct stratum value across their events (%s) -- strata must be constant within a patient.",
+            p, paste(s, collapse = ", ")
+          ), call. = FALSE)
+        }
+        as.character(s)
+      }, character(1))
+      by_stratum <- split(distinct_patients, patient_stratum)
+      holdout_patient_ids <- sort(unlist(lapply(names(by_stratum), function(st) {
+        ps <- by_stratum[[st]]
+        n_hold <- max(1L, round(holdout_fraction * length(ps)))
+        chosen <- sample(ps, n_hold)
+        message(sprintf(
+          "[profile_validate_newpatient] Stratum '%s': holding out %d of %d patient(s).",
+          st, n_hold, length(ps)
+        ))
+        chosen
+      })))
+    }
   }
   holdout_idx <- which(patient_id %in% holdout_patient_ids)
   if (length(holdout_idx) == 0L) {
@@ -195,7 +297,9 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
 #' @param n_draws,seed Passed to \code{\link{profile_estimate}}.
 #'
 #' @return Named list: \code{predictions}, \code{summary}, \code{calibration},
-#'   \code{refit_result}, \code{n_holdout_events}, \code{n_train_events},
+#'   \code{joint_profile_scores} (see \code{\link{profile_validate_newpatient}}
+#'   for its exact shape -- identical here), \code{refit_result},
+#'   \code{n_holdout_events}, \code{n_train_events},
 #'   \code{cutoff_date} (echoed), and \code{patient_overlap} (list:
 #'   \code{n_overlapping_patients}, \code{fraction_of_holdout_patients} --
 #'   both \code{NA} when \code{patient_id} is not supplied).
