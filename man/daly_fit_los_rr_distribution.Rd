@@ -55,7 +55,9 @@ Default \code{"infection_type"}.}
 
 \item{date_discharge_col}{Character. Date of discharge column.}
 
-\item{date_culture_col}{Character. Date of culture column.}
+\item{date_culture_col}{Character. Unused -- retained only for backward API
+compatibility. LOS is computed as final outcome date - admission date and
+does not depend on the culture date.}
 
 \item{final_outcome_col}{Character. Final outcome column.}
 
@@ -86,9 +88,11 @@ A data frame with one row per pathogen x class:
   \describe{
     \item{pathogen}{Pathogen name.}
     \item{antibiotic_class}{Antibiotic class name.}
-    \item{RR_LOS}{Fitted mean ratio: mean_LOS(R) / mean_LOS(S).}
-    \item{mean_LOS_R}{Fitted mean LOS for resistant patients.}
-    \item{mean_LOS_S}{Fitted mean LOS for susceptible patients.}
+    \item{RR_LOS}{Ratio of fitted medians: median_LOS(R) / median_LOS(S).}
+    \item{median_LOS_R}{Fitted median LOS (days) for resistant patients.}
+    \item{median_LOS_S}{Fitted median LOS (days) for susceptible patients.}
+    \item{median_LOS_R_years, median_LOS_S_years}{The same medians in years
+      (days / 365).}
     \item{best_dist_R}{Distribution fitted to the R group.}
     \item{best_dist_S}{Distribution fitted to the S group.}
     \item{n_R}{Number of resistant patients.}
@@ -98,16 +102,37 @@ A data frame with one row per pathogen x class:
 }
 \description{
 For each pathogen x antibiotic class, splits patients into resistant (R) and
-susceptible (S) groups, fits a parametric distribution (default: gamma) to
-each group's LOS, and returns:
-  RR_LOS = mean_LOS(R) / mean_LOS(S)
+susceptible (S) groups, fits the candidate parametric distribution(s)
+(default: gamma) to each group's LOS, selects the best fit by AIC, and takes
+the \strong{theoretical median} of the selected distribution:
+  RR_LOS = median_LOS(R) / median_LOS(S)
 }
 \details{
+Theoretical medians: Weibull (shape k, scale lambda)
+\eqn{\lambda (\ln 2)^{1/k}}; log-normal (meanlog mu) \eqn{e^{\mu}};
+gamma (shape alpha, rate beta) \code{qgamma(0.5, alpha, beta)} (no closed
+form). A class is skipped when either group has fewer than \code{min_n}
+patients or its distribution fit fails.
+
 This is an alternative to \code{daly_fit_los_rr()} that avoids regression
 and models the full LOS distribution per group. The output flat data frame
 is fully compatible with \code{assign_rr_to_profiles()} and
 \code{filter_profiles_to_rr_classes()}.
 }
+\section{Two options for profile-level LOS}{
+
+This function is \strong{option 2} (per-class with max rule): its output is
+passed to \code{\link{daly_assign_rr_to_profiles}()} (with
+\code{los_r_col = "median_LOS_R"}, \code{los_s_col = "median_LOS_S"}), which
+gives each resistance profile the estimate of its dominant resistant class.
+The S group is "susceptible to that class", not fully susceptible.
+\strong{Option 1} is \code{\link{daly_fit_los_distn_by_profile}()}, which follows
+Section 5.3 directly by fitting LOS per patient-level resistance profile
+against the fully susceptible profile; use it when patient-level profiles
+are available and adequately populated.
+}
+
 \seealso{
-\code{\link{daly_fit_los_rr}}, \code{daly_assign_rr_to_profiles}
+\code{\link{daly_fit_los_rr}}, \code{\link{daly_assign_rr_to_profiles}},
+  \code{\link{daly_fit_los_distn_by_profile}} (option 1)
 }

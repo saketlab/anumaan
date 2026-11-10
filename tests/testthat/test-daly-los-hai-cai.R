@@ -1,23 +1,11 @@
-# Tests for the HAI/CAI classification fix in daly_fit_los_rr() and
-# daly_fit_los_rr_distribution() (R/daly_rr_and_los.R).
+# Tests for LOS calculation in daly_compute_patient_los() and its callers
+# daly_fit_los_rr() / daly_fit_los_rr_distribution() (R/daly_rr_and_los.R).
 #
-# Both functions used to unconditionally call daly_derive_hai_cai_for_los(),
-# re-deriving HAI/CAI from the admission-to-culture date gap even when a
-# final classification (e.g. from prep_derive_hai_cai() in the
-# anumaan-analysis preprocessing pipeline) was already present in the data.
-# They now read infection_type_col directly and no longer call
-# daly_derive_hai_cai_for_los() at all.
-#
-# Verification strategy: build patients with an IDENTICAL admission-to-culture
-# date gap (so date-based re-derivation, if it still ran, would classify every
-# patient the same way), but explicitly set infection_type_col to different
-# values across two runs. Since HAI's LOS clock starts at the culture date and
-# CAI's starts at the admission date, and the two dates differ by a known,
-# fixed number of days, the resulting mean LOS must shift by exactly that gap
-# between the two runs if (and only if) infection_type_col is being honoured
-# directly rather than being overridden by date-based re-derivation (which
-# would produce IDENTICAL results in both runs, since the date gap never
-# changes).
+# Methodology: LOS = final outcome (discharge) date - admission date for every
+# patient. LOS does NOT depend on the culture date or on HAI/CAI status.
+# Only discharged patients are kept; LOS must be > 0 and <= max_los.
+# HAI/CAI is still read directly from infection_type_col (not re-derived from
+# dates) and used as a covariate in daly_fit_los_rr().
 
 .synthetic_los_data <- function(infection_type_value) {
   set.seed(42)
@@ -44,9 +32,94 @@
   )
 }
 
-test_that("daly_fit_los_rr_distribution() honours infection_type_col directly (HAI vs CAI shifts mean LOS by exactly the admission-culture gap)", {
-  hai_data <- .synthetic_los_data("HAI") # clock starts at culture date
-  cai_data <- .synthetic_los_data("CAI") # clock starts at admission date
+# Minimal patient rows for direct daly_compute_patient_los() tests
+.los_rows <- function(id, adm, out, outcome = "Discharged",
+                      infection_type = "CAI", culture = NA) {
+  data.frame(
+    PatientInformation_id = id,
+    center_name = "Hosp1",
+    date_of_admission = as.Date(adm),
+    final_outcome_date = as.Date(out),
+    final_outcome = outcome,
+    infection_type = infection_type,
+    date_of_first_positive_culture = as.Date(culture),
+    stringsAsFactors = FALSE
+  )
+}
+
+.los <- function(d, ...) suppressMessages(daly_compute_patient_los(d, ...))
+
+test_that("LOS = final outcome date - admission date", {
+  out <- .los(.los_rows("P1", "2026-01-01", "2026-01-06"))
+  expect_equal(out$LOS_days, 5)
+  expect_named(out, c("PatientInformation_id", "center_name", "LOS_days"))
+})
+
+test_that("HAI, CAI and unknown infection types give the same LOS", {
+  d <- rbind(
+    .los_rows("HAI1", "2026-01-01", "2026-01-10", infection_type = "HAI", culture = "2026-01-04"),
+    .los_rows("CAI1", "2026-01-01", "2026-01-10", infection_type = "CAI", culture = "2026-01-04"),
+    .los_rows("UNK1", "2026-01-01", "2026-01-10", infection_type = "Unknown", culture = "2026-01-04")
+  )
+  out <- .los(d)
+  expect_equal(out$LOS_days[match(c("HAI1", "CAI1", "UNK1"), out$PatientInformation_id)], c(9, 9, 9))
+})
+
+test_that("culture date does not change LOS", {
+  a <- .los(.los_rows("P1", "2026-01-01", "2026-01-10", infection_type = "HAI", culture = "2026-01-02"))
+  b <- .los(.los_rows("P1", "2026-01-01", "2026-01-10", infection_type = "HAI", culture = "2026-01-08"))
+  c0 <- .los(.los_rows("P1", "2026-01-01", "2026-01-10", infection_type = "HAI", culture = NA))
+  expect_equal(a$LOS_days, 9)
+  expect_equal(b$LOS_days, 9)
+  expect_equal(c0$LOS_days, 9)
+})
+
+test_that("missing admission or final outcome date gives NA LOS and is excluded", {
+  d <- rbind(
+    .los_rows("NOADM", NA, "2026-01-10"),
+    .los_rows("NOOUT", "2026-01-01", NA),
+    .los_rows("OK", "2026-01-01", "2026-01-10")
+  )
+  out <- .los(d)
+  expect_equal(out$PatientInformation_id, "OK")
+})
+
+test_that("zero and negative LOS are excluded", {
+  d <- rbind(
+    .los_rows("ZERO", "2026-01-05", "2026-01-05"),
+    .los_rows("NEG", "2026-01-10", "2026-01-05"),
+    .los_rows("OK", "2026-01-01", "2026-01-03")
+  )
+  out <- .los(d)
+  expect_equal(out$PatientInformation_id, "OK")
+  expect_equal(out$LOS_days, 2)
+})
+
+test_that("LOS equal to max_los is kept and LOS above max_los is dropped", {
+  d <- rbind(
+    .los_rows("L200", "2026-01-01", as.character(as.Date("2026-01-01") + 200)),
+    .los_rows("L201", "2026-01-01", as.character(as.Date("2026-01-01") + 201))
+  )
+  out <- .los(d, max_los = 200)
+  expect_equal(out$PatientInformation_id, "L200")
+  expect_equal(out$LOS_days, 200)
+})
+
+test_that("only discharged patients are kept and multi-row patients are not duplicated", {
+  d <- rbind(
+    .los_rows("DEAD", "2026-01-01", "2026-01-10", outcome = "Death"),
+    .los_rows("D1", "2026-01-01", "2026-01-10", infection_type = "HAI", culture = "2026-01-03"),
+    .los_rows("D1", "2026-01-01", "2026-01-10", infection_type = "CAI", culture = "2026-01-06")
+  )
+  out <- .los(d)
+  expect_equal(out$PatientInformation_id, "D1")
+  expect_equal(nrow(out), 1L)
+  expect_equal(out$LOS_days, 9)
+})
+
+test_that("daly_fit_los_rr_distribution(): HAI and CAI with identical dates give identical LOS", {
+  hai_data <- .synthetic_los_data("HAI")
+  cai_data <- .synthetic_los_data("CAI")
 
   common_args <- list(
     patient_id_col = "PatientInformation_id",
@@ -64,19 +137,48 @@ test_that("daly_fit_los_rr_distribution() honours infection_type_col directly (H
     min_n = 5
   )
 
-  out_hai <- do.call(daly_fit_los_rr_distribution, c(list(data = hai_data), common_args))
-  out_cai <- do.call(daly_fit_los_rr_distribution, c(list(data = cai_data), common_args))
+  out_hai <- suppressMessages(do.call(daly_fit_los_rr_distribution, c(list(data = hai_data), common_args)))
+  out_cai <- suppressMessages(do.call(daly_fit_los_rr_distribution, c(list(data = cai_data), common_args)))
 
   expect_equal(nrow(out_hai), 1L)
   expect_equal(nrow(out_cai), 1L)
+  expect_equal(out_cai$median_LOS_R, out_hai$median_LOS_R)
+  expect_equal(out_cai$median_LOS_S, out_hai$median_LOS_S)
+  # every patient counted once, in exactly one of R / S
+  expect_equal(out_hai$n_R + out_hai$n_S, nrow(hai_data))
+  expect_equal(out_hai$n_R, sum(hai_data$antibiotic_value == "R"))
+})
 
-  # Admission is 7 days before culture, so CAI's clock (starts at admission)
-  # yields LOS values exactly 7 days longer than HAI's clock (starts at
-  # culture) for the SAME underlying discharge dates. If infection_type were
-  # still being re-derived from the (identical, in this fixture) date gap
-  # instead of read directly, out_hai and out_cai would be identical.
-  expect_equal(out_cai$mean_LOS_R - out_hai$mean_LOS_R, 7, tolerance = 0.5)
-  expect_equal(out_cai$mean_LOS_S - out_hai$mean_LOS_S, 7, tolerance = 0.5)
+test_that("daly_fit_los_rr() works with the new LOS output and keeps HAI as a covariate", {
+  set.seed(7)
+  n <- 120
+  adm <- as.Date("2026-01-01") + sample(0:30, n, replace = TRUE)
+  res <- sample(c("R", "S"), n, replace = TRUE)
+  inf <- sample(c("HAI", "CAI"), n, replace = TRUE)
+  los <- round(rgamma(n, shape = 3, rate = 0.3) * ifelse(res == "R", 1.5, 1)) + 1
+  d <- data.frame(
+    PatientInformation_id = sprintf("P%03d", seq_len(n)),
+    center_name = "H1",
+    organism_name = "Klebsiella pneumoniae",
+    syndrome = "BSI",
+    infection_type = inf,
+    antibiotic_class = "Carbapenems",
+    antibiotic_name = "Meropenem",
+    antibiotic_value = res,
+    date_of_admission = adm,
+    final_outcome_date = adm + los,
+    final_outcome = "Discharged",
+    Age = sample(18:85, n, replace = TRUE),
+    Gender = sample(c("M", "F"), n, replace = TRUE)
+  )
+  # no culture-date column: no longer required
+  out <- suppressWarnings(suppressMessages(daly_fit_los_rr(d, min_n = 10)))
+  expect_equal(nrow(out), 1L)
+  expect_equal(out$n_patients, n)
+  expect_equal(out$n_resistant, sum(res == "R"))
+  expect_equal(out$n_susceptible, sum(res == "S"))
+  expect_equal(out$mean_los_resistant, mean(los[res == "R"]))
+  expect_equal(out$mean_los_susceptible, mean(los[res == "S"]))
 })
 
 test_that("daly_fit_los_rr_distribution() defaults infection_type_col to 'infection_type'", {

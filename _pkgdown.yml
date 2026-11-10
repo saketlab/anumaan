@@ -203,7 +203,7 @@ reference:
   - prep_build_nonfatal_cohort
 
 - title: "Resistance profiles (core)"
-  desc: "Marginal resistance, co-resistance matrices, and low-level profile computation"
+  desc: "Marginal resistance, co-resistance matrices, and low-level profile computation, shared across pipelines"
   contents:
   - compute_marginal_resistance
   - compute_pairwise_coresistance
@@ -352,7 +352,6 @@ reference:
   - compare_distribution_aic
   - summarise_distribution
   - plot_los_distributions
-  - prepare_los_data
   - get_los_by_resistance
 
 - title: "Burden plots"
