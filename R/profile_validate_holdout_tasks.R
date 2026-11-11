@@ -228,7 +228,11 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
     distinct_patients <- unique(patient_id)
     if (is.null(strata)) {
       n_hold <- max(1L, round(holdout_fraction * length(distinct_patients)))
-      holdout_patient_ids <- sort(sample(distinct_patients, n_hold))
+      # sample(x, n) on a length-1 NUMERIC x samples from 1:x instead of
+      # returning x itself (R's documented single-number special case) --
+      # indexing via sample.int() is safe regardless of patient_id's type
+      # or length.
+      holdout_patient_ids <- sort(distinct_patients[sample.int(length(distinct_patients), n_hold)])
     } else {
       patient_stratum <- vapply(distinct_patients, function(p) {
         s <- unique(strata[patient_id == p])
@@ -243,8 +247,18 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
       by_stratum <- split(distinct_patients, patient_stratum)
       holdout_patient_ids <- sort(unlist(lapply(names(by_stratum), function(st) {
         ps <- by_stratum[[st]]
+        if (length(ps) < 2L) {
+          message(sprintf(
+            "[profile_validate_newpatient] Stratum '%s' has only %d patient(s) -- holding any out would leave this stratum's fixed effect completely unsupported in training; keeping all of it in training instead (0 held out from this stratum).",
+            st, length(ps)
+          ))
+          return(character(0))
+        }
         n_hold <- max(1L, round(holdout_fraction * length(ps)))
-        chosen <- sample(ps, n_hold)
+        # Same sample.int() indexing fix as above -- a stratum of exactly
+        # one numeric patient ID (e.g. 42) would otherwise have sample()
+        # draw from 1:42 instead of returning patient 42.
+        chosen <- ps[sample.int(length(ps), n_hold)]
         message(sprintf(
           "[profile_validate_newpatient] Stratum '%s': holding out %d of %d patient(s).",
           st, n_hold, length(ps)
