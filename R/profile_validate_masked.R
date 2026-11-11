@@ -107,7 +107,11 @@
     drop_idx <- integer(0)
     for (r in as.integer(fully_masked)) {
       rows_for_event <- which(masked_df$row == r)
-      drop_idx <- c(drop_idx, rows_for_event[length(rows_for_event)]) # give back the last-selected cell
+      # Random (seeded above via .local_seed) rather than the last-selected
+      # cell: masks are assembled in class-stratum order, so always giving
+      # back the last one would systematically favour retaining whichever
+      # class happens to be processed last.
+      drop_idx <- c(drop_idx, rows_for_event[sample.int(length(rows_for_event), 1L)])
     }
     masked_df <- masked_df[-drop_idx, , drop = FALSE]
   }
@@ -177,22 +181,29 @@
 
       mu_e <- as.numeric(X[e, ] %*% beta_s) # length D
       score_e <- as.vector(B %*% mu_e) + v_eta # length S
-      score_e <- score_e - max(score_e)
-      p_e <- exp(score_e)
-      p_e <- p_e / sum(p_e)
 
       compat_idx <- profile_compatible_states(states, sign_vec)
-      denom <- sum(p_e[compat_idx])
+      # Normalized within the compatible set directly (shared helper with
+      # profile_estimate()), not over all states first -- the latter can
+      # underflow every compatible state to 0 and drop the draw.
+      q_compat <- .profile_compatible_softmax(score_e, compat_idx)
 
       for (mh in masked_here) {
         d <- masked_df$class_idx[mh]
-        r_idx <- intersect(compat_idx, which(B[, d] == 1))
-        pred_prob[mh, i] <- if (denom > 0) sum(p_e[r_idx]) / denom else NA_real_
+        pred_prob[mh, i] <- sum(q_compat[B[compat_idx, d] == 1])
       }
     }
   }
 
-  rowMeans(pred_prob, na.rm = TRUE)
+  if (anyNA(pred_prob)) {
+    stop(sprintf(
+      "[profile_validate_masked] %d masked-cell x draw prediction(s) could not be computed -- refusing to average over a reduced posterior sample.",
+      sum(is.na(pred_prob))
+    ), call. = FALSE)
+  }
+  out <- rowMeans(pred_prob)
+  attr(out, "n_draws_used") <- n_draws
+  out
 }
 
 
@@ -454,10 +465,7 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
   # See profile_validate_newpatient()'s design_spec doc: without it, this
   # refit silently uses profile_build_design()'s own defaults rather than
   # the original fit's actual interaction order/prior scales.
-  design_args <- list(Y = Y_masked, X = X)
-  for (nm in c("class_names", "max_order", "beta_sd", "interaction_sd")) {
-    if (!is.null(design_spec[[nm]])) design_args[[nm]] <- design_spec[[nm]]
-  }
+  design_args <- .profile_design_args(Y_masked, X, design_spec, "profile_validate_heldout")
   design_masked <- do.call(profile_build_design, design_args)
   refit_result <- profile_fit_joint_bernoulli(
     design = design_masked, output_dir = output_dir, sampler_config = sampler_config
@@ -466,5 +474,6 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
   predicted <- .profile_predict_masked_cells(refit_result, design_masked, Y_masked, masked_df, n_draws, seed)
   result <- .profile_score_mask_predictions(masked_df, predicted, "refit_masked")
   result$refit_result <- refit_result
+  result$effective_design_spec <- design_args[setdiff(names(design_args), c("Y", "X"))]
   result
 }
