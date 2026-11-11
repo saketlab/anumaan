@@ -172,9 +172,11 @@
 #' (Recall_k - Recall_\{k-1\}) * Precision_k.
 #' Depends on resistant prevalence (unlike AUROC); undefined, not zero,
 #' with zero positive cases. Matches the standard step-function definition
-#' (e.g. scikit-learn's \code{average_precision_score}); ties at a
-#' threshold are not specially collapsed -- the telescoping sum is
-#' invariant to tie order, so this is not an approximation.
+#' (e.g. scikit-learn's \code{average_precision_score}): tied prediction
+#' scores are explicitly collapsed to one threshold boundary each, using
+#' the cumulative counts at the END of each run of equal scores -- NOT an
+#' arbitrary interior position within a tied block, which would make the
+#' result depend on tie-breaking order (verified: previously it did).
 #' @keywords internal
 .average_precision <- function(y, p) {
   y <- as.numeric(y); p <- as.numeric(p)
@@ -184,10 +186,16 @@
   if (n_pos == 0L) return(NA_real_)
   ord <- order(-p)
   y_sorted <- y[ord]
+  p_sorted <- p[ord]
   tp_cum <- cumsum(y_sorted)
   n_seen <- seq_along(y_sorted)
-  precision <- tp_cum / n_seen
-  recall <- tp_cum / n_pos
+  # A tied block of prediction scores must be treated as ONE threshold:
+  # only the last index of each run of equal p_sorted values is a valid
+  # boundary (the first n-1 positions each mark whether the NEXT score
+  # differs; the final position is always a boundary).
+  is_boundary <- c(diff(p_sorted) != 0, TRUE)
+  precision <- (tp_cum / n_seen)[is_boundary]
+  recall <- (tp_cum / n_pos)[is_boundary]
   recall_prev <- c(0, recall[-length(recall)])
   sum((recall - recall_prev) * precision)
 }
