@@ -178,9 +178,7 @@ profile_estimate <- function(fit_result, design, Y, ids,
     Pcond <- matrix(0, N, S)
     for (e in seq_len(N)) {
       idx <- compat_list[[e]]
-      s_idx <- Score[e, idx]
-      w <- exp(s_idx - max(s_idx))
-      Pcond[e, idx] <- w / sum(w)
+      Pcond[e, idx] <- .profile_compatible_softmax(Score[e, ], idx)
     }
 
     if (estimand == "observed_preserving_conditional") {
@@ -232,4 +230,26 @@ profile_estimate <- function(fit_result, design, Y, ids,
       class_probability_draws = class_probability_draws
     )
   }
+}
+
+
+#' (Internal) Numerically Stable Softmax Over a Compatible-State Subset
+#'
+#' Normalizes raw state scores within the compatible subset \code{idx},
+#' stabilized against that subset's own maximum. Normalizing over all
+#' states first and then restricting can underflow every compatible
+#' entry to 0 when those states score far below the global maximum.
+#' Shared by \code{\link{profile_estimate}} and the masked-cell predictor
+#' so both paths use the same computation.
+#'
+#' @param score Numeric vector of length S (unnormalized log-scores).
+#' @param idx Integer indices of compatible states (non-empty).
+#' @return Numeric vector, same length as \code{idx}, summing to 1.
+#' @keywords internal
+.profile_compatible_softmax <- function(score, idx) {
+  if (length(idx) == 0L) stop(".profile_compatible_softmax: empty compatible set.", call. = FALSE)
+  s <- score[idx]
+  if (any(!is.finite(s))) stop(".profile_compatible_softmax: non-finite score in compatible set.", call. = FALSE)
+  w <- exp(s - max(s))
+  w / sum(w)
 }

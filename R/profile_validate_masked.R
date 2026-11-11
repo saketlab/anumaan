@@ -177,22 +177,29 @@
 
       mu_e <- as.numeric(X[e, ] %*% beta_s) # length D
       score_e <- as.vector(B %*% mu_e) + v_eta # length S
-      score_e <- score_e - max(score_e)
-      p_e <- exp(score_e)
-      p_e <- p_e / sum(p_e)
 
       compat_idx <- profile_compatible_states(states, sign_vec)
-      denom <- sum(p_e[compat_idx])
+      # Normalized within the compatible set directly (shared helper with
+      # profile_estimate()), not over all states first -- the latter can
+      # underflow every compatible state to 0 and drop the draw.
+      q_compat <- .profile_compatible_softmax(score_e, compat_idx)
 
       for (mh in masked_here) {
         d <- masked_df$class_idx[mh]
-        r_idx <- intersect(compat_idx, which(B[, d] == 1))
-        pred_prob[mh, i] <- if (denom > 0) sum(p_e[r_idx]) / denom else NA_real_
+        pred_prob[mh, i] <- sum(q_compat[B[compat_idx, d] == 1])
       }
     }
   }
 
-  rowMeans(pred_prob, na.rm = TRUE)
+  if (anyNA(pred_prob)) {
+    stop(sprintf(
+      "[profile_validate_masked] %d masked-cell x draw prediction(s) could not be computed -- refusing to average over a reduced posterior sample.",
+      sum(is.na(pred_prob))
+    ), call. = FALSE)
+  }
+  out <- rowMeans(pred_prob)
+  attr(out, "n_draws_used") <- n_draws
+  out
 }
 
 
