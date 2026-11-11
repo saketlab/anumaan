@@ -411,6 +411,13 @@ profile_validate_masked <- function(fit_result, design, Y, ids,
 #' @param sampler_config Named list. Passed to
 #'   \code{\link{profile_fit_joint_bernoulli}} for the refit. Default
 #'   \code{list()} (that function's own defaults).
+#' @param design_spec Named list, any of \code{class_names}, \code{max_order},
+#'   \code{beta_sd}, \code{interaction_sd} -- forwarded to
+#'   \code{\link{profile_build_design}} for the refit. Default
+#'   \code{list()}: the refit silently uses that function's own defaults,
+#'   which can be a different interaction order or prior scale from the
+#'   model actually being validated. Pass the original fit's own design
+#'   specification here to validate the SAME model.
 #'
 #' @return Named list: \code{predictions}, \code{summary} (same shape as
 #'   \code{\link{profile_validate_masked}}, \code{validation_mode =
@@ -427,7 +434,8 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
                                      min_susceptible_after_mask = 3L,
                                      sampler_config = list(),
                                      n_draws = 500L,
-                                     seed = 123L) {
+                                     seed = 123L,
+                                     design_spec = list()) {
   Y <- as.matrix(Y)
   masked_df <- .profile_select_mask(
     Y, ids, fraction_to_mask, max_mask_per_cell,
@@ -443,7 +451,14 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
     Y_masked[masked_df$row[i], masked_df$class_idx[i]] <- NA
   }
 
-  design_masked <- profile_build_design(Y = Y_masked, X = X)
+  # See profile_validate_newpatient()'s design_spec doc: without it, this
+  # refit silently uses profile_build_design()'s own defaults rather than
+  # the original fit's actual interaction order/prior scales.
+  design_args <- list(Y = Y_masked, X = X)
+  for (nm in c("class_names", "max_order", "beta_sd", "interaction_sd")) {
+    if (!is.null(design_spec[[nm]])) design_args[[nm]] <- design_spec[[nm]]
+  }
+  design_masked <- do.call(profile_build_design, design_args)
   refit_result <- profile_fit_joint_bernoulli(
     design = design_masked, output_dir = output_dir, sampler_config = sampler_config
   )

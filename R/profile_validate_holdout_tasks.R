@@ -33,7 +33,8 @@
 #'
 #' @keywords internal
 .profile_validate_event_holdout <- function(Y, X, ids, output_dir, holdout_idx,
-                                             sampler_config, n_draws, seed, validation_mode) {
+                                             sampler_config, n_draws, seed, validation_mode,
+                                             design_spec = list()) {
   Y <- as.matrix(Y)
   X <- as.matrix(X)
   N <- nrow(Y)
@@ -45,7 +46,20 @@
     stop(sprintf("[%s] holdout_idx is empty -- nothing to validate.", validation_mode), call. = FALSE)
   }
 
-  design_train <- profile_build_design(Y[train_idx, , drop = FALSE], X[train_idx, , drop = FALSE])
+  # profile_build_design()'s class_names/max_order/beta_sd/interaction_sd
+  # are NOT re-derived from the original fit being validated -- without
+  # design_spec, this refit silently uses every one of that function's
+  # OWN defaults, which can be a materially different model (different
+  # interaction order, different prior scales) from the one the caller
+  # actually intends to validate. Only include a key in design_args when
+  # the caller actually supplied it: passing interaction_sd = NULL
+  # explicitly would override profile_build_design()'s own non-NULL
+  # default function with NULL, not fall back to it.
+  design_args <- list(Y = Y[train_idx, , drop = FALSE], X = X[train_idx, , drop = FALSE])
+  for (nm in c("class_names", "max_order", "beta_sd", "interaction_sd")) {
+    if (!is.null(design_spec[[nm]])) design_args[[nm]] <- design_spec[[nm]]
+  }
+  design_train <- do.call(profile_build_design, design_args)
   refit_result <- profile_fit_joint_bernoulli(design = design_train, output_dir = output_dir, sampler_config = sampler_config)
 
   # B/V are structural (function of D only, not N), so reusing design_train's
@@ -197,6 +211,15 @@
 #' @param n_draws,seed Passed to \code{\link{profile_estimate}} for the
 #'   held-out prediction (also the patient-sampling seed, when
 #'   \code{holdout_patient_ids} is \code{NULL}).
+#' @param design_spec Named list, any of \code{class_names}, \code{max_order},
+#'   \code{beta_sd}, \code{interaction_sd} -- forwarded to
+#'   \code{\link{profile_build_design}} for the training-only refit.
+#'   Default \code{list()}: the refit silently uses
+#'   \code{\link{profile_build_design}}'s own defaults, which can be a
+#'   different interaction order or prior scale from the model actually
+#'   being validated (e.g. a fit with non-default priors). Pass the
+#'   original fit's own design specification here to validate the SAME
+#'   model, not a default-prior stand-in.
 #'
 #' @return Named list: \code{predictions}, \code{summary}, \code{calibration}
 #'   (same shape as \code{\link{profile_validate_masked}}),
@@ -216,7 +239,8 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
                                         holdout_patient_ids = NULL,
                                         holdout_fraction = 0.1,
                                         sampler_config = list(),
-                                        n_draws = 500L, seed = 123L) {
+                                        n_draws = 500L, seed = 123L,
+                                        design_spec = list()) {
   N <- nrow(as.matrix(Y))
   if (length(patient_id) != N) stop("patient_id must have length nrow(Y).")
   if (!is.null(strata) && length(strata) != N) {
@@ -277,7 +301,8 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
   ))
 
   result <- .profile_validate_event_holdout(
-    Y, X, ids, output_dir, holdout_idx, sampler_config, n_draws, seed, "new_patient_holdout"
+    Y, X, ids, output_dir, holdout_idx, sampler_config, n_draws, seed, "new_patient_holdout",
+    design_spec = design_spec
   )
   result$holdout_patient_ids <- holdout_patient_ids
   result
@@ -309,6 +334,10 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
 #' @param sampler_config Named list. Passed to
 #'   \code{\link{profile_fit_joint_bernoulli}} for the training-only refit.
 #' @param n_draws,seed Passed to \code{\link{profile_estimate}}.
+#' @param design_spec Named list, forwarded to
+#'   \code{\link{profile_build_design}} for the training-only refit -- see
+#'   \code{\link{profile_validate_newpatient}}'s \code{design_spec} doc for
+#'   the exact fields and why this matters.
 #'
 #' @return Named list: \code{predictions}, \code{summary}, \code{calibration},
 #'   \code{joint_profile_scores} (see \code{\link{profile_validate_newpatient}}
@@ -321,7 +350,8 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
 profile_validate_temporal <- function(Y, X, ids, event_date, cutoff_date,
                                       patient_id = NULL,
                                       output_dir, sampler_config = list(),
-                                      n_draws = 500L, seed = 123L) {
+                                      n_draws = 500L, seed = 123L,
+                                      design_spec = list()) {
   N <- nrow(as.matrix(Y))
   event_date <- as.Date(event_date)
   cutoff_date <- as.Date(cutoff_date)
@@ -353,7 +383,8 @@ profile_validate_temporal <- function(Y, X, ids, event_date, cutoff_date,
   }
 
   result <- .profile_validate_event_holdout(
-    Y, X, ids, output_dir, holdout_idx, sampler_config, n_draws, seed, "temporal_holdout"
+    Y, X, ids, output_dir, holdout_idx, sampler_config, n_draws, seed, "temporal_holdout",
+    design_spec = design_spec
   )
   result$cutoff_date <- cutoff_date
   result$patient_overlap <- overlap

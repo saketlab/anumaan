@@ -14,7 +14,8 @@ profile_validate_temporal(
   output_dir,
   sampler_config = list(),
   n_draws = 500L,
-  seed = 123L
+  seed = 123L,
+  design_spec = list()
 )
 }
 \arguments{
@@ -39,6 +40,11 @@ Default \code{NULL} (no overlap report).}
 \code{\link{profile_fit_joint_bernoulli}} for the training-only refit.}
 
 \item{n_draws, seed}{Passed to \code{\link{profile_estimate}}.}
+
+\item{design_spec}{Named list, forwarded to
+\code{\link{profile_build_design}} for the training-only refit -- see
+\code{\link{profile_validate_newpatient}}'s \code{design_spec} doc for
+the exact fields and why this matters.}
 }
 \value{
 Named list: \code{predictions}, \code{summary}, \code{calibration},
