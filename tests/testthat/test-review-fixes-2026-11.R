@@ -120,89 +120,157 @@ test_that("B: average precision matches the hand-verified non-tied worked exampl
   expect_equal(ap(c(1, 1, 0, 0), c(0.9, 0.6, 0.7, 0.2)), 5 / 6, tolerance = 1e-10)
 })
 
-test_that("E: conditional probabilities do not underflow to an all-zero row when compatible states score far below the global max", {
-  D <- 2L
-  # Adversarial construction, verified by hand: class 1 has a huge POSITIVE
-  # main effect (1000), so the global score max is attained at class1=R.
-  # Observing class 1 as SUSCEPTIBLE (the opposite direction) forces every
-  # compatible state's score down by 2x that effect (2000 on the log
-  # scale) relative to the global max -- exactly the regime where
-  # exp(score - global_max) underflows to literal 0.0 in double precision
-  # for EVERY compatible state at once.
-  states <- anumaan:::profile_enumerate_states(D)
-  B <- states
-  Mu <- matrix(c(1000, 0), 1, D)
-  Score <- Mu %*% t(B)
-  sign_mat <- matrix(0L, 1, D); sign_mat[1, 1] <- -1L # class 1 observed S
-  idx <- anumaan:::profile_compatible_states(states, sign_mat[1, ])
+# ---- Shared fixture for production-level underflow tests ----------------
+# D = 2, intercept-only X, one event. beta[1,1] = 1000 makes class 1 = R
+# dominate every score, so any state with class 1 = S scores ~2000 below
+# the global max: exp() over ALL states underflows those to exactly 0.
+.underflow_fixture <- function(Y) {
+  design <- anumaan::profile_build_design(Y = Y, X = matrix(1, nrow(Y), 1))
+  m <- matrix(c(1000, 0, 0), nrow = 4, ncol = 3, byrow = TRUE,
+              dimnames = list(NULL, c("beta[1,1]", "beta[1,2]", "eta[1]")))
+  fit <- list(draws = function(variables = NULL, ...) posterior::as_draws_matrix(m))
+  list(design = design, fit_result = list(fit = fit))
+}
 
-  # Confirm the adversarial setup genuinely triggers the old failure mode:
-  # globally-stabilized softmax underflows every compatible entry to 0.
-  Score_stab_global <- Score - max(Score)
-  Pmat_global <- exp(Score_stab_global) / sum(exp(Score_stab_global))
-  expect_equal(sum(Pmat_global[idx]), 0)
+test_that("E: profile_estimate() keeps finite, normalised conditional probabilities when compatible states underflow globally", {
+  skip_if_not_installed("posterior")
+  Y <- matrix(c(0, NA), 1, 2, dimnames = list(NULL, c("A", "B"))) # class A observed S
+  fx <- .underflow_fixture(Y)
+  est <- profile_estimate(fx$fit_result, fx$design, Y, data.frame(group = "g1"),
+                          estimand = "observed_preserving_conditional", n_draws = 4L, seed = 1L)
+  p <- est$profile_probability[1, ]
+  expect_true(all(is.finite(p)))
+  expect_equal(sum(p), 1, tolerance = 1e-12)
+  compat <- substr(names(p), 1, 1) == "S" # states consistent with A = S
+  expect_equal(sum(p[compat]), 1, tolerance = 1e-12)
+  expect_true(all(p[!compat] == 0)) # observed result preserved
+  expect_equal(unname(p[compat]), c(0.5, 0.5), tolerance = 1e-12) # beta for B = 0, eta = 0
 
-  # The fix: re-stabilize within the compatible subset directly from Score.
-  w <- exp(Score[idx] - max(Score[idx]))
-  Pcond <- w / sum(w)
-  expect_true(all(is.finite(Pcond)))
-  expect_true(all(Pcond > 0))
-  expect_equal(sum(Pcond), 1, tolerance = 1e-12)
+  alloc <- profile_estimate(fx$fit_result, fx$design, Y, data.frame(group = "g1"),
+                            estimand = "missing_allocation", n_draws = 4L, seed = 1L)
+  expect_true(all(substr(alloc$state_labels[alloc$allocated_state], 1, 1) == "S"))
 })
 
-test_that("A: design_spec is actually forwarded into the validation refit's design, not silently defaulted", {
-  N <- 20L
-  Y <- matrix(sample(c(0, 1), N * 3, replace = TRUE), N, 3, dimnames = list(NULL, c("A", "B", "C")))
-  X <- cbind(1, rnorm(N))
-  ids <- data.frame(group = rep("g1", N), stringsAsFactors = FALSE)
-  patient_id <- seq_len(N)
+test_that("E: the masked-cell predictor uses the same stable normalisation (no NA draws silently dropped)", {
+  skip_if_not_installed("posterior")
+  Y <- matrix(c(0, 1), 1, 2, dimnames = list(NULL, c("A", "B"))) # B is masked below
+  fx <- .underflow_fixture(Y)
+  pred <- anumaan:::.profile_predict_masked_cells(
+    fx$fit_result, fx$design, Y, data.frame(row = 1L, class_idx = 2L), n_draws = 4L, seed = 1L
+  )
+  expect_true(all(is.finite(pred)))
+  expect_equal(as.numeric(pred), 0.5, tolerance = 1e-12) # P(B = R | A = S) with beta_B = 0, eta = 0
+  expect_equal(attr(pred, "n_draws_used"), 4L)
+})
 
+# ---- Mocks for refit entry points ----------------------------------------
+.with_refit_mocks <- function(code) {
   pkg_env <- asNamespace("anumaan")
-  original_fn <- get("profile_build_design", envir = pkg_env)
+  orig_build <- get("profile_build_design", envir = pkg_env)
+  orig_fit <- get("profile_fit_joint_bernoulli", envir = pkg_env)
   captured <- new.env()
-  on.exit({
-    unlockBinding("profile_build_design", pkg_env)
-    assign("profile_build_design", original_fn, envir = pkg_env)
-    lockBinding("profile_build_design", pkg_env)
-  })
-  mock_build_design <- function(Y, X, class_names = NULL, max_order = NULL, beta_sd = NULL,
-                                 interaction_sd = function(k) 1.5 / (k - 1), grainsize = 64L) {
-    captured$max_order <- max_order
-    captured$interaction_sd_result <- if (is.function(interaction_sd)) interaction_sd(2) else interaction_sd
-    original_fn(Y, X, class_names = class_names, max_order = max_order, beta_sd = beta_sd,
-                interaction_sd = interaction_sd, grainsize = grainsize)
+  set_binding <- function(name, value) {
+    unlockBinding(name, pkg_env); assign(name, value, envir = pkg_env); lockBinding(name, pkg_env)
   }
-  unlockBinding("profile_build_design", pkg_env)
-  assign("profile_build_design", mock_build_design, envir = pkg_env)
-  lockBinding("profile_build_design", pkg_env)
+  on.exit({ set_binding("profile_build_design", orig_build); set_binding("profile_fit_joint_bernoulli", orig_fit) })
+  set_binding("profile_build_design", function(Y, X, ...) {
+    d <- orig_build(Y, X, ...)
+    captured$design <- d
+    d
+  })
+  set_binding("profile_fit_joint_bernoulli", function(design, output_dir, sampler_config = list()) stop("stop-before-stan"))
+  code(captured)
+}
 
-  # Also mock the fit itself so this test never touches cmdstanr/Stan --
-  # only profile_build_design()'s arguments are under test here.
-  original_fit_fn <- get("profile_fit_joint_bernoulli", envir = pkg_env)
-  on.exit({
-    unlockBinding("profile_fit_joint_bernoulli", pkg_env)
-    assign("profile_fit_joint_bernoulli", original_fit_fn, envir = pkg_env)
-    lockBinding("profile_fit_joint_bernoulli", pkg_env)
-  }, add = TRUE)
-  mock_fit_fn <- function(design, output_dir, sampler_config = list()) stop("stop-before-stan: design captured")
-  unlockBinding("profile_fit_joint_bernoulli", pkg_env)
-  assign("profile_fit_joint_bernoulli", mock_fit_fn, envir = pkg_env)
-  lockBinding("profile_fit_joint_bernoulli", pkg_env)
+.refit_fixture <- function() {
+  set.seed(1)
+  N <- 30L
+  Y <- matrix(sample(c(0, 1), N * 3, replace = TRUE), N, 3, dimnames = list(NULL, c("A", "B", "C")))
+  list(Y = Y, X = cbind(1, rnorm(N)), ids = data.frame(group = rep(c("g1", "g2"), length.out = N)), N = N)
+}
 
+test_that("A: design_spec reaches the built design at all three refit entry points", {
+  f <- .refit_fixture()
   spec <- list(max_order = 2L, interaction_sd = 0.9)
-  tryCatch(
-    profile_validate_newpatient(Y, X, ids, patient_id, tempfile(), holdout_fraction = 0.2,
-                                 n_draws = 5L, seed = 1L, design_spec = spec),
-    error = function(e) invisible(NULL)
-  )
-  expect_equal(captured$max_order, 2L)
-  expect_equal(captured$interaction_sd_result, 0.9)
+  check <- function(captured) {
+    expect_equal(captured$design$design$max_order, 2L)
+    expect_equal(unique(captured$design$stan_data$eta_sd), 0.9)
+    expect_equal(captured$design$stan_data$P, 3L) # 3 pairs, no three-way term at max_order = 2
+  }
+  .with_refit_mocks(function(captured) {
+    expect_error(profile_validate_newpatient(f$Y, f$X, f$ids, seq_len(f$N), tempfile(),
+                                             holdout_fraction = 0.2, n_draws = 5L, design_spec = spec),
+                 "stop-before-stan")
+    check(captured)
+  })
+  .with_refit_mocks(function(captured) {
+    expect_error(profile_validate_temporal(f$Y, f$X, f$ids, event_date = as.Date("2024-01-01") + seq_len(f$N),
+                                           cutoff_date = as.Date("2024-01-20"), output_dir = tempfile(),
+                                           n_draws = 5L, design_spec = spec),
+                 "stop-before-stan")
+    check(captured)
+  })
+  .with_refit_mocks(function(captured) {
+    expect_error(profile_validate_heldout(f$Y, f$X, f$ids, tempfile(), fraction_to_mask = 0.2,
+                                          min_tested_after_mask = 0L, min_resistant_after_mask = 0L,
+                                          min_susceptible_after_mask = 0L, n_draws = 5L, design_spec = spec),
+                 "stop-before-stan")
+    check(captured)
+  })
+})
 
-  # And confirm the OLD default behaviour is preserved when design_spec is NOT supplied
-  captured$max_order <- NULL
-  tryCatch(
-    profile_validate_newpatient(Y, X, ids, patient_id, tempfile(), holdout_fraction = 0.2, n_draws = 5L, seed = 1L),
-    error = function(e) invisible(NULL)
-  )
-  expect_null(captured$max_order) # NULL was passed through -> profile_build_design()'s own default (D) applies
+test_that("A: unknown design_spec fields are rejected, and an empty spec is announced", {
+  f <- .refit_fixture()
+  .with_refit_mocks(function(captured) {
+    expect_error(profile_validate_newpatient(f$Y, f$X, f$ids, seq_len(f$N), tempfile(),
+                                             holdout_fraction = 0.2, design_spec = list(max_ordr = 2L)),
+                 "Unknown design_spec field")
+    expect_message(
+      expect_error(profile_validate_newpatient(f$Y, f$X, f$ids, seq_len(f$N), tempfile(), holdout_fraction = 0.2),
+                   "stop-before-stan"),
+      "design_spec is empty"
+    )
+  })
+})
+
+test_that("D: high holdout fractions never empty a stratum; train and test patients never overlap", {
+  pkg_env <- asNamespace("anumaan")
+  orig <- get(".profile_validate_event_holdout", envir = pkg_env)
+  on.exit({ unlockBinding(".profile_validate_event_holdout", pkg_env)
+            assign(".profile_validate_event_holdout", orig, envir = pkg_env)
+            lockBinding(".profile_validate_event_holdout", pkg_env) })
+  unlockBinding(".profile_validate_event_holdout", pkg_env)
+  assign(".profile_validate_event_holdout", function(Y, X, ids, output_dir, holdout_idx, ...) list(holdout_idx = holdout_idx),
+         envir = pkg_env)
+  lockBinding(".profile_validate_event_holdout", pkg_env)
+
+  patient_id <- c(1, 1, 2, 3, 3, 4, 5, 6, 7, 8)           # patient 1 and 3 have repeat events
+  strata <- c("h2", "h2", "h2", "h5", "h5", "h5", "h5", "h5", "h5", "h5") # h2 has exactly 2 patients
+  N <- length(patient_id)
+  Y <- matrix(1, N, 2); X <- cbind(1, seq_len(N)); ids <- data.frame(group = strata)
+  for (s in 1:20) {
+    res <- profile_validate_newpatient(Y, X, ids, patient_id, tempfile(), strata = strata,
+                                       holdout_fraction = 0.9, seed = s, design_spec = list(max_order = 2L))
+    held <- res$holdout_patient_ids
+    for (h in unique(strata)) {
+      expect_gte(length(setdiff(unique(patient_id[strata == h]), held)), 1L) # >= 1 training patient per stratum
+    }
+    expect_true(all(patient_id[res$holdout_idx] %in% held))                 # every event of a held patient is held
+    expect_false(any(patient_id[-res$holdout_idx] %in% held))               # no train/test patient overlap
+    expect_true(is.numeric(held))                                           # numeric IDs not coerced to character
+  }
+  expect_error(profile_validate_newpatient(Y, X, ids, patient_id, tempfile(), holdout_fraction = 1),
+               "strictly between 0 and 1")
+})
+
+test_that("F: aggregators expose computational_checks_passed_* and no longer emit eligible_for_*", {
+  est <- list(estimand = "missing_allocation", state_labels = c("SS", "SR", "RS", "RR"),
+              allocated_state = matrix(c(1L, 3L, 1L, 4L), nrow = 2, byrow = TRUE))
+  out <- profile_aggregate_counts_with_allocation(est, data.frame(group = c("g", "g")), "p", "c",
+                                                  sampler_check = list(status = "pass"),
+                                                  min_n_events = 1L, min_n_draws = 1L)
+  expect_true(all(c("computational_checks_passed_YLL", "computational_checks_passed_YLD") %in% names(out)))
+  expect_false(any(c("eligible_for_YLL", "eligible_for_YLD") %in% names(out)))
+  # Exact allocation fixture: one fixed SS event, one partial event -> SS = 1, RS = 0.5, RR = 0.5, SR = 0
+  expect_equal(setNames(out$N_mean, out$profile_delta)[c("SS", "SR", "RS", "RR")], c(SS = 1, SR = 0, RS = 0.5, RR = 0.5))
 })
