@@ -107,7 +107,11 @@
     drop_idx <- integer(0)
     for (r in as.integer(fully_masked)) {
       rows_for_event <- which(masked_df$row == r)
-      drop_idx <- c(drop_idx, rows_for_event[length(rows_for_event)]) # give back the last-selected cell
+      # Random (seeded above via .local_seed) rather than the last-selected
+      # cell: masks are assembled in class-stratum order, so always giving
+      # back the last one would systematically favour retaining whichever
+      # class happens to be processed last.
+      drop_idx <- c(drop_idx, rows_for_event[sample.int(length(rows_for_event), 1L)])
     }
     masked_df <- masked_df[-drop_idx, , drop = FALSE]
   }
