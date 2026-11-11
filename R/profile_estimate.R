@@ -165,11 +165,22 @@ profile_estimate <- function(fit_result, design, Y, ids,
       next
     }
 
+    # Computed directly from Score (pre-exponentiation), re-stabilized
+    # within EACH event's own compatible subset -- NOT derived from the
+    # already fully-normalized Pmat above. Pmat's exponentiation was
+    # stabilized against the event's GLOBAL max across all S states; if
+    # every compatible state's score is far below that global max
+    # (attained by some incompatible state), every compatible entry of
+    # Pmat can underflow to exactly 0.0, making `denom` zero and silently
+    # leaving a degenerate all-zero conditional row. Re-stabilizing
+    # within the compatible subset guarantees at least one term equals
+    # exp(0) = 1, so the sum can never underflow to zero.
     Pcond <- matrix(0, N, S)
     for (e in seq_len(N)) {
       idx <- compat_list[[e]]
-      denom <- sum(Pmat[e, idx])
-      if (denom > 0) Pcond[e, idx] <- Pmat[e, idx] / denom
+      s_idx <- Score[e, idx]
+      w <- exp(s_idx - max(s_idx))
+      Pcond[e, idx] <- w / sum(w)
     }
 
     if (estimand == "observed_preserving_conditional") {
