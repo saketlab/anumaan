@@ -10,7 +10,22 @@
 #' state-probability array into the hospital x pathogen x profile summary
 #' DALY calculation needs: posterior mean + credible interval, panel
 #' composition, event/draw support counts, and explicit
-#' \code{eligible_for_YLL}/\code{eligible_for_YLD} flags with reasons.
+#' \code{computational_checks_passed_YLL}/\code{computational_checks_passed_YLD}
+#' flags with reasons.
+#'
+#' \strong{What these flags do and do NOT mean (confirmed during an
+#' external review, 2026-11):} \code{computational_checks_passed_*} is
+#' exactly \code{sampler_acceptable && n_events >= min_n_events &&
+#' n_draws >= min_n_draws} -- sampler status plus two count floors,
+#' nothing else. It does NOT establish PPC adequacy, held-out validation
+#' performance, missingness/selective-testing sensitivity, correct
+#' death/episode attribution, absence of patient-level double counting,
+#' or availability/appropriateness of RR, duration or disability inputs.
+#' A row with \code{computational_checks_passed_YLL == TRUE} is
+#' computationally USABLE, not yet scientifically RELEASED for burden
+#' use -- that is a separate release decision (see
+#' \code{\link{profile_release}}) requiring all of the above, with its
+#' own explicit reasons, not inferred from this column.
 #'
 #' This does NOT split into \code{R_ALL}/\code{R_KNOWN_OUTCOME}/\code{R_NF}
 #' cohorts after fitting. In this pipeline, cohort selection (e.g. a Discharged/
@@ -33,7 +48,7 @@
 #' legacy function defaulted it to \code{TRUE} (opt-out: eligible unless
 #' told otherwise). This function requires an actual
 #' \code{\link{profile_check_sampler}} result and treats a missing one as
-#' not eligible, with \code{exclusion_reason_YLL/YLD = "sampler_not_checked"}
+#' not passed, with \code{exclusion_reason_YLL/YLD = "sampler_not_checked"}
 #' -- never silently assumed acceptable.
 #'
 #' @param est List from \code{\link{profile_estimate}}, called with
@@ -50,22 +65,25 @@
 #'   events, no outcome restriction"}) -- echoed into every row.
 #' @param sampler_check List or \code{NULL}. Return value of
 #'   \code{\link{profile_check_sampler}}. \code{sampler_check$status ==
-#'   "pass"} is required for \code{eligible_for_YLL}/\code{eligible_for_YLD}.
+#'   "pass"} is required for \code{computational_checks_passed_YLL}/
+#'   \code{computational_checks_passed_YLD}.
 #'   \code{NULL} (default): both are always \code{FALSE} with reason
 #'   \code{"sampler_not_checked"}.
 #' @param ci_level Numeric. Default \code{0.95}.
-#' @param min_n_events,min_n_draws Integer. Eligibility floors, same
-#'   meaning as the legacy function's. Default \code{10L}/\code{100L}.
+#' @param min_n_events,min_n_draws Integer. Computational-check floors,
+#'   same meaning as the legacy function's. Default \code{10L}/\code{100L}.
 #'
 #' @return A data frame, one row per group x profile (state):
 #'   \code{group}, \code{pathogen}, \code{cohort_definition},
 #'   \code{profile_delta} (state label, e.g. \code{"RRSS"}),
 #'   \code{R_mean}, \code{R_lower}, \code{R_upper}, \code{n_events},
 #'   \code{n_draws}, \code{n_profile_classes}, \code{sampler_status},
-#'   \code{eligible_for_YLL}, \code{exclusion_reason_YLL},
-#'   \code{eligible_for_YLD}, \code{exclusion_reason_YLD} (identical to
-#'   the YLL columns here -- there is only one cohort to be eligible
-#'   for), \code{estimator} (\code{"joint_bernoulli"}).
+#'   \code{computational_checks_passed_YLL}, \code{exclusion_reason_YLL},
+#'   \code{computational_checks_passed_YLD}, \code{exclusion_reason_YLD}
+#'   (identical to the YLL columns here -- there is only one cohort being
+#'   checked), \code{estimator} (\code{"joint_bernoulli"}). These flags
+#'   are computational pre-checks, not a burden-use release decision --
+#'   see the note above.
 #' @export
 profile_aggregate_for_daly <- function(est, ids, pathogen, cohort_definition,
                                        sampler_check = NULL,
@@ -139,8 +157,8 @@ profile_aggregate_for_daly <- function(est, ids, pathogen, cohort_definition,
         R_mean = round(R_mean, 6), R_lower = round(R_lower, 6), R_upper = round(R_upper, 6),
         n_events = n_events_g, n_draws = n_draws_valid, n_profile_classes = D,
         sampler_status = sampler_status,
-        eligible_for_YLL = eligible, exclusion_reason_YLL = reason,
-        eligible_for_YLD = eligible, exclusion_reason_YLD = reason,
+        computational_checks_passed_YLL = eligible, exclusion_reason_YLL = reason,
+        computational_checks_passed_YLD = eligible, exclusion_reason_YLD = reason,
         estimator = "joint_bernoulli",
         stringsAsFactors = FALSE
       )
@@ -149,8 +167,8 @@ profile_aggregate_for_daly <- function(est, ids, pathogen, cohort_definition,
 
   result <- do.call(rbind, rows)
   message(sprintf(
-    "[profile_aggregate_for_daly] %d group x profile rows (%d eligible for YLL/YLD).",
-    nrow(result), sum(result$eligible_for_YLL)
+    "[profile_aggregate_for_daly] %d group x profile rows (%d pass computational checks for YLL/YLD -- NOT a burden-use release decision).",
+    nrow(result), sum(result$computational_checks_passed_YLL)
   ))
   result
 }

@@ -15,7 +15,8 @@ profile_validate_newpatient(
   holdout_fraction = 0.1,
   sampler_config = list(),
   n_draws = 500L,
-  seed = 123L
+  seed = 123L,
+  design_spec = list()
 )
 }
 \arguments{
@@ -55,6 +56,16 @@ patients (not events) is sampled for holdout. Default \code{0.1}.}
 \item{n_draws, seed}{Passed to \code{\link{profile_estimate}} for the
 held-out prediction (also the patient-sampling seed, when
 \code{holdout_patient_ids} is \code{NULL}).}
+
+\item{design_spec}{Named list, any of \code{class_names}, \code{max_order},
+\code{beta_sd}, \code{interaction_sd} -- forwarded to
+\code{\link{profile_build_design}} for the training-only refit.
+Default \code{list()}: the refit silently uses
+\code{\link{profile_build_design}}'s own defaults, which can be a
+different interaction order or prior scale from the model actually
+being validated (e.g. a fit with non-default priors). Pass the
+original fit's own design specification here to validate the SAME
+model, not a default-prior stand-in.}
 }
 \value{
 Named list: \code{predictions}, \code{summary}, \code{calibration}

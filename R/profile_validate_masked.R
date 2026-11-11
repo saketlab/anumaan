@@ -90,6 +90,36 @@
       call. = FALSE
     )
   }
+
+  # Each (group, class) stratum above was sampled independently, with no
+  # cross-class coordination for a single event -- an event with exactly
+  # two observed classes CAN have both of them independently selected by
+  # their own strata's draws, leaving it with zero observed classes after
+  # the masks are combined. The eligibility floors upstream only checked
+  # the ORIGINAL observation count per class/cell, never the event's
+  # observed count after ALL classes' masks are combined. Enforce that
+  # guarantee here, against the actual combined mask, by giving back one
+  # masked cell for any event that would otherwise end up fully masked.
+  masked_per_event <- table(masked_df$row)
+  n_observed_per_event_masked <- n_observed_per_event[as.integer(names(masked_per_event))]
+  fully_masked <- names(masked_per_event)[masked_per_event >= n_observed_per_event_masked]
+  if (length(fully_masked) > 0L) {
+    drop_idx <- integer(0)
+    for (r in as.integer(fully_masked)) {
+      rows_for_event <- which(masked_df$row == r)
+      drop_idx <- c(drop_idx, rows_for_event[length(rows_for_event)]) # give back the last-selected cell
+    }
+    masked_df <- masked_df[-drop_idx, , drop = FALSE]
+  }
+  if (nrow(masked_df) == 0L) {
+    stop(
+      "[profile_validate_masked] Every maskable cell belonged to an event that would have been ",
+      "left with zero observed classes after combining per-class masks -- lower fraction_to_mask ",
+      "or check data support.",
+      call. = FALSE
+    )
+  }
+
   rownames(masked_df) <- NULL
   masked_df
 }
@@ -172,9 +202,11 @@
 #' (Recall_k - Recall_\{k-1\}) * Precision_k.
 #' Depends on resistant prevalence (unlike AUROC); undefined, not zero,
 #' with zero positive cases. Matches the standard step-function definition
-#' (e.g. scikit-learn's \code{average_precision_score}); ties at a
-#' threshold are not specially collapsed -- the telescoping sum is
-#' invariant to tie order, so this is not an approximation.
+#' (e.g. scikit-learn's \code{average_precision_score}): tied prediction
+#' scores are explicitly collapsed to one threshold boundary each, using
+#' the cumulative counts at the END of each run of equal scores -- NOT an
+#' arbitrary interior position within a tied block, which would make the
+#' result depend on tie-breaking order (verified: previously it did).
 #' @keywords internal
 .average_precision <- function(y, p) {
   y <- as.numeric(y); p <- as.numeric(p)
@@ -184,10 +216,16 @@
   if (n_pos == 0L) return(NA_real_)
   ord <- order(-p)
   y_sorted <- y[ord]
+  p_sorted <- p[ord]
   tp_cum <- cumsum(y_sorted)
   n_seen <- seq_along(y_sorted)
-  precision <- tp_cum / n_seen
-  recall <- tp_cum / n_pos
+  # A tied block of prediction scores must be treated as ONE threshold:
+  # only the last index of each run of equal p_sorted values is a valid
+  # boundary (the first n-1 positions each mark whether the NEXT score
+  # differs; the final position is always a boundary).
+  is_boundary <- c(diff(p_sorted) != 0, TRUE)
+  precision <- (tp_cum / n_seen)[is_boundary]
+  recall <- (tp_cum / n_pos)[is_boundary]
   recall_prev <- c(0, recall[-length(recall)])
   sum((recall - recall_prev) * precision)
 }
@@ -373,6 +411,13 @@ profile_validate_masked <- function(fit_result, design, Y, ids,
 #' @param sampler_config Named list. Passed to
 #'   \code{\link{profile_fit_joint_bernoulli}} for the refit. Default
 #'   \code{list()} (that function's own defaults).
+#' @param design_spec Named list, any of \code{class_names}, \code{max_order},
+#'   \code{beta_sd}, \code{interaction_sd} -- forwarded to
+#'   \code{\link{profile_build_design}} for the refit. Default
+#'   \code{list()}: the refit silently uses that function's own defaults,
+#'   which can be a different interaction order or prior scale from the
+#'   model actually being validated. Pass the original fit's own design
+#'   specification here to validate the SAME model.
 #'
 #' @return Named list: \code{predictions}, \code{summary} (same shape as
 #'   \code{\link{profile_validate_masked}}, \code{validation_mode =
@@ -389,7 +434,8 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
                                      min_susceptible_after_mask = 3L,
                                      sampler_config = list(),
                                      n_draws = 500L,
-                                     seed = 123L) {
+                                     seed = 123L,
+                                     design_spec = list()) {
   Y <- as.matrix(Y)
   masked_df <- .profile_select_mask(
     Y, ids, fraction_to_mask, max_mask_per_cell,
@@ -405,7 +451,14 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
     Y_masked[masked_df$row[i], masked_df$class_idx[i]] <- NA
   }
 
-  design_masked <- profile_build_design(Y = Y_masked, X = X)
+  # See profile_validate_newpatient()'s design_spec doc: without it, this
+  # refit silently uses profile_build_design()'s own defaults rather than
+  # the original fit's actual interaction order/prior scales.
+  design_args <- list(Y = Y_masked, X = X)
+  for (nm in c("class_names", "max_order", "beta_sd", "interaction_sd")) {
+    if (!is.null(design_spec[[nm]])) design_args[[nm]] <- design_spec[[nm]]
+  }
+  design_masked <- do.call(profile_build_design, design_args)
   refit_result <- profile_fit_joint_bernoulli(
     design = design_masked, output_dir = output_dir, sampler_config = sampler_config
   )

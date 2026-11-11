@@ -11,8 +11,10 @@ Area under the recall-weighted precision step function, AP = sum_k
 (Recall_k - Recall_\{k-1\}) * Precision_k.
 Depends on resistant prevalence (unlike AUROC); undefined, not zero,
 with zero positive cases. Matches the standard step-function definition
-(e.g. scikit-learn's \code{average_precision_score}); ties at a
-threshold are not specially collapsed -- the telescoping sum is
-invariant to tie order, so this is not an approximation.
+(e.g. scikit-learn's \code{average_precision_score}): tied prediction
+scores are explicitly collapsed to one threshold boundary each, using
+the cumulative counts at the END of each run of equal scores -- NOT an
+arbitrary interior position within a tied block, which would make the
+result depend on tie-breaking order (verified: previously it did).
 }
 \keyword{internal}

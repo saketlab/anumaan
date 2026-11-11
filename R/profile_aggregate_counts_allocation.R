@@ -64,10 +64,16 @@
 #'   distribution's mean and \code{ci_level} quantile interval --
 #'   integer-valued draws summarised, not a continuous proportion),
 #'   \code{n_events}, \code{n_draws}, \code{n_profile_classes},
-#'   \code{sampler_status}, \code{eligible_for_YLL}/\code{YLD} and their
-#'   \code{exclusion_reason_*} (same eligibility logic and column names as
-#'   \code{\link{profile_aggregate_for_daly}}, for a consistent downstream
-#'   filter regardless of which aggregator produced a row), and
+#'   \code{sampler_status}, \code{computational_checks_passed_YLL}/
+#'   \code{computational_checks_passed_YLD} and their
+#'   \code{exclusion_reason_*} (same computational-check logic and column
+#'   names as \code{\link{profile_aggregate_for_daly}}, for a consistent
+#'   downstream filter regardless of which aggregator produced a row --
+#'   and see that function's doc for what these flags do NOT establish:
+#'   PPC adequacy, held-out validation, missingness sensitivity, death/
+#'   episode attribution, double counting, or RR/duration/disability
+#'   input availability. This is a computational pre-check, not a
+#'   burden-use release decision.), and
 #'   \code{estimator = "joint_bernoulli_discrete_allocation"} so the two
 #'   aggregators' outputs are never silently confused if concatenated.
 #' @export
@@ -142,8 +148,8 @@ profile_aggregate_counts_with_allocation <- function(est, ids, pathogen, cohort_
         N_mean = round(N_mean, 3), N_lower = N_lower, N_upper = N_upper,
         n_events = n_events_g, n_draws = n_draws_valid, n_profile_classes = round(log2(S)),
         sampler_status = sampler_status,
-        eligible_for_YLL = eligible, exclusion_reason_YLL = reason,
-        eligible_for_YLD = eligible, exclusion_reason_YLD = reason,
+        computational_checks_passed_YLL = eligible, exclusion_reason_YLL = reason,
+        computational_checks_passed_YLD = eligible, exclusion_reason_YLD = reason,
         estimator = "joint_bernoulli_discrete_allocation",
         stringsAsFactors = FALSE
       )
@@ -152,8 +158,8 @@ profile_aggregate_counts_with_allocation <- function(est, ids, pathogen, cohort_
 
   result <- do.call(rbind, rows)
   message(sprintf(
-    "[profile_aggregate_counts_with_allocation] %d group x profile rows (%d eligible for YLL/YLD).",
-    nrow(result), sum(result$eligible_for_YLL)
+    "[profile_aggregate_counts_with_allocation] %d group x profile rows (%d pass computational checks for YLL/YLD -- NOT a burden-use release decision).",
+    nrow(result), sum(result$computational_checks_passed_YLL)
   ))
   result
 }

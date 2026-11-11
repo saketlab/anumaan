@@ -34,14 +34,15 @@ events, no outcome restriction"}) -- echoed into every row.}
 
 \item{sampler_check}{List or \code{NULL}. Return value of
 \code{\link{profile_check_sampler}}. \code{sampler_check$status ==
-"pass"} is required for \code{eligible_for_YLL}/\code{eligible_for_YLD}.
+"pass"} is required for \code{computational_checks_passed_YLL}/
+\code{computational_checks_passed_YLD}.
 \code{NULL} (default): both are always \code{FALSE} with reason
 \code{"sampler_not_checked"}.}
 
 \item{ci_level}{Numeric. Default \code{0.95}.}
 
-\item{min_n_events, min_n_draws}{Integer. Eligibility floors, same
-meaning as the legacy function's. Default \code{10L}/\code{100L}.}
+\item{min_n_events, min_n_draws}{Integer. Computational-check floors,
+same meaning as the legacy function's. Default \code{10L}/\code{100L}.}
 }
 \value{
 A data frame, one row per group x profile (state):
@@ -49,19 +50,36 @@ A data frame, one row per group x profile (state):
   \code{profile_delta} (state label, e.g. \code{"RRSS"}),
   \code{R_mean}, \code{R_lower}, \code{R_upper}, \code{n_events},
   \code{n_draws}, \code{n_profile_classes}, \code{sampler_status},
-  \code{eligible_for_YLL}, \code{exclusion_reason_YLL},
-  \code{eligible_for_YLD}, \code{exclusion_reason_YLD} (identical to
-  the YLL columns here -- there is only one cohort to be eligible
-  for), \code{estimator} (\code{"joint_bernoulli"}).
+  \code{computational_checks_passed_YLL}, \code{exclusion_reason_YLL},
+  \code{computational_checks_passed_YLD}, \code{exclusion_reason_YLD}
+  (identical to the YLL columns here -- there is only one cohort being
+  checked), \code{estimator} (\code{"joint_bernoulli"}). These flags
+  are computational pre-checks, not a burden-use release decision --
+  see the note above.
 }
 \description{
 Bridges \code{\link{profile_estimate}}'s per-event, per-draw
 state-probability array into the hospital x pathogen x profile summary
 DALY calculation needs: posterior mean + credible interval, panel
 composition, event/draw support counts, and explicit
-\code{eligible_for_YLL}/\code{eligible_for_YLD} flags with reasons.
+\code{computational_checks_passed_YLL}/\code{computational_checks_passed_YLD}
+flags with reasons.
 }
 \details{
+\strong{What these flags do and do NOT mean (confirmed during an
+external review, 2026-11):} \code{computational_checks_passed_*} is
+exactly \code{sampler_acceptable && n_events >= min_n_events &&
+n_draws >= min_n_draws} -- sampler status plus two count floors,
+nothing else. It does NOT establish PPC adequacy, held-out validation
+performance, missingness/selective-testing sensitivity, correct
+death/episode attribution, absence of patient-level double counting,
+or availability/appropriateness of RR, duration or disability inputs.
+A row with \code{computational_checks_passed_YLL == TRUE} is
+computationally USABLE, not yet scientifically RELEASED for burden
+use -- that is a separate release decision (see
+\code{\link{profile_release}}) requiring all of the above, with its
+own explicit reasons, not inferred from this column.
+
 This does NOT split into \code{R_ALL}/\code{R_KNOWN_OUTCOME}/\code{R_NF}
 cohorts after fitting. In this pipeline, cohort selection (e.g. a Discharged/
 non-fatal restriction) happens BEFORE fitting, via
@@ -83,6 +101,6 @@ A second departure: \code{sampler_acceptable} has no default here. The
 legacy function defaulted it to \code{TRUE} (opt-out: eligible unless
 told otherwise). This function requires an actual
 \code{\link{profile_check_sampler}} result and treats a missing one as
-not eligible, with \code{exclusion_reason_YLL/YLD = "sampler_not_checked"}
+not passed, with \code{exclusion_reason_YLL/YLD = "sampler_not_checked"}
 -- never silently assumed acceptable.
 }

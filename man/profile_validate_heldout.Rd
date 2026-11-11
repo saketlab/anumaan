@@ -16,7 +16,8 @@ profile_validate_heldout(
   min_susceptible_after_mask = 3L,
   sampler_config = list(),
   n_draws = 500L,
-  seed = 123L
+  seed = 123L,
+  design_spec = list()
 )
 }
 \arguments{
@@ -50,6 +51,14 @@ more). Default \code{500L}.}
 
 \item{seed}{Integer. Mask selection AND posterior-draw-subsampling seed.
 Default \code{123L}.}
+
+\item{design_spec}{Named list, any of \code{class_names}, \code{max_order},
+\code{beta_sd}, \code{interaction_sd} -- forwarded to
+\code{\link{profile_build_design}} for the refit. Default
+\code{list()}: the refit silently uses that function's own defaults,
+which can be a different interaction order or prior scale from the
+model actually being validated. Pass the original fit's own design
+specification here to validate the SAME model.}
 }
 \value{
 Named list: \code{predictions}, \code{summary} (same shape as
