@@ -90,6 +90,36 @@
       call. = FALSE
     )
   }
+
+  # Each (group, class) stratum above was sampled independently, with no
+  # cross-class coordination for a single event -- an event with exactly
+  # two observed classes CAN have both of them independently selected by
+  # their own strata's draws, leaving it with zero observed classes after
+  # the masks are combined. The eligibility floors upstream only checked
+  # the ORIGINAL observation count per class/cell, never the event's
+  # observed count after ALL classes' masks are combined. Enforce that
+  # guarantee here, against the actual combined mask, by giving back one
+  # masked cell for any event that would otherwise end up fully masked.
+  masked_per_event <- table(masked_df$row)
+  n_observed_per_event_masked <- n_observed_per_event[as.integer(names(masked_per_event))]
+  fully_masked <- names(masked_per_event)[masked_per_event >= n_observed_per_event_masked]
+  if (length(fully_masked) > 0L) {
+    drop_idx <- integer(0)
+    for (r in as.integer(fully_masked)) {
+      rows_for_event <- which(masked_df$row == r)
+      drop_idx <- c(drop_idx, rows_for_event[length(rows_for_event)]) # give back the last-selected cell
+    }
+    masked_df <- masked_df[-drop_idx, , drop = FALSE]
+  }
+  if (nrow(masked_df) == 0L) {
+    stop(
+      "[profile_validate_masked] Every maskable cell belonged to an event that would have been ",
+      "left with zero observed classes after combining per-class masks -- lower fraction_to_mask ",
+      "or check data support.",
+      call. = FALSE
+    )
+  }
+
   rownames(masked_df) <- NULL
   masked_df
 }
