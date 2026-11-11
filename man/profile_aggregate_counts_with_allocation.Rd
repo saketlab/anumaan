@@ -46,10 +46,16 @@ Data frame, one row per group x profile: \code{N_mean},
   distribution's mean and \code{ci_level} quantile interval --
   integer-valued draws summarised, not a continuous proportion),
   \code{n_events}, \code{n_draws}, \code{n_profile_classes},
-  \code{sampler_status}, \code{eligible_for_YLL}/\code{YLD} and their
-  \code{exclusion_reason_*} (same eligibility logic and column names as
-  \code{\link{profile_aggregate_for_daly}}, for a consistent downstream
-  filter regardless of which aggregator produced a row), and
+  \code{sampler_status}, \code{computational_checks_passed_YLL}/
+  \code{computational_checks_passed_YLD} and their
+  \code{exclusion_reason_*} (same computational-check logic and column
+  names as \code{\link{profile_aggregate_for_daly}}, for a consistent
+  downstream filter regardless of which aggregator produced a row --
+  and see that function's doc for what these flags do NOT establish:
+  PPC adequacy, held-out validation, missingness sensitivity, death/
+  episode attribution, double counting, or RR/duration/disability
+  input availability. This is a computational pre-check, not a
+  burden-use release decision.), and
   \code{estimator = "joint_bernoulli_discrete_allocation"} so the two
   aggregators' outputs are never silently confused if concatenated.
 }
