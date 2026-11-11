@@ -46,19 +46,8 @@
     stop(sprintf("[%s] holdout_idx is empty -- nothing to validate.", validation_mode), call. = FALSE)
   }
 
-  # profile_build_design()'s class_names/max_order/beta_sd/interaction_sd
-  # are NOT re-derived from the original fit being validated -- without
-  # design_spec, this refit silently uses every one of that function's
-  # OWN defaults, which can be a materially different model (different
-  # interaction order, different prior scales) from the one the caller
-  # actually intends to validate. Only include a key in design_args when
-  # the caller actually supplied it: passing interaction_sd = NULL
-  # explicitly would override profile_build_design()'s own non-NULL
-  # default function with NULL, not fall back to it.
-  design_args <- list(Y = Y[train_idx, , drop = FALSE], X = X[train_idx, , drop = FALSE])
-  for (nm in c("class_names", "max_order", "beta_sd", "interaction_sd")) {
-    if (!is.null(design_spec[[nm]])) design_args[[nm]] <- design_spec[[nm]]
-  }
+  design_args <- .profile_design_args(Y[train_idx, , drop = FALSE], X[train_idx, , drop = FALSE],
+                                      design_spec, validation_mode)
   design_train <- do.call(profile_build_design, design_args)
   refit_result <- profile_fit_joint_bernoulli(design = design_train, output_dir = output_dir, sampler_config = sampler_config)
 
@@ -107,6 +96,7 @@
   result$n_holdout_events <- length(holdout_idx)
   result$n_train_events <- length(train_idx)
   result$joint_profile_scores <- .profile_joint_scores(est, Y, holdout_idx, ids)
+  result$effective_design_spec <- design_args[setdiff(names(design_args), c("Y", "X"))]
   result
 }
 
@@ -219,7 +209,15 @@
 #'   different interaction order or prior scale from the model actually
 #'   being validated (e.g. a fit with non-default priors). Pass the
 #'   original fit's own design specification here to validate the SAME
-#'   model, not a default-prior stand-in.
+#'   model, not a default-prior stand-in. Unknown field names are an
+#'   error; the effective specification is returned as
+#'   \code{effective_design_spec}.
+#' @param min_train_per_stratum Integer >= 1. Minimum number of distinct
+#'   patients that must remain in training per stratum (or overall, when
+#'   \code{strata} is \code{NULL}). Strata with no more patients than this
+#'   are kept entirely in training and reported as not evaluable, and
+#'   \code{holdout_fraction} is capped so no stratum drops below it.
+#'   Default \code{1L}.
 #'
 #' @return Named list: \code{predictions}, \code{summary}, \code{calibration}
 #'   (same shape as \code{\link{profile_validate_masked}}),
@@ -240,7 +238,8 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
                                         holdout_fraction = 0.1,
                                         sampler_config = list(),
                                         n_draws = 500L, seed = 123L,
-                                        design_spec = list()) {
+                                        design_spec = list(),
+                                        min_train_per_stratum = 1L) {
   N <- nrow(as.matrix(Y))
   if (length(patient_id) != N) stop("patient_id must have length nrow(Y).")
   if (!is.null(strata) && length(strata) != N) {
@@ -248,10 +247,25 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
   }
 
   if (is.null(holdout_patient_ids)) {
+    if (!is.numeric(holdout_fraction) || length(holdout_fraction) != 1L ||
+        !is.finite(holdout_fraction) || holdout_fraction <= 0 || holdout_fraction >= 1) {
+      stop("holdout_fraction must be a single number strictly between 0 and 1.", call. = FALSE)
+    }
+    min_train_per_stratum <- as.integer(min_train_per_stratum)
+    if (length(min_train_per_stratum) != 1L || is.na(min_train_per_stratum) || min_train_per_stratum < 1L) {
+      stop("min_train_per_stratum must be a single integer >= 1.", call. = FALSE)
+    }
     .local_seed(as.integer(seed))
     distinct_patients <- unique(patient_id)
     if (is.null(strata)) {
       n_hold <- max(1L, round(holdout_fraction * length(distinct_patients)))
+      n_hold <- min(n_hold, length(distinct_patients) - min_train_per_stratum)
+      if (n_hold < 1L) {
+        stop(sprintf(
+          "Only %d distinct patient(s): cannot hold any out while keeping min_train_per_stratum = %d in training.",
+          length(distinct_patients), min_train_per_stratum
+        ), call. = FALSE)
+      }
       # sample(x, n) on a length-1 NUMERIC x samples from 1:x instead of
       # returning x itself (R's documented single-number special case) --
       # indexing via sample.int() is safe regardless of patient_id's type
@@ -271,14 +285,18 @@ profile_validate_newpatient <- function(Y, X, ids, patient_id, output_dir,
       by_stratum <- split(distinct_patients, patient_stratum)
       holdout_patient_ids <- sort(unlist(lapply(names(by_stratum), function(st) {
         ps <- by_stratum[[st]]
-        if (length(ps) < 2L) {
+        if (length(ps) <= min_train_per_stratum) {
           message(sprintf(
-            "[profile_validate_newpatient] Stratum '%s' has only %d patient(s) -- holding any out would leave this stratum's fixed effect completely unsupported in training; keeping all of it in training instead (0 held out from this stratum).",
-            st, length(ps)
+            "[profile_validate_newpatient] Stratum '%s' has only %d patient(s) (min_train_per_stratum = %d) -- not evaluable in this split; keeping all of it in training (0 held out).",
+            st, length(ps), min_train_per_stratum
           ))
-          return(character(0))
+          return(ps[0]) # same type as patient_id; character(0) would coerce numeric IDs in unlist()
         }
         n_hold <- max(1L, round(holdout_fraction * length(ps)))
+        # Never hold out so many that fewer than min_train_per_stratum
+        # patients remain in training (e.g. 2 patients at fraction 0.9
+        # would otherwise round to 2 and empty the stratum).
+        n_hold <- min(n_hold, length(ps) - min_train_per_stratum)
         # Same sample.int() indexing fix as above -- a stratum of exactly
         # one numeric patient ID (e.g. 42) would otherwise have sample()
         # draw from 1:42 instead of returning patient 42.
@@ -389,4 +407,41 @@ profile_validate_temporal <- function(Y, X, ids, event_date, cutoff_date,
   result$cutoff_date <- cutoff_date
   result$patient_overlap <- overlap
   result
+}
+
+
+#' (Internal) Build Validated profile_build_design() Arguments for a Refit
+#'
+#' Shared by every validation refit (new-patient, temporal, masked-cell).
+#' Only \code{class_names}, \code{max_order}, \code{beta_sd} and
+#' \code{interaction_sd} are accepted; any other name in
+#' \code{design_spec} is an error rather than being silently ignored (a
+#' misspelled field would otherwise fall back to the default unnoticed).
+#' A key is forwarded only when supplied: passing \code{interaction_sd =
+#' NULL} would override \code{profile_build_design()}'s own non-NULL
+#' default with NULL. An empty \code{design_spec} is allowed but
+#' announced, since it means the refit uses package defaults, which may
+#' differ from the model being validated.
+#'
+#' @keywords internal
+.profile_design_args <- function(Y, X, design_spec, caller) {
+  allowed <- c("class_names", "max_order", "beta_sd", "interaction_sd")
+  if (!is.list(design_spec)) stop(sprintf("[%s] design_spec must be a named list.", caller), call. = FALSE)
+  if (length(design_spec) > 0L && (is.null(names(design_spec)) || any(names(design_spec) == ""))) {
+    stop(sprintf("[%s] design_spec entries must all be named.", caller), call. = FALSE)
+  }
+  unknown <- setdiff(names(design_spec), allowed)
+  if (length(unknown)) {
+    stop(sprintf("[%s] Unknown design_spec field(s): %s. Allowed: %s.",
+                 caller, paste(unknown, collapse = ", "), paste(allowed, collapse = ", ")), call. = FALSE)
+  }
+  if (length(design_spec) == 0L) {
+    message(sprintf(
+      "[%s] design_spec is empty: the refit uses profile_build_design() defaults, which may differ from the model being validated.",
+      caller
+    ))
+  }
+  args <- list(Y = Y, X = X)
+  for (nm in allowed) if (!is.null(design_spec[[nm]])) args[[nm]] <- design_spec[[nm]]
+  args
 }

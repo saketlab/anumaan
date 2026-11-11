@@ -465,10 +465,7 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
   # See profile_validate_newpatient()'s design_spec doc: without it, this
   # refit silently uses profile_build_design()'s own defaults rather than
   # the original fit's actual interaction order/prior scales.
-  design_args <- list(Y = Y_masked, X = X)
-  for (nm in c("class_names", "max_order", "beta_sd", "interaction_sd")) {
-    if (!is.null(design_spec[[nm]])) design_args[[nm]] <- design_spec[[nm]]
-  }
+  design_args <- .profile_design_args(Y_masked, X, design_spec, "profile_validate_heldout")
   design_masked <- do.call(profile_build_design, design_args)
   refit_result <- profile_fit_joint_bernoulli(
     design = design_masked, output_dir = output_dir, sampler_config = sampler_config
@@ -477,5 +474,6 @@ profile_validate_heldout <- function(Y, X, ids, output_dir,
   predicted <- .profile_predict_masked_cells(refit_result, design_masked, Y_masked, masked_df, n_draws, seed)
   result <- .profile_score_mask_predictions(masked_df, predicted, "refit_masked")
   result$refit_result <- refit_result
+  result$effective_design_spec <- design_args[setdiff(names(design_args), c("Y", "X"))]
   result
 }

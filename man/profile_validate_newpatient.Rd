@@ -16,7 +16,8 @@ profile_validate_newpatient(
   sampler_config = list(),
   n_draws = 500L,
   seed = 123L,
-  design_spec = list()
+  design_spec = list(),
+  min_train_per_stratum = 1L
 )
 }
 \arguments{
@@ -65,7 +66,16 @@ Default \code{list()}: the refit silently uses
 different interaction order or prior scale from the model actually
 being validated (e.g. a fit with non-default priors). Pass the
 original fit's own design specification here to validate the SAME
-model, not a default-prior stand-in.}
+model, not a default-prior stand-in. Unknown field names are an
+error; the effective specification is returned as
+\code{effective_design_spec}.}
+
+\item{min_train_per_stratum}{Integer >= 1. Minimum number of distinct
+patients that must remain in training per stratum (or overall, when
+\code{strata} is \code{NULL}). Strata with no more patients than this
+are kept entirely in training and reported as not evaluable, and
+\code{holdout_fraction} is capped so no stratum drops below it.
+Default \code{1L}.}
 }
 \value{
 Named list: \code{predictions}, \code{summary}, \code{calibration}
