@@ -58,7 +58,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -108,7 +108,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Getting Started with anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-11-06</h4>
+            <h4 data-toc-skip class="date">2026-11-19</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -134,31 +134,38 @@ data into an analysis-ready format. It covers:</p>
 <ul>
 <li>Column name standardisation and schema alignment</li>
 <li>Date parsing and chronological validation</li>
-<li>Organism, specimen, antibiotic, and AST value cleaning, including
-the 0.1.0.9021 specimen reference additions and collapsed sterile-site
-classes</li>
-<li>Demographic derivations (age, HAI/CAI, LOS)</li>
+<li>Organism, specimen, antibiotic, and AST value cleaning</li>
+<li>Age filling and age bins</li>
+<li>Clinical derivations (HAI/CAI, length of stay, mortality)</li>
 <li>Event creation, deduplication, and readmission classification</li>
 <li>Contaminant detection and polymicrobial weighting</li>
-<li>Attrition tracking and analysis-readiness filtering</li>
+<li>MDR/XDR classification</li>
 </ul>
-<p>All functions start with <code>prep_</code>. The pipeline entry point
-is <code><a href="../reference/run_preprocess.html">run_preprocess()</a></code> for automated runs or the modular
-<code>prep_*</code> functions for staged, inspectable workflows.</p>
+<p>Most modular functions start with <code>prep_</code>.
+<code><a href="../reference/run_preprocess.html">run_preprocess()</a></code> runs the core standardisation and
+derivation steps in one call, configured through
+<code><a href="../reference/amr_config.html">amr_config()</a></code>. The modular <code>prep_*</code> functions
+give a staged, inspectable workflow and cover every step listed
+above.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://saketlab.github.io/anumaan/">anumaan</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Full automated pipeline</span></span>
+<span><span class="co"># One-call pipeline</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_preprocess.html">run_preprocess</a></span><span class="op">(</span></span>
 <span>  data   <span class="op">=</span> <span class="va">your_ast_data</span>,</span>
 <span>  config <span class="op">=</span> <span class="fu"><a href="../reference/amr_config.html">amr_config</a></span><span class="op">(</span>hai_cutoff <span class="op">=</span> <span class="fl">3</span>, event_gap_days <span class="op">=</span> <span class="fl">14</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span><span class="va">clean_data</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">data</span></span>
 <span></span>
 <span><span class="co"># Or modular</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_organisms.html">prep_standardize_organisms</a></span><span class="op">(</span><span class="va">data</span>, organism_col <span class="op">=</span> <span class="st">"organism_name"</span><span class="op">)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_harmonize_ast.html">prep_harmonize_ast</a></span><span class="op">(</span><span class="va">data</span>, ast_col <span class="op">=</span> <span class="st">"antibiotic_value"</span><span class="op">)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_event_ids.html">prep_create_event_ids</a></span><span class="op">(</span><span class="va">data</span>, patient_col <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
-<span>                               date_col <span class="op">=</span> <span class="st">"date_of_culture"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_standardize_organisms.html">prep_standardize_organisms</a></span><span class="op">(</span><span class="va">your_ast_data</span>,</span>
+<span>                                   organism_col <span class="op">=</span> <span class="st">"organism_name"</span><span class="op">)</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_harmonize_ast.html">prep_harmonize_ast</a></span><span class="op">(</span><span class="va">data</span>,</span>
+<span>                           antibiotic_col <span class="op">=</span> <span class="st">"antibiotic_name"</span>,</span>
+<span>                           ast_col        <span class="op">=</span> <span class="st">"antibiotic_value"</span><span class="op">)</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/prep_create_event_ids.html">prep_create_event_ids</a></span><span class="op">(</span><span class="va">data</span>,</span>
+<span>                              patient_col <span class="op">=</span> <span class="st">"patient_id"</span>,</span>
+<span>                              date_col    <span class="op">=</span> <span class="st">"date_of_culture"</span><span class="op">)</span></span></code></pre></div>
 <p>See the full step-by-step walkthrough in the <a href="preprocessing-workflow.html">Preprocessing Workflow
 vignette</a>.</p>
 <hr>
@@ -174,24 +181,28 @@ stewardship team runs on Pipeline 1’s output to catch data-quality
 issues and characterise the cohort. It covers:</p>
 <ul>
 <li>Organism and antibiotic-susceptibility overviews (top organisms, R/S
-patterns, resistance heatmaps)</li>
+patterns, resistance heatmaps, resistance by specimen, age bin, and
+organism)</li>
 <li>Outcome distributions, including outcome by organism/resistance
 status, by age bin, and by year</li>
-<li>Case-mix and facility patterns (HAI/CAI, ICU vs. ward, polymicrobial
-share, syndrome distribution)</li>
+<li>Case-mix and facility patterns (patients per hospital, HAI/CAI, ICU
+vs. ward, polymicrobial share, syndrome distribution)</li>
 <li>Length-of-stay and age distributions</li>
 </ul>
-<p>All functions start with <code>plot_</code>, plus the shared
-<code><a href="../reference/eda_theme.html">eda_theme()</a></code> styling helper – deliberately distinct from the
-<code>prep_</code> (Pipeline 1) and <code>daly_</code> (Pipeline 3)
-naming.</p>
+<p>The EDA functions start with <code>plot_</code> and share the
+<code><a href="../reference/eda_theme.html">eda_theme()</a></code> styling helper.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://saketlab.github.io/anumaan/">anumaan</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/plot_top_organisms.html">plot_top_organisms</a></span><span class="op">(</span><span class="va">data</span>, n <span class="op">=</span> <span class="fl">10</span>, mode <span class="op">=</span> <span class="st">"faceted"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_abx_heatmap.html">plot_abx_heatmap</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_outcome_distribution.html">plot_outcome_distribution</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"overall"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_los_ridge.html">plot_los_ridge</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/plot_top_organisms.html">plot_top_organisms</a></span><span class="op">(</span><span class="va">data</span>, n <span class="op">=</span> <span class="fl">10</span>, mode <span class="op">=</span> <span class="st">"faceted"</span>,</span>
+<span>                   patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_abx_heatmap.html">plot_abx_heatmap</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"all"</span>,</span>
+<span>                 patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_outcome_distribution.html">plot_outcome_distribution</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"overall"</span>,</span>
+<span>                          patient_col <span class="op">=</span> <span class="st">"patient_id"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_los_ridge.html">plot_los_ridge</a></span><span class="op">(</span><span class="va">data</span>, mode <span class="op">=</span> <span class="st">"all"</span>,</span>
+<span>               admission_col <span class="op">=</span> <span class="st">"date_of_admission"</span>,</span>
+<span>               discharge_col <span class="op">=</span> <span class="st">"date_of_final_outcome"</span><span class="op">)</span></span></code></pre></div>
 <p>See the full walkthrough in the <a href="eda-workflow.html">Exploratory Data Analysis vignette</a>.</p>
 <hr>
 </div>
@@ -201,38 +212,43 @@ naming.</p>
 <p><strong>Vignette:</strong> <a href="daly-pipeline.html">DALY Burden
 Estimation</a></p>
 <p>The DALY pipeline takes analysis-ready preprocessed data and produces
-resistance-profile probability distributions and GBD-style burden
-estimates. It covers:</p>
-<ul>
-<li>Resistance profile estimation via a Bayesian multivariate probit
-model fit directly to facility event-level AST data</li>
-<li>Observed-vs-model calibration checks (marginal, pairwise,
-complete-profile) and masked-AST holdout validation</li>
-<li>Years of Life Lost (YLL) — associated and attributable</li>
-<li>Years Lived with Disability (YLD) — associated and attributable</li>
-<li>Total DALY burden per pathogen, hospital, and organism group</li>
-</ul>
-<p>All estimation functions start with <code>daly_</code>.
-Profile-specific functions are
-<code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code>,
-<code><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities()</a></code>,
-<code><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly()</a></code>, and
-<code>validate_*_calibration()</code>.</p>
+resistance-profile probabilities and GBD-style burden estimates. It runs
+in six steps: resistance profiles, length of stay (LOS), relative risk
+of death, population attributable fractions (PAF), years of life lost
+(YLL), and years lived with disability (YLD). Burden functions start
+with <code>daly_</code>.</p>
+<div class="section level3">
+<h3 id="resistance-profiles">Resistance profiles<a class="anchor" aria-label="anchor" href="#resistance-profiles"></a>
+</h3>
+<p>A resistance profile is one combination of resistant/susceptible
+results across a panel of antibiotic classes. The package estimates the
+probability of every profile for each pathogen through one of two
+pathways.</p>
+<p><strong>Pathway 1 — convex optimisation.</strong> Works from
+aggregate data: marginal resistance per class and pairwise
+co-resistance. It finds the profile distribution that best matches those
+targets.</p>
+<p><strong>Pathway 2 — Bayesian multivariate probit.</strong> Fits a
+model directly to event-level AST data, with covariates and optional
+random effects, and completes the classes that were not tested.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit</a></span><span class="op">(</span></span>
 <span>  event_class_data <span class="op">=</span> <span class="va">event_level_ast</span>,</span>
-<span>  class_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>,</span>
-<span>  fixed_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span><span class="op">)</span>,</span>
-<span>  random_effects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"center_name"</span><span class="op">)</span>,</span>
-<span>  pathogen <span class="op">=</span> <span class="st">"Klebsiella pneumoniae"</span></span>
+<span>  class_cols       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Carbapenems"</span>, <span class="st">"3GC"</span>, <span class="st">"Fluoroquinolones"</span><span class="op">)</span>,</span>
+<span>  fixed_effects    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Age_normalised"</span>, <span class="st">"gender"</span><span class="op">)</span>,</span>
+<span>  random_effects   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"center_name"</span><span class="op">)</span>,</span>
+<span>  pathogen         <span class="op">=</span> <span class="st">"Klebsiella pneumoniae"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_event_profile_probabilities.html">compute_event_profile_probabilities</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">agg</span>      <span class="op">&lt;-</span> <span class="fu"><a href="../reference/aggregate_profiles_for_daly.html">aggregate_profiles_for_daly</a></span><span class="op">(</span><span class="va">profiles</span>, hospital_col <span class="op">=</span> <span class="st">"center_name"</span><span class="op">)</span></span></code></pre></div>
-<p>See the full walkthrough in the <a href="daly-pipeline.html">DALY
-Burden Estimation vignette</a>.</p>
-<div class="section level3">
-<h3 id="bayesian-multivariate-probit-backend-selection">Bayesian multivariate probit backend selection<a class="anchor" aria-label="anchor" href="#bayesian-multivariate-probit-backend-selection"></a>
-</h3>
+<p>Calibration checks for Pathway 2 are
+<code><a href="../reference/validate_marginal_calibration.html">validate_marginal_calibration()</a></code>,
+<code><a href="../reference/validate_pairwise_calibration.html">validate_pairwise_calibration()</a></code>,
+<code><a href="../reference/validate_complete_profile_calibration.html">validate_complete_profile_calibration()</a></code> and
+<code><a href="../reference/mask_and_validate_ast.html">mask_and_validate_ast()</a></code>.</p>
+<div class="section level4">
+<h4 id="bayesian-multivariate-probit-backend-selection">Bayesian multivariate probit backend selection<a class="anchor" aria-label="anchor" href="#bayesian-multivariate-probit-backend-selection"></a>
+</h4>
 <p>For Pathway 2 Bayesian resistance-profile estimation,
 <code><a href="../reference/fit_bayesian_multivariate_probit.html">fit_bayesian_multivariate_probit()</a></code> now accepts a
 <code>compute</code> argument so the same statistical model can be run
@@ -270,6 +286,55 @@ on either a standard CPU backend or an OpenCL-enabled backend.</p>
 <p>This backend choice affects compilation and sampling only. Priors,
 likelihood, diagnostics, posterior predictive checks, resistance
 profiles, and downstream DALY quantities remain unchanged.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="length-of-stay">Length of stay<a class="anchor" aria-label="anchor" href="#length-of-stay"></a>
+</h3>
+<p>LOS is the time from admission to discharge among discharged
+patients. <code><a href="../reference/daly_fit_los_rr.html">daly_fit_los_rr()</a></code> estimates, for each pathogen
+and antibiotic class, how much longer resistant infections stay than
+susceptible ones (relative LOS).
+<code><a href="../reference/daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code> and
+<code><a href="../reference/daly_fit_los_distn_by_profile.html">daly_fit_los_distn_by_profile()</a></code> are distribution-based
+alternatives.</p>
+</div>
+<div class="section level3">
+<h3 id="relative-risk-of-death">Relative risk of death<a class="anchor" aria-label="anchor" href="#relative-risk-of-death"></a>
+</h3>
+<p><code><a href="../reference/daly_fit_mortality_rr.html">daly_fit_mortality_rr()</a></code> fits a logistic model of death
+on resistance for each pathogen and antibiotic class, adjusted for age,
+sex and infection type. It returns an odds ratio (<code>OR_death</code>)
+and a relative risk (<code>RR_death</code>).</p>
+</div>
+<div class="section level3">
+<h3 id="population-attributable-fractions">Population attributable fractions<a class="anchor" aria-label="anchor" href="#population-attributable-fractions"></a>
+</h3>
+<p>The per-class estimates are mapped onto profiles: each profile takes
+the largest relative risk among its resistant classes
+(<code><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles()</a></code>). The PAF is then the share
+of LOS, or of deaths, that would not have occurred had every infection
+been susceptible (<code><a href="../reference/daly_calc_paf_los.html">daly_calc_paf_los()</a></code>,
+<code><a href="../reference/daly_calc_paf_mortality.html">daly_calc_paf_mortality()</a></code>).</p>
+</div>
+<div class="section level3">
+<h3 id="years-of-life-lost">Years of life lost<a class="anchor" aria-label="anchor" href="#years-of-life-lost"></a>
+</h3>
+<p><code><a href="../reference/daly_calc_yll_associated.html">daly_calc_yll_associated()</a></code> sums the remaining life
+expectancy, by age bin and sex, of patients who died with the infection.
+<code><a href="../reference/daly_calc_yll_attributable.html">daly_calc_yll_attributable()</a></code> multiplies that by the
+mortality PAF to give the share due to resistance.</p>
+</div>
+<div class="section level3">
+<h3 id="years-lived-with-disability">Years lived with disability<a class="anchor" aria-label="anchor" href="#years-lived-with-disability"></a>
+</h3>
+<p><code><a href="../reference/daly_calc_yld_associated.html">daly_calc_yld_associated()</a></code> combines the number of
+non-fatal cases, the pathogen’s share of them, the profile
+probabilities, LOS and a disability weight.
+<code><a href="../reference/daly_calc_yld_attributable.html">daly_calc_yld_attributable()</a></code> uses the excess LOS of
+resistant over susceptible infections instead.</p>
+<p>See the full walkthrough in the <a href="daly-pipeline.html">DALY
+Burden Estimation vignette</a>.</p>
 <hr>
 </div>
 </div>
@@ -396,10 +461,10 @@ row per isolate × antibiotic combination:</p>
 <code>date_of_final_outcome</code>, <code>DOB</code>, <code>Age</code>,
 <code>gender</code>, <code>final_outcome</code>,
 <code>infection_type</code>, <code>state</code>.</p>
-<p><code><a href="../reference/prep_standardize_specimens.html">prep_standardize_specimens()</a></code> now returns
+<p><code><a href="../reference/prep_standardize_specimens.html">prep_standardize_specimens()</a></code> returns
 <code>sterile_classification</code> collapsed to <code>Sterile</code>,
-<code>Non-Sterile</code>, or <code>Others/Ambiguous</code>. The
-0.1.0.9021 reference also adds stewardship specimen labels such as
+<code>Non-Sterile</code>, or <code>Others/Ambiguous</code>. The specimen
+reference also includes stewardship specimen labels such as
 <code>Brain abscess</code>, <code>Instrument</code>,
 <code>Lung aspirate</code>, <code>Lymph node</code>, <code>Hair</code>,
 and <code>Superficial Biopsy</code>.</p>

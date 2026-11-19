@@ -19,11 +19,9 @@ Pipeline 3) – it only visualises what is already there, to catch
 data-quality problems and characterise the cohort before further
 modelling.
 
-All functions in this layer are named `plot_*` (with the shared styling
+The functions in this layer are named `plot_*` and share the styling
 helper
-[`eda_theme()`](https://saketlab.github.io/anumaan/reference/eda_theme.md)),
-which is deliberately distinct from the `prep_*` (Pipeline 1) and
-`daly_*` (Pipeline 3) naming used elsewhere in the package.
+[`eda_theme()`](https://saketlab.github.io/anumaan/reference/eda_theme.md).
 
 Most `plot_*` functions here share a common `mode` argument:
 
@@ -31,6 +29,8 @@ Most `plot_*` functions here share a common `mode` argument:
   functions)
 - **`"overall"`** – all centres pooled into a single chart
 - **`"single"`** – one specific centre, passed via `center = "..."`
+- **`"all"`** – every centre in one chart, used by the heatmap and ridge
+  plots in place of `"faceted"` and `"overall"`
 
 and a common `syndrome_col`/`syndrome_name` pair for restricting the
 plot to one infectious syndrome (e.g. `syndrome_name = "BSI"`) when that
@@ -71,8 +71,8 @@ The examples below use a small synthetic long-format dataset (one row
 per isolate x antibiotic) with the same column names Pipeline 1 would
 hand off – as if it were the output of the
 [Preprocessing](https://saketlab.github.io/anumaan/articles/preprocessing-workflow.md)
-vignette’s `prepped` object, scaled up to two hospitals so the
-`mode = "faceted"` examples have something to facet over.
+vignette’s `prepped` object, scaled up to 60 patients in two hospitals
+so the `mode = "faceted"` examples have something to facet over.
 
 ``` r
 set.seed(42)
@@ -84,28 +84,42 @@ organisms <- c(
 )
 antibiotics <- c("Amikacin", "Ciprofloxacin", "Meropenem", "Ceftriaxone")
 
-eda_data <- data.frame(
-  patient_id = paste0("pt_", sprintf("%03d", rep(1:n_pts, each = 3))),
-  center_name = rep(sample(centers, n_pts, replace = TRUE), each = 3),
-  organism_normalized = rep(sample(organisms, n_pts, replace = TRUE), each = 3),
-  antibiotic_normalized = rep(antibiotics, length.out = n_pts * 3),
-  ast_value_harmonized = sample(c("R", "S"), n_pts * 3, replace = TRUE, prob = c(0.4, 0.6)),
-  specimen_normalized = rep(sample(c("Blood", "Urine", "Sputum"), n_pts, replace = TRUE), each = 3),
-  final_outcome = rep(sample(c("Death", "Discharged", "LAMA", "Transferred to other hospital"),
+# One row per patient: every patient-level value is drawn once, and derived
+# columns (age bin, infection type, outcome date) follow from the others.
+patients <- data.frame(
+  patient_id = paste0("pt_", sprintf("%03d", 1:n_pts)),
+  center_name = sample(centers, n_pts, replace = TRUE),
+  organism_normalized = sample(organisms, n_pts, replace = TRUE),
+  specimen_normalized = sample(c("Blood", "Urine", "Sputum"), n_pts, replace = TRUE),
+  final_outcome = sample(
+    c("Death", "Discharged", "LAMA", "Transferred to other hospital"),
     n_pts,
     replace = TRUE, prob = c(0.15, 0.65, 0.1, 0.1)
-  ), each = 3),
-  date_of_final_outcome = rep(as.Date("2024-01-01") + sample(1:300, n_pts, replace = TRUE), each = 3),
-  is_polymicrobial = rep(sample(c(0, 1), n_pts, replace = TRUE, prob = c(0.75, 0.25)), each = 3),
-  date_of_admission = rep(as.Date("2024-01-01") + sample(1:300, n_pts, replace = TRUE), each = 3),
-  location = rep(sample(c("ICU", "Ward"), n_pts, replace = TRUE), each = 3),
-  infection_type = rep(sample(c("HAI", "CAI"), n_pts, replace = TRUE), each = 3),
-  Age_bin = rep(sample(c("<1", "1-5", "18-45", "45-65", "65+"), n_pts, replace = TRUE), each = 3),
-  Age = rep(sample(0:85, n_pts, replace = TRUE), each = 3),
-  infectious_syndrome = rep(sample(c("BSI", "UTI", "RTI"), n_pts, replace = TRUE), each = 3),
+  ),
+  is_polymicrobial = sample(c(0, 1), n_pts, replace = TRUE, prob = c(0.75, 0.25)),
+  location = sample(c("ICU", "Ward"), n_pts, replace = TRUE),
+  Age = sample(0:85, n_pts, replace = TRUE),
+  infectious_syndrome = sample(c("BSI", "UTI", "RTI"), n_pts, replace = TRUE),
+  date_of_admission = as.Date("2023-01-01") + sample(0:700, n_pts, replace = TRUE),
   stringsAsFactors = FALSE
 )
-eda_data$date_of_culture <- eda_data$date_of_admission + sample(0:5, nrow(eda_data), replace = TRUE)
+
+days_to_culture <- sample(0:5, n_pts, replace = TRUE)
+patients$date_of_culture <- patients$date_of_admission + days_to_culture
+patients$date_of_final_outcome <- patients$date_of_culture + sample(2:25, n_pts, replace = TRUE)
+patients$infection_type <- ifelse(days_to_culture >= 2, "HAI", "CAI")
+patients$Age_bin <- as.character(cut(
+  patients$Age,
+  breaks = c(0, 18, 45, 65, Inf),
+  labels = c("0-17", "18-44", "45-64", "65+"),
+  right = FALSE
+))
+
+# Long format: three antibiotic results per patient
+eda_data <- patients[rep(seq_len(n_pts), each = 3), ]
+rownames(eda_data) <- NULL
+eda_data$antibiotic_normalized <- rep(antibiotics, length.out = n_pts * 3)
+eda_data$ast_value_harmonized <- sample(c("R", "S"), n_pts * 3, replace = TRUE, prob = c(0.4, 0.6))
 
 nrow(eda_data)
 #> [1] 180
@@ -134,7 +148,8 @@ plot_top_organisms(
   eda_data,
   n = 3, mode = "faceted",
   patient_col = "patient_id", organism_col = "organism_normalized", center_col = "center_name"
-)
+) +
+  ggplot2::theme(plot.margin = ggplot2::margin(10, 40, 10, 10))
 ```
 
 ![](eda-workflow_files/figure-html/top-organisms-1.png)
@@ -247,7 +262,8 @@ plot_outcome_by_organism(
   n = 3, resistance_filter = "R", mode = "overall",
   patient_col = "patient_id", organism_col = "organism_normalized",
   antibiotic_col = "antibiotic_normalized", value_col = "ast_value_harmonized",
-  outcome_col = "final_outcome", center_col = "center_name"
+  outcome_col = "final_outcome", center_col = "center_name",
+  title = "Final outcomes among resistant patients (top 3 organisms)"
 )
 ```
 
@@ -314,9 +330,9 @@ plot_mono_poly_by_facility(
 
 ### HAI vs. CAI, by facility
 
-Computed from the gap between `admission_col` and `culture_col`, using
-`hai_threshold_hours` (default 48h) when an explicit infection-type
-column is not already available.
+Computed from the gap between `admission_col` and each patient’s
+earliest `culture_col`, using `hai_threshold_hours` (default 48h). It
+does not read an existing infection-type column.
 
 ``` r
 plot_hai_cai_by_facility(
@@ -398,30 +414,6 @@ plot_los_by_agebin(
 
 ![](eda-workflow_files/figure-html/los-by-agebin-1.png)
 
-------------------------------------------------------------------------
-
-## Pipeline at a Glance
-
-    Preprocessing output (prep_* pipeline, analysis-ready long-format data)
-              │
-              ▼
-      plot_top_organisms() / plot_abx_susceptibility() / plot_abx_heatmap()
-      plot_resistance_by_sample() / plot_resistance_by_agebin() / plot_resistance_by_organism()
-              │            (organism & susceptibility overview)
-              ▼
-      plot_outcome_distribution() / plot_outcome_by_organism() / plot_death_discharged()
-      plot_outcome_by_agebin() / plot_outcome_by_year()
-              │            (outcome patterns)
-              ▼
-      plot_patients_by_hospital() / plot_mono_poly_by_facility() / plot_hai_cai_by_facility()
-      plot_location_by_facility() / plot_infection_type_by_location() / plot_syndrome_distribution()
-              │            (case-mix and facility patterns)
-              ▼
-      plot_los_ridge() / plot_age_ridge() / plot_los_by_agebin()
-              │            (LOS / age distributions)
-              ▼
-      Reviewed cohort -> proceed to DALY Burden Estimation (Pipeline 3)
-
 ## Summary
 
 The EDA layer is meant to be run interactively, plot by plot, while
@@ -438,49 +430,3 @@ is for Pipeline 1. A typical review pass:
     burden estimation
 4.  Only then move on to the [DALY Burden Estimation
     vignette](https://saketlab.github.io/anumaan/articles/daly-pipeline.md)
-
-## Session Info
-
-``` r
-sessionInfo()
-#> R version 4.6.2 (2026-10-29)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 26.04.1 LTS
-#> 
-#> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so;  LAPACK version 3.12.0
-#> 
-#> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
-#> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
-#> 
-#> attached base packages:
-#> [1] stats     graphics  grDevices utils     datasets  methods   base     
-#> 
-#> other attached packages:
-#> [1] dplyr_1.2.1        anumaan_0.1.0.9039
-#> 
-#> loaded via a namespace (and not attached):
-#>  [1] janeaustenr_1.0.0  tidyr_1.3.2        sass_0.4.10        generics_0.1.4    
-#>  [5] rstatix_1.1.0      stringi_1.8.9      lattice_0.23-1     digest_0.6.39     
-#>  [9] magrittr_2.0.5     evaluate_1.0.5     grid_4.6.2         RColorBrewer_1.1-3
-#> [13] fastmap_1.2.0      jsonlite_2.0.0     Matrix_1.7-6       tidytext_0.4.3    
-#> [17] backports_1.5.1    Formula_1.2-6      purrr_1.2.2        scales_1.4.0      
-#> [21] textshaping_1.0.5  jquerylib_0.1.4    abind_1.4-8        cli_3.6.6         
-#> [25] rlang_1.3.0        tokenizers_0.3.0   withr_3.0.3        cachem_1.1.0      
-#> [29] yaml_2.3.12        otel_0.2.0         tools_4.6.2        ggsignif_0.6.4    
-#> [33] ggplot2_4.0.3      ggpubr_1.0.0       broom_1.0.13       vctrs_0.7.3       
-#> [37] R6_2.6.1           ggridges_0.5.7     lifecycle_1.0.5    car_3.1-5         
-#> [41] fs_2.1.0           ragg_1.5.2         pkgconfig_2.0.3    desc_1.4.3        
-#> [45] pkgdown_2.2.1      pillar_1.11.1      bslib_0.12.0       gtable_0.3.6      
-#> [49] glue_1.8.1         Rcpp_1.1.2         systemfonts_1.3.2  xfun_0.62         
-#> [53] tibble_3.3.1       tidyselect_1.2.1   knitr_1.52         farver_2.1.2      
-#> [57] htmltools_0.5.9    SnowballC_0.7.1    labeling_0.4.3     carData_3.0-6     
-#> [61] rmarkdown_2.32     compiler_4.6.2     S7_0.2.2
-```

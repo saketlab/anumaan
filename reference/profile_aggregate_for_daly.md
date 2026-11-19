@@ -5,7 +5,8 @@ Bridges
 per-event, per-draw state-probability array into the hospital x pathogen
 x profile summary DALY calculation needs: posterior mean + credible
 interval, panel composition, event/draw support counts, and explicit
-`eligible_for_YLL`/`eligible_for_YLD` flags with reasons.
+`computational_checks_passed_YLL`/`computational_checks_passed_YLD`
+flags with reasons.
 
 ## Usage
 
@@ -56,8 +57,9 @@ profile_aggregate_for_daly(
   List or `NULL`. Return value of
   [`profile_check_sampler`](https://saketlab.github.io/anumaan/reference/profile_check_sampler.md).
   `sampler_check$status == "pass"` is required for
-  `eligible_for_YLL`/`eligible_for_YLD`. `NULL` (default): both are
-  always `FALSE` with reason `"sampler_not_checked"`.
+  `computational_checks_passed_YLL`/ `computational_checks_passed_YLD`.
+  `NULL` (default): both are always `FALSE` with reason
+  `"sampler_not_checked"`.
 
 - ci_level:
 
@@ -65,20 +67,37 @@ profile_aggregate_for_daly(
 
 - min_n_events, min_n_draws:
 
-  Integer. Eligibility floors, same meaning as the legacy function's.
-  Default `10L`/`100L`.
+  Integer. Computational-check floors, same meaning as the legacy
+  function's. Default `10L`/`100L`.
 
 ## Value
 
 A data frame, one row per group x profile (state): `group`, `pathogen`,
 `cohort_definition`, `profile_delta` (state label, e.g. `"RRSS"`),
 `R_mean`, `R_lower`, `R_upper`, `n_events`, `n_draws`,
-`n_profile_classes`, `sampler_status`, `eligible_for_YLL`,
-`exclusion_reason_YLL`, `eligible_for_YLD`, `exclusion_reason_YLD`
-(identical to the YLL columns here – there is only one cohort to be
-eligible for), `estimator` (`"joint_bernoulli"`).
+`n_profile_classes`, `sampler_status`,
+`computational_checks_passed_YLL`, `exclusion_reason_YLL`,
+`computational_checks_passed_YLD`, `exclusion_reason_YLD` (identical to
+the YLL columns here – there is only one cohort being checked),
+`estimator` (`"joint_bernoulli"`). These flags are computational
+pre-checks, not a burden-use release decision – see the note above.
 
 ## Details
+
+**What these flags do and do NOT mean (confirmed during an external
+review, 2026-11):** `computational_checks_passed_*` is exactly
+`sampler_acceptable && n_events >= min_n_events && n_draws >= min_n_draws`
+– sampler status plus two count floors, nothing else. It does NOT
+establish PPC adequacy, held-out validation performance,
+missingness/selective-testing sensitivity, correct death/episode
+attribution, absence of patient-level double counting, or
+availability/appropriateness of RR, duration or disability inputs. A row
+with `computational_checks_passed_YLL == TRUE` is computationally
+USABLE, not yet scientifically RELEASED for burden use – that is a
+separate release decision (see
+[`profile_release`](https://saketlab.github.io/anumaan/reference/profile_release.md))
+requiring all of the above, with its own explicit reasons, not inferred
+from this column.
 
 This does NOT split into `R_ALL`/`R_KNOWN_OUTCOME`/`R_NF` cohorts after
 fitting. In this pipeline, cohort selection (e.g. a Discharged/
@@ -101,6 +120,6 @@ A second departure: `sampler_acceptable` has no default here. The legacy
 function defaulted it to `TRUE` (opt-out: eligible unless told
 otherwise). This function requires an actual
 [`profile_check_sampler`](https://saketlab.github.io/anumaan/reference/profile_check_sampler.md)
-result and treats a missing one as not eligible, with
+result and treats a missing one as not passed, with
 `exclusion_reason_YLL/YLD = "sampler_not_checked"` – never silently
 assumed acceptable.

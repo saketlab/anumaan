@@ -45,7 +45,7 @@ diagnostic."><meta property="og:image" content="https://saketlab.github.io/anuma
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -111,7 +111,8 @@ diagnostic.</p>
 <span>  min_susceptible_after_mask <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  sampler_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  n_draws <span class="op">=</span> <span class="fl">500L</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">123L</span></span>
+<span>  seed <span class="op">=</span> <span class="fl">123L</span>,</span>
+<span>  design_spec <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -166,6 +167,16 @@ more). Default <code>500L</code>.</p></dd>
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
 <dd><p>Integer. Mask selection AND posterior-draw-subsampling seed.
 Default <code>123L</code>.</p></dd>
+
+
+<dt id="arg-design-spec">design_spec<a class="anchor" aria-label="anchor" href="#arg-design-spec"></a></dt>
+<dd><p>Named list, any of <code>class_names</code>, <code>max_order</code>,
+<code>beta_sd</code>, <code>interaction_sd</code> – forwarded to
+<code><a href="profile_build_design.html">profile_build_design</a></code> for the refit. Default
+<code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code>: the refit silently uses that function's own defaults,
+which can be a different interaction order or prior scale from the
+model actually being validated. Pass the original fit's own design
+specification here to validate the SAME model.</p></dd>
 
 </dl></div>
     <div class="section level2">

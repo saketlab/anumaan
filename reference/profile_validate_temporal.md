@@ -22,7 +22,8 @@ profile_validate_temporal(
   output_dir,
   sampler_config = list(),
   n_draws = 500L,
-  seed = 123L
+  seed = 123L,
+  design_spec = list()
 )
 ```
 
@@ -67,9 +68,20 @@ profile_validate_temporal(
   Passed to
   [`profile_estimate`](https://saketlab.github.io/anumaan/reference/profile_estimate.md).
 
+- design_spec:
+
+  Named list, forwarded to
+  [`profile_build_design`](https://saketlab.github.io/anumaan/reference/profile_build_design.md)
+  for the training-only refit – see
+  [`profile_validate_newpatient`](https://saketlab.github.io/anumaan/reference/profile_validate_newpatient.md)'s
+  `design_spec` doc for the exact fields and why this matters.
+
 ## Value
 
-Named list: `predictions`, `summary`, `calibration`, `refit_result`,
+Named list: `predictions`, `summary`, `calibration`,
+`joint_profile_scores` (see
+[`profile_validate_newpatient`](https://saketlab.github.io/anumaan/reference/profile_validate_newpatient.md)
+for its exact shape – identical here), `refit_result`,
 `n_holdout_events`, `n_train_events`, `cutoff_date` (echoed), and
 `patient_overlap` (list: `n_overlapping_patients`,
 `fraction_of_holdout_patients` – both `NA` when `patient_id` is not

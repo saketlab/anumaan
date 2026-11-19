@@ -41,7 +41,7 @@ supplied, rather than assuming temporal and patient independence."><meta propert
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -103,7 +103,8 @@ supplied, rather than assuming temporal and patient independence.</p>
 <span>  <span class="va">output_dir</span>,</span>
 <span>  sampler_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  n_draws <span class="op">=</span> <span class="fl">500L</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">123L</span></span>
+<span>  seed <span class="op">=</span> <span class="fl">123L</span>,</span>
+<span>  design_spec <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -146,11 +147,20 @@ Default <code>NULL</code> (no overlap report).</p></dd>
 <dt id="arg-n-draws-seed">n_draws, seed<a class="anchor" aria-label="anchor" href="#arg-n-draws-seed"></a></dt>
 <dd><p>Passed to <code><a href="profile_estimate.html">profile_estimate</a></code>.</p></dd>
 
+
+<dt id="arg-design-spec">design_spec<a class="anchor" aria-label="anchor" href="#arg-design-spec"></a></dt>
+<dd><p>Named list, forwarded to
+<code><a href="profile_build_design.html">profile_build_design</a></code> for the training-only refit – see
+<code><a href="profile_validate_newpatient.html">profile_validate_newpatient</a></code>'s <code>design_spec</code> doc for
+the exact fields and why this matters.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Named list: <code>predictions</code>, <code>summary</code>, <code>calibration</code>,
-  <code>refit_result</code>, <code>n_holdout_events</code>, <code>n_train_events</code>,
+  <code>joint_profile_scores</code> (see <code><a href="profile_validate_newpatient.html">profile_validate_newpatient</a></code>
+  for its exact shape – identical here), <code>refit_result</code>,
+  <code>n_holdout_events</code>, <code>n_train_events</code>,
   <code>cutoff_date</code> (echoed), and <code>patient_overlap</code> (list:
   <code>n_overlapping_patients</code>, <code>fraction_of_holdout_patients</code> –
   both <code>NA</code> when <code>patient_id</code> is not supplied).</p>

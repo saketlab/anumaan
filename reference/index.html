@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -683,13 +683,6 @@
 
       <dl><dt>
 
-          <code><a href="enumerate_binary_profiles.html">enumerate_binary_profiles()</a></code>
-
-        </dt>
-        <dd>Enumerate All Binary Resistance Profiles for a Set of Antibiotic Classes</dd>
-
-        <dt>
-
           <code><a href="compute_marginal_resistance.html">compute_marginal_resistance()</a></code>
 
         </dt>
@@ -718,6 +711,13 @@
 
         <dt>
 
+          <code><a href="enumerate_binary_profiles.html">enumerate_binary_profiles()</a></code>
+
+        </dt>
+        <dd>Enumerate All Binary Resistance Profiles for a Set of Antibiotic Classes</dd>
+
+        <dt>
+
           <code><a href="build_constraint_matrix.html">build_constraint_matrix()</a></code>
 
         </dt>
@@ -725,7 +725,7 @@
       </dl></div><div class="section level2">
       <h2 id="pathway-convex-profile-estimation">Pathway 1: Convex Profile Estimation<a class="anchor" aria-label="anchor" href="#pathway-convex-profile-estimation"></a></h2>
 
-      <div class="section-desc"><p>End-to-end pipeline for estimating resistance-profile probability distributions from facility-level or aggregate surveillance data via convex optimisation (GBD equation 7.5.1.3). Supports geography, year, and outcome stratification; optional override with externally modelled marginals (e.g. GBD ST-GPR). Use  as the top-level entry point.</p></div>
+      <div class="section-desc"><p>End-to-end pipeline for estimating resistance-profile probability distributions from facility-level or aggregate surveillance data via convex optimisation (GBD equation 7.5.1.3). Supports geography, year, and outcome stratification; optional override with externally modelled marginals (e.g. GBD ST-GPR). Use  as the top-level dispatcher for both Pathway 1 and Pathway 2.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -824,6 +824,13 @@
 
         </dt>
         <dd>Tabulate Class-Level Testing Support, by Group</dd>
+
+        <dt>
+
+          <code><a href="profile_audit_profile_distribution.html">profile_audit_profile_distribution()</a></code>
+
+        </dt>
+        <dd>Audit the Observed Frequency of Every Resistance Profile, Per Group</dd>
 
         <dt>
 
@@ -1027,6 +1034,13 @@
 
         </dt>
         <dd>Aggregate Posterior Profile Estimates for DALY Use</dd>
+
+        <dt>
+
+          <code><a href="profile_aggregate_counts_with_allocation.html">profile_aggregate_counts_with_allocation()</a></code>
+
+        </dt>
+        <dd>Aggregate Hospital-Profile Counts Under Discrete Missing-Data Allocation</dd>
 
         <dt>
 

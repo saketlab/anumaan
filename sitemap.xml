@@ -74,8 +74,11 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-probit_diagnostic_table_lines.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-probit_diagnostic_thresholds.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_assumption_catalog.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_compatible_softmax.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_design_args.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_html_escape.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_html_table.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_joint_scores.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_predict_masked_cells.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_read_stan_csv_progress.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/dot-profile_release_gate.html</loc></url>
@@ -220,8 +223,10 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/print.amr_preprocessing_report.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/print.amr_result.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/prioritize_resistance.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/profile_aggregate_counts_with_allocation.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/profile_aggregate_for_daly.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/profile_audit_interaction_support.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/profile_audit_profile_distribution.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/profile_audit_support.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/profile_bernoulli_terms.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/profile_build_design.html</loc></url>

@@ -51,7 +51,7 @@ prediction rule/model)."><meta property="og:image" content="https://saketlab.git
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -114,11 +114,14 @@ prediction rule/model).</p>
 <span>  <span class="va">ids</span>,</span>
 <span>  <span class="va">patient_id</span>,</span>
 <span>  <span class="va">output_dir</span>,</span>
+<span>  strata <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  holdout_patient_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  holdout_fraction <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  sampler_config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  n_draws <span class="op">=</span> <span class="fl">500L</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">123L</span></span>
+<span>  seed <span class="op">=</span> <span class="fl">123L</span>,</span>
+<span>  design_spec <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  min_train_per_stratum <span class="op">=</span> <span class="fl">1L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -140,6 +143,20 @@ for every event.</p></dd>
 <dt id="arg-output-dir">output_dir<a class="anchor" aria-label="anchor" href="#arg-output-dir"></a></dt>
 <dd><p>Character. Passed to
 <code><a href="profile_fit_joint_bernoulli.html">profile_fit_joint_bernoulli</a></code> for the training-only refit.</p></dd>
+
+
+<dt id="arg-strata">strata<a class="anchor" aria-label="anchor" href="#arg-strata"></a></dt>
+<dd><p>Character/integer vector, length <code>nrow(Y)</code> (same row
+order as <code>patient_id</code>), or <code>NULL</code>. When supplied and
+<code>holdout_patient_ids</code> is <code>NULL</code>, <code>holdout_fraction</code> of
+DISTINCT patients is sampled WITHIN EACH STRATUM separately (e.g. one
+value per event giving that event's hospital) rather than pooled
+across the whole cohort – avoids a hospital-blind draw leaving a
+small hospital with zero (or disproportionately many) held-out
+patients. A patient must have the SAME stratum value across all of
+their events (checked explicitly; errors otherwise, naming the
+patient). Default <code>NULL</code>: pooled sampling, the original
+behaviour, unchanged.</p></dd>
 
 
 <dt id="arg-holdout-patient-ids">holdout_patient_ids<a class="anchor" aria-label="anchor" href="#arg-holdout-patient-ids"></a></dt>
@@ -164,11 +181,40 @@ patients (not events) is sampled for holdout. Default <code>0.1</code>.</p></dd>
 held-out prediction (also the patient-sampling seed, when
 <code>holdout_patient_ids</code> is <code>NULL</code>).</p></dd>
 
+
+<dt id="arg-design-spec">design_spec<a class="anchor" aria-label="anchor" href="#arg-design-spec"></a></dt>
+<dd><p>Named list, any of <code>class_names</code>, <code>max_order</code>,
+<code>beta_sd</code>, <code>interaction_sd</code> – forwarded to
+<code><a href="profile_build_design.html">profile_build_design</a></code> for the training-only refit.
+Default <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code>: the refit silently uses
+<code><a href="profile_build_design.html">profile_build_design</a></code>'s own defaults, which can be a
+different interaction order or prior scale from the model actually
+being validated (e.g. a fit with non-default priors). Pass the
+original fit's own design specification here to validate the SAME
+model, not a default-prior stand-in. Unknown field names are an
+error; the effective specification is returned as
+<code>effective_design_spec</code>.</p></dd>
+
+
+<dt id="arg-min-train-per-stratum">min_train_per_stratum<a class="anchor" aria-label="anchor" href="#arg-min-train-per-stratum"></a></dt>
+<dd><p>Integer &gt;= 1. Minimum number of distinct
+patients that must remain in training per stratum (or overall, when
+<code>strata</code> is <code>NULL</code>). Strata with no more patients than this
+are kept entirely in training and reported as not evaluable, and
+<code>holdout_fraction</code> is capped so no stratum drops below it.
+Default <code>1L</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Named list: <code>predictions</code>, <code>summary</code>, <code>calibration</code>
   (same shape as <code><a href="profile_validate_masked.html">profile_validate_masked</a></code>),
+  <code>joint_profile_scores</code> (data frame, one row per held-out event
+  whose true complete profile is actually known – i.e. every class
+  was genuinely tested for that event: <code>joint_log_loss</code>,
+  <code>multiclass_brier</code> scoring the WHOLE profile as one unit, which
+  cell-level scores in <code>summary</code> cannot do – empty with 0 rows
+  if no held-out event had a complete true profile),
   <code>refit_result</code> (the training-only fit – check its sampler
   diagnostics via <code><a href="profile_check_sampler.html">profile_check_sampler</a></code> before trusting
   these scores), <code>n_holdout_events</code>, <code>n_train_events</code>,

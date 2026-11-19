@@ -86,12 +86,6 @@ raw_alias
 
 ## Schema Checks and Column Mapping
 
-### Inspect what preprocessing is possible
-
-``` r
-prep_report_capabilities(raw_alias)
-```
-
 ### Build a rename map explicitly
 
 Use the staged API when you want the mapping to be visible and
@@ -149,6 +143,9 @@ names(std_cols$data)
 #>  [7] "specimen_type"         "antibiotic_name"       "antibiotic_value"     
 #> [10] "gender"                "DOB"                   "infection_type"
 ```
+
+`PID` is not recognised automatically, so map it explicitly as shown
+above.
 
 ### Assert the minimum standard names
 
@@ -261,13 +258,12 @@ prepped[, c(
 
 ### Specimen, sex, outcome, and infection type
 
-In version 0.1.0.9021, specimen standardisation keeps the detailed
-`sample_category` from the CSV reference but collapses sterile-site
-labels to three downstream analysis classes: `Sterile`, `Non-Sterile`,
-and `Others/Ambiguous`. The reference also includes stewardship labels
-that appear in 2021-era extracts, including `Brain abscess`,
-`Instrument`, `Lung aspirate`, `Lymph node`, `Hair`, and
-`Superficial Biopsy`.
+Specimen standardisation keeps the detailed `sample_category` from the
+CSV reference but collapses sterile-site labels to three downstream
+analysis classes: `Sterile`, `Non-Sterile`, and `Others/Ambiguous`. The
+reference also includes stewardship labels that appear in 2021-era
+extracts, including `Brain abscess`, `Instrument`, `Lung aspirate`,
+`Lymph node`, `Hair`, and `Superficial Biopsy`.
 
 ``` r
 prepped <- prep_standardize_specimens(prepped, specimen_col = "specimen_type")
@@ -301,7 +297,7 @@ prepped[, c(
 ```
 
 ``` r
-specimen_9021 <- data.frame(
+specimen_demo <- data.frame(
   specimen_type = c(
     "Instrument", "Lung aspirate", "Brain abscess",
     "Superficial Biopsy", "Hair", "Lymph node",
@@ -310,7 +306,7 @@ specimen_9021 <- data.frame(
   stringsAsFactors = FALSE
 )
 
-prep_standardize_specimens(specimen_9021)[, c(
+prep_standardize_specimens(specimen_demo)[, c(
   "specimen_type",
   "specimen_normalized",
   "sample_category",
@@ -340,16 +336,10 @@ prep_standardize_specimens(specimen_9021)[, c(
 
 ``` r
 prepped <- prep_standardize_antibiotics(prepped, antibiotic_col = "antibiotic_name")
-prepped <- prep_clean_ast_values(prepped, value_col = "antibiotic_value")
 prepped <- prep_harmonize_ast(
   prepped,
   antibiotic_col = "antibiotic_normalized",
   ast_col = "antibiotic_value"
-)
-prepped <- prep_check_organism_ast_consistency(
-  prepped,
-  organism_col = "organism_normalized",
-  antibiotic_col = "antibiotic_normalized"
 )
 prepped <- prep_flag_invalid_ast(prepped, col = "ast_value_harmonized")
 
@@ -358,9 +348,8 @@ prepped[, c(
   "antibiotic_normalized",
   "antibiotic_class",
   "aware_category",
-  "antibiotic_value",
+  "ast_value_raw",
   "ast_value_harmonized",
-  "is_ast_inconsistent",
   "is_ast_invalid"
 )]
 #>   antibiotic_name antibiotic_normalized antibiotic_class aware_category
@@ -370,13 +359,13 @@ prepped[, c(
 #> 4       Oxacillin             oxacillin      Penicillins         Access
 #> 5        Colistin           colistin_iv         Colistin        Reserve
 #> 6   UnknownDrugZZ         unknowndrugzz             <NA>           <NA>
-#>   antibiotic_value ast_value_harmonized is_ast_inconsistent is_ast_invalid
-#> 1                R                    R               FALSE          FALSE
-#> 2                S                    S               FALSE          FALSE
-#> 3                S                    S                TRUE          FALSE
-#> 4                I                    R                TRUE          FALSE
-#> 5             <NA>                 <NA>                TRUE          FALSE
-#> 6             <NA>                 <NA>               FALSE          FALSE
+#>   ast_value_raw ast_value_harmonized is_ast_invalid
+#> 1     Resistant                    R          FALSE
+#> 2   Susceptible                    S          FALSE
+#> 3             S                    S          FALSE
+#> 4  Intermediate                    R          FALSE
+#> 5             1                 <NA>          FALSE
+#> 6                               <NA>          FALSE
 ```
 
 ## Demographic and Clinical Derivations
@@ -431,7 +420,7 @@ prepped[, c("patient_id", "date_of_admission", "date_of_final_outcome", "los_day
 #> 6     pt_004        2021-01-13            2021-01-25       12
 ```
 
-### Derive HAI/CAI and source flags
+### Derive HAI/CAI
 
 ``` r
 prepped <- prep_derive_hai_cai(
@@ -443,9 +432,7 @@ prepped <- prep_derive_hai_cai(
   overwrite = FALSE
 )
 
-prepped <- prep_flag_hai_inferred(prepped)
-
-prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_type", "infection_type_method", "infection_type_src")]
+prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_type")]
 #>   patient_id date_of_admission date_of_culture infection_type
 #> 1     pt_001        2021-01-01      2021-01-03            HAI
 #> 2     pt_001        2021-01-01      2021-01-03            HAI
@@ -453,13 +440,6 @@ prepped[, c("patient_id", "date_of_admission", "date_of_culture", "infection_typ
 #> 4     pt_003        2021-01-10      2021-01-11            CAI
 #> 5     pt_003        2021-01-10      2021-01-11            HAI
 #> 6     pt_004        2021-01-13      2021-01-15            HAI
-#>   infection_type_method infection_type_src
-#> 1  inferred_2day_cutoff           inferred
-#> 2  inferred_2day_cutoff           inferred
-#> 3  inferred_2day_cutoff           inferred
-#> 4  inferred_2day_cutoff           inferred
-#> 5  inferred_2day_cutoff           inferred
-#> 6  inferred_2day_cutoff           inferred
 ```
 
 ### Assign facility type
@@ -721,7 +701,7 @@ class_level <- prep_collapse_class_level(
   event_col          = "event_id",
   organism_col       = "organism_normalized",
   class_col          = "antibiotic_class",
-  susceptibility_col = "antibiotic_value",
+  susceptibility_col = "ast_value_harmonized",
   extra_cols         = "organism_group"
 )
 
@@ -730,25 +710,41 @@ class_level <- dplyr::rename(class_level, class_result_event = class_resistance)
 
 ### Classify MDR/XDR
 
-``` r
-mdr_xdr <- prep_classify_mdr_xdr(class_level, organism_group_col = "organism_group")
+The main example has too few classes per event to classify, so this step
+uses a small class-level table with eight classes tested per event.
 
-dplyr::distinct(mdr_xdr, event_id, mdr, mdr_confidence, xdr, xdr_confidence)
-#> # A tibble: 5 × 5
-#>   event_id                             mdr   mdr_confidence xdr   xdr_confidence
-#>   <chr>                                <lgl> <chr>          <lgl> <chr>         
-#> 1 pt_001_blood_20210103_escherichia c… FALSE insufficient_… TRUE  high          
-#> 2 pt_002_blood_20200103_staphylococcu… FALSE NA             TRUE  medium        
-#> 3 pt_003_brain abscess_20210111_coagu… FALSE NA             TRUE  medium        
-#> 4 pt_003_endotracheal aspirate (eta)_… FALSE NA             TRUE  medium        
-#> 5 pt_004_superficial biopsy_20210115_… FALSE NA             TRUE  medium
+``` r
+classes <- c(
+  "Aminoglycosides", "Carbapenems", "Fluoroquinolones",
+  "Third-generation-cephalosporins", "Penicillins", "Tetracyclines",
+  "Polymyxins", "Glycylcyclines"
+)
+make_event <- function(id, results) {
+  data.frame(
+    event_id            = id,
+    organism_normalized = "klebsiella pneumoniae",
+    organism_group      = "Enterobacterales",
+    antibiotic_class    = classes,
+    class_result_event  = results
+  )
+}
+mdr_demo <- rbind(
+  make_event("ev_A", c("R", "S", "S", "S", "S", "S", "S", "S")),
+  make_event("ev_B", c("R", "R", "R", "R", "R", "S", "S", "S")),
+  make_event("ev_C", c("R", "R", "R", "R", "R", "R", "R", "S"))
+)
+
+mdr_xdr <- prep_classify_mdr_xdr(mdr_demo, organism_group_col = "organism_group")
+dplyr::distinct(mdr_xdr, event_id, n_resistant_categories, mdr, mdr_confidence, xdr)
+#>   event_id n_resistant_categories   mdr mdr_confidence   xdr
+#> 1     ev_A                      1 FALSE           high FALSE
+#> 2     ev_B                      5  TRUE           high FALSE
+#> 3     ev_C                      7  TRUE           high  TRUE
 ```
 
-With only 6 rows in this synthetic example, most events have too few
-antibiotic classes tested for a confident call – `mdr_confidence`
-reports `"insufficient_data"` rather than a false-confident answer. On a
-real dataset with a fuller antibiotic panel per event, confidence rises
-to `"medium"`/`"high"` as more categories are tested.
+`ev_A` is resistant in one class and is neither MDR nor XDR. `ev_B` is
+resistant in five classes and is MDR. `ev_C` is susceptible in only one
+class and is both MDR and XDR.
 
 ## Contaminants and Polymicrobial Episodes
 
@@ -873,7 +869,13 @@ prep_missingness_report(
 #> 4 ast_value_harmonized       4         0           0           FALSE
 #> 5                  Age       4         0           0           FALSE
 
-prep_validate_analysis_ready(ready, min_rows = 1, stop_on_failure = FALSE)
+readiness <- prep_validate_analysis_ready(
+  dplyr::rename(ready, culture_date = date_of_culture),
+  min_rows = 1,
+  stop_on_failure = FALSE
+)
+readiness$passes
+#> [1] TRUE
 ```
 
 ## Summary
@@ -894,5 +896,6 @@ to:
 1.  freeze the column map for that source
 2.  run the staged workflow on a larger extract
 3.  compare attrition before and after each filter
-4.  wrap the validated sequence inside
+4.  use
     [`run_preprocess()`](https://saketlab.github.io/anumaan/reference/run_preprocess.md)
+    for routine runs once the column map is fixed

@@ -225,9 +225,6 @@ Build outcome cohorts and track patient counts through pipeline stages
 Marginal resistance, co-resistance matrices, and low-level profile
 computation, shared across pipelines
 
-- [`enumerate_binary_profiles()`](https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.md)
-  : Enumerate All Binary Resistance Profiles for a Set of Antibiotic
-  Classes
 - [`compute_marginal_resistance()`](https://saketlab.github.io/anumaan/reference/compute_marginal_resistance.md)
   : Compute Marginal Resistance per Pathogen and Antibiotic Class
 - [`compute_pairwise_coresistance()`](https://saketlab.github.io/anumaan/reference/compute_pairwise_coresistance.md)
@@ -236,6 +233,9 @@ computation, shared across pipelines
   : Compute Resistance Profile Probabilities per Pathogen
 - [`select_resistance_class()`](https://saketlab.github.io/anumaan/reference/select_resistance_class.md)
   : Select Resistance Class for Burden Attribution
+- [`enumerate_binary_profiles()`](https://saketlab.github.io/anumaan/reference/enumerate_binary_profiles.md)
+  : Enumerate All Binary Resistance Profiles for a Set of Antibiotic
+  Classes
 - [`build_constraint_matrix()`](https://saketlab.github.io/anumaan/reference/build_constraint_matrix.md)
   : Build QP Constraint Matrix and Target Vector
 
@@ -245,7 +245,8 @@ End-to-end pipeline for estimating resistance-profile probability
 distributions from facility-level or aggregate surveillance data via
 convex optimisation (GBD equation 7.5.1.3). Supports geography, year,
 and outcome stratification; optional override with externally modelled
-marginals (e.g. GBD ST-GPR). Use as the top-level entry point.
+marginals (e.g. GBD ST-GPR). Use as the top-level dispatcher for both
+Pathway 1 and Pathway 2.
 
 - [`estimate_resistance_profiles()`](https://saketlab.github.io/anumaan/reference/estimate_resistance_profiles.md)
   : Estimate Resistance Profiles: Pathway 1 (Convex) or Pathway 2
@@ -291,6 +292,8 @@ analysis, simulation-based calibration, release reporting, and plotting.
   : Structured Pre-Fit Assumption Register
 - [`profile_audit_support()`](https://saketlab.github.io/anumaan/reference/profile_audit_support.md)
   : Tabulate Class-Level Testing Support, by Group
+- [`profile_audit_profile_distribution()`](https://saketlab.github.io/anumaan/reference/profile_audit_profile_distribution.md)
+  : Audit the Observed Frequency of Every Resistance Profile, Per Group
 - [`profile_plan_precision()`](https://saketlab.github.io/anumaan/reference/profile_plan_precision.md)
   : Evaluate Precision Against a Set of Named Tiers
 - [`profile_define_cohort()`](https://saketlab.github.io/anumaan/reference/profile_define_cohort.md)
@@ -354,6 +357,9 @@ analysis, simulation-based calibration, release reporting, and plotting.
   : Fixed-Order Evidence Report, With a Release Gate
 - [`profile_aggregate_for_daly()`](https://saketlab.github.io/anumaan/reference/profile_aggregate_for_daly.md)
   : Aggregate Posterior Profile Estimates for DALY Use
+- [`profile_aggregate_counts_with_allocation()`](https://saketlab.github.io/anumaan/reference/profile_aggregate_counts_with_allocation.md)
+  : Aggregate Hospital-Profile Counts Under Discrete Missing-Data
+  Allocation
 - [`profile_plot_calibration_forest()`](https://saketlab.github.io/anumaan/reference/profile_plot_calibration_forest.md)
   : Observed-vs-Model Calibration Forest Plot
 - [`profile_plot_profile_heatmap()`](https://saketlab.github.io/anumaan/reference/profile_plot_profile_heatmap.md)

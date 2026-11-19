@@ -19,33 +19,40 @@ data into an analysis-ready format. It covers:
 
 - Column name standardisation and schema alignment
 - Date parsing and chronological validation
-- Organism, specimen, antibiotic, and AST value cleaning, including the
-  0.1.0.9021 specimen reference additions and collapsed sterile-site
-  classes
-- Demographic derivations (age, HAI/CAI, LOS)
+- Organism, specimen, antibiotic, and AST value cleaning
+- Age filling and age bins
+- Clinical derivations (HAI/CAI, length of stay, mortality)
 - Event creation, deduplication, and readmission classification
 - Contaminant detection and polymicrobial weighting
-- Attrition tracking and analysis-readiness filtering
+- MDR/XDR classification
 
-All functions start with `prep_`. The pipeline entry point is
+Most modular functions start with `prep_`.
 [`run_preprocess()`](https://saketlab.github.io/anumaan/reference/run_preprocess.md)
-for automated runs or the modular `prep_*` functions for staged,
-inspectable workflows.
+runs the core standardisation and derivation steps in one call,
+configured through
+[`amr_config()`](https://saketlab.github.io/anumaan/reference/amr_config.md).
+The modular `prep_*` functions give a staged, inspectable workflow and
+cover every step listed above.
 
 ``` r
 library(anumaan)
 
-# Full automated pipeline
+# One-call pipeline
 result <- run_preprocess(
   data   = your_ast_data,
   config = amr_config(hai_cutoff = 3, event_gap_days = 14)
 )
+clean_data <- result$data
 
 # Or modular
-data <- prep_standardize_organisms(data, organism_col = "organism_name")
-data <- prep_harmonize_ast(data, ast_col = "antibiotic_value")
-data <- prep_create_event_ids(data, patient_col = "patient_id",
-                               date_col = "date_of_culture")
+data <- prep_standardize_organisms(your_ast_data,
+                                   organism_col = "organism_name")
+data <- prep_harmonize_ast(data,
+                           antibiotic_col = "antibiotic_name",
+                           ast_col        = "antibiotic_value")
+data <- prep_create_event_ids(data,
+                              patient_col = "patient_id",
+                              date_col    = "date_of_culture")
 ```
 
 See the full step-by-step walkthrough in the [Preprocessing Workflow
@@ -64,25 +71,30 @@ stewardship team runs on Pipeline 1’s output to catch data-quality
 issues and characterise the cohort. It covers:
 
 - Organism and antibiotic-susceptibility overviews (top organisms, R/S
-  patterns, resistance heatmaps)
+  patterns, resistance heatmaps, resistance by specimen, age bin, and
+  organism)
 - Outcome distributions, including outcome by organism/resistance
   status, by age bin, and by year
-- Case-mix and facility patterns (HAI/CAI, ICU vs. ward, polymicrobial
-  share, syndrome distribution)
+- Case-mix and facility patterns (patients per hospital, HAI/CAI, ICU
+  vs. ward, polymicrobial share, syndrome distribution)
 - Length-of-stay and age distributions
 
-All functions start with `plot_`, plus the shared
+The EDA functions start with `plot_` and share the
 [`eda_theme()`](https://saketlab.github.io/anumaan/reference/eda_theme.md)
-styling helper – deliberately distinct from the `prep_` (Pipeline 1) and
-`daly_` (Pipeline 3) naming.
+styling helper.
 
 ``` r
 library(anumaan)
 
-plot_top_organisms(data, n = 10, mode = "faceted")
-plot_abx_heatmap(data, mode = "all")
-plot_outcome_distribution(data, mode = "overall")
-plot_los_ridge(data, mode = "all")
+plot_top_organisms(data, n = 10, mode = "faceted",
+                   patient_col = "patient_id")
+plot_abx_heatmap(data, mode = "all",
+                 patient_col = "patient_id")
+plot_outcome_distribution(data, mode = "overall",
+                          patient_col = "patient_id")
+plot_los_ridge(data, mode = "all",
+               admission_col = "date_of_admission",
+               discharge_col = "date_of_final_outcome")
 ```
 
 See the full walkthrough in the [Exploratory Data Analysis
@@ -96,40 +108,47 @@ vignette](https://saketlab.github.io/anumaan/articles/eda-workflow.md).
 Estimation](https://saketlab.github.io/anumaan/articles/daly-pipeline.md)
 
 The DALY pipeline takes analysis-ready preprocessed data and produces
-resistance-profile probability distributions and GBD-style burden
-estimates. It covers:
+resistance-profile probabilities and GBD-style burden estimates. It runs
+in six steps: resistance profiles, length of stay (LOS), relative risk
+of death, population attributable fractions (PAF), years of life lost
+(YLL), and years lived with disability (YLD). Burden functions start
+with `daly_`.
 
-- Resistance profile estimation via a Bayesian multivariate probit model
-  fit directly to facility event-level AST data
-- Observed-vs-model calibration checks (marginal, pairwise,
-  complete-profile) and masked-AST holdout validation
-- Years of Life Lost (YLL) — associated and attributable
-- Years Lived with Disability (YLD) — associated and attributable
-- Total DALY burden per pathogen, hospital, and organism group
+### Resistance profiles
 
-All estimation functions start with `daly_`. Profile-specific functions
-are
-[`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md),
-[`compute_event_profile_probabilities()`](https://saketlab.github.io/anumaan/reference/compute_event_profile_probabilities.md),
-[`aggregate_profiles_for_daly()`](https://saketlab.github.io/anumaan/reference/aggregate_profiles_for_daly.md),
-and `validate_*_calibration()`.
+A resistance profile is one combination of resistant/susceptible results
+across a panel of antibiotic classes. The package estimates the
+probability of every profile for each pathogen through one of two
+pathways.
+
+**Pathway 1 — convex optimisation.** Works from aggregate data: marginal
+resistance per class and pairwise co-resistance. It finds the profile
+distribution that best matches those targets.
+
+**Pathway 2 — Bayesian multivariate probit.** Fits a model directly to
+event-level AST data, with covariates and optional random effects, and
+completes the classes that were not tested.
 
 ``` r
 fit <- fit_bayesian_multivariate_probit(
   event_class_data = event_level_ast,
-  class_cols = c("Carbapenems", "3GC", "Fluoroquinolones"),
-  fixed_effects = c("Age_normalised", "gender"),
-  random_effects = c("center_name"),
-  pathogen = "Klebsiella pneumoniae"
+  class_cols       = c("Carbapenems", "3GC", "Fluoroquinolones"),
+  fixed_effects    = c("Age_normalised", "gender"),
+  random_effects   = c("center_name"),
+  pathogen         = "Klebsiella pneumoniae"
 )
 profiles <- compute_event_profile_probabilities(fit)
 agg      <- aggregate_profiles_for_daly(profiles, hospital_col = "center_name")
 ```
 
-See the full walkthrough in the [DALY Burden Estimation
-vignette](https://saketlab.github.io/anumaan/articles/daly-pipeline.md).
+Calibration checks for Pathway 2 are
+[`validate_marginal_calibration()`](https://saketlab.github.io/anumaan/reference/validate_marginal_calibration.md),
+[`validate_pairwise_calibration()`](https://saketlab.github.io/anumaan/reference/validate_pairwise_calibration.md),
+[`validate_complete_profile_calibration()`](https://saketlab.github.io/anumaan/reference/validate_complete_profile_calibration.md)
+and
+[`mask_and_validate_ast()`](https://saketlab.github.io/anumaan/reference/mask_and_validate_ast.md).
 
-### Bayesian multivariate probit backend selection
+#### Bayesian multivariate probit backend selection
 
 For Pathway 2 Bayesian resistance-profile estimation,
 [`fit_bayesian_multivariate_probit()`](https://saketlab.github.io/anumaan/reference/fit_bayesian_multivariate_probit.md)
@@ -173,6 +192,54 @@ fit_opencl <- fit_bayesian_multivariate_probit(
 This backend choice affects compilation and sampling only. Priors,
 likelihood, diagnostics, posterior predictive checks, resistance
 profiles, and downstream DALY quantities remain unchanged.
+
+### Length of stay
+
+LOS is the time from admission to discharge among discharged patients.
+[`daly_fit_los_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.md)
+estimates, for each pathogen and antibiotic class, how much longer
+resistant infections stay than susceptible ones (relative LOS).
+[`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md)
+and
+[`daly_fit_los_distn_by_profile()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_distn_by_profile.md)
+are distribution-based alternatives.
+
+### Relative risk of death
+
+[`daly_fit_mortality_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_mortality_rr.md)
+fits a logistic model of death on resistance for each pathogen and
+antibiotic class, adjusted for age, sex and infection type. It returns
+an odds ratio (`OR_death`) and a relative risk (`RR_death`).
+
+### Population attributable fractions
+
+The per-class estimates are mapped onto profiles: each profile takes the
+largest relative risk among its resistant classes
+([`daly_assign_rr_to_profiles()`](https://saketlab.github.io/anumaan/reference/daly_assign_rr_to_profiles.md)).
+The PAF is then the share of LOS, or of deaths, that would not have
+occurred had every infection been susceptible
+([`daly_calc_paf_los()`](https://saketlab.github.io/anumaan/reference/daly_calc_paf_los.md),
+[`daly_calc_paf_mortality()`](https://saketlab.github.io/anumaan/reference/daly_calc_paf_mortality.md)).
+
+### Years of life lost
+
+[`daly_calc_yll_associated()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.md)
+sums the remaining life expectancy, by age bin and sex, of patients who
+died with the infection.
+[`daly_calc_yll_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.md)
+multiplies that by the mortality PAF to give the share due to
+resistance.
+
+### Years lived with disability
+
+[`daly_calc_yld_associated()`](https://saketlab.github.io/anumaan/reference/daly_calc_yld_associated.md)
+combines the number of non-fatal cases, the pathogen’s share of them,
+the profile probabilities, LOS and a disability weight.
+[`daly_calc_yld_attributable()`](https://saketlab.github.io/anumaan/reference/daly_calc_yld_attributable.md)
+uses the excess LOS of resistant over susceptible infections instead.
+
+See the full walkthrough in the [DALY Burden Estimation
+vignette](https://saketlab.github.io/anumaan/articles/daly-pipeline.md).
 
 ------------------------------------------------------------------------
 
@@ -221,10 +288,10 @@ Optional but used when present: `date_of_admission`,
 `infection_type`, `state`.
 
 [`prep_standardize_specimens()`](https://saketlab.github.io/anumaan/reference/prep_standardize_specimens.md)
-now returns `sterile_classification` collapsed to `Sterile`,
-`Non-Sterile`, or `Others/Ambiguous`. The 0.1.0.9021 reference also adds
-stewardship specimen labels such as `Brain abscess`, `Instrument`,
-`Lung aspirate`, `Lymph node`, `Hair`, and `Superficial Biopsy`.
+returns `sterile_classification` collapsed to `Sterile`, `Non-Sterile`,
+or `Others/Ambiguous`. The specimen reference also includes stewardship
+specimen labels such as `Brain abscess`, `Instrument`, `Lung aspirate`,
+`Lymph node`, `Hair`, and `Superficial Biopsy`.
 
 ------------------------------------------------------------------------
 

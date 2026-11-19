@@ -28,6 +28,7 @@ uses. A naturally untested cell contributes no score.
   sampler_config,
   n_draws,
   seed,
-  validation_mode
+  validation_mode,
+  design_spec = list()
 )
 ```

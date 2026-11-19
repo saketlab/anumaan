@@ -3,15 +3,19 @@
 (Recall_k - Recall_{k-1}) * Precision_k.
 Depends on resistant prevalence (unlike AUROC); undefined, not zero,
 with zero positive cases. Matches the standard step-function definition
-(e.g. scikit-learn's average_precision_score); ties at a
-threshold are not specially collapsed – the telescoping sum is
-invariant to tie order, so this is not an approximation."><meta property="og:description" content="Area under the recall-weighted precision step function, AP = sum_k
+(e.g. scikit-learn's average_precision_score): tied prediction
+scores are explicitly collapsed to one threshold boundary each, using
+the cumulative counts at the END of each run of equal scores – NOT an
+arbitrary interior position within a tied block, which would make the
+result depend on tie-breaking order (verified: previously it did)."><meta property="og:description" content="Area under the recall-weighted precision step function, AP = sum_k
 (Recall_k - Recall_{k-1}) * Precision_k.
 Depends on resistant prevalence (unlike AUROC); undefined, not zero,
 with zero positive cases. Matches the standard step-function definition
-(e.g. scikit-learn's average_precision_score); ties at a
-threshold are not specially collapsed – the telescoping sum is
-invariant to tie order, so this is not an approximation."><meta property="og:image" content="https://saketlab.github.io/anumaan/logo.png"><link rel="stylesheet" href="extra.css"><meta name="keywords" content="AMR, antimicrobial resistance, R package, burden estimation, YLL, YLD, DALY, GBD, India, surveillance, hospital infections, MDR, XDR"><meta name="author" content="Saket Choudhary, Nilanjana Dey, Nima Jijo, Namrata Kharat"><meta name="robots" content="index, follow"><meta property="og:type" content="website"><meta property="og:url" content="https://saketlab.github.io/anumaan/"><meta property="og:title" content="anumaan - AMR Surveillance Preprocessing and Burden Estimation"><meta property="og:description" content="R package for preprocessing antimicrobial resistance surveillance data and estimating disease burden using GBD methodology."><meta property="og:site_name" content="anumaan"><meta property="og:locale" content="en_US"><script type="application/ld+json">
+(e.g. scikit-learn's average_precision_score): tied prediction
+scores are explicitly collapsed to one threshold boundary each, using
+the cumulative counts at the END of each run of equal scores – NOT an
+arbitrary interior position within a tied block, which would make the
+result depend on tie-breaking order (verified: previously it did)."><meta property="og:image" content="https://saketlab.github.io/anumaan/logo.png"><link rel="stylesheet" href="extra.css"><meta name="keywords" content="AMR, antimicrobial resistance, R package, burden estimation, YLL, YLD, DALY, GBD, India, surveillance, hospital infections, MDR, XDR"><meta name="author" content="Saket Choudhary, Nilanjana Dey, Nima Jijo, Namrata Kharat"><meta name="robots" content="index, follow"><meta property="og:type" content="website"><meta property="og:url" content="https://saketlab.github.io/anumaan/"><meta property="og:title" content="anumaan - AMR Surveillance Preprocessing and Burden Estimation"><meta property="og:description" content="R package for preprocessing antimicrobial resistance surveillance data and estimating disease burden using GBD methodology."><meta property="og:site_name" content="anumaan"><meta property="og:locale" content="en_US"><script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -41,7 +45,7 @@ invariant to tie order, so this is not an approximation."><meta property="og:ima
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,9 +90,11 @@ invariant to tie order, so this is not an approximation."><meta property="og:ima
 (Recall_k - Recall_{k-1}) * Precision_k.
 Depends on resistant prevalence (unlike AUROC); undefined, not zero,
 with zero positive cases. Matches the standard step-function definition
-(e.g. scikit-learn's <code>average_precision_score</code>); ties at a
-threshold are not specially collapsed – the telescoping sum is
-invariant to tie order, so this is not an approximation.</p>
+(e.g. scikit-learn's <code>average_precision_score</code>): tied prediction
+scores are explicitly collapsed to one threshold boundary each, using
+the cumulative counts at the END of each run of equal scores – NOT an
+arbitrary interior position within a tied block, which would make the
+result depend on tie-breaking order (verified: previously it did).</p>
     </div>
 
     <div class="section level2">

@@ -27,7 +27,8 @@ profile_validate_heldout(
   min_susceptible_after_mask = 3L,
   sampler_config = list(),
   n_draws = 500L,
-  seed = 123L
+  seed = 123L,
+  design_spec = list()
 )
 ```
 
@@ -86,6 +87,17 @@ profile_validate_heldout(
 
   Integer. Mask selection AND posterior-draw-subsampling seed. Default
   `123L`.
+
+- design_spec:
+
+  Named list, any of `class_names`, `max_order`, `beta_sd`,
+  `interaction_sd` – forwarded to
+  [`profile_build_design`](https://saketlab.github.io/anumaan/reference/profile_build_design.md)
+  for the refit. Default [`list()`](https://rdrr.io/r/base/list.html):
+  the refit silently uses that function's own defaults, which can be a
+  different interaction order or prior scale from the model actually
+  being validated. Pass the original fit's own design specification here
+  to validate the SAME model.
 
 ## Value
 

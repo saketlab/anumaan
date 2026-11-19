@@ -3,11 +3,13 @@
 state-probability array into the hospital x pathogen x profile summary
 DALY calculation needs: posterior mean + credible interval, panel
 composition, event/draw support counts, and explicit
-eligible_for_YLL/eligible_for_YLD flags with reasons."><meta property="og:description" content="Bridges profile_estimate's per-event, per-draw
+computational_checks_passed_YLL/computational_checks_passed_YLD
+flags with reasons."><meta property="og:description" content="Bridges profile_estimate's per-event, per-draw
 state-probability array into the hospital x pathogen x profile summary
 DALY calculation needs: posterior mean + credible interval, panel
 composition, event/draw support counts, and explicit
-eligible_for_YLL/eligible_for_YLD flags with reasons."><meta property="og:image" content="https://saketlab.github.io/anumaan/logo.png"><link rel="stylesheet" href="extra.css"><meta name="keywords" content="AMR, antimicrobial resistance, R package, burden estimation, YLL, YLD, DALY, GBD, India, surveillance, hospital infections, MDR, XDR"><meta name="author" content="Saket Choudhary, Nilanjana Dey, Nima Jijo, Namrata Kharat"><meta name="robots" content="index, follow"><meta property="og:type" content="website"><meta property="og:url" content="https://saketlab.github.io/anumaan/"><meta property="og:title" content="anumaan - AMR Surveillance Preprocessing and Burden Estimation"><meta property="og:description" content="R package for preprocessing antimicrobial resistance surveillance data and estimating disease burden using GBD methodology."><meta property="og:site_name" content="anumaan"><meta property="og:locale" content="en_US"><script type="application/ld+json">
+computational_checks_passed_YLL/computational_checks_passed_YLD
+flags with reasons."><meta property="og:image" content="https://saketlab.github.io/anumaan/logo.png"><link rel="stylesheet" href="extra.css"><meta name="keywords" content="AMR, antimicrobial resistance, R package, burden estimation, YLL, YLD, DALY, GBD, India, surveillance, hospital infections, MDR, XDR"><meta name="author" content="Saket Choudhary, Nilanjana Dey, Nima Jijo, Namrata Kharat"><meta name="robots" content="index, follow"><meta property="og:type" content="website"><meta property="og:url" content="https://saketlab.github.io/anumaan/"><meta property="og:title" content="anumaan - AMR Surveillance Preprocessing and Burden Estimation"><meta property="og:description" content="R package for preprocessing antimicrobial resistance surveillance data and estimating disease burden using GBD methodology."><meta property="og:site_name" content="anumaan"><meta property="og:locale" content="en_US"><script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -37,7 +39,7 @@ eligible_for_YLL/eligible_for_YLD flags with reasons."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9039</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,7 +84,8 @@ eligible_for_YLL/eligible_for_YLD flags with reasons."><meta property="og:image"
 state-probability array into the hospital x pathogen x profile summary
 DALY calculation needs: posterior mean + credible interval, panel
 composition, event/draw support counts, and explicit
-<code>eligible_for_YLL</code>/<code>eligible_for_YLD</code> flags with reasons.</p>
+<code>computational_checks_passed_YLL</code>/<code>computational_checks_passed_YLD</code>
+flags with reasons.</p>
     </div>
 
     <div class="section level2">
@@ -130,7 +133,8 @@ events, no outcome restriction"</code>) – echoed into every row.</p></dd>
 <dt id="arg-sampler-check">sampler_check<a class="anchor" aria-label="anchor" href="#arg-sampler-check"></a></dt>
 <dd><p>List or <code>NULL</code>. Return value of
 <code><a href="profile_check_sampler.html">profile_check_sampler</a></code>. <code>sampler_check$status ==
-"pass"</code> is required for <code>eligible_for_YLL</code>/<code>eligible_for_YLD</code>.
+"pass"</code> is required for <code>computational_checks_passed_YLL</code>/
+<code>computational_checks_passed_YLD</code>.
 <code>NULL</code> (default): both are always <code>FALSE</code> with reason
 <code>"sampler_not_checked"</code>.</p></dd>
 
@@ -140,8 +144,8 @@ events, no outcome restriction"</code>) – echoed into every row.</p></dd>
 
 
 <dt id="arg-min-n-events-min-n-draws">min_n_events, min_n_draws<a class="anchor" aria-label="anchor" href="#arg-min-n-events-min-n-draws"></a></dt>
-<dd><p>Integer. Eligibility floors, same
-meaning as the legacy function's. Default <code>10L</code>/<code>100L</code>.</p></dd>
+<dd><p>Integer. Computational-check floors,
+same meaning as the legacy function's. Default <code>10L</code>/<code>100L</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -151,14 +155,29 @@ meaning as the legacy function's. Default <code>10L</code>/<code>100L</code>.</p
   <code>profile_delta</code> (state label, e.g. <code>"RRSS"</code>),
   <code>R_mean</code>, <code>R_lower</code>, <code>R_upper</code>, <code>n_events</code>,
   <code>n_draws</code>, <code>n_profile_classes</code>, <code>sampler_status</code>,
-  <code>eligible_for_YLL</code>, <code>exclusion_reason_YLL</code>,
-  <code>eligible_for_YLD</code>, <code>exclusion_reason_YLD</code> (identical to
-  the YLL columns here – there is only one cohort to be eligible
-  for), <code>estimator</code> (<code>"joint_bernoulli"</code>).</p>
+  <code>computational_checks_passed_YLL</code>, <code>exclusion_reason_YLL</code>,
+  <code>computational_checks_passed_YLD</code>, <code>exclusion_reason_YLD</code>
+  (identical to the YLL columns here – there is only one cohort being
+  checked), <code>estimator</code> (<code>"joint_bernoulli"</code>). These flags
+  are computational pre-checks, not a burden-use release decision –
+  see the note above.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>This does NOT split into <code>R_ALL</code>/<code>R_KNOWN_OUTCOME</code>/<code>R_NF</code>
+    <p><strong>What these flags do and do NOT mean (confirmed during an
+external review, 2026-11):</strong> <code>computational_checks_passed_*</code> is
+exactly <code>sampler_acceptable &amp;&amp; n_events &gt;= min_n_events &amp;&amp;
+n_draws &gt;= min_n_draws</code> – sampler status plus two count floors,
+nothing else. It does NOT establish PPC adequacy, held-out validation
+performance, missingness/selective-testing sensitivity, correct
+death/episode attribution, absence of patient-level double counting,
+or availability/appropriateness of RR, duration or disability inputs.
+A row with <code>computational_checks_passed_YLL == TRUE</code> is
+computationally USABLE, not yet scientifically RELEASED for burden
+use – that is a separate release decision (see
+<code><a href="profile_release.html">profile_release</a></code>) requiring all of the above, with its
+own explicit reasons, not inferred from this column.</p>
+<p>This does NOT split into <code>R_ALL</code>/<code>R_KNOWN_OUTCOME</code>/<code>R_NF</code>
 cohorts after fitting. In this pipeline, cohort selection (e.g. a Discharged/
 non-fatal restriction) happens BEFORE fitting, via
 <code><a href="profile_select_cohort.html">profile_select_cohort</a></code> – the fit is already trained on
@@ -178,7 +197,7 @@ fits, not one fit relabeled twice.</p>
 legacy function defaulted it to <code>TRUE</code> (opt-out: eligible unless
 told otherwise). This function requires an actual
 <code><a href="profile_check_sampler.html">profile_check_sampler</a></code> result and treats a missing one as
-not eligible, with <code>exclusion_reason_YLL/YLD = "sampler_not_checked"</code>
+not passed, with <code>exclusion_reason_YLL/YLD = "sampler_not_checked"</code>
 – never silently assumed acceptable.</p>
     </div>
 
