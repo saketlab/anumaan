@@ -254,6 +254,7 @@ reference:
   - profile_select_cohort
   - profile_check_assumptions
   - profile_audit_support
+  - profile_audit_profile_distribution
   - profile_plan_precision
   - profile_define_cohort
   - profile_precision_bound
@@ -283,6 +284,7 @@ reference:
   - profile_release
   - profile_render_report
   - profile_aggregate_for_daly
+  - profile_aggregate_counts_with_allocation
   - profile_plot_calibration_forest
   - profile_plot_profile_heatmap
   - profile_plot_pairwise_heatmap
