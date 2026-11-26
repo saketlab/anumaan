@@ -1,0 +1,3 @@
+Antibiotic,Class,ATC code,Category ,Source
+Cefoperazone/Sulbactam,Third-generation-cephalosporins,J01DD62,Not recommended,"Not in WHO_aware_class.csv. On the WHO AWaRe 'Not recommended' fixed-dose-combination list; class follows the cefoperazone row of WHO_aware_class.csv."
+Ticarcillin/Clavulanic acid,Beta-lactam/beta-lactamase-inhibitor,J01CR03,,"Not in WHO_aware_class.csv. Class follows the other penicillin/beta-lactamase-inhibitor combinations in WHO_aware_class.csv; AWaRe category not verified, left blank."
