@@ -13,10 +13,21 @@
 #'
 #' Standardizes antibiotic names using fuzzy matching against WHO AWaRe reference.
 #'
+#' Combination drugs are matched as combinations: \code{-}, \code{+}, \code{/},
+#' \code{&} and "and" are treated as the same separator and word order is
+#' ignored, so "piperacillin-tazobactam" matches "Piperacillin/Tazobactam"
+#' rather than the single drug "Piperacillin". A single-drug reference only gets
+#' the substring bonus when it covers every drug named in the input. A
+#' combination with no reference row keeps its full name (components joined by
+#' "/"), gets \code{NA} class and AWaRe category, and is reported in a warning;
+#' it is never reduced to one of its components.
+#'
 #' @param data Data frame with antibiotic data.
 #' @param antibiotic_col Character. Column name with antibiotic names. Default "antibiotic_name".
 #' @param who_table Data frame. WHO AWaRe classification table. If NULL,
-#'   loads from inst/extdata/WHO_aware_class.csv.
+#'   loads inst/extdata/WHO_aware_class.csv and appends
+#'   inst/extdata/antibiotic_combination_supplement.csv (combinations found in
+#'   surveillance data that the WHO table does not list).
 #' @param add_class Logical. Add antibiotic_class column. Default TRUE.
 #' @param add_aware Logical. Add aware_category column. Default TRUE.
 #'
@@ -41,6 +52,15 @@ prep_standardize_antibiotics <- function(data,
       return(data)
     }
     who_table <- readr::read_csv(who_path, show_col_types = FALSE)
+    supp_path <- find_extdata_file("antibiotic_combination_supplement.csv")
+    if (supp_path != "" && file.exists(supp_path)) {
+      supp <- readr::read_csv(supp_path, show_col_types = FALSE,
+                              col_types = readr::cols(.default = readr::col_character()))
+      who_table <- dplyr::bind_rows(
+        dplyr::mutate(who_table, dplyr::across(dplyr::everything(), as.character)),
+        supp[, intersect(names(supp), names(who_table)), drop = FALSE]
+      )
+    }
   }
 
   # Normalise column names in who_table
@@ -66,19 +86,47 @@ prep_standardize_antibiotics <- function(data,
     n_unique_before, nrow(who_table)
   ))
 
-  extract_abx_keywords <- function(name) {
+  # "acid" is too generic to match on ("nalidixic acid" vs "fusidic-acid").
+  filler <- c("iv", "oral", "injection", "tablet", "mg", "strip", "mic", "done", "by", "and", "acid")
+
+  # Lower-case BEFORE stripping: stripping first deleted every capital letter
+  # ("Piperacillin/Tazobactam" -> "iperacillin", "azobactam").
+  abx_tokens <- function(name) {
     if (is.na(name) || name == "") {
       return(character(0))
     }
-    cleaned <- tolower(gsub("[^a-z0-9\\s/-]", " ", name))
-    words <- unlist(strsplit(cleaned, "[\\s/-]+"))
-    filler <- c("iv", "oral", "injection", "tablet", "mg", "strip", "mic", "done", "by")
-    words <- words[!words %in% filler & nchar(words) > 2]
-    unique(words)
+    cleaned <- gsub("[^a-z0-9]+", " ", tolower(name))
+    words <- strsplit(trimws(cleaned), " +")[[1]]
+    words[nzchar(words)]
   }
+  extract_abx_keywords <- function(name) {
+    words <- abx_tokens(name)
+    unique(words[!words %in% filler & nchar(words) > 2])
+  }
+  # Separator- and order-free key: "piperacillin-tazobactam",
+  # "Piperacillin/Tazobactam" and "tazobactam + piperacillin" all agree.
+  canonical_key <- function(name) {
+    words <- abx_tokens(name)
+    paste(sort(unique(words[words != "and"])), collapse = " ")
+  }
+  # Keywords match exactly, within one edit for words of 8+ letters
+  # (tazobactum/tazobactam, sulbactum/sulbactam), or when one contains the
+  # other ("penicillin" in "benzylpenicillin").
+  kw_match <- function(a, b) {
+    a == b ||
+      (nchar(a) >= 8 && nchar(b) >= 8 && utils::adist(a, b)[1, 1] <= 1) ||
+      (nchar(a) >= 5 && nchar(b) >= 5 && (grepl(a, b, fixed = TRUE) || grepl(b, a, fixed = TRUE)))
+  }
+  covered <- function(words, ref_words) {
+    vapply(words, function(w) any(vapply(ref_words, kw_match, logical(1), a = w)), logical(1))
+  }
+  is_combination <- function(name) grepl("[-+/&]|\\band\\b", tolower(name))
 
   who_table$keywords <- lapply(who_table$antibiotic_name, extract_abx_keywords)
   who_table$ref_lower <- tolower(trimws(who_table$antibiotic_name))
+  who_table$ref_key <- vapply(who_table$antibiotic_name, canonical_key, character(1))
+  known_words <- unique(unlist(who_table$keywords))
+  unmatched_combinations <- character(0)
 
   data$temp_abx_input <- trimws(as.character(data[[antibiotic_col]]))
   data$antibiotic_normalized <- NA_character_
@@ -94,25 +142,44 @@ prep_standardize_antibiotics <- function(data,
       next
     }
 
+    input_key <- canonical_key(input_abx)
+    exact <- which(tolower(input_abx) == who_table$ref_lower | input_key == who_table$ref_key)
+    if (length(exact) > 0) {
+      antibiotic_map[input_abx] <- who_table$ref_lower[exact[1]]
+      next
+    }
+
     scores <- sapply(seq_len(nrow(who_table)), function(i) {
       ref_keywords <- who_table$keywords[[i]]
       if (length(ref_keywords) == 0) {
         return(0)
       }
-      overlap <- sum(input_keywords %in% ref_keywords)
-      if (tolower(input_abx) == who_table$ref_lower[i]) {
-        return(1000)
-      }
-      if (grepl(who_table$ref_lower[i], tolower(input_abx), fixed = TRUE) ||
-        grepl(tolower(input_abx), who_table$ref_lower[i], fixed = TRUE)) {
+      in_ref <- covered(input_keywords, ref_keywords)
+      overlap <- sum(in_ref)
+      # Substring bonus only when the reference names every drug in the input,
+      # so "piperacillin" cannot beat "piperacillin/tazobactam" for a combination.
+      if (all(in_ref) &&
+        (grepl(who_table$ref_lower[i], tolower(input_abx), fixed = TRUE) ||
+          grepl(tolower(input_abx), who_table$ref_lower[i], fixed = TRUE))) {
         overlap <- overlap + 2
       }
-      total_unique <- length(union(input_keywords, ref_keywords))
-      if (total_unique == 0) {
+      total_unique <- length(input_keywords) + length(ref_keywords) - sum(in_ref)
+      if (total_unique <= 0) {
         return(0)
       }
       overlap / total_unique
     })
+
+    # A combination of known drugs that no reference row fully covers keeps its
+    # own full name instead of collapsing to one component.
+    best <- which.max(scores)
+    if (is_combination(input_abx) && length(input_keywords) >= 2 &&
+      all(covered(input_keywords, known_words)) &&
+      !all(covered(input_keywords, who_table$keywords[[best]]))) {
+      antibiotic_map[input_abx] <- paste(input_keywords, collapse = "/")
+      unmatched_combinations <- c(unmatched_combinations, input_abx)
+      next
+    }
 
     max_score <- max(scores)
     if (max_score > 0.3) {
@@ -136,7 +203,14 @@ prep_standardize_antibiotics <- function(data,
     }
   }
 
-  data$antibiotic_normalized <- antibiotic_map[data$temp_abx_input]
+  if (length(unmatched_combinations) > 0) {
+    warning(sprintf(
+      "%d combination antibiotic name(s) have no reference row and were kept unclassified: %s",
+      length(unmatched_combinations), paste(unmatched_combinations, collapse = ", ")
+    ))
+  }
+
+  data$antibiotic_normalized <- unname(antibiotic_map[data$temp_abx_input])
   data$antibiotic_normalized[is.na(data$temp_abx_input) | data$temp_abx_input == ""] <- NA_character_
   data$antibiotic_normalized[!is.na(data$antibiotic_normalized) &
     trimws(data$antibiotic_normalized) == ""] <- NA_character_
