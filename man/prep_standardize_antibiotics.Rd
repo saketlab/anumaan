@@ -18,7 +18,9 @@ prep_standardize_antibiotics(
 \item{antibiotic_col}{Character. Column name with antibiotic names. Default "antibiotic_name".}
 
 \item{who_table}{Data frame. WHO AWaRe classification table. If NULL,
-loads from inst/extdata/WHO_aware_class.csv.}
+loads inst/extdata/WHO_aware_class.csv and appends
+inst/extdata/antibiotic_combination_supplement.csv (combinations found in
+surveillance data that the WHO table does not list).}
 
 \item{add_class}{Logical. Add antibiotic_class column. Default TRUE.}
 
@@ -29,4 +31,14 @@ Data frame with antibiotic_normalized, antibiotic_class, aware_category.
 }
 \description{
 Standardizes antibiotic names using fuzzy matching against WHO AWaRe reference.
+}
+\details{
+Combination drugs are matched as combinations: \code{-}, \code{+}, \code{/},
+\code{&} and "and" are treated as the same separator and word order is
+ignored, so "piperacillin-tazobactam" matches "Piperacillin/Tazobactam"
+rather than the single drug "Piperacillin". A single-drug reference only gets
+the substring bonus when it covers every drug named in the input. A
+combination with no reference row keeps its full name (components joined by
+"/"), gets \code{NA} class and AWaRe category, and is reported in a warning;
+it is never reduced to one of its components.
 }
