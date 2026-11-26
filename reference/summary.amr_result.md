@@ -65,7 +65,7 @@ result <- run_preprocess(raw, verbose = FALSE, generate_report = FALSE)
 #> is_MSSA: 0
 #> is_MRCONS: 0
 #> is_MSCONS: 0
-#> Normalizing 4 unique antibiotic names against WHO reference (257 antibiotics)...
+#> Normalizing 4 unique antibiotic names against WHO reference (259 antibiotics)...
 #> Normalized: 4 unique names -> 4
 #> With antibiotic_class: 4 (100.0%)
 #> With AWaRe category: 4 (100.0%)
@@ -131,7 +131,7 @@ summary(result)
 #> Pipeline Information:
 #>   Version: 0.1.0
 #>   Phases run: standardize, enrich, derive
-#>   Execution time: 0.19 seconds
+#>   Execution time: 0.14 seconds
 #> 
 #> Data Transformation:
 #>   Output: 4 rows x 49 columns

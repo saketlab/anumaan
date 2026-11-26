@@ -1,5 +1,25 @@
 # Changelog
 
+## anumaan 0.1.0.9044
+
+- [`prep_standardize_antibiotics()`](https://saketlab.github.io/anumaan/reference/prep_standardize_antibiotics.md)
+  now keeps combination antibiotics intact. Names such as
+  “piperacillin-tazobactam” and “trimethoprim-sulfamethoxazole” were
+  reduced to one component and given that component’s class
+  (“Penicillins”, “Sulfonamides”). They now match their WHO combination
+  rows (“Beta-lactam/beta-lactamase-inhibitor_anti-pseudomonal”,
+  “Sulfonamide-trimethoprim-combinations”), and reserve combinations
+  such as ceftazidime-avibactam keep their AWaRe category. Matching
+  treats `-`, `+`, `/`, `&` and “and” as one separator, ignores word
+  order and tolerates one-letter misspellings in long names.
+- A combination with no reference row keeps its full name, is left
+  unclassified and is reported in a warning instead of being reduced to
+  one component.
+- Added `inst/extdata/antibiotic_combination_supplement.csv` for
+  combinations absent from `WHO_aware_class.csv`
+  (cefoperazone-sulbactam, ticarcillin-clavulanic acid). It is appended
+  to the default reference.
+
 ## anumaan 0.1.0.9042
 
 - Added the joint Bernoulli resistance-profile pipeline (`profile_*`), a

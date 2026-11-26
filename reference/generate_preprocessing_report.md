@@ -91,7 +91,7 @@ result <- run_preprocess(raw, verbose = FALSE, generate_report = FALSE)
 #> is_MSSA: 0
 #> is_MRCONS: 0
 #> is_MSCONS: 0
-#> Normalizing 4 unique antibiotic names against WHO reference (257 antibiotics)...
+#> Normalizing 4 unique antibiotic names against WHO reference (259 antibiotics)...
 #> Normalized: 4 unique names -> 4
 #> With antibiotic_class: 4 (100.0%)
 #> With AWaRe category: 4 (100.0%)
@@ -158,8 +158,8 @@ report
 #>    AMR Data Preprocessing Report
 #> ===================================================
 #> 
-#> Report Generated: 2026-11-19 14:27:06 
-#> Package Version: 0.1.0.9043 
+#> Report Generated: 2026-11-26 10:42:50 
+#> Package Version: 0.1.0.9044 
 #> R Version: R version 4.6.2 (2026-10-29) 
 #> 
 #> --- Raw Data Summary ---

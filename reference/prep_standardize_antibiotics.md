@@ -28,8 +28,10 @@ prep_standardize_antibiotics(
 
 - who_table:
 
-  Data frame. WHO AWaRe classification table. If NULL, loads from
-  inst/extdata/WHO_aware_class.csv.
+  Data frame. WHO AWaRe classification table. If NULL, loads
+  inst/extdata/WHO_aware_class.csv and appends
+  inst/extdata/antibiotic_combination_supplement.csv (combinations found
+  in surveillance data that the WHO table does not list).
 
 - add_class:
 
@@ -42,3 +44,14 @@ prep_standardize_antibiotics(
 ## Value
 
 Data frame with antibiotic_normalized, antibiotic_class, aware_category.
+
+## Details
+
+Combination drugs are matched as combinations: `-`, `+`, `/`, `&` and
+"and" are treated as the same separator and word order is ignored, so
+"piperacillin-tazobactam" matches "Piperacillin/Tazobactam" rather than
+the single drug "Piperacillin". A single-drug reference only gets the
+substring bonus when it covers every drug named in the input. A
+combination with no reference row keeps its full name (components joined
+by "/"), gets `NA` class and AWaRe category, and is reported in a
+warning; it is never reduced to one of its components.

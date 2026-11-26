@@ -100,7 +100,7 @@ result <- run_preprocess(raw, verbose = FALSE, generate_report = FALSE)
 #> is_MSSA: 0
 #> is_MRCONS: 0
 #> is_MSCONS: 0
-#> Normalizing 4 unique antibiotic names against WHO reference (257 antibiotics)...
+#> Normalizing 4 unique antibiotic names against WHO reference (259 antibiotics)...
 #> Normalized: 4 unique names -> 4
 #> With antibiotic_class: 4 (100.0%)
 #> With AWaRe category: 4 (100.0%)

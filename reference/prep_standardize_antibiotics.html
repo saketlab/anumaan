@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9044</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,7 +98,9 @@
 
 <dt id="arg-who-table">who_table<a class="anchor" aria-label="anchor" href="#arg-who-table"></a></dt>
 <dd><p>Data frame. WHO AWaRe classification table. If NULL,
-loads from inst/extdata/WHO_aware_class.csv.</p></dd>
+loads inst/extdata/WHO_aware_class.csv and appends
+inst/extdata/antibiotic_combination_supplement.csv (combinations found in
+surveillance data that the WHO table does not list).</p></dd>
 
 
 <dt id="arg-add-class">add_class<a class="anchor" aria-label="anchor" href="#arg-add-class"></a></dt>
@@ -112,6 +114,17 @@ loads from inst/extdata/WHO_aware_class.csv.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Data frame with antibiotic_normalized, antibiotic_class, aware_category.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Combination drugs are matched as combinations: <code>-</code>, <code>+</code>, <code>/</code>,
+<code>&amp;</code> and "and" are treated as the same separator and word order is
+ignored, so "piperacillin-tazobactam" matches "Piperacillin/Tazobactam"
+rather than the single drug "Piperacillin". A single-drug reference only gets
+the substring bonus when it covers every drug named in the input. A
+combination with no reference row keeps its full name (components joined by
+"/"), gets <code>NA</code> class and AWaRe category, and is reported in a warning;
+it is never reduced to one of its components.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

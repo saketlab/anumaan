@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9043</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9044</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,13 @@
       <small>Source: <a href="https://github.com/saketlab/anumaan/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0.9044" id="anumaan-0109044">anumaan 0.1.0.9044<a class="anchor" aria-label="anchor" href="#anumaan-0109044"></a></h2>
+<ul><li>
+<code><a href="../reference/prep_standardize_antibiotics.html">prep_standardize_antibiotics()</a></code> now keeps combination antibiotics intact. Names such as “piperacillin-tazobactam” and “trimethoprim-sulfamethoxazole” were reduced to one component and given that component’s class (“Penicillins”, “Sulfonamides”). They now match their WHO combination rows (“Beta-lactam/beta-lactamase-inhibitor_anti-pseudomonal”, “Sulfonamide-trimethoprim-combinations”), and reserve combinations such as ceftazidime-avibactam keep their AWaRe category. Matching treats <code>-</code>, <code>+</code>, <code>/</code>, <code>&amp;</code> and “and” as one separator, ignores word order and tolerates one-letter misspellings in long names.</li>
+<li>A combination with no reference row keeps its full name, is left unclassified and is reported in a warning instead of being reduced to one component.</li>
+<li>Added <code>inst/extdata/antibiotic_combination_supplement.csv</code> for combinations absent from <code>WHO_aware_class.csv</code> (cefoperazone-sulbactam, ticarcillin-clavulanic acid). It is appended to the default reference.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0.9042" id="anumaan-0109042">anumaan 0.1.0.9042<a class="anchor" aria-label="anchor" href="#anumaan-0109042"></a></h2>
 <ul><li>Added the joint Bernoulli resistance-profile pipeline (<code>profile_*</code>), a log-linear model over all 2^D resistance states that marginalises untested antibiotic classes exactly. It covers cohort selection and support audits (<code><a href="../reference/profile_select_cohort.html">profile_select_cohort()</a></code>, <code><a href="../reference/profile_audit_support.html">profile_audit_support()</a></code>, <code><a href="../reference/profile_plan_precision.html">profile_plan_precision()</a></code>, <code><a href="../reference/profile_define_cohort.html">profile_define_cohort()</a></code>), model design and fitting (<code><a href="../reference/profile_build_design.html">profile_build_design()</a></code>, <code><a href="../reference/profile_fit_joint_bernoulli.html">profile_fit_joint_bernoulli()</a></code>), diagnostics (<code><a href="../reference/profile_check_sampler.html">profile_check_sampler()</a></code>, <code><a href="../reference/profile_ppc.html">profile_ppc()</a></code>, <code><a href="../reference/profile_prior_predictive.html">profile_prior_predictive()</a></code>), validation (<code><a href="../reference/profile_validate_masked.html">profile_validate_masked()</a></code>, <code><a href="../reference/profile_validate_heldout.html">profile_validate_heldout()</a></code>, <code><a href="../reference/profile_validate_newpatient.html">profile_validate_newpatient()</a></code>, <code><a href="../reference/profile_validate_temporal.html">profile_validate_temporal()</a></code>), estimation (<code><a href="../reference/profile_estimate.html">profile_estimate()</a></code>), aggregation (<code><a href="../reference/profile_aggregate_for_daly.html">profile_aggregate_for_daly()</a></code>) and reporting (<code><a href="../reference/profile_release.html">profile_release()</a></code>, <code><a href="../reference/profile_render_report.html">profile_render_report()</a></code>).</li>
