@@ -1,3 +1,13 @@
+# anumaan 0.1.0.9046
+
+* `daly_assign_rr_to_profiles()` reads the class of each profile letter from
+  the profile table's `classes` column (e.g. the postfit
+  `burden_profile_estimates_by_hospital.csv`), so `profile_class_order` is
+  optional; a warning is raised when both are given and differ. Burden-table
+  column names (`hospital`, `profile`, `mean`) are recognised, and class
+  names are matched ignoring case and punctuation, so
+  `Third_generation_cephalosporins` matches `Third-generation-cephalosporins`.
+
 # anumaan 0.1.0.9045
 
 * `daly_fit_los_rr()` has been rewritten. It now returns a list (`rr`,

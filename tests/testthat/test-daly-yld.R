@@ -353,3 +353,30 @@ test_that("daly_calc_yld_*() return draw-based intervals from LOS and profile dr
   expect_equal(b$n_draws, c(50L, 50L))
   expect_equal(b$uncertainty_sources, c("LOS + profile", "LOS + profile"))
 })
+
+test_that("daly_assign_rr_to_profiles() reads the class order from a burden table's classes column", {
+  fit <- .fake_los_fit()
+  fit$rr$antibiotic_class <- c("Third-generation-cephalosporins", "Beta-lactam/beta-lactamase-inhibitor_anti-pseudomonal")
+  fit$hospital$antibiotic_class <- rep(fit$rr$antibiotic_class, each = 2)
+  sp <- .fake_string_profiles()
+  burden <- data.frame(
+    hospital = sp$group, pathogen = sp$pathogen, profile = sp$profile_delta, mean = sp$R_mean,
+    classes = "Third_generation_cephalosporins;Beta_lactam_beta_lactamase_inhibitor_anti_pseudomonal",
+    stringsAsFactors = FALSE
+  )
+  out <- suppressMessages(daly_assign_rr_to_profiles(burden, fit))$K
+  expect_equal(out$dominant_class[out$profile == "RS"][1], "Third_generation_cephalosporins")
+  expect_equal(out$dominant_class[out$profile == "RR"][1], "Beta_lactam_beta_lactamase_inhibitor_anti_pseudomonal")
+  # underscore class names still find the hyphenated LOS results, per hospital
+  expect_equal(out$LOSR_years[out$hospital == "H2" & out$profile == "RR"], round(15 / 365, 6))
+  expect_true(all(out$los_level[out$dominant_class != "all_susceptible"] == "hospital"))
+  expect_equal(out$probability, out$mean)
+
+  expect_warning(
+    suppressMessages(daly_assign_rr_to_profiles(burden, fit, profile_class_order = rev(fit$rr$antibiotic_class))),
+    "differs"
+  )
+  bad <- burden
+  bad$classes[1] <- "A;B"
+  expect_error(suppressMessages(daly_assign_rr_to_profiles(bad, fit)), "more than one class order")
+})

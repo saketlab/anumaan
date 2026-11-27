@@ -17,6 +17,7 @@ daly_assign_rr_to_profiles(
   profile_col = "profile_delta",
   profile_probability_col = "R_mean",
   profile_hospital_col = "group",
+  profile_classes_col = "classes",
   profile_class_order = NULL
 )
 }
@@ -57,9 +58,13 @@ string profiles. Default \code{"R_mean"}. Copied to \code{probability}.}
 string profiles. Default \code{"group"}; \code{NULL} or absent means
 pooled profiles. Copied to \code{hospital}.}
 
-\item{profile_class_order}{Character vector (the class of each letter, in
-order) or a named list of such vectors, one per pathogen. Required for
-string profiles.}
+\item{profile_classes_col}{Character. Column of string profiles holding
+the class order as one \code{;}-separated string. Default
+\code{"classes"}.}
+
+\item{profile_class_order}{\code{NULL} (read the order from
+\code{profile_classes_col}), a character vector (the class of each
+letter, in order) or a named list of such vectors, one per pathogen.}
 }
 \value{
 Named list (one entry per pathogen): the profiles data frame
@@ -96,9 +101,22 @@ pathogen -- i.e. it assumes syndrome-invariant LOS prolongation.
     pathogen x profile, where the profile is a string of R/S letters such
     as \code{"RRSR"} -- e.g. the output of
     \code{profile_aggregate_for_daly()} (\code{group}, \code{pathogen},
-    \code{profile_delta}, \code{R_mean}). \code{profile_class_order} gives
-    the class of each letter.}
+    \code{profile_delta}, \code{R_mean}), or a burden table with
+    \code{hospital}, \code{pathogen}, \code{profile}, \code{mean} and
+    \code{classes}. When the default column names are absent, those of the
+    burden table are used.}
 }
+}
+
+\section{Class of each letter}{
+
+The class order is read from \code{profile_classes_col} (e.g.
+\code{"Fluoroquinolones;Aminoglycosides;Carbapenems"}), which must hold a
+single value per pathogen. \code{profile_class_order} can be given
+instead, or to override it (a warning is raised if they differ). Class
+names are matched to the LOS results ignoring case and punctuation, so
+\code{"Third_generation_cephalosporins"} matches
+\code{"Third-generation-cephalosporins"}.
 }
 
 \section{LOS for each profile}{
