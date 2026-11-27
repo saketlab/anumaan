@@ -23,6 +23,7 @@ daly_assign_rr_to_profiles(
   profile_col = "profile_delta",
   profile_probability_col = "R_mean",
   profile_hospital_col = "group",
+  profile_classes_col = "classes",
   profile_class_order = NULL
 )
 ```
@@ -89,10 +90,16 @@ daly_assign_rr_to_profiles(
   `"group"`; `NULL` or absent means pooled profiles. Copied to
   `hospital`.
 
+- profile_classes_col:
+
+  Character. Column of string profiles holding the class order as one
+  `;`-separated string. Default `"classes"`.
+
 - profile_class_order:
 
-  Character vector (the class of each letter, in order) or a named list
-  of such vectors, one per pathogen. Required for string profiles.
+  `NULL` (read the order from `profile_classes_col`), a character vector
+  (the class of each letter, in order) or a named list of such vectors,
+  one per pathogen.
 
 ## Value
 
@@ -126,8 +133,19 @@ i.e. it assumes syndrome-invariant LOS prolongation.
   the profile is a string of R/S letters such as `"RRSR"` – e.g. the
   output of
   [`profile_aggregate_for_daly()`](https://saketlab.github.io/anumaan/reference/profile_aggregate_for_daly.md)
-  (`group`, `pathogen`, `profile_delta`, `R_mean`).
-  `profile_class_order` gives the class of each letter.
+  (`group`, `pathogen`, `profile_delta`, `R_mean`), or a burden table
+  with `hospital`, `pathogen`, `profile`, `mean` and `classes`. When the
+  default column names are absent, those of the burden table are used.
+
+## Class of each letter
+
+The class order is read from `profile_classes_col` (e.g.
+`"Fluoroquinolones;Aminoglycosides;Carbapenems"`), which must hold a
+single value per pathogen. `profile_class_order` can be given instead,
+or to override it (a warning is raised if they differ). Class names are
+matched to the LOS results ignoring case and punctuation, so
+`"Third_generation_cephalosporins"` matches
+`"Third-generation-cephalosporins"`.
 
 ## LOS for each profile
 

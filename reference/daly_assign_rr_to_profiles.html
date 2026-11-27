@@ -41,7 +41,7 @@ for each profile is that of its dominant class."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9045</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9046</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -106,6 +106,7 @@ for each profile is that of its dominant class.</p>
 <span>  profile_col <span class="op">=</span> <span class="st">"profile_delta"</span>,</span>
 <span>  profile_probability_col <span class="op">=</span> <span class="st">"R_mean"</span>,</span>
 <span>  profile_hospital_col <span class="op">=</span> <span class="st">"group"</span>,</span>
+<span>  profile_classes_col <span class="op">=</span> <span class="st">"classes"</span>,</span>
 <span>  profile_class_order <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -172,10 +173,16 @@ string profiles. Default <code>"group"</code>; <code>NULL</code> or absent means
 pooled profiles. Copied to <code>hospital</code>.</p></dd>
 
 
+<dt id="arg-profile-classes-col">profile_classes_col<a class="anchor" aria-label="anchor" href="#arg-profile-classes-col"></a></dt>
+<dd><p>Character. Column of string profiles holding
+the class order as one <code>;</code>-separated string. Default
+<code>"classes"</code>.</p></dd>
+
+
 <dt id="arg-profile-class-order">profile_class_order<a class="anchor" aria-label="anchor" href="#arg-profile-class-order"></a></dt>
-<dd><p>Character vector (the class of each letter, in
-order) or a named list of such vectors, one per pathogen. Required for
-string profiles.</p></dd>
+<dd><p><code>NULL</code> (read the order from
+<code>profile_classes_col</code>), a character vector (the class of each
+letter, in order) or a named list of such vectors, one per pathogen.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -209,11 +216,25 @@ pathogen – i.e. it assumes syndrome-invariant LOS prolongation.</p>
     pathogen x profile, where the profile is a string of R/S letters such
     as <code>"RRSR"</code> – e.g. the output of
     <code><a href="profile_aggregate_for_daly.html">profile_aggregate_for_daly()</a></code> (<code>group</code>, <code>pathogen</code>,
-    <code>profile_delta</code>, <code>R_mean</code>). <code>profile_class_order</code> gives
-    the class of each letter.</p></dd>
+    <code>profile_delta</code>, <code>R_mean</code>), or a burden table with
+    <code>hospital</code>, <code>pathogen</code>, <code>profile</code>, <code>mean</code> and
+    <code>classes</code>. When the default column names are absent, those of the
+    burden table are used.</p></dd>
 
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="class-of-each-letter">Class of each letter<a class="anchor" aria-label="anchor" href="#class-of-each-letter"></a></h2>
+
+
+<p>The class order is read from <code>profile_classes_col</code> (e.g.
+<code>"Fluoroquinolones;Aminoglycosides;Carbapenems"</code>), which must hold a
+single value per pathogen. <code>profile_class_order</code> can be given
+instead, or to override it (a warning is raised if they differ). Class
+names are matched to the LOS results ignoring case and punctuation, so
+<code>"Third_generation_cephalosporins"</code> matches
+<code>"Third-generation-cephalosporins"</code>.</p>
+    </div>
     <div class="section level2">
     <h2 id="los-for-each-profile">LOS for each profile<a class="anchor" aria-label="anchor" href="#los-for-each-profile"></a></h2>
 
