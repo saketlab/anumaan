@@ -203,9 +203,13 @@ DALY quantities remain unchanged.
 
 ### Length of stay
 
-LOS is the time from admission to discharge among discharged patients.
-`daly_fit_los_rr()` estimates, for each pathogen and antibiotic class, how
-much longer resistant infections stay than susceptible ones (relative LOS).
+LOS is the time from admission to discharge among discharged admissions.
+`daly_fit_los_rr()` fits a Gamma model of LOS for each pathogen and
+antibiotic class, adjusted for age, sex, infection type, ICU and hospital.
+It returns how much longer resistant infections stay than susceptible ones
+(relative LOS), and for each hospital the adjusted LOS of resistant
+admissions (`LOSR`) and of the same admissions had they been susceptible
+(`LOSS`), with bootstrap confidence intervals.
 `daly_fit_los_rr_distribution()` and `daly_fit_los_distn_by_profile()` are
 distribution-based alternatives.
 

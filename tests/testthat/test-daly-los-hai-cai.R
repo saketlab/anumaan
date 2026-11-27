@@ -171,10 +171,11 @@ test_that("daly_fit_los_rr() works with the new LOS output and keeps HAI as a co
     Age = sample(18:85, n, replace = TRUE),
     Gender = sample(c("M", "F"), n, replace = TRUE)
   )
-  # no culture-date column: no longer required
-  out <- suppressWarnings(suppressMessages(daly_fit_los_rr(d, min_n = 10)))
+  # no culture-date column: covariates come from the first row
+  out <- suppressWarnings(suppressMessages(daly_fit_los_rr(d, min_n = 10, ci_method = "none")))$rr
   expect_equal(nrow(out), 1L)
-  expect_equal(out$n_patients, n)
+  expect_match(out$covariates, "HAI")
+  expect_equal(out$n_admissions, n)
   expect_equal(out$n_resistant, sum(res == "R"))
   expect_equal(out$n_susceptible, sum(res == "S"))
   expect_equal(out$mean_los_resistant, mean(los[res == "R"]))

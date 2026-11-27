@@ -30,12 +30,113 @@ rr_cohort <- function(n = 300, seed = 11) {
 }
 
 test_that("daly_fit_los_rr recovers the simulated LOS ratio per hospital", {
-  out <- suppressWarnings(suppressMessages(daly_fit_los_rr(rr_cohort(), min_n = 10)))
+  out <- suppressWarnings(suppressMessages(daly_fit_los_rr(
+    rr_cohort(), min_n = 10, hospital_effect = "stratified", ci_method = "delta"
+  )))$rr
   expect_setequal(out$hospital, c("H1", "H2"))
   expect_true(all(out$RR_LOS > 1.2 & out$RR_LOS < 2.1))
   expect_true(all(out$CI_lower < out$RR_LOS & out$RR_LOS < out$CI_upper))
   expect_equal(out$RR_LOS, exp(out$beta_log_rr))
   expect_true(all(out$mean_los_resistant > out$mean_los_susceptible))
+})
+
+test_that("daly_fit_los_rr hospital fixed effect shares RR and gives per-hospital LOSR/LOSS", {
+  fit <- suppressWarnings(suppressMessages(daly_fit_los_rr(
+    rr_cohort(n = 400), min_n = 10, ci_method = "bootstrap", n_boot = 50,
+    seed = 3, return_draws = TRUE
+  )))
+  rr <- fit$rr
+  h <- fit$hospital
+  expect_equal(nrow(rr), 1L)
+  expect_true(is.na(rr$hospital))
+  expect_true(rr$RR_LOS > 1.2 & rr$RR_LOS < 2.1)
+  expect_true(rr$CI_lower < rr$RR_LOS & rr$RR_LOS < rr$CI_upper)
+  expect_setequal(h$hospital, c("H1", "H2"))
+  # LOSR / LOSS reproduces the shared ratio in every hospital
+  expect_equal(h$LOSR / h$LOSS, rep(rr$RR_LOS, 2), tolerance = 1e-8)
+  expect_equal(rr$LOSR / rr$LOSS, rr$RR_LOS, tolerance = 1e-8)
+  expect_true(all(h$LOSR_lower < h$LOSR & h$LOSR < h$LOSR_upper))
+  expect_true(all(h$excess_lower < h$excess_LOS & h$excess_LOS < h$excess_upper))
+  expect_true(is.finite(rr$RxHospital_p))
+  d <- fit$draws[["Klebsiella pneumoniae | Carbapenems"]]
+  expect_length(d$RR_LOS, rr$n_boot_ok)
+  expect_equal(dim(d$LOSR), c(rr$n_boot_ok, 2L))
+  expect_equal(colnames(d$LOSS), c("H1", "H2"))
+})
+
+test_that("daly_fit_los_rr: delta and bootstrap give similar RR intervals", {
+  args <- list(rr_cohort(n = 400), min_n = 10)
+  a <- suppressWarnings(suppressMessages(do.call(daly_fit_los_rr, c(args, ci_method = "delta"))))$rr
+  b <- suppressWarnings(suppressMessages(do.call(daly_fit_los_rr, c(args, ci_method = "bootstrap", n_boot = 200, seed = 9))))$rr
+  expect_equal(a$RR_LOS, b$RR_LOS)
+  expect_equal(a$CI_lower, b$CI_lower, tolerance = 0.05)
+  expect_equal(a$CI_upper, b$CI_upper, tolerance = 0.05)
+  n <- suppressWarnings(suppressMessages(do.call(daly_fit_los_rr, c(args, ci_method = "none"))))$rr
+  expect_true(is.na(n$CI_lower))
+})
+
+test_that("daly_fit_los_rr uses only the pathogen's own results and its earliest culture", {
+  base <- rr_cohort(n = 200, seed = 5)
+  # every admission also has an E. coli culture that is carbapenem-resistant,
+  # taken later and labelled with the opposite infection type
+  other <- base
+  other$organism_name <- "Escherichia coli"
+  other$antibiotic_value <- "R"
+  other$date_of_first_positive_culture <- other$date_of_first_positive_culture + 3
+  other$infection_type <- ifelse(base$infection_type == "HAI", "CAI", "HAI")
+  both <- rbind(base, other)
+  one <- suppressWarnings(suppressMessages(daly_fit_los_rr(
+    base, min_n = 10, ci_method = "none", organism_name = "Klebsiella pneumoniae"
+  )))$rr
+  two <- suppressWarnings(suppressMessages(daly_fit_los_rr(
+    both, min_n = 10, ci_method = "none", organism_name = "Klebsiella pneumoniae"
+  )))$rr
+  expect_equal(two$n_resistant, one$n_resistant)
+  expect_equal(two$RR_LOS, one$RR_LOS)
+})
+
+test_that("daly_fit_los_rr classes accepts a per-pathogen panel and reports skipped classes", {
+  d <- rr_cohort()
+  fit <- suppressWarnings(suppressMessages(daly_fit_los_rr(
+    d, min_n = 10, ci_method = "none",
+    classes = list("klebsiella pneumoniae" = c("Carbapenems", "Colistin"))
+  )))
+  expect_equal(fit$rr$antibiotic_class, "Carbapenems")
+  expect_equal(fit$skipped$antibiotic_class, "Colistin")
+})
+
+test_that("daly_fit_los_rr deprecated arguments warn", {
+  expect_warning(
+    suppressMessages(daly_fit_los_rr(rr_cohort(), patient_id_col = "PatientInformation_id",
+                                     min_n = 10, ci_method = "none")),
+    "deprecated"
+  )
+})
+
+test_that(".los_admission_covariates takes HAI from the earliest culture of the pathogen", {
+  d <- data.frame(
+    id = c("A", "A", "B"), org = "K",
+    cul = as.Date(c("2024-01-09", "2024-01-02", "2024-01-05")),
+    inf = c("HAI", "CAI", "Unknown"), age = c(40, 40, 60), sex = c("M", "M", "F")
+  )
+  cv <- .los_admission_covariates(d, "id", "org", "cul", "inf", "HAI", "CAI",
+                                  "age", "sex", NULL, NULL, NULL, NULL)
+  expect_equal(cv$HAI[cv$.id == "A"], 0L) # earliest culture (2 Jan) is CAI
+  expect_true(is.na(cv$HAI[cv$.id == "B"])) # "Unknown" -> missing
+})
+
+test_that(".los_class_status applies the worst phenotype and the colistin intermediate rule", {
+  d <- data.frame(
+    id = c("A", "A", "B", "C", "D"), org = "K",
+    cls = c("Carbapenems", "Carbapenems", "Carbapenems", "Colistin", "Colistin"),
+    drug = c("meropenem", "imipenem", "meropenem", "colistin", "colistin"),
+    val = c("S", "R", "I", "I", "S")
+  )
+  st <- .los_class_status(d, "id", "org", "cls", "drug", "val", intermediate_as_resistant = TRUE)
+  st <- st[order(st$.id), ]
+  expect_equal(st$R, c(1L, 1L, 0L, 0L)) # A any R; B I -> R; C colistin I -> S; D S
+  st2 <- .los_class_status(d, "id", "org", "cls", "drug", "val", intermediate_as_resistant = FALSE)
+  expect_false(any(st2$.id %in% c("B", "C")))
 })
 
 test_that("daly_fit_mortality_rr recovers a raised odds of death for resistance", {
@@ -169,4 +270,20 @@ test_that("daly_fit_mortality_rr accepts a comorbidity covariate", {
     min_n = 10, min_deaths = 5
   )))
   expect_true(all(out$OR_death > 1))
+})
+
+test_that("daly_fit_mortality_rr builds resistance from each pathogen's own results", {
+  base <- rr_cohort(n = 300, seed = 21)
+  other <- base
+  other$organism_name <- "Escherichia coli"
+  other$antibiotic_value <- "R"
+  one <- suppressWarnings(suppressMessages(daly_fit_mortality_rr(
+    base, min_n = 10, min_deaths = 5, organism_name = "Klebsiella pneumoniae", facility_col = NULL
+  )))
+  both <- suppressWarnings(suppressMessages(daly_fit_mortality_rr(
+    rbind(base, other), min_n = 10, min_deaths = 5, facility_col = NULL
+  )))
+  kp <- both[both$pathogen == "Klebsiella pneumoniae", ]
+  expect_equal(kp$n_resistant, one$n_resistant)
+  expect_equal(kp$OR_death, one$OR_death)
 })

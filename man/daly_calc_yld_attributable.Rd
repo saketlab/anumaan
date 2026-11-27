@@ -20,7 +20,10 @@ daly_calc_yld_attributable(
   probability_col = "probability",
   dominant_class_col = "dominant_class",
   losr_col = "LOSR_years",
-  loss_col = "LOSS_years"
+  loss_col = "LOSS_years",
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 )
 }
 \arguments{
@@ -77,11 +80,29 @@ DW lookup. \code{NULL} uses the "India" row. Ignored when
 
 \item{loss_col}{Character. LOSS_k,d*(delta) column (years) in
 \code{profiles_with_los}. Default \code{"LOSS_years"}.}
+
+\item{los_draws}{\code{NULL} or the \code{draws} element of
+\code{daly_fit_los_rr(..., ci_method = "bootstrap", return_draws = TRUE)}.
+When given, the YLD is recomputed for every bootstrap draw (with the
+dominant class of each profile held fixed) and percentile intervals are
+returned.}
+
+\item{profile_draws}{\code{NULL} or a data frame of profile-probability
+posterior draws with columns \code{pathogen}, \code{profile} (the
+profile string), \code{draw}, \code{probability} and, for
+hospital-specific profiles, \code{hospital}. Paired with
+\code{los_draws} by draw index. Without it, profile probabilities are
+held at their point estimates and the interval reflects LOS uncertainty
+only (\code{uncertainty_sources = "LOS only"}).}
+
+\item{conf_level}{Numeric. Confidence level of the interval. Default 0.95.}
 }
 \value{
 \code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
   \code{profile_term} (= sum_delta R'_k_delta * (LOSR_k_delta -
-  LOSS_k_delta)), and \code{YLD_attributable}.
+  LOSS_k_delta)), and \code{YLD_attributable}; with \code{los_draws}, also
+  \code{YLD_attributable_lower}, \code{YLD_attributable_upper},
+  \code{n_draws} and \code{uncertainty_sources}.
 }
 \description{
 Primary, direct implementation of the profile-specific attributable-YLD

@@ -110,7 +110,10 @@ daly_calc_paf_los <- function(
   dominant_class_col,
   losr_col,
   loss_col,
-  out_col
+  out_col,
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 ) {
   # Input validation
   if (!is.list(profiles_with_los) || is.data.frame(profiles_with_los)) {
@@ -222,15 +225,35 @@ daly_calc_paf_los <- function(
   # partition over resistant profiles only (see daly_calc_paf_los(), whose
   # all-susceptible term already contributes exactly zero by construction).
   profile_term <- rep(NA_real_, n_row)
+  term_draws <- vector("list", n_row)
   n_unmatched_pathogen <- 0L
+  n_unmatched_hospital <- 0L
 
   for (i in seq_len(n_row)) {
     path <- as.character(P_Lk_prime_tbl[[pathogen_col]][i])
-    prof_df <- profiles_with_los[[path]]
+    hit <- which(.name_key(names(profiles_with_los)) == .name_key(path))
+    prof_df <- if (length(hit)) profiles_with_los[[hit[1L]]] else NULL
 
     if (is.null(prof_df)) {
       n_unmatched_pathogen <- n_unmatched_pathogen + 1L
       next
+    }
+
+    # Hospital-specific profiles: use the rows of this row's hospital
+    hosp_i <- NA_character_
+    if ("hospital" %in% names(prof_df) && any(!is.na(prof_df$hospital))) {
+      if (!has_facility_col) {
+        stop(
+          "profiles_with_los has hospital-specific profiles: supply facility_col ",
+          "naming the hospital column of P_Lk_prime_tbl (e.g. its facility_level element)."
+        )
+      }
+      hosp_i <- as.character(P_Lk_prime_tbl[[facility_col]][i])
+      prof_df <- prof_df[!is.na(prof_df$hospital) & prof_df$hospital == hosp_i, , drop = FALSE]
+      if (nrow(prof_df) == 0L) {
+        n_unmatched_hospital <- n_unmatched_hospital + 1L
+        next
+      }
     }
 
     required_prof_cols <- c(probability_col, dominant_class_col, losr_col)
@@ -284,12 +307,25 @@ daly_calc_paf_los <- function(
     }
 
     profile_term[i] <- sum(term_vec, na.rm = TRUE)
+
+    if (!is.null(los_draws)) {
+      term_draws[[i]] <- .yld_term_draws(
+        mode, resist, path, hosp_i, probability_col, dominant_class_col,
+        los_draws, profile_draws
+      )
+    }
   }
 
   if (n_unmatched_pathogen > 0L) {
     warning(sprintf(
       "%d row(s) in P_Lk_prime_tbl had no matching entry in profiles_with_los; %s set to NA.",
       n_unmatched_pathogen, out_col
+    ))
+  }
+  if (n_unmatched_hospital > 0L) {
+    warning(sprintf(
+      "%d row(s) in P_Lk_prime_tbl had no profiles for their hospital; %s set to NA.",
+      n_unmatched_hospital, out_col
     ))
   }
 
@@ -299,12 +335,109 @@ daly_calc_paf_los <- function(
   out$profile_term <- round(profile_term, 6L)
   out[[out_col]] <- out$I_L * out[[plk_col]] * out$DW_L * out$profile_term
 
+  if (!is.null(los_draws)) {
+    alpha <- (1 - conf_level) / 2
+    lo <- hi <- rep(NA_real_, n_row)
+    nd <- rep(0L, n_row)
+    src <- rep(NA_character_, n_row)
+    for (i in seq_len(n_row)) {
+      td <- term_draws[[i]]
+      if (is.null(td) || !length(td$draws)) next
+      y <- out$I_L[i] * out[[plk_col]][i] * out$DW_L[i] * td$draws
+      lo[i] <- stats::quantile(y, alpha, na.rm = TRUE, names = FALSE)
+      hi[i] <- stats::quantile(y, 1 - alpha, na.rm = TRUE, names = FALSE)
+      nd[i] <- length(td$draws)
+      src[i] <- td$source
+    }
+    out[[paste0(out_col, "_lower")]] <- lo
+    out[[paste0(out_col, "_upper")]] <- hi
+    out$n_draws <- nd
+    out$uncertainty_sources <- src
+    if (any(src == "LOS only", na.rm = TRUE)) {
+      message(
+        "No profile_draws supplied: intervals include LOS uncertainty only ",
+        "(profile probabilities held at their point estimates)."
+      )
+    }
+  }
+
   message(sprintf(
     "%s computed: %d row(s), total %s = %.4f.",
     out_col, n_row, out_col, sum(out[[out_col]], na.rm = TRUE)
   ))
 
   out
+}
+
+# Draws of the profile term sum_delta R'_delta * LOSR_d*(delta) (associated) or
+# sum_delta R'_delta * (LOSR - LOSS)_d*(delta) (attributable), in years, for
+# one pathogen (x hospital). LOS draws come from
+# daly_fit_los_rr(return_draws = TRUE) in days; profile draws, when given, are
+# paired with them by draw index. The dominant class of each profile is held
+# at its point-estimate assignment.
+.yld_term_draws <- function(mode, resist, path, hosp, probability_col,
+                            dominant_class_col, los_draws, profile_draws) {
+  empty <- list(draws = numeric(), source = NA_character_)
+  key_parts <- strsplit(names(los_draws), " | ", fixed = TRUE)
+  find <- function(cls) {
+    for (k in seq_along(key_parts)) {
+      kp <- key_parts[[k]]
+      if (.name_key(kp[1L]) == .name_key(path) && .name_key(kp[2L]) == .name_key(cls) &&
+        (length(kp) < 3L || (!is.na(hosp) && kp[3L] == hosp))) {
+        return(los_draws[[k]])
+      }
+    }
+    NULL
+  }
+  get <- function(cls, what) {
+    d <- find(cls)
+    if (is.null(d)) return(NULL)
+    if (is.na(hosp)) return(d[[paste0(what, "_all")]])
+    m <- d[[what]]
+    if (!hosp %in% colnames(m)) return(NULL)
+    m[, hosp]
+  }
+  dcls <- as.character(resist[[dominant_class_col]])
+  ucls <- unique(dcls)
+  r_d <- stats::setNames(lapply(ucls, get, what = "LOSR"), ucls)
+  s_d <- stats::setNames(lapply(ucls, get, what = "LOSS"), ucls)
+  if (any(vapply(r_d, is.null, logical(1))) || any(vapply(s_d, is.null, logical(1)))) {
+    warning(sprintf(
+      "'%s'%s: LOS draws missing for a dominant class; no interval computed.",
+      path, if (is.na(hosp)) "" else sprintf(" / %s", hosp)
+    ), call. = FALSE)
+    return(empty)
+  }
+  B <- min(lengths(r_d))
+
+  p_pt <- resist[[probability_col]]
+  src <- "LOS only"
+  P <- NULL
+  if (!is.null(profile_draws)) {
+    pd <- profile_draws[.name_key(profile_draws$pathogen) == .name_key(path), , drop = FALSE]
+    if (!is.na(hosp) && "hospital" %in% names(pd)) pd <- pd[pd$hospital == hosp, , drop = FALSE]
+    pcol <- intersect(c("profile_delta", "profile"), names(resist))[1L]
+    if (nrow(pd) > 0L && !is.na(pcol)) {
+      draws_id <- sort(unique(pd$draw))
+      B <- min(B, length(draws_id))
+      P <- vapply(as.character(resist[[pcol]]), function(pr) {
+        v <- pd$probability[pd$profile == pr]
+        names(v) <- pd$draw[pd$profile == pr]
+        unname(v[as.character(draws_id[seq_len(B)])])
+      }, numeric(B))
+      P <- matrix(P, nrow = B)
+      src <- "LOS + profile"
+    }
+  }
+  if (is.null(P)) P <- matrix(rep(p_pt, each = B), nrow = B)
+
+  R <- vapply(dcls, function(cc) r_d[[cc]][seq_len(B)], numeric(B)) / 365
+  R <- matrix(R, nrow = B)
+  if (mode == "attributable") {
+    S <- matrix(vapply(dcls, function(cc) s_d[[cc]][seq_len(B)], numeric(B)) / 365, nrow = B)
+    R <- R - S
+  }
+  list(draws = rowSums(P * R, na.rm = TRUE), source = src)
 }
 
 
@@ -402,10 +535,32 @@ daly_calc_paf_los <- function(
 #'   \code{"dominant_class"}.
 #' @param losr_col Character. LOSR_k,d*(delta) column (years). Default
 #'   \code{"LOSR_years"}.
+#' @param los_draws \code{NULL} or the \code{draws} element of
+#'   \code{daly_fit_los_rr(..., ci_method = "bootstrap", return_draws = TRUE)}.
+#'   When given, the YLD is recomputed for every bootstrap draw (with the
+#'   dominant class of each profile held fixed) and percentile intervals are
+#'   returned.
+#' @param profile_draws \code{NULL} or a data frame of profile-probability
+#'   posterior draws with columns \code{pathogen}, \code{profile} (the
+#'   profile string), \code{draw}, \code{probability} and, for
+#'   hospital-specific profiles, \code{hospital}. Paired with
+#'   \code{los_draws} by draw index. Without it, profile probabilities are
+#'   held at their point estimates and the interval reflects LOS uncertainty
+#'   only (\code{uncertainty_sources = "LOS only"}).
+#' @param conf_level Numeric. Confidence level of the interval. Default 0.95.
+#'
+#' @section Hospital-specific profiles:
+#' When \code{profiles_with_los} carries a \code{hospital} column (from
+#' \code{daly_assign_rr_to_profiles()} with profile strings), each row of
+#' \code{P_Lk_prime_tbl} uses the profiles and LOS of its own hospital, named
+#' by \code{facility_col} (e.g. the \code{facility_level} element of
+#' \code{daly_calc_pathogen_fraction_nonfatal()}).
 #'
 #' @return \code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
 #'   \code{profile_term} (= sum_delta R'_k_delta * LOSR_k_delta), and
-#'   \code{YLD_associated}.
+#'   \code{YLD_associated}; with \code{los_draws}, also
+#'   \code{YLD_associated_lower}, \code{YLD_associated_upper},
+#'   \code{n_draws} and \code{uncertainty_sources}.
 #' @export
 daly_calc_yld_associated <- function(
   profiles_with_los,
@@ -422,7 +577,10 @@ daly_calc_yld_associated <- function(
   state_name = NULL,
   probability_col = "probability",
   dominant_class_col = "dominant_class",
-  losr_col = "LOSR_years"
+  losr_col = "LOSR_years",
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 ) {
   .daly_yld_direct(
     mode = "associated",
@@ -442,7 +600,10 @@ daly_calc_yld_associated <- function(
     dominant_class_col = dominant_class_col,
     losr_col = losr_col,
     loss_col = NULL,
-    out_col = "YLD_associated"
+    out_col = "YLD_associated",
+    los_draws = los_draws,
+    profile_draws = profile_draws,
+    conf_level = conf_level
   )
 }
 
@@ -477,7 +638,9 @@ daly_calc_yld_associated <- function(
 #'
 #' @return \code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
 #'   \code{profile_term} (= sum_delta R'_k_delta * (LOSR_k_delta -
-#'   LOSS_k_delta)), and \code{YLD_attributable}.
+#'   LOSS_k_delta)), and \code{YLD_attributable}; with \code{los_draws}, also
+#'   \code{YLD_attributable_lower}, \code{YLD_attributable_upper},
+#'   \code{n_draws} and \code{uncertainty_sources}.
 #' @export
 daly_calc_yld_attributable <- function(
   profiles_with_los,
@@ -495,7 +658,10 @@ daly_calc_yld_attributable <- function(
   probability_col = "probability",
   dominant_class_col = "dominant_class",
   losr_col = "LOSR_years",
-  loss_col = "LOSS_years"
+  loss_col = "LOSS_years",
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 ) {
   .daly_yld_direct(
     mode = "attributable",
@@ -515,6 +681,9 @@ daly_calc_yld_attributable <- function(
     dominant_class_col = dominant_class_col,
     losr_col = losr_col,
     loss_col = loss_col,
-    out_col = "YLD_attributable"
+    out_col = "YLD_attributable",
+    los_draws = los_draws,
+    profile_draws = profile_draws,
+    conf_level = conf_level
   )
 }

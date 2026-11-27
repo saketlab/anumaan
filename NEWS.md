@@ -1,3 +1,45 @@
+# anumaan 0.1.0.9045
+
+* `daly_fit_los_rr()` has been rewritten. It now returns a list (`rr`,
+  `hospital`, `draws`, `skipped`) instead of a data frame.
+  - Hospitals enter as a fixed effect in one model per pathogen x class
+    (`hospital_effect = "fixed"`, the new default), so the relative LOS is
+    shared and every hospital keeps its own LOS level. `"none"` and
+    `"stratified"` (one model per hospital, the previous behaviour) remain
+    available. `RxHospital_p` tests whether the resistance effect differs
+    between hospitals.
+  - The unit is the admission (`admission_id_col`; `patient_id_col` is
+    deprecated). Resistance is the worst phenotype of the pathogen's own
+    results in the admission, and covariates come from its earliest culture
+    of that pathogen. Polymicrobial admissions now enter every pathogen's
+    models.
+  - Returns adjusted `LOSR` and `LOSS` (model predictions averaged over each
+    hospital's resistant admissions with R = 1 and R = 0) and their
+    difference, per hospital and overall, instead of raw means only.
+  - Confidence intervals for `RR_LOS`, `LOSR`, `LOSS` and the excess from a
+    bootstrap that resamples clusters (`cluster_id_col`, e.g. patients)
+    within hospitals (`ci_method = "bootstrap"`), or from the delta method
+    with a cluster-robust covariance (`"delta"`). `return_draws = TRUE`
+    returns the bootstrap replicates.
+  - New arguments `classes` (a panel per pathogen), `reference_hospital`,
+    `intermediate_as_resistant`, `hai_value`, `cai_value`, `icu_values`,
+    `flag_min`. `hai_threshold_hours` is deprecated.
+* `daly_assign_rr_to_profiles()` accepts profiles as R/S strings (e.g. the
+  `profile_delta` / `R_mean` output of `profile_aggregate_for_daly()`) with
+  `profile_class_order` giving the class of each letter, and accepts the
+  `daly_fit_los_rr()` list directly. Each profile then takes the adjusted
+  LOS of its dominant class at its own hospital. Ties in the max rule go to
+  the first class in class order and are reported.
+* `daly_calc_yld_associated()` and `daly_calc_yld_attributable()` match each
+  hospital to its own profiles and LOS when profiles are hospital-specific,
+  and return percentile intervals when given `los_draws` (bootstrap draws
+  from `daly_fit_los_rr()`) and optionally `profile_draws` (profile
+  posterior draws).
+* `daly_fit_mortality_rr()` now builds class resistance from each pathogen's
+  own results. Previously one pathogen's results could set another
+  pathogen's resistance in the same patient, and patients with several
+  pathogens entered only one pathogen's models.
+
 # anumaan 0.1.0.9044
 
 * `prep_standardize_antibiotics()` now keeps combination antibiotics intact.
