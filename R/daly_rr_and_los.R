@@ -2995,9 +2995,20 @@ daly_add_rr_mappings <- function(data,
 #'     pathogen x profile, where the profile is a string of R/S letters such
 #'     as \code{"RRSR"} -- e.g. the output of
 #'     \code{profile_aggregate_for_daly()} (\code{group}, \code{pathogen},
-#'     \code{profile_delta}, \code{R_mean}). \code{profile_class_order} gives
-#'     the class of each letter.}
+#'     \code{profile_delta}, \code{R_mean}), or a burden table with
+#'     \code{hospital}, \code{pathogen}, \code{profile}, \code{mean} and
+#'     \code{classes}. When the default column names are absent, those of the
+#'     burden table are used.}
 #' }
+#'
+#' @section Class of each letter:
+#' The class order is read from \code{profile_classes_col} (e.g.
+#' \code{"Fluoroquinolones;Aminoglycosides;Carbapenems"}), which must hold a
+#' single value per pathogen. \code{profile_class_order} can be given
+#' instead, or to override it (a warning is raised if they differ). Class
+#' names are matched to the LOS results ignoring case and punctuation, so
+#' \code{"Third_generation_cephalosporins"} matches
+#' \code{"Third-generation-cephalosporins"}.
 #'
 #' @section LOS for each profile:
 #' When \code{rr_table} is the list returned by \code{daly_fit_los_rr()},
@@ -3042,9 +3053,12 @@ daly_add_rr_mappings <- function(data,
 #' @param profile_hospital_col Character or \code{NULL}. Hospital column in
 #'   string profiles. Default \code{"group"}; \code{NULL} or absent means
 #'   pooled profiles. Copied to \code{hospital}.
-#' @param profile_class_order Character vector (the class of each letter, in
-#'   order) or a named list of such vectors, one per pathogen. Required for
-#'   string profiles.
+#' @param profile_classes_col Character. Column of string profiles holding
+#'   the class order as one \code{;}-separated string. Default
+#'   \code{"classes"}.
+#' @param profile_class_order \code{NULL} (read the order from
+#'   \code{profile_classes_col}), a character vector (the class of each
+#'   letter, in order) or a named list of such vectors, one per pathogen.
 #'
 #' @return Named list (one entry per pathogen): the profiles data frame
 #'   augmented with \code{RR_LOS_profile}, \code{dominant_class}, (if
@@ -3065,6 +3079,7 @@ daly_assign_rr_to_profiles <- function(
   profile_col = "profile_delta",
   profile_probability_col = "R_mean",
   profile_hospital_col = "group",
+  profile_classes_col = "classes",
   profile_class_order = NULL
 ) {
   los_unit <- match.arg(los_unit)
@@ -3112,7 +3127,7 @@ daly_assign_rr_to_profiles <- function(
       profiles_output, rr_table, los_hosp, pathogen_col, class_col, rr_col,
       fallback_rr, do_los, los_r_col, los_s_col, to_years, has_ci,
       profile_col, profile_probability_col, profile_hospital_col,
-      profile_class_order
+      profile_class_order, profile_classes_col
     ))
   }
 
@@ -3222,16 +3237,34 @@ daly_assign_rr_to_profiles <- function(
   return(out)
 }
 
+# Class-name key that ignores case and punctuation, so
+# "Third_generation_cephalosporins" matches "Third-generation-cephalosporins"
+# and "Beta_lactam_beta_lactamase_inhibitor_anti_pseudomonal" matches
+# "Beta-lactam/beta-lactamase-inhibitor_anti-pseudomonal".
+.class_key <- function(x) {
+  gsub("^_+|_+$", "", gsub("[^a-z0-9]+", "_", tolower(trimws(as.character(x)))))
+}
+
 # Max-rule assignment for profiles given as R/S strings (e.g. "RRSR"), one row
 # per (hospital x) pathogen x profile. Returns a named list per pathogen.
 .assign_rr_string_profiles <- function(prof, rr_table, los_hosp, pathogen_col,
                                        class_col, rr_col, fallback_rr, do_los,
                                        los_r_col, los_s_col, to_years, has_ci,
                                        profile_col, probability_col, hospital_col,
-                                       class_order) {
+                                       class_order, classes_col = "classes") {
   prof <- as.data.frame(prof, stringsAsFactors = FALSE)
-  if (is.null(class_order)) {
-    stop("profile_class_order is required for profile strings: the class of each letter, in order.")
+  # fall back to burden-table column names when the defaults are absent
+  if (!profile_col %in% names(prof) && "profile" %in% names(prof)) profile_col <- "profile"
+  if (!probability_col %in% names(prof) && "mean" %in% names(prof)) probability_col <- "mean"
+  if (!is.null(hospital_col) && !hospital_col %in% names(prof) && "hospital" %in% names(prof)) {
+    hospital_col <- "hospital"
+  }
+  has_classes <- !is.null(classes_col) && classes_col %in% names(prof)
+  if (is.null(class_order) && !has_classes) {
+    stop(
+      "The class of each profile letter is unknown: supply profile_class_order or a '",
+      classes_col, "' column in profiles_output."
+    )
   }
   need <- c(profile_col, probability_col, pathogen_col)
   miss <- setdiff(need, names(prof))
@@ -3244,7 +3277,7 @@ daly_assign_rr_to_profiles <- function(
 
   # RR is shared per pathogen x class, or per hospital for stratified fits
   rr_hosp <- if ("hospital" %in% names(rr_table)) as.character(rr_table$hospital) else rep(NA_character_, nrow(rr_table))
-  rr_key <- function(p, c, h) paste(.name_key(p), .name_key(c), ifelse(is.na(h), "", h), sep = "\r")
+  rr_key <- function(p, c, h) paste(.name_key(p), .class_key(c), ifelse(is.na(h), "", h), sep = "\r")
   rr_k <- rr_key(rr_table[[pathogen_col]], rr_table[[class_col]], rr_hosp)
   lk <- function(col, p, c, h) {
     i <- match(rr_key(p, c, h), rr_k)
@@ -3252,7 +3285,7 @@ daly_assign_rr_to_profiles <- function(
     if (is.na(i)) NA_real_ else rr_table[[col]][i]
   }
   hl_key <- if (!is.null(los_hosp)) {
-    paste(.name_key(los_hosp$pathogen), .name_key(los_hosp$antibiotic_class), los_hosp$hospital, sep = "\r")
+    paste(.name_key(los_hosp$pathogen), .class_key(los_hosp$antibiotic_class), los_hosp$hospital, sep = "\r")
   } else {
     character()
   }
@@ -3260,13 +3293,30 @@ daly_assign_rr_to_profiles <- function(
   out <- list()
   n_ties <- 0L; n_net <- 0L
   for (path in unique(as.character(prof[[pathogen_col]]))) {
+    df <- prof[as.character(prof[[pathogen_col]]) == path, , drop = FALSE]
+    from_col <- NULL
+    if (has_classes) {
+      vals <- unique(trimws(as.character(df[[classes_col]])))
+      vals <- vals[!is.na(vals) & vals != ""]
+      if (length(vals) > 1L) {
+        stop(sprintf("'%s' has more than one class order for pathogen '%s'.", classes_col, path))
+      }
+      if (length(vals) == 1L) from_col <- trimws(strsplit(vals, ";", fixed = TRUE)[[1]])
+    }
     order_p <- class_order
     if (is.list(class_order)) {
       hit <- which(.name_key(names(class_order)) == .name_key(path))
-      if (!length(hit)) stop(sprintf("profile_class_order has no entry for pathogen '%s'.", path))
-      order_p <- class_order[[hit[1L]]]
+      order_p <- if (length(hit)) class_order[[hit[1L]]] else NULL
     }
-    df <- prof[as.character(prof[[pathogen_col]]) == path, , drop = FALSE]
+    if (is.null(order_p)) {
+      if (is.null(from_col)) stop(sprintf("No class order for pathogen '%s'.", path))
+      order_p <- from_col
+    } else if (!is.null(from_col) && !identical(.class_key(order_p), .class_key(from_col))) {
+      warning(sprintf(
+        "'%s': profile_class_order (%s) differs from the '%s' column (%s); profile_class_order is used.",
+        path, paste(order_p, collapse = ";"), classes_col, paste(from_col, collapse = ";")
+      ), call. = FALSE)
+    }
     n <- nrow(df)
     rr_p <- rep(NA_real_, n); dom <- character(n)
     ci_lo <- ci_hi <- rep(NA_real_, n)
@@ -3275,7 +3325,7 @@ daly_assign_rr_to_profiles <- function(
       letters_i <- strsplit(toupper(trimws(df[[profile_col]][i])), "")[[1]]
       if (length(letters_i) != length(order_p) || !all(letters_i %in% c("R", "S"))) {
         stop(sprintf(
-          "Profile '%s' for '%s' does not match profile_class_order (%d classes).",
+          "Profile '%s' for '%s' does not match the class order (%d classes).",
           df[[profile_col]][i], path, length(order_p)
         ))
       }
@@ -3289,7 +3339,7 @@ daly_assign_rr_to_profiles <- function(
         v <- lk(rr_col, path, cc, h)
         if (is.na(v)) fallback_rr else v
       }, numeric(1))
-      j <- which.max(rrs) # ties: first in profile_class_order
+      j <- which.max(rrs) # ties: first in class order
       if (sum(rrs == rrs[j]) > 1L) n_ties <- n_ties + 1L
       rr_p[i] <- rrs[j]; dom[i] <- res_cls[j]
       if (has_ci) {
@@ -3297,7 +3347,7 @@ daly_assign_rr_to_profiles <- function(
         ci_hi[i] <- lk("CI_upper", path, dom[i], h)
       }
       if (do_los) {
-        hi <- if (!is.null(los_hosp) && !is.na(h)) match(paste(.name_key(path), .name_key(dom[i]), h, sep = "\r"), hl_key) else NA_integer_
+        hi <- if (!is.null(los_hosp) && !is.na(h)) match(paste(.name_key(path), .class_key(dom[i]), h, sep = "\r"), hl_key) else NA_integer_
         if (!is.na(hi)) {
           losr[i] <- los_hosp$LOSR[hi]; loss[i] <- los_hosp$LOSS[hi]; lvl[i] <- "hospital"
         } else {
@@ -3325,7 +3375,7 @@ daly_assign_rr_to_profiles <- function(
     ))
   }
   if (n_ties > 0L) {
-    message(sprintf("%d profile row(s) had tied maximum RR; the first class in profile_class_order was used.", n_ties))
+    message(sprintf("%d profile row(s) had tied maximum RR; the first class in class order was used.", n_ties))
   }
   if (n_net > 0L) {
     warning(sprintf(

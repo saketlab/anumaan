@@ -382,7 +382,7 @@ daly_calc_paf_los <- function(
   find <- function(cls) {
     for (k in seq_along(key_parts)) {
       kp <- key_parts[[k]]
-      if (.name_key(kp[1L]) == .name_key(path) && .name_key(kp[2L]) == .name_key(cls) &&
+      if (.name_key(kp[1L]) == .name_key(path) && .class_key(kp[2L]) == .class_key(cls) &&
         (length(kp) < 3L || (!is.na(hosp) && kp[3L] == hosp))) {
         return(los_draws[[k]])
       }
