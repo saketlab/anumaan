@@ -22,7 +22,10 @@ daly_calc_yld_attributable(
   probability_col = "probability",
   dominant_class_col = "dominant_class",
   losr_col = "LOSR_years",
-  loss_col = "LOSS_years"
+  loss_col = "LOSS_years",
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 )
 ```
 
@@ -107,11 +110,33 @@ daly_calc_yld_attributable(
   Character. LOSS_k,d\*(delta) column (years) in `profiles_with_los`.
   Default `"LOSS_years"`.
 
+- los_draws:
+
+  `NULL` or the `draws` element of
+  `daly_fit_los_rr(..., ci_method = "bootstrap", return_draws = TRUE)`.
+  When given, the YLD is recomputed for every bootstrap draw (with the
+  dominant class of each profile held fixed) and percentile intervals
+  are returned.
+
+- profile_draws:
+
+  `NULL` or a data frame of profile-probability posterior draws with
+  columns `pathogen`, `profile` (the profile string), `draw`,
+  `probability` and, for hospital-specific profiles, `hospital`. Paired
+  with `los_draws` by draw index. Without it, profile probabilities are
+  held at their point estimates and the interval reflects LOS
+  uncertainty only (`uncertainty_sources = "LOS only"`).
+
+- conf_level:
+
+  Numeric. Confidence level of the interval. Default 0.95.
+
 ## Value
 
 `P_Lk_prime_tbl` augmented with `I_L`, `DW_L`, `profile_term` (=
 sum_delta R'\_k_delta \* (LOSR_k_delta - LOSS_k_delta)), and
-`YLD_attributable`.
+`YLD_attributable`; with `los_draws`, also `YLD_attributable_lower`,
+`YLD_attributable_upper`, `n_draws` and `uncertainty_sources`.
 
 ## Details
 

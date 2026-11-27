@@ -21,7 +21,10 @@ daly_calc_yld_associated(
   state_name = NULL,
   probability_col = "probability",
   dominant_class_col = "dominant_class",
-  losr_col = "LOSR_years"
+  losr_col = "LOSR_years",
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 )
 ```
 
@@ -101,10 +104,33 @@ daly_calc_yld_associated(
 
   Character. LOSR_k,d\*(delta) column (years). Default `"LOSR_years"`.
 
+- los_draws:
+
+  `NULL` or the `draws` element of
+  `daly_fit_los_rr(..., ci_method = "bootstrap", return_draws = TRUE)`.
+  When given, the YLD is recomputed for every bootstrap draw (with the
+  dominant class of each profile held fixed) and percentile intervals
+  are returned.
+
+- profile_draws:
+
+  `NULL` or a data frame of profile-probability posterior draws with
+  columns `pathogen`, `profile` (the profile string), `draw`,
+  `probability` and, for hospital-specific profiles, `hospital`. Paired
+  with `los_draws` by draw index. Without it, profile probabilities are
+  held at their point estimates and the interval reflects LOS
+  uncertainty only (`uncertainty_sources = "LOS only"`).
+
+- conf_level:
+
+  Numeric. Confidence level of the interval. Default 0.95.
+
 ## Value
 
 `P_Lk_prime_tbl` augmented with `I_L`, `DW_L`, `profile_term` (=
-sum_delta R'\_k_delta \* LOSR_k_delta), and `YLD_associated`.
+sum_delta R'\_k_delta \* LOSR_k_delta), and `YLD_associated`; with
+`los_draws`, also `YLD_associated_lower`, `YLD_associated_upper`,
+`n_draws` and `uncertainty_sources`.
 
 ## Details
 
@@ -161,3 +187,12 @@ weight. Because this function already multiplies by profile-specific
 double-counting duration; a warning is emitted when `DW_sepsis` is not
 supplied directly. Prefer supplying a pure disability weight via the
 `DW_sepsis` scalar for this pathway.
+
+## Hospital-specific profiles
+
+When `profiles_with_los` carries a `hospital` column (from
+[`daly_assign_rr_to_profiles()`](https://saketlab.github.io/anumaan/reference/daly_assign_rr_to_profiles.md)
+with profile strings), each row of `P_Lk_prime_tbl` uses the profiles
+and LOS of its own hospital, named by `facility_col` (e.g. the
+`facility_level` element of
+[`daly_calc_pathogen_fraction_nonfatal()`](https://saketlab.github.io/anumaan/reference/daly_calc_pathogen_fraction_nonfatal.md)).

@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9044</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9045</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,23 @@
       <small>Source: <a href="https://github.com/saketlab/anumaan/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0.9045" id="anumaan-0109045">anumaan 0.1.0.9045<a class="anchor" aria-label="anchor" href="#anumaan-0109045"></a></h2>
+<ul><li>
+<code><a href="../reference/daly_fit_los_rr.html">daly_fit_los_rr()</a></code> has been rewritten. It now returns a list (<code>rr</code>, <code>hospital</code>, <code>draws</code>, <code>skipped</code>) instead of a data frame.
+<ul><li>Hospitals enter as a fixed effect in one model per pathogen x class (<code>hospital_effect = "fixed"</code>, the new default), so the relative LOS is shared and every hospital keeps its own LOS level. <code>"none"</code> and <code>"stratified"</code> (one model per hospital, the previous behaviour) remain available. <code>RxHospital_p</code> tests whether the resistance effect differs between hospitals.</li>
+<li>The unit is the admission (<code>admission_id_col</code>; <code>patient_id_col</code> is deprecated). Resistance is the worst phenotype of the pathogen’s own results in the admission, and covariates come from its earliest culture of that pathogen. Polymicrobial admissions now enter every pathogen’s models.</li>
+<li>Returns adjusted <code>LOSR</code> and <code>LOSS</code> (model predictions averaged over each hospital’s resistant admissions with R = 1 and R = 0) and their difference, per hospital and overall, instead of raw means only.</li>
+<li>Confidence intervals for <code>RR_LOS</code>, <code>LOSR</code>, <code>LOSS</code> and the excess from a bootstrap that resamples clusters (<code>cluster_id_col</code>, e.g. patients) within hospitals (<code>ci_method = "bootstrap"</code>), or from the delta method with a cluster-robust covariance (<code>"delta"</code>). <code>return_draws = TRUE</code> returns the bootstrap replicates.</li>
+<li>New arguments <code>classes</code> (a panel per pathogen), <code>reference_hospital</code>, <code>intermediate_as_resistant</code>, <code>hai_value</code>, <code>cai_value</code>, <code>icu_values</code>, <code>flag_min</code>. <code>hai_threshold_hours</code> is deprecated.</li>
+</ul></li>
+<li>
+<code><a href="../reference/daly_assign_rr_to_profiles.html">daly_assign_rr_to_profiles()</a></code> accepts profiles as R/S strings (e.g. the <code>profile_delta</code> / <code>R_mean</code> output of <code><a href="../reference/profile_aggregate_for_daly.html">profile_aggregate_for_daly()</a></code>) with <code>profile_class_order</code> giving the class of each letter, and accepts the <code><a href="../reference/daly_fit_los_rr.html">daly_fit_los_rr()</a></code> list directly. Each profile then takes the adjusted LOS of its dominant class at its own hospital. Ties in the max rule go to the first class in class order and are reported.</li>
+<li>
+<code><a href="../reference/daly_calc_yld_associated.html">daly_calc_yld_associated()</a></code> and <code><a href="../reference/daly_calc_yld_attributable.html">daly_calc_yld_attributable()</a></code> match each hospital to its own profiles and LOS when profiles are hospital-specific, and return percentile intervals when given <code>los_draws</code> (bootstrap draws from <code><a href="../reference/daly_fit_los_rr.html">daly_fit_los_rr()</a></code>) and optionally <code>profile_draws</code> (profile posterior draws).</li>
+<li>
+<code><a href="../reference/daly_fit_mortality_rr.html">daly_fit_mortality_rr()</a></code> now builds class resistance from each pathogen’s own results. Previously one pathogen’s results could set another pathogen’s resistance in the same patient, and patients with several pathogens entered only one pathogen’s models.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0.9044" id="anumaan-0109044">anumaan 0.1.0.9044<a class="anchor" aria-label="anchor" href="#anumaan-0109044"></a></h2>
 <ul><li>

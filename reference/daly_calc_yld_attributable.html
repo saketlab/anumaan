@@ -31,7 +31,7 @@ equation:"><meta property="og:image" content="https://saketlab.github.io/anumaan
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9044</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9045</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,7 +94,10 @@ equation:</p>
 <span>  probability_col <span class="op">=</span> <span class="st">"probability"</span>,</span>
 <span>  dominant_class_col <span class="op">=</span> <span class="st">"dominant_class"</span>,</span>
 <span>  losr_col <span class="op">=</span> <span class="st">"LOSR_years"</span>,</span>
-<span>  loss_col <span class="op">=</span> <span class="st">"LOSS_years"</span></span>
+<span>  loss_col <span class="op">=</span> <span class="st">"LOSS_years"</span>,</span>
+<span>  los_draws <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  profile_draws <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -187,12 +190,36 @@ DW lookup. <code>NULL</code> uses the "India" row. Ignored when
 <dd><p>Character. LOSS_k,d*(delta) column (years) in
 <code>profiles_with_los</code>. Default <code>"LOSS_years"</code>.</p></dd>
 
+
+<dt id="arg-los-draws">los_draws<a class="anchor" aria-label="anchor" href="#arg-los-draws"></a></dt>
+<dd><p><code>NULL</code> or the <code>draws</code> element of
+<code>daly_fit_los_rr(..., ci_method = "bootstrap", return_draws = TRUE)</code>.
+When given, the YLD is recomputed for every bootstrap draw (with the
+dominant class of each profile held fixed) and percentile intervals are
+returned.</p></dd>
+
+
+<dt id="arg-profile-draws">profile_draws<a class="anchor" aria-label="anchor" href="#arg-profile-draws"></a></dt>
+<dd><p><code>NULL</code> or a data frame of profile-probability
+posterior draws with columns <code>pathogen</code>, <code>profile</code> (the
+profile string), <code>draw</code>, <code>probability</code> and, for
+hospital-specific profiles, <code>hospital</code>. Paired with
+<code>los_draws</code> by draw index. Without it, profile probabilities are
+held at their point estimates and the interval reflects LOS uncertainty
+only (<code>uncertainty_sources = "LOS only"</code>).</p></dd>
+
+
+<dt id="arg-conf-level">conf_level<a class="anchor" aria-label="anchor" href="#arg-conf-level"></a></dt>
+<dd><p>Numeric. Confidence level of the interval. Default 0.95.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>P_Lk_prime_tbl</code> augmented with <code>I_L</code>, <code>DW_L</code>,
   <code>profile_term</code> (= sum_delta R'_k_delta * (LOSR_k_delta -
-  LOSS_k_delta)), and <code>YLD_attributable</code>.</p>
+  LOSS_k_delta)), and <code>YLD_attributable</code>; with <code>los_draws</code>, also
+  <code>YLD_attributable_lower</code>, <code>YLD_attributable_upper</code>,
+  <code>n_draws</code> and <code>uncertainty_sources</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

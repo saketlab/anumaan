@@ -58,7 +58,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9044</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9045</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -108,7 +108,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Getting Started with anumaan</h1>
             
-            <h4 data-toc-skip class="date">2026-11-26</h4>
+            <h4 data-toc-skip class="date">2026-11-27</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/saketlab/anumaan/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
@@ -292,10 +292,13 @@ profiles, and downstream DALY quantities remain unchanged.</p>
 <h3 id="length-of-stay">Length of stay<a class="anchor" aria-label="anchor" href="#length-of-stay"></a>
 </h3>
 <p>LOS is the time from admission to discharge among discharged
-patients. <code><a href="../reference/daly_fit_los_rr.html">daly_fit_los_rr()</a></code> estimates, for each pathogen
-and antibiotic class, how much longer resistant infections stay than
-susceptible ones (relative LOS).
-<code><a href="../reference/daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code> and
+admissions. <code><a href="../reference/daly_fit_los_rr.html">daly_fit_los_rr()</a></code> fits a Gamma model of LOS for
+each pathogen and antibiotic class, adjusted for age, sex, infection
+type, ICU and hospital. It returns how much longer resistant infections
+stay than susceptible ones (relative LOS), and for each hospital the
+adjusted LOS of resistant admissions (<code>LOSR</code>) and of the same
+admissions had they been susceptible (<code>LOSS</code>), with bootstrap
+confidence intervals. <code><a href="../reference/daly_fit_los_rr_distribution.html">daly_fit_los_rr_distribution()</a></code> and
 <code><a href="../reference/daly_fit_los_distn_by_profile.html">daly_fit_los_distn_by_profile()</a></code> are distribution-based
 alternatives.</p>
 </div>

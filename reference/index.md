@@ -475,7 +475,7 @@ GBD-methodology burden calculations
 - [`daly_fit_los_distn_by_profile()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_distn_by_profile.md)
   : Estimate Profile-Specific Median LOS (Section 5.3)
 - [`daly_fit_los_rr()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr.md)
-  : Fit relative LOS using Gamma GLM with log link
+  : Fit Relative Length of Stay with a Gamma GLM (Log Link)
 - [`daly_fit_los_rr_distribution()`](https://saketlab.github.io/anumaan/reference/daly_fit_los_rr_distribution.md)
   : Estimate Per-Class LOS Relative Risk via Parametric Distribution
   Fitting
