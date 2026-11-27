@@ -1,4 +1,4 @@
-# anumaan 0.1.0.9044
+# anumaan 0.1.0.9045
 
 * `daly_fit_los_rr()` has been rewritten. It now returns a list (`rr`,
   `hospital`, `draws`, `skipped`) instead of a data frame.
@@ -39,6 +39,8 @@
   own results. Previously one pathogen's results could set another
   pathogen's resistance in the same patient, and patients with several
   pathogens entered only one pathogen's models.
+
+# anumaan 0.1.0.9044
 
 * `prep_standardize_antibiotics()` now keeps combination antibiotics intact.
   Names such as "piperacillin-tazobactam" and "trimethoprim-sulfamethoxazole"
