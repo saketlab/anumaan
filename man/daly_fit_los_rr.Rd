@@ -2,11 +2,12 @@
 % Please edit documentation in R/daly_rr_and_los.R
 \name{daly_fit_los_rr}
 \alias{daly_fit_los_rr}
-\title{Fit relative LOS using Gamma GLM with log link}
+\title{Fit Relative Length of Stay with a Gamma GLM (Log Link)}
 \usage{
 daly_fit_los_rr(
   data,
-  patient_id_col = "PatientInformation_id",
+  admission_id_col = "PatientInformation_id",
+  cluster_id_col = NULL,
   facility_col = "center_name",
   organism_col = "organism_name",
   syndrome_col = "syndrome",
@@ -25,90 +26,229 @@ daly_fit_los_rr(
   comorbidity_col = NULL,
   syndrome_name = NULL,
   organism_name = NULL,
-  hai_threshold_hours = 48,
+  classes = NULL,
+  hospital_effect = c("fixed", "none", "stratified"),
+  reference_hospital = NULL,
+  intermediate_as_resistant = TRUE,
+  hai_value = "HAI",
+  cai_value = "CAI",
+  icu_values = c("ICU", "Intensive Care", "Critical Care", "PICU", "NICU"),
   max_los = 365,
   min_n = 20L,
   min_resistant = 5L,
-  min_susceptible = 5L
+  min_susceptible = 5L,
+  flag_min = 10L,
+  ci_method = c("bootstrap", "delta", "none"),
+  n_boot = 1000L,
+  conf_level = 0.95,
+  seed = NULL,
+  return_draws = FALSE,
+  patient_id_col = NULL,
+  hai_threshold_hours = NULL
 )
 }
 \arguments{
-\item{data}{Data frame.}
+\item{data}{Data frame with one row per antibiotic test result.}
 
-\item{patient_id_col}{Character. Patient identifier column.}
+\item{admission_id_col}{Character. Admission identifier; the unit of
+analysis. Default \code{"PatientInformation_id"}.}
 
-\item{facility_col}{Character or NULL. Facility / centre column. When
-\code{NULL}, no hospital effect is included in the model and a single
-pooled RR is returned (hospital column will be \code{NA}). When provided,
-the model is fit separately per hospital and the result contains one row
-per pathogen-class-hospital combination (hospital-specific RR).}
+\item{cluster_id_col}{Character or \code{NULL}. Identifier used to cluster
+repeated admissions of the same patient in the bootstrap and the
+sandwich covariance. \code{NULL} clusters by admission.}
+
+\item{facility_col}{Character or \code{NULL}. Hospital column. \code{NULL}
+pools everything and forces \code{hospital_effect = "none"}.}
 
 \item{organism_col}{Character. Pathogen column.}
 
-\item{syndrome_col}{Character. Syndrome column.}
+\item{syndrome_col}{Character. Syndrome column (used with
+\code{syndrome_name}).}
 
-\item{infection_type_col}{Character. Column already holding the final
-HAI/CAI classification (e.g. \code{prep_derive_hai_cai()}'s output).
-Used as-is -- \strong{not} re-derived from admission/culture dates.
-Default \code{"infection_type"}.}
+\item{infection_type_col}{Character. Column holding the final HAI/CAI
+classification. Default \code{"infection_type"}.}
 
-\item{antibiotic_class_col}{Character. Antibiotic class column.}
+\item{antibiotic_class_col, antibiotic_name_col, antibiotic_value_col}{Character. Antibiotic class, drug name and S/I/R result columns.}
 
-\item{antibiotic_name_col}{Character. Antibiotic name column.}
+\item{date_admission_col, date_discharge_col}{Character. Admission and final
+outcome date columns.}
 
-\item{antibiotic_value_col}{Character. Antibiotic susceptibility column.}
+\item{date_culture_col}{Character. Culture date column, used to take
+covariates from each admission's earliest culture of the pathogen. When
+absent, the first row is used.}
 
-\item{date_admission_col}{Character. Admission date column.}
+\item{final_outcome_col, final_outcome_value}{Character. Final outcome column
+and the value marking discharged admissions.}
 
-\item{date_discharge_col}{Character. Discharge / final outcome date column.}
+\item{age_col, sex_col}{Character or \code{NULL}. Age and sex columns;
+\code{NULL} leaves the covariate out.}
 
-\item{date_culture_col}{Character. Unused -- retained only for backward API
-compatibility. LOS is computed as final outcome date - admission date and
-does not depend on the culture date.}
+\item{unit_type_col}{Character or \code{NULL}. Ward / ICU column.}
 
-\item{final_outcome_col}{Character. Final outcome column.}
+\item{comorbidity_col}{Character or \code{NULL}. Comorbidity column.}
 
-\item{final_outcome_value}{Character. Value indicating discharged patients.}
+\item{syndrome_name}{Character or \code{NULL}. Restrict to one syndrome.}
 
-\item{age_col}{Character. Age column.}
+\item{organism_name}{Character vector or \code{NULL}. Pathogens to model;
+\code{NULL} models all.}
 
-\item{sex_col}{Character. Sex column.}
+\item{classes}{\code{NULL} (all classes), a character vector (the same
+classes for every pathogen), or a named list of character vectors (a
+panel per pathogen, names matching \code{organism_name} values).}
 
-\item{unit_type_col}{Character or NULL. ICU / ward location column.}
+\item{hospital_effect}{One of \code{"fixed"}, \code{"none"},
+\code{"stratified"}. See "Hospital effect".}
 
-\item{comorbidity_col}{Character or NULL. Comorbidity column.}
+\item{reference_hospital}{Character or \code{NULL}. Reference level of the
+hospital fixed effect; \code{NULL} uses the hospital with most
+admissions in each model. Does not change any estimate.}
 
-\item{syndrome_name}{Character or NULL. Restrict to one syndrome.}
+\item{intermediate_as_resistant}{Logical. See "Resistance".}
 
-\item{organism_name}{Character vector or NULL. Restrict to these pathogens.}
+\item{hai_value, cai_value}{Character. Values of \code{infection_type_col}
+for HAI and CAI; other values are treated as missing.}
 
-\item{hai_threshold_hours}{Numeric. Unused -- retained only for backward
-API compatibility. HAI/CAI is read directly from \code{infection_type_col}
-rather than re-derived from a date gap.}
+\item{icu_values}{Character vector. Values of \code{unit_type_col} counted
+as ICU (matched case-insensitively as substrings).}
 
-\item{max_los}{Numeric. Maximum retained LOS in days.}
+\item{max_los}{Numeric. Maximum LOS in days. Default 365.}
 
-\item{min_n}{Integer. Minimum patients required in a class model.}
+\item{min_n, min_resistant, min_susceptible}{Integer. Minimum admissions,
+resistant admissions and susceptible admissions for a model to be fitted.}
 
-\item{min_resistant}{Integer. Minimum resistant patients required.}
+\item{flag_min}{Integer. Hospitals with fewer resistant or susceptible
+admissions than this are flagged \code{low_support} in the hospital
+table (they are still estimated).}
 
-\item{min_susceptible}{Integer. Minimum susceptible patients required.}
+\item{ci_method}{One of \code{"bootstrap"}, \code{"delta"}, \code{"none"}.}
+
+\item{n_boot}{Integer. Bootstrap replicates. Default 1000.}
+
+\item{conf_level}{Numeric. Confidence level. Default 0.95.}
+
+\item{seed}{Integer or \code{NULL}. Random seed for the bootstrap.}
+
+\item{return_draws}{Logical. Return the bootstrap replicates.}
+
+\item{patient_id_col}{Deprecated. Use \code{admission_id_col}.}
+
+\item{hai_threshold_hours}{Deprecated and ignored. HAI/CAI is read from
+\code{infection_type_col}.}
 }
 \value{
-Data frame with pathogen, antibiotic_class, hospital (NA when
-  \code{facility_col} is \code{NULL}), RR_LOS, CI_lower,
-  CI_upper, beta_log_rr, mean_los_resistant, mean_los_susceptible,
-  n_patients, n_resistant, n_susceptible, model_family, link_function,
-  and syndrome_scope.
+A list with:
+\describe{
+  \item{\code{rr}}{One row per pathogen x class (x hospital for
+    \code{"stratified"}): \code{RR_LOS} with \code{CI_lower},
+    \code{CI_upper}, \code{beta_log_rr}, \code{se_log_rr_cluster}; counts;
+    observed mean LOS of R and S admissions; all-hospital \code{LOSR},
+    \code{LOSS} and \code{excess_LOS} with intervals; \code{dispersion};
+    \code{RxHospital_p}; covariates used and settings.}
+  \item{\code{hospital}}{One row per pathogen x class x hospital:
+    counts, observed and predicted mean LOS of R and S admissions (a
+    calibration check), \code{LOSR}, \code{LOSS}, \code{excess_LOS} with
+    intervals, \code{RR_LOS}, \code{low_support} and
+    \code{fallback_all_admissions}.}
+  \item{\code{draws}}{When \code{return_draws = TRUE} and
+    \code{ci_method = "bootstrap"}: a list named
+    \code{"pathogen | class"} (\code{"pathogen | class | hospital"} for
+    \code{"stratified"}), each with \code{RR_LOS} (vector) and
+    \code{LOSR}, \code{LOSS} (replicate x hospital matrices).}
+  \item{\code{skipped}}{Pathogen x class (x hospital) combinations not
+    fitted, with the reason.}
+}
 }
 \description{
-Estimates class-specific relative length of stay (RR_LOS) for each pathogen
-using a Gamma generalized linear model with log link:
+For each pathogen and antibiotic class, fits a Gamma generalised linear
+model with log link to the length of stay (LOS) of discharged admissions:
 }
 \details{
-E(LOS_i) = exp(beta0 + beta1*Resistance_ci + beta2*HAI_i +
-                 beta3*Age_i + beta4*Sex_i + beta5*ICU_i +
-                 beta6*Comorbidity_i + centre fixed effects)
+\deqn{\log E(LOS_i) = \beta_0 + \beta_R R_i + \beta_1 HAI_i + \beta_2 Age_i
+  + \beta_3 Sex_i + \beta_4 ICU_i + \beta_5 Comorbidity_i + \gamma_{h(i)}}
 
-RR_LOS for a resistance class is exp(beta1).
+and returns the relative LOS, \eqn{RR_{LOS} = \exp(\beta_R)}, together with
+the adjusted LOS of resistant admissions (\code{LOSR}) and of the same
+admissions had they been susceptible (\code{LOSS}), per hospital and for
+all hospitals combined.
 }
+\section{Unit of analysis}{
+
+One row per admission x pathogen x antibiotic class. LOS is computed once
+per admission by \code{daly_compute_patient_los()} (final outcome date
+minus admission date, discharged admissions only, 0 < LOS <= \code{max_los}).
+An admission with several pathogens enters each pathogen's models.
+}
+
+\section{Resistance (worst phenotype)}{
+
+For an admission and pathogen, a class is resistant (\code{R = 1}) when any
+result of that pathogen for any drug in the class is R, and susceptible
+(\code{R = 0}) when it was tested and no result is R. Results of other
+pathogens in the same admission are not used. With
+\code{intermediate_as_resistant = TRUE}, I counts as R except for colistin,
+where I counts as S (the convention of
+\code{prep_recode_intermediate_ast()}); with \code{FALSE}, I results are
+dropped. Admissions not tested for a class are excluded from that class's
+model.
+}
+
+\section{Covariates}{
+
+Taken from each admission's earliest culture of the pathogen
+(\code{date_culture_col}): HAI (1 if \code{infection_type_col} equals
+\code{hai_value}, 0 if it equals \code{cai_value}, otherwise missing), age
+(linear), sex, ICU (when \code{unit_type_col} is given) and comorbidity
+(when \code{comorbidity_col} is given). Admissions with a missing value in
+a requested covariate are dropped from that model and counted in
+\code{n_dropped_covariates}. A covariate with no variation in a model is
+left out of that model.
+}
+
+\section{Hospital effect}{
+
+\describe{
+  \item{\code{"fixed"} (default)}{One model per pathogen x class across all
+    hospitals, with hospital as a fixed effect. Each hospital has its own
+    LOS level; the resistance effect (\code{RR_LOS}) is shared. Small
+    hospitals are kept and borrow the resistance effect.}
+  \item{\code{"none"}}{One model with no hospital term.}
+  \item{\code{"stratified"}}{A separate model in each hospital, so each
+    hospital has its own \code{RR_LOS}. Hospitals below the minimum counts
+    are skipped.}
+}
+For \code{"fixed"}, \code{RxHospital_p} is the F-test p-value for adding a
+resistance x hospital interaction, i.e. evidence that the resistance
+effect differs between hospitals.
+}
+
+\section{LOSR and LOSS}{
+
+Model predictions are averaged over a hospital's own resistant admissions:
+\code{LOSR} with \code{R = 1} and \code{LOSS} with \code{R = 0} for the
+same admissions. \code{LOSS} is therefore the counterfactual LOS of the
+resistant admissions had they been susceptible, and
+\code{LOSR / LOSS = RR_LOS}. A hospital with no resistant admissions in a
+class is averaged over all its tested admissions instead
+(\code{fallback_all_admissions = TRUE}). The all-hospital values in
+\code{rr} are averaged over every resistant admission.
+}
+
+\section{Confidence intervals}{
+
+\describe{
+  \item{\code{"bootstrap"} (default)}{Clusters (\code{cluster_id_col}, e.g.
+    a patient ID; the admission when \code{NULL}) are resampled with
+    replacement within each hospital, the model is refitted, and
+    \code{RR_LOS}, \code{LOSR}, \code{LOSS} and the excess
+    (\code{LOSR - LOSS}, computed within each replicate) are recomputed.
+    Intervals are percentiles of the \code{n_boot} replicates.}
+  \item{\code{"delta"}}{Delta method with a cluster-robust (sandwich)
+    covariance matrix. Treats each hospital's admissions as fixed.}
+  \item{\code{"none"}}{No intervals.}
+}
+\code{se_log_rr_cluster} (the cluster-robust standard error of
+\eqn{\beta_R}) is always returned. With \code{return_draws = TRUE} the
+bootstrap replicates are returned so they can be combined with profile
+draws downstream.
+}
+

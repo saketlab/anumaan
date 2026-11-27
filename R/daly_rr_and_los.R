@@ -277,64 +277,171 @@ daly_compute_patient_los <- function(
 
 
 # daly_fit_los_rr
-#' Fit relative LOS using Gamma GLM with log link
+#' Fit Relative Length of Stay with a Gamma GLM (Log Link)
 #'
-#' Estimates class-specific relative length of stay (RR_LOS) for each pathogen
-#' using a Gamma generalized linear model with log link:
+#' For each pathogen and antibiotic class, fits a Gamma generalised linear
+#' model with log link to the length of stay (LOS) of discharged admissions:
 #'
-#'   E(LOS_i) = exp(beta0 + beta1*Resistance_ci + beta2*HAI_i +
-#'                  beta3*Age_i + beta4*Sex_i + beta5*ICU_i +
-#'                  beta6*Comorbidity_i + centre fixed effects)
+#' \deqn{\log E(LOS_i) = \beta_0 + \beta_R R_i + \beta_1 HAI_i + \beta_2 Age_i
+#'   + \beta_3 Sex_i + \beta_4 ICU_i + \beta_5 Comorbidity_i + \gamma_{h(i)}}
 #'
-#' RR_LOS for a resistance class is exp(beta1).
+#' and returns the relative LOS, \eqn{RR_{LOS} = \exp(\beta_R)}, together with
+#' the adjusted LOS of resistant admissions (\code{LOSR}) and of the same
+#' admissions had they been susceptible (\code{LOSS}), per hospital and for
+#' all hospitals combined.
 #'
+#' @section Unit of analysis:
+#' One row per admission x pathogen x antibiotic class. LOS is computed once
+#' per admission by \code{daly_compute_patient_los()} (final outcome date
+#' minus admission date, discharged admissions only, 0 < LOS <= \code{max_los}).
+#' An admission with several pathogens enters each pathogen's models.
 #'
-#' @param data Data frame.
-#' @param patient_id_col Character. Patient identifier column.
-#' @param facility_col Character or NULL. Facility / centre column. When
-#'   \code{NULL}, no hospital effect is included in the model and a single
-#'   pooled RR is returned (hospital column will be \code{NA}). When provided,
-#'   the model is fit separately per hospital and the result contains one row
-#'   per pathogen-class-hospital combination (hospital-specific RR).
+#' @section Resistance (worst phenotype):
+#' For an admission and pathogen, a class is resistant (\code{R = 1}) when any
+#' result of that pathogen for any drug in the class is R, and susceptible
+#' (\code{R = 0}) when it was tested and no result is R. Results of other
+#' pathogens in the same admission are not used. With
+#' \code{intermediate_as_resistant = TRUE}, I counts as R except for colistin,
+#' where I counts as S (the convention of
+#' \code{prep_recode_intermediate_ast()}); with \code{FALSE}, I results are
+#' dropped. Admissions not tested for a class are excluded from that class's
+#' model.
+#'
+#' @section Covariates:
+#' Taken from each admission's earliest culture of the pathogen
+#' (\code{date_culture_col}): HAI (1 if \code{infection_type_col} equals
+#' \code{hai_value}, 0 if it equals \code{cai_value}, otherwise missing), age
+#' (linear), sex, ICU (when \code{unit_type_col} is given) and comorbidity
+#' (when \code{comorbidity_col} is given). Admissions with a missing value in
+#' a requested covariate are dropped from that model and counted in
+#' \code{n_dropped_covariates}. A covariate with no variation in a model is
+#' left out of that model.
+#'
+#' @section Hospital effect:
+#' \describe{
+#'   \item{\code{"fixed"} (default)}{One model per pathogen x class across all
+#'     hospitals, with hospital as a fixed effect. Each hospital has its own
+#'     LOS level; the resistance effect (\code{RR_LOS}) is shared. Small
+#'     hospitals are kept and borrow the resistance effect.}
+#'   \item{\code{"none"}}{One model with no hospital term.}
+#'   \item{\code{"stratified"}}{A separate model in each hospital, so each
+#'     hospital has its own \code{RR_LOS}. Hospitals below the minimum counts
+#'     are skipped.}
+#' }
+#' For \code{"fixed"}, \code{RxHospital_p} is the F-test p-value for adding a
+#' resistance x hospital interaction, i.e. evidence that the resistance
+#' effect differs between hospitals.
+#'
+#' @section LOSR and LOSS:
+#' Model predictions are averaged over a hospital's own resistant admissions:
+#' \code{LOSR} with \code{R = 1} and \code{LOSS} with \code{R = 0} for the
+#' same admissions. \code{LOSS} is therefore the counterfactual LOS of the
+#' resistant admissions had they been susceptible, and
+#' \code{LOSR / LOSS = RR_LOS}. A hospital with no resistant admissions in a
+#' class is averaged over all its tested admissions instead
+#' (\code{fallback_all_admissions = TRUE}). The all-hospital values in
+#' \code{rr} are averaged over every resistant admission.
+#'
+#' @section Confidence intervals:
+#' \describe{
+#'   \item{\code{"bootstrap"} (default)}{Clusters (\code{cluster_id_col}, e.g.
+#'     a patient ID; the admission when \code{NULL}) are resampled with
+#'     replacement within each hospital, the model is refitted, and
+#'     \code{RR_LOS}, \code{LOSR}, \code{LOSS} and the excess
+#'     (\code{LOSR - LOSS}, computed within each replicate) are recomputed.
+#'     Intervals are percentiles of the \code{n_boot} replicates.}
+#'   \item{\code{"delta"}}{Delta method with a cluster-robust (sandwich)
+#'     covariance matrix. Treats each hospital's admissions as fixed.}
+#'   \item{\code{"none"}}{No intervals.}
+#' }
+#' \code{se_log_rr_cluster} (the cluster-robust standard error of
+#' \eqn{\beta_R}) is always returned. With \code{return_draws = TRUE} the
+#' bootstrap replicates are returned so they can be combined with profile
+#' draws downstream.
+#'
+#' @param data Data frame with one row per antibiotic test result.
+#' @param admission_id_col Character. Admission identifier; the unit of
+#'   analysis. Default \code{"PatientInformation_id"}.
+#' @param cluster_id_col Character or \code{NULL}. Identifier used to cluster
+#'   repeated admissions of the same patient in the bootstrap and the
+#'   sandwich covariance. \code{NULL} clusters by admission.
+#' @param facility_col Character or \code{NULL}. Hospital column. \code{NULL}
+#'   pools everything and forces \code{hospital_effect = "none"}.
 #' @param organism_col Character. Pathogen column.
-#' @param syndrome_col Character. Syndrome column.
-#' @param infection_type_col Character. Column already holding the final
-#'   HAI/CAI classification (e.g. \code{prep_derive_hai_cai()}'s output).
-#'   Used as-is -- \strong{not} re-derived from admission/culture dates.
-#'   Default \code{"infection_type"}.
-#' @param antibiotic_class_col Character. Antibiotic class column.
-#' @param antibiotic_name_col Character. Antibiotic name column.
-#' @param antibiotic_value_col Character. Antibiotic susceptibility column.
-#' @param date_admission_col Character. Admission date column.
-#' @param date_discharge_col Character. Discharge / final outcome date column.
-#' @param date_culture_col Character. Unused -- retained only for backward API
-#'   compatibility. LOS is computed as final outcome date - admission date and
-#'   does not depend on the culture date.
-#' @param final_outcome_col Character. Final outcome column.
-#' @param final_outcome_value Character. Value indicating discharged patients.
-#' @param age_col Character. Age column.
-#' @param sex_col Character. Sex column.
-#' @param unit_type_col Character or NULL. ICU / ward location column.
-#' @param comorbidity_col Character or NULL. Comorbidity column.
-#' @param syndrome_name Character or NULL. Restrict to one syndrome.
-#' @param organism_name Character vector or NULL. Restrict to these pathogens.
-#' @param hai_threshold_hours Numeric. Unused -- retained only for backward
-#'   API compatibility. HAI/CAI is read directly from \code{infection_type_col}
-#'   rather than re-derived from a date gap.
-#' @param max_los Numeric. Maximum retained LOS in days.
-#' @param min_n Integer. Minimum patients required in a class model.
-#' @param min_resistant Integer. Minimum resistant patients required.
-#' @param min_susceptible Integer. Minimum susceptible patients required.
+#' @param syndrome_col Character. Syndrome column (used with
+#'   \code{syndrome_name}).
+#' @param infection_type_col Character. Column holding the final HAI/CAI
+#'   classification. Default \code{"infection_type"}.
+#' @param antibiotic_class_col,antibiotic_name_col,antibiotic_value_col
+#'   Character. Antibiotic class, drug name and S/I/R result columns.
+#' @param date_admission_col,date_discharge_col Character. Admission and final
+#'   outcome date columns.
+#' @param date_culture_col Character. Culture date column, used to take
+#'   covariates from each admission's earliest culture of the pathogen. When
+#'   absent, the first row is used.
+#' @param final_outcome_col,final_outcome_value Character. Final outcome column
+#'   and the value marking discharged admissions.
+#' @param age_col,sex_col Character or \code{NULL}. Age and sex columns;
+#'   \code{NULL} leaves the covariate out.
+#' @param unit_type_col Character or \code{NULL}. Ward / ICU column.
+#' @param comorbidity_col Character or \code{NULL}. Comorbidity column.
+#' @param syndrome_name Character or \code{NULL}. Restrict to one syndrome.
+#' @param organism_name Character vector or \code{NULL}. Pathogens to model;
+#'   \code{NULL} models all.
+#' @param classes \code{NULL} (all classes), a character vector (the same
+#'   classes for every pathogen), or a named list of character vectors (a
+#'   panel per pathogen, names matching \code{organism_name} values).
+#' @param hospital_effect One of \code{"fixed"}, \code{"none"},
+#'   \code{"stratified"}. See "Hospital effect".
+#' @param reference_hospital Character or \code{NULL}. Reference level of the
+#'   hospital fixed effect; \code{NULL} uses the hospital with most
+#'   admissions in each model. Does not change any estimate.
+#' @param intermediate_as_resistant Logical. See "Resistance".
+#' @param hai_value,cai_value Character. Values of \code{infection_type_col}
+#'   for HAI and CAI; other values are treated as missing.
+#' @param icu_values Character vector. Values of \code{unit_type_col} counted
+#'   as ICU (matched case-insensitively as substrings).
+#' @param max_los Numeric. Maximum LOS in days. Default 365.
+#' @param min_n,min_resistant,min_susceptible Integer. Minimum admissions,
+#'   resistant admissions and susceptible admissions for a model to be fitted.
+#' @param flag_min Integer. Hospitals with fewer resistant or susceptible
+#'   admissions than this are flagged \code{low_support} in the hospital
+#'   table (they are still estimated).
+#' @param ci_method One of \code{"bootstrap"}, \code{"delta"}, \code{"none"}.
+#' @param n_boot Integer. Bootstrap replicates. Default 1000.
+#' @param conf_level Numeric. Confidence level. Default 0.95.
+#' @param seed Integer or \code{NULL}. Random seed for the bootstrap.
+#' @param return_draws Logical. Return the bootstrap replicates.
+#' @param patient_id_col Deprecated. Use \code{admission_id_col}.
+#' @param hai_threshold_hours Deprecated and ignored. HAI/CAI is read from
+#'   \code{infection_type_col}.
 #'
-#' @return Data frame with pathogen, antibiotic_class, hospital (NA when
-#'   \code{facility_col} is \code{NULL}), RR_LOS, CI_lower,
-#'   CI_upper, beta_log_rr, mean_los_resistant, mean_los_susceptible,
-#'   n_patients, n_resistant, n_susceptible, model_family, link_function,
-#'   and syndrome_scope.
+#' @return A list with:
+#' \describe{
+#'   \item{\code{rr}}{One row per pathogen x class (x hospital for
+#'     \code{"stratified"}): \code{RR_LOS} with \code{CI_lower},
+#'     \code{CI_upper}, \code{beta_log_rr}, \code{se_log_rr_cluster}; counts;
+#'     observed mean LOS of R and S admissions; all-hospital \code{LOSR},
+#'     \code{LOSS} and \code{excess_LOS} with intervals; \code{dispersion};
+#'     \code{RxHospital_p}; covariates used and settings.}
+#'   \item{\code{hospital}}{One row per pathogen x class x hospital:
+#'     counts, observed and predicted mean LOS of R and S admissions (a
+#'     calibration check), \code{LOSR}, \code{LOSS}, \code{excess_LOS} with
+#'     intervals, \code{RR_LOS}, \code{low_support} and
+#'     \code{fallback_all_admissions}.}
+#'   \item{\code{draws}}{When \code{return_draws = TRUE} and
+#'     \code{ci_method = "bootstrap"}: a list named
+#'     \code{"pathogen | class"} (\code{"pathogen | class | hospital"} for
+#'     \code{"stratified"}), each with \code{RR_LOS} (vector) and
+#'     \code{LOSR}, \code{LOSS} (replicate x hospital matrices).}
+#'   \item{\code{skipped}}{Pathogen x class (x hospital) combinations not
+#'     fitted, with the reason.}
+#' }
 #' @export
 daly_fit_los_rr <- function(
   data,
-  patient_id_col = "PatientInformation_id",
+  admission_id_col = "PatientInformation_id",
+  cluster_id_col = NULL,
   facility_col = "center_name",
   organism_col = "organism_name",
   syndrome_col = "syndrome",
@@ -353,328 +460,496 @@ daly_fit_los_rr <- function(
   comorbidity_col = NULL,
   syndrome_name = NULL,
   organism_name = NULL,
-  hai_threshold_hours = 48,
+  classes = NULL,
+  hospital_effect = c("fixed", "none", "stratified"),
+  reference_hospital = NULL,
+  intermediate_as_resistant = TRUE,
+  hai_value = "HAI",
+  cai_value = "CAI",
+  icu_values = c("ICU", "Intensive Care", "Critical Care", "PICU", "NICU"),
   max_los = 365,
   min_n = 20L,
   min_resistant = 5L,
-  min_susceptible = 5L
+  min_susceptible = 5L,
+  flag_min = 10L,
+  ci_method = c("bootstrap", "delta", "none"),
+  n_boot = 1000L,
+  conf_level = 0.95,
+  seed = NULL,
+  return_draws = FALSE,
+  patient_id_col = NULL,
+  hai_threshold_hours = NULL
 ) {
-  required_cols <- c(
-    patient_id_col, organism_col,
+  hospital_effect <- match.arg(hospital_effect)
+  ci_method <- match.arg(ci_method)
+  if (!is.null(patient_id_col)) {
+    warning("`patient_id_col` is deprecated; use `admission_id_col`. Using it as the admission ID.", call. = FALSE)
+    admission_id_col <- patient_id_col
+  }
+  if (!is.null(hai_threshold_hours)) {
+    warning("`hai_threshold_hours` is deprecated and ignored; HAI/CAI is read from `infection_type_col`.", call. = FALSE)
+  }
+  if (!is.null(seed)) set.seed(seed)
+
+  required <- c(
+    admission_id_col, organism_col, infection_type_col,
     antibiotic_class_col, antibiotic_name_col, antibiotic_value_col,
-    date_admission_col, date_discharge_col,
-    final_outcome_col
+    date_admission_col, date_discharge_col, final_outcome_col,
+    facility_col, cluster_id_col, age_col, sex_col, unit_type_col, comorbidity_col
   )
-
-  if (!is.null(facility_col)) {
-    required_cols <- c(required_cols, facility_col)
-  }
-  if (!is.null(age_col)) {
-    required_cols <- c(required_cols, age_col)
-  }
-  if (!is.null(sex_col)) {
-    required_cols <- c(required_cols, sex_col)
-  }
-  if (!is.null(syndrome_name)) {
-    required_cols <- c(required_cols, syndrome_col)
-  }
-
-  missing_cols <- setdiff(required_cols, names(data))
+  if (!is.null(syndrome_name)) required <- c(required, syndrome_col)
+  missing_cols <- setdiff(required, names(data))
   if (length(missing_cols) > 0L) {
-    stop(sprintf(
-      "Missing required column(s): %s",
-      paste(missing_cols, collapse = ", ")
-    ))
+    stop(sprintf("Missing required column(s): %s", paste(missing_cols, collapse = ", ")))
   }
 
-  # When facility_col is NULL, no hospital random/fixed effect is used.
-  # A dummy column is added internally so helper functions remain compatible.
-  use_facility <- !is.null(facility_col)
-  if (!use_facility) {
+  data <- as.data.frame(data)
+  if (is.null(facility_col)) {
     facility_col <- ".facility_pooled"
     data[[facility_col]] <- "pooled"
-    message("No facility_col provided: hospital effect will not be included. Returning pooled RR.")
-  }
-
-  # Step 1: HAI / CAI classification is already computed upstream (e.g. by
-  # prep_derive_hai_cai()) and available in infection_type_col -- read it
-  # directly rather than re-deriving it from the admission/culture date gap.
-  if (!infection_type_col %in% names(data)) {
-    stop(sprintf("infection_type_col '%s' not found in data.", infection_type_col))
-  }
-  data$infection_type_derived <- data[[infection_type_col]]
-
-  # Step 2: compute patient-level LOS
-  # LOS = final outcome (discharge) date - admission date, for all infection
-  # types. HAI is still used below as a covariate in the LOS model.
-  los_df <- daly_compute_patient_los(
-    data = data,
-    patient_id_col = patient_id_col,
-    facility_col = facility_col,
-    syndrome_col = syndrome_col,
-    syndrome_name = syndrome_name,
-    date_admission_col = date_admission_col,
-    date_discharge_col = date_discharge_col,
-    final_outcome_col = final_outcome_col,
-    final_outcome_value = final_outcome_value,
-    max_los = max_los
-  )
-
-  if (nrow(los_df) == 0L) {
-    warning("No valid LOS observations found after filtering.")
-    return(data.frame())
-  }
-
-  # Step 3: build class-level resistance wide matrix
-  # class = 1 if any drug in class is resistant
-  # class = 0 if tested and no drug in class is resistant
-  # class = NA if class not tested
-  resistance_wide <- .build_class_resistance_wide(
-    data = data,
-    patient_id_col = patient_id_col,
-    antibiotic_class_col = antibiotic_class_col,
-    antibiotic_name_col = antibiotic_name_col,
-    antibiotic_value_col = antibiotic_value_col,
-    untested_fill = NA_integer_
-  )
-
-  class_name_map <- attr(resistance_wide, "class_name_map")
-  class_safe_cols <- setdiff(names(resistance_wide), patient_id_col)
-
-  # Step 4: patient-level covariates
-  patient_covars <- data |>
-    dplyr::group_by(.data[[patient_id_col]]) |>
-    dplyr::slice(1L) |>
-    dplyr::ungroup() |>
-    dplyr::transmute(
-      !!patient_id_col := .data[[patient_id_col]],
-      !!facility_col := .data[[facility_col]],
-      !!organism_col := .data[[organism_col]],
-      infection_type_derived = .data[["infection_type_derived"]],
-      HAI = dplyr::if_else(.data[["infection_type_derived"]] == "HAI", 1L, 0L),
-      Age_model = if (!is.null(age_col) && age_col %in% names(data)) {
-        suppressWarnings(as.numeric(.data[[age_col]]))
-      } else {
-        NA_real_
-      },
-      Sex_model = if (!is.null(sex_col) && sex_col %in% names(data)) {
-        as.factor(.data[[sex_col]])
-      } else {
-        factor(NA_character_)
-      }
-    )
-
-  # ICU covariate
-  if (!is.null(unit_type_col) && unit_type_col %in% names(data)) {
-    icu_tbl <- .derive_icu_binary(
-      data = data,
-      patient_id_col = patient_id_col,
-      unit_type_col = unit_type_col
-    )
-    patient_covars <- dplyr::left_join(patient_covars, icu_tbl, by = patient_id_col)
-  } else {
-    patient_covars$ICU <- NA_integer_
-  }
-
-  # Comorbidity covariate
-  if (!is.null(comorbidity_col) && comorbidity_col %in% names(data)) {
-    comorb_df <- data |>
-      dplyr::group_by(.data[[patient_id_col]]) |>
-      dplyr::slice(1L) |>
-      dplyr::ungroup() |>
-      dplyr::select(dplyr::all_of(c(patient_id_col, comorbidity_col)))
-
-    comorb_df <- .encode_comorbidity_mortality(
-      data = comorb_df,
-      comorbidity_col = comorbidity_col,
-      patient_id_col = patient_id_col
-    )
-
-    patient_covars <- dplyr::left_join(
-      patient_covars,
-      comorb_df |>
-        dplyr::select(.data[[patient_id_col]], comorbidity_encoded),
-      by = patient_id_col
-    )
-  } else {
-    patient_covars$comorbidity_encoded <- NA_real_
-  }
-
-  # Step 5: merge LOS + covariates + resistance
-  model_base <- los_df |>
-    dplyr::inner_join(
-      patient_covars,
-      by = c(patient_id_col, facility_col)
-    ) |>
-    dplyr::inner_join(resistance_wide, by = patient_id_col)
-
-  if (nrow(model_base) == 0L) {
-    warning("No observations available after joining LOS, covariates, and resistance matrix.")
-    return(data.frame())
-  }
-
-  # Step 6: resolve pathogen list
-  pathogens <- if (!is.null(organism_name)) {
-    organism_name
-  } else {
-    sort(unique(model_base[[organism_col]]))
-  }
-
-  results <- list()
-
-  # Step 7: fit Gamma(log) model per pathogen x class
-  for (path in pathogens) {
-    path_df <- model_base |>
-      dplyr::filter(
-        stringr::str_to_lower(stringr::str_trim(.data[[organism_col]])) ==
-          stringr::str_to_lower(stringr::str_trim(path))
-      )
-
-    if (nrow(path_df) == 0L) {
-      next
+    if (hospital_effect != "none") {
+      message("No facility_col provided: hospital_effect set to 'none'.")
+      hospital_effect <- "none"
     }
+  }
+  if (!is.null(syndrome_name)) {
+    data <- data[.name_key(data[[syndrome_col]]) == .name_key(syndrome_name), , drop = FALSE]
+  }
+  data <- data[!is.na(data[[organism_col]]) & trimws(as.character(data[[organism_col]])) != "", , drop = FALSE]
 
-    for (cls in class_safe_cols) {
-      orig_class <- class_name_map[[cls]]
+  # LOS: one value per discharged admission
+  los_df <- suppressMessages(daly_compute_patient_los(
+    data = data, patient_id_col = admission_id_col, facility_col = facility_col,
+    date_admission_col = date_admission_col, date_discharge_col = date_discharge_col,
+    final_outcome_col = final_outcome_col, final_outcome_value = final_outcome_value,
+    max_los = max_los
+  ))
+  dup <- duplicated(los_df[[admission_id_col]])
+  if (any(dup)) {
+    warning(sprintf(
+      "%d admission(s) have more than one LOS (inconsistent dates or hospital); the first is kept.",
+      sum(dup)
+    ), call. = FALSE)
+    los_df <- los_df[!dup, , drop = FALSE]
+  }
+  if (nrow(los_df) == 0L) {
+    warning("No valid LOS observations found after filtering.", call. = FALSE)
+    return(.los_rr_empty())
+  }
+  message(sprintf("LOS available for %d discharged admission(s).", nrow(los_df)))
+  los_tbl <- data.frame(
+    .id = as.character(los_df[[admission_id_col]]),
+    .hosp = as.character(los_df[[facility_col]]),
+    LOS_days = los_df$LOS_days,
+    stringsAsFactors = FALSE
+  )
 
-      sub <- path_df |>
-        dplyr::filter(!is.na(.data[[cls]]))
+  # Class status per admission x pathogen x class (this pathogen's results only)
+  status <- .los_class_status(
+    data, admission_id_col, organism_col, antibiotic_class_col,
+    antibiotic_name_col, antibiotic_value_col, intermediate_as_resistant
+  )
+  # Covariates per admission x pathogen, from the earliest culture of the pathogen
+  covs <- .los_admission_covariates(
+    data, admission_id_col, organism_col, date_culture_col, infection_type_col,
+    hai_value, cai_value, age_col, sex_col, unit_type_col, icu_values,
+    comorbidity_col, cluster_id_col
+  )
+  cov_terms <- c(
+    if (!is.null(infection_type_col)) "HAI",
+    if (!is.null(age_col)) "Age_model",
+    if (!is.null(sex_col)) "Sex_model",
+    if (!is.null(unit_type_col)) "ICU",
+    if (!is.null(comorbidity_col)) "Comorbidity_model"
+  )
 
-      if (nrow(sub) == 0L) {
+  pathogens <- if (!is.null(organism_name)) {
+    unique(as.character(status$.org)[.name_key(status$.org) %in% .name_key(organism_name)])
+  } else {
+    sort(unique(as.character(status$.org)))
+  }
+  if (length(pathogens) == 0L) {
+    warning("None of the requested pathogens were found.", call. = FALSE)
+    return(.los_rr_empty())
+  }
+
+  alpha <- (1 - conf_level) / 2
+  rr_rows <- list(); hosp_rows <- list(); draws <- list(); skipped <- list()
+  skip <- function(path, cls, hosp, reason) {
+    skipped[[length(skipped) + 1L]] <<- data.frame(
+      pathogen = path, antibiotic_class = cls, hospital = hosp, reason = reason,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  for (path in pathogens) {
+    st_p <- status[status$.org == path, , drop = FALSE]
+    path_classes <- .los_classes_for(classes, path, unique(st_p$.class))
+    for (cls in path_classes) {
+      st <- st_p[.name_key(st_p$.class) == .name_key(cls), c(".id", ".org", "R"), drop = FALSE]
+      if (nrow(st) == 0L) {
+        skip(path, cls, NA_character_, "class not tested for this pathogen")
         next
       }
+      md <- merge(st, los_tbl, by = ".id")
+      md <- merge(md, covs, by = c(".id", ".org"))
+      n_before <- nrow(md)
+      if (length(cov_terms)) md <- md[stats::complete.cases(md[, cov_terms, drop = FALSE]), , drop = FALSE]
+      n_dropped <- n_before - nrow(md)
 
-      # When facility_col is provided, fit a hospital-specific model per hospital.
-      # When facility_col is NULL (pooled), fit a single model across all patients.
-      hospitals <- if (use_facility) {
-        sort(unique(sub[[facility_col]]))
-      } else {
-        NA_character_
-      }
-
-      for (hosp in hospitals) {
-        hosp_sub <- if (use_facility) {
-          sub[sub[[facility_col]] == hosp, ]
-        } else {
-          sub
-        }
-
-        if (nrow(hosp_sub) < min_n) {
+      groups <- if (hospital_effect == "stratified") sort(unique(md$.hosp)) else NA_character_
+      for (grp in groups) {
+        sub <- if (is.na(grp)) md else md[md$.hosp == grp, , drop = FALSE]
+        n_r <- sum(sub$R == 1L); n_s <- sum(sub$R == 0L)
+        if (nrow(sub) < min_n || n_r < min_resistant || n_s < min_susceptible) {
+          skip(path, cls, grp, sprintf(
+            "too few admissions (n = %d, R = %d, S = %d; minimum %d / %d / %d)",
+            nrow(sub), n_r, n_s, min_n, min_resistant, min_susceptible
+          ))
           next
         }
-
-        n_resistant <- sum(hosp_sub[[cls]] == 1L, na.rm = TRUE)
-        n_susceptible <- sum(hosp_sub[[cls]] == 0L, na.rm = TRUE)
-
-        if (n_resistant < min_resistant || n_susceptible < min_susceptible) {
-          next
-        }
-
-        if (length(unique(hosp_sub[[cls]])) < 2L) {
-          next
-        }
-
-        if (all(is.na(hosp_sub$LOS_days)) || any(hosp_sub$LOS_days <= 0, na.rm = TRUE)) {
-          next
-        }
-
-        fixed_terms <- c(sprintf("`%s`", cls), "HAI")
-
-        if ("Age_model" %in% names(hosp_sub) && sum(!is.na(hosp_sub$Age_model)) > 0L) {
-          fixed_terms <- c(fixed_terms, "Age_model")
-        }
-
-        if ("Sex_model" %in% names(hosp_sub) &&
-          length(unique(stats::na.omit(as.character(hosp_sub$Sex_model)))) > 1L) {
-          fixed_terms <- c(fixed_terms, "Sex_model")
-        }
-
-        if ("ICU" %in% names(hosp_sub) &&
-          length(unique(stats::na.omit(as.character(hosp_sub$ICU)))) > 1L) {
-          fixed_terms <- c(fixed_terms, "ICU")
-        }
-
-        if ("comorbidity_encoded" %in% names(hosp_sub) &&
-          length(unique(stats::na.omit(as.character(hosp_sub$comorbidity_encoded)))) > 1L) {
-          fixed_terms <- c(fixed_terms, "comorbidity_encoded")
-        }
-
-        # No centre fixed effect: when use_facility is TRUE the model is already
-        # restricted to one hospital; when use_facility is FALSE there is no
-        # hospital information to adjust for.
-
-        fmla <- stats::as.formula(
-          paste("LOS_days ~", paste(fixed_terms, collapse = " + "))
+        res <- .los_fit_one(
+          sub, cov_terms, use_hospital = hospital_effect == "fixed",
+          reference_hospital = reference_hospital, ci_method = ci_method,
+          n_boot = n_boot, alpha = alpha, return_draws = return_draws,
+          flag_min = flag_min
         )
-
-        fit <- tryCatch(
-          stats::glm(
-            formula = fmla,
-            data = hosp_sub,
-            family = stats::Gamma(link = "log")
-          ),
-          error = function(e) NULL
-        )
-
-        if (is.null(fit)) {
+        if (!is.null(res$error)) {
+          skip(path, cls, grp, res$error)
           next
         }
-
-        coefs <- stats::coef(fit)
-        vcov_mat <- stats::vcov(fit)
-
-        cls_pattern <- paste0("^`?", gsub(".", "\\\\.", cls, fixed = TRUE), "`?$")
-        coef_name <- grep(cls_pattern, names(coefs), value = TRUE)
-
-        if (length(coef_name) == 0L) {
-          next
-        }
-
-        beta <- coefs[[coef_name[1L]]]
-        se <- sqrt(vcov_mat[coef_name[1L], coef_name[1L]])
-
-        rr_los <- exp(beta)
-        ci_lower <- exp(beta - 1.96 * se)
-        ci_upper <- exp(beta + 1.96 * se)
-
-        mean_los_resistant <- mean(hosp_sub$LOS_days[hosp_sub[[cls]] == 1L], na.rm = TRUE)
-        mean_los_susceptible <- mean(hosp_sub$LOS_days[hosp_sub[[cls]] == 0L], na.rm = TRUE)
-
-        results[[length(results) + 1L]] <- data.frame(
-          pathogen = path,
-          antibiotic_class = orig_class,
-          hospital = if (use_facility) hosp else NA_character_,
-          beta_log_rr = unname(beta),
-          RR_LOS = unname(rr_los),
-          CI_lower = unname(ci_lower),
-          CI_upper = unname(ci_upper),
-          mean_los_resistant = mean_los_resistant,
-          mean_los_susceptible = mean_los_susceptible,
-          n_patients = nrow(hosp_sub),
-          n_resistant = n_resistant,
-          n_susceptible = n_susceptible,
-          model_family = "Gamma",
-          link_function = "log",
+        rr_rows[[length(rr_rows) + 1L]] <- data.frame(
+          pathogen = path, antibiotic_class = cls, hospital = grp,
+          res$rr, n_dropped_covariates = n_dropped,
+          hospital_effect = hospital_effect, ci_method = ci_method,
+          model_family = "Gamma", link_function = "log",
           syndrome_scope = if (!is.null(syndrome_name)) syndrome_name else "all",
           stringsAsFactors = FALSE
         )
+        hosp_rows[[length(hosp_rows) + 1L]] <- data.frame(
+          pathogen = path, antibiotic_class = cls, res$hospital,
+          stringsAsFactors = FALSE
+        )
+        if (return_draws && !is.null(res$draws)) {
+          key <- paste(c(path, cls, if (!is.na(grp)) grp), collapse = " | ")
+          draws[[key]] <- res$draws
+        }
       }
     }
   }
 
-  if (length(results) == 0L) {
-    warning("No Gamma GLM LOS models could be fitted.")
-    return(data.frame())
+  out <- list(
+    rr = if (length(rr_rows)) do.call(rbind, rr_rows) else .los_rr_empty()$rr,
+    hospital = if (length(hosp_rows)) do.call(rbind, hosp_rows) else .los_rr_empty()$hospital,
+    draws = if (return_draws) draws else NULL,
+    skipped = if (length(skipped)) do.call(rbind, skipped) else .los_rr_empty()$skipped
+  )
+  rownames(out$rr) <- NULL; rownames(out$hospital) <- NULL; rownames(out$skipped) <- NULL
+  if (nrow(out$rr) == 0L) {
+    warning("No Gamma GLM LOS models could be fitted.", call. = FALSE)
+  } else {
+    message(sprintf(
+      "Gamma(log) LOS models fitted: %d pathogen-class estimate(s) (hospital effect: %s; CI: %s).",
+      nrow(out$rr), hospital_effect, ci_method
+    ))
+  }
+  out
+}
+
+# Empty return value of daly_fit_los_rr()
+.los_rr_empty <- function() {
+  list(
+    rr = data.frame(pathogen = character(), antibiotic_class = character(),
+                    hospital = character(), RR_LOS = numeric(), stringsAsFactors = FALSE),
+    hospital = data.frame(pathogen = character(), antibiotic_class = character(),
+                          hospital = character(), LOSR = numeric(), LOSS = numeric(),
+                          stringsAsFactors = FALSE),
+    draws = NULL,
+    skipped = data.frame(pathogen = character(), antibiotic_class = character(),
+                         hospital = character(), reason = character(), stringsAsFactors = FALSE)
+  )
+}
+
+# Classes to model for one pathogen: NULL -> all tested; vector -> same for
+# every pathogen; named list -> the pathogen's own panel.
+.los_classes_for <- function(classes, path, available) {
+  if (is.null(classes)) return(sort(available))
+  if (is.list(classes)) {
+    hit <- which(.name_key(names(classes)) == .name_key(path))
+    if (!length(hit)) return(character())
+    classes <- classes[[hit[1L]]]
+  }
+  as.character(classes)
+}
+
+# Worst phenotype per admission x pathogen x class: R = 1 if any result of
+# that pathogen for any drug in the class is R. Intermediate: R (colistin: S)
+# when intermediate_as_resistant, otherwise dropped.
+.los_class_status <- function(data, id_col, org_col, class_col, name_col, value_col,
+                              intermediate_as_resistant) {
+  v <- toupper(trimws(as.character(data[[value_col]])))
+  v[v %in% c("RESISTANT")] <- "R"
+  v[v %in% c("SUSCEPTIBLE", "SENSITIVE")] <- "S"
+  v[v %in% c("INTERMEDIATE")] <- "I"
+  is_col <- grepl("colistin", tolower(as.character(data[[name_col]])), fixed = TRUE)
+  if (intermediate_as_resistant) {
+    v[v == "I"] <- ifelse(is_col[v == "I"], "S", "R")
+  }
+  keep <- v %in% c("R", "S") & !is.na(data[[class_col]]) &
+    trimws(as.character(data[[class_col]])) != "" & !is.na(data[[id_col]])
+  d <- data.frame(
+    .id = as.character(data[[id_col]][keep]),
+    .org = as.character(data[[org_col]][keep]),
+    .class = as.character(data[[class_col]][keep]),
+    .r = v[keep] == "R",
+    stringsAsFactors = FALSE
+  )
+  out <- stats::aggregate(.r ~ .id + .org + .class, data = d, FUN = any)
+  out$R <- as.integer(out$.r)
+  out$.r <- NULL
+  out
+}
+
+# Covariates per admission x pathogen, taken from the earliest culture of the
+# pathogen in the admission.
+.los_admission_covariates <- function(data, id_col, org_col, culture_col, inf_col,
+                                      hai_value, cai_value, age_col, sex_col,
+                                      unit_col, icu_values, comorb_col, cluster_col) {
+  cul <- if (!is.null(culture_col) && culture_col %in% names(data)) {
+    suppressWarnings(as.Date(data[[culture_col]]))
+  } else {
+    message(sprintf("Culture date column '%s' not found: covariates taken from the first row of each admission.", culture_col))
+    rep(as.Date(NA), nrow(data))
+  }
+  ord <- order(as.character(data[[id_col]]), as.character(data[[org_col]]), cul, na.last = TRUE)
+  d <- data[ord, , drop = FALSE]
+  first <- !duplicated(paste(d[[id_col]], d[[org_col]], sep = "\r"))
+  d <- d[first, , drop = FALSE]
+  out <- data.frame(
+    .id = as.character(d[[id_col]]),
+    .org = as.character(d[[org_col]]),
+    .cluster = if (!is.null(cluster_col)) as.character(d[[cluster_col]]) else as.character(d[[id_col]]),
+    stringsAsFactors = FALSE
+  )
+  no_cl <- is.na(out$.cluster) | out$.cluster == ""
+  out$.cluster[no_cl] <- out$.id[no_cl]
+  if (!is.null(inf_col)) {
+    it <- toupper(trimws(as.character(d[[inf_col]])))
+    out$HAI <- ifelse(it == toupper(hai_value), 1L, ifelse(it == toupper(cai_value), 0L, NA_integer_))
+  }
+  if (!is.null(age_col)) out$Age_model <- suppressWarnings(as.numeric(d[[age_col]]))
+  if (!is.null(sex_col)) {
+    s <- trimws(as.character(d[[sex_col]]))
+    s[s == "" | toupper(s) %in% c("NA", "UNKNOWN")] <- NA
+    out$Sex_model <- s
+  }
+  if (!is.null(unit_col)) {
+    u <- tolower(trimws(as.character(d[[unit_col]])))
+    miss <- is.na(u) | u %in% c("", "na", "null")
+    out$ICU <- ifelse(miss, NA_integer_,
+                      as.integer(grepl(paste(tolower(icu_values), collapse = "|"), u)))
+  }
+  if (!is.null(comorb_col)) {
+    enc <- suppressMessages(.encode_comorbidity_mortality(
+      data.frame(.id = out$.id, d[comorb_col], stringsAsFactors = FALSE),
+      comorbidity_col = comorb_col, patient_id_col = ".id"
+    ))
+    out$Comorbidity_model <- suppressWarnings(as.numeric(enc$comorbidity_encoded))
+  }
+  out
+}
+
+# Cluster-robust (sandwich) covariance for a Gamma log-link GLM. With the log
+# link and Gamma variance the working weights are 1, so the bread is (X'X)^-1
+# and each observation's score is x_i (y_i - mu_i) / mu_i.
+.los_vcov_cluster <- function(X, y, mu, cluster) {
+  r <- (y - mu) / mu
+  bread <- solve(crossprod(X))
+  meat <- rowsum(X * r, cluster)
+  G <- nrow(meat)
+  adj <- if (G > 1L) G / (G - 1L) else 1
+  bread %*% crossprod(meat) %*% bread * adj
+}
+
+# LOSR / LOSS over `rows`: mean prediction with R = 1 and R = 0, and their
+# gradients with respect to the coefficients (for the delta method).
+.los_gcomp <- function(X, b, rows) {
+  X1 <- X[rows, , drop = FALSE]; X1[, "R"] <- 1
+  X0 <- X1; X0[, "R"] <- 0
+  m1 <- exp(drop(X1 %*% b)); m0 <- exp(drop(X0 %*% b))
+  list(LOSR = mean(m1), LOSS = mean(m0),
+       g1 = colMeans(X1 * m1), g0 = colMeans(X0 * m0))
+}
+
+# Fit one Gamma(log) model and compute RR_LOS, LOSR/LOSS (all hospitals and
+# per hospital) and their intervals.
+.los_fit_one <- function(md, cov_terms, use_hospital, reference_hospital,
+                         ci_method, n_boot, alpha, return_draws, flag_min = 10L) {
+  terms <- "R"
+  for (v in cov_terms) {
+    if (length(unique(md[[v]])) > 1L) terms <- c(terms, v)
+  }
+  if ("Sex_model" %in% terms) {
+    tab <- sort(table(md$Sex_model), decreasing = TRUE)
+    md$Sex_model <- factor(md$Sex_model, levels = names(tab))
+  }
+  hosp_levels <- sort(unique(md$.hosp))
+  ref <- NA_character_
+  if (use_hospital && length(hosp_levels) > 1L) {
+    counts <- table(md$.hosp)
+    ref <- if (!is.null(reference_hospital) && reference_hospital %in% hosp_levels) {
+      reference_hospital
+    } else {
+      names(counts)[which.max(counts)]
+    }
+    md$.hosp_f <- stats::relevel(factor(md$.hosp), ref = ref)
+    terms <- c(terms, ".hosp_f")
+  }
+  form <- stats::as.formula(paste("LOS_days ~", paste(terms, collapse = " + ")))
+  fit <- tryCatch(
+    stats::glm(form, data = md, family = stats::Gamma(link = "log"),
+               control = stats::glm.control(maxit = 100)),
+    error = function(e) NULL
+  )
+  if (is.null(fit) || !fit$converged) return(list(error = "model did not converge"))
+  b_all <- stats::coef(fit)
+  if (is.na(b_all[["R"]])) return(list(error = "resistance term not estimable"))
+
+  X <- stats::model.matrix(form, data = md)
+  ok_col <- !is.na(b_all)
+  X <- X[, ok_col, drop = FALSE]; b <- b_all[ok_col]
+  y <- md$LOS_days; mu <- drop(exp(X %*% b))
+  V <- .los_vcov_cluster(X, y, mu, md$.cluster)
+  se_r <- sqrt(V["R", "R"])
+  z <- stats::qnorm(1 - alpha)
+
+  rx_p <- NA_real_
+  if (use_hospital && length(hosp_levels) > 1L) {
+    fit_i <- tryCatch(
+      stats::glm(stats::update(form, . ~ . + R:.hosp_f), data = md,
+                 family = stats::Gamma(link = "log"), control = stats::glm.control(maxit = 100)),
+      error = function(e) NULL
+    )
+    if (!is.null(fit_i)) {
+      rx_p <- tryCatch(stats::anova(fit, fit_i, test = "F")[["Pr(>F)"]][2L], error = function(e) NA_real_)
+    }
   }
 
-  out <- dplyr::bind_rows(results)
+  is_r <- md$R == 1L
+  hosp_rows <- function(h, rows_r, rows_h) {
+    i <- rows_h & rows_r
+    if (!any(i)) list(rows = rows_h, fallback = TRUE) else list(rows = i, fallback = FALSE)
+  }
+  net <- .los_gcomp(X, b, is_r)
+  per_h <- lapply(hosp_levels, function(h) {
+    sel <- hosp_rows(h, is_r, md$.hosp == h)
+    c(.los_gcomp(X, b, sel$rows), fallback = sel$fallback)
+  })
+  names(per_h) <- hosp_levels
 
-  message(sprintf(
-    "Gamma(log) LOS models fitted: %d pathogen-class estimates returned.",
-    nrow(out)
-  ))
+  # intervals
+  ci <- function(est, lo, hi) c(est = est, lower = lo, upper = hi)
+  na_ci <- function(est) ci(est, NA_real_, NA_real_)
+  delta_ci <- function(g) {
+    se1 <- sqrt(drop(g$g1 %*% V %*% g$g1)); se0 <- sqrt(drop(g$g0 %*% V %*% g$g0))
+    seE <- sqrt(drop((g$g1 - g$g0) %*% V %*% (g$g1 - g$g0)))
+    list(
+      LOSR = ci(g$LOSR, exp(log(g$LOSR) - z * se1 / g$LOSR), exp(log(g$LOSR) + z * se1 / g$LOSR)),
+      LOSS = ci(g$LOSS, exp(log(g$LOSS) - z * se0 / g$LOSS), exp(log(g$LOSS) + z * se0 / g$LOSS)),
+      excess = ci(g$LOSR - g$LOSS, g$LOSR - g$LOSS - z * seE, g$LOSR - g$LOSS + z * seE)
+    )
+  }
+  rr_est <- exp(b[["R"]])
+  rr_ci <- na_ci(rr_est)
+  net_ci <- list(LOSR = na_ci(net$LOSR), LOSS = na_ci(net$LOSS), excess = na_ci(net$LOSR - net$LOSS))
+  h_ci <- lapply(per_h, function(g) list(LOSR = na_ci(g$LOSR), LOSS = na_ci(g$LOSS), excess = na_ci(g$LOSR - g$LOSS)))
+  draws <- NULL
+  n_boot_ok <- NA_integer_
 
-  out
+  if (ci_method == "delta") {
+    rr_ci <- ci(rr_est, exp(b[["R"]] - z * se_r), exp(b[["R"]] + z * se_r))
+    net_ci <- delta_ci(net)
+    h_ci <- lapply(per_h, delta_ci)
+  } else if (ci_method == "bootstrap") {
+    clusters <- md$.cluster
+    cl_rows <- split(seq_len(nrow(md)), clusters)
+    cl_hosp <- vapply(cl_rows, function(i) md$.hosp[i[1L]], character(1))
+    by_h <- split(names(cl_rows), cl_hosp)
+    b_rr <- rep(NA_real_, n_boot)
+    b_net <- matrix(NA_real_, n_boot, 2L)
+    b_r <- b_s <- matrix(NA_real_, n_boot, length(hosp_levels), dimnames = list(NULL, hosp_levels))
+    start <- b
+    for (k in seq_len(n_boot)) {
+      ids <- unlist(lapply(by_h, function(p) p[sample.int(length(p), length(p), replace = TRUE)]), use.names = FALSE)
+      rows <- unlist(cl_rows[ids], use.names = FALSE)
+      bk <- tryCatch(
+        stats::glm.fit(X[rows, , drop = FALSE], y[rows], family = stats::Gamma(link = "log"),
+                       start = start, control = stats::glm.control(maxit = 100)),
+        error = function(e) NULL
+      )
+      if (is.null(bk) || !bk$converged || is.na(bk$coefficients[["R"]])) next
+      bb <- bk$coefficients; bb[is.na(bb)] <- 0
+      Xk <- X[rows, , drop = FALSE]; rk <- md$R[rows] == 1L; hk <- md$.hosp[rows]
+      g <- .los_gcomp(Xk, bb, rk)
+      b_rr[k] <- exp(bb[["R"]]); b_net[k, ] <- c(g$LOSR, g$LOSS)
+      for (h in hosp_levels) {
+        sel <- hosp_rows(h, rk, hk == h)
+        if (!any(sel$rows)) next
+        gh <- .los_gcomp(Xk, bb, sel$rows)
+        b_r[k, h] <- gh$LOSR; b_s[k, h] <- gh$LOSS
+      }
+    }
+    ok <- !is.na(b_rr)
+    n_boot_ok <- sum(ok)
+    if (n_boot_ok < 2L) return(list(error = "bootstrap failed"))
+    q <- function(x) unname(stats::quantile(x, c(alpha, 1 - alpha), na.rm = TRUE))
+    rr_ci <- ci(rr_est, q(b_rr)[1L], q(b_rr)[2L])
+    qci <- function(est, x) { qq <- q(x); ci(est, qq[1L], qq[2L]) }
+    net_ci <- list(LOSR = qci(net$LOSR, b_net[, 1L]), LOSS = qci(net$LOSS, b_net[, 2L]),
+                   excess = qci(net$LOSR - net$LOSS, b_net[, 1L] - b_net[, 2L]))
+    h_ci <- lapply(hosp_levels, function(h) {
+      g <- per_h[[h]]
+      list(LOSR = qci(g$LOSR, b_r[, h]), LOSS = qci(g$LOSS, b_s[, h]),
+           excess = qci(g$LOSR - g$LOSS, b_r[, h] - b_s[, h]))
+    })
+    names(h_ci) <- hosp_levels
+    if (return_draws) draws <- list(RR_LOS = b_rr[ok], LOSR = b_r[ok, , drop = FALSE], LOSS = b_s[ok, , drop = FALSE])
+  }
+
+  obs_mean <- function(x) if (length(x)) mean(x) else NA_real_
+  rr <- data.frame(
+    n_admissions = nrow(md), n_resistant = sum(is_r), n_susceptible = sum(!is_r),
+    n_hospitals = length(hosp_levels),
+    RR_LOS = rr_est, CI_lower = rr_ci[["lower"]], CI_upper = rr_ci[["upper"]],
+    beta_log_rr = b[["R"]], se_log_rr_cluster = se_r,
+    mean_los_resistant = obs_mean(y[is_r]), mean_los_susceptible = obs_mean(y[!is_r]),
+    LOSR = net$LOSR, LOSR_lower = net_ci$LOSR[["lower"]], LOSR_upper = net_ci$LOSR[["upper"]],
+    LOSS = net$LOSS, LOSS_lower = net_ci$LOSS[["lower"]], LOSS_upper = net_ci$LOSS[["upper"]],
+    excess_LOS = net$LOSR - net$LOSS,
+    excess_lower = net_ci$excess[["lower"]], excess_upper = net_ci$excess[["upper"]],
+    dispersion = summary(fit)$dispersion, RxHospital_p = rx_p,
+    covariates = paste(setdiff(terms, c("R", ".hosp_f")), collapse = ", "),
+    reference_hospital = ref, n_boot_ok = n_boot_ok,
+    stringsAsFactors = FALSE
+  )
+  hospital <- do.call(rbind, lapply(hosp_levels, function(h) {
+    i <- md$.hosp == h; g <- per_h[[h]]; cc <- h_ci[[h]]
+    n_r <- sum(i & is_r); n_s <- sum(i & !is_r)
+    data.frame(
+      hospital = h, n_resistant = n_r, n_susceptible = n_s,
+      obs_mean_R = obs_mean(y[i & is_r]), obs_mean_S = obs_mean(y[i & !is_r]),
+      pred_mean_R = obs_mean(mu[i & is_r]), pred_mean_S = obs_mean(mu[i & !is_r]),
+      LOSR = g$LOSR, LOSR_lower = cc$LOSR[["lower"]], LOSR_upper = cc$LOSR[["upper"]],
+      LOSS = g$LOSS, LOSS_lower = cc$LOSS[["lower"]], LOSS_upper = cc$LOSS[["upper"]],
+      excess_LOS = g$LOSR - g$LOSS,
+      excess_lower = cc$excess[["lower"]], excess_upper = cc$excess[["upper"]],
+      RR_LOS = g$LOSR / g$LOSS,
+      low_support = n_r < flag_min || n_s < flag_min,
+      fallback_all_admissions = isTRUE(g$fallback),
+      stringsAsFactors = FALSE
+    )
+  }))
+  list(rr = rr, hospital = hospital, draws = draws)
 }
 
 
