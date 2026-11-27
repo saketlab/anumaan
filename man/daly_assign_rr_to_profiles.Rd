@@ -13,17 +13,24 @@ daly_assign_rr_to_profiles(
   fallback_rr = 1,
   los_r_col = NULL,
   los_s_col = NULL,
-  los_unit = c("years", "days")
+  los_unit = c("years", "days"),
+  profile_col = "profile_delta",
+  profile_probability_col = "R_mean",
+  profile_hospital_col = "group",
+  profile_class_order = NULL
 )
 }
 \arguments{
-\item{profiles_output}{Named list from compute_resistance_profiles().}
+\item{profiles_output}{Legacy list from \code{compute_resistance_profiles()}
+or a data frame of profile strings (see "Profile input formats").}
 
-\item{rr_table}{Data frame from daly_fit_los_rr() or daly_fit_los_rr_distribution().
-Must have columns pathogen_col, class_col, rr_col, and optionally
-CI_lower / CI_upper.}
+\item{rr_table}{The list returned by \code{daly_fit_los_rr()}, or a data
+frame with columns \code{pathogen_col}, \code{class_col}, \code{rr_col}
+and optionally \code{CI_lower} / \code{CI_upper} (e.g. from
+\code{daly_fit_los_rr_distribution()}).}
 
-\item{pathogen_col}{Character. Default \code{"pathogen"}.}
+\item{pathogen_col}{Character. Pathogen column in \code{rr_table} (and in
+string profiles). Default \code{"pathogen"}.}
 
 \item{class_col}{Character. Default \code{"antibiotic_class"}.}
 
@@ -32,60 +39,85 @@ CI_lower / CI_upper.}
 \item{fallback_rr}{Numeric. RR for resistant classes with no match.
 Default \code{1} (no attributable effect).}
 
-\item{los_r_col}{Character or \code{NULL}. Column in \code{rr_table} with
-absolute LOS for resistant patients (e.g. \code{"median_LOS_R"}).
-When supplied together with \code{los_s_col}, \code{LOSR_years} /
-\code{LOSS_years} are added to the output. Default \code{NULL} (no
-absolute LOS propagated; behaviour identical to before this parameter
-existed).}
+\item{los_r_col, los_s_col}{Character or \code{NULL}. Columns in a
+data-frame \code{rr_table} with absolute LOS for resistant / susceptible
+patients (e.g. \code{"median_LOS_R"} / \code{"median_LOS_S"}). Ignored
+when \code{rr_table} is a \code{daly_fit_los_rr()} list.}
 
-\item{los_s_col}{Character or \code{NULL}. Column in \code{rr_table} with
-absolute LOS for susceptible patients (e.g. \code{"median_LOS_S"}).
-Required when \code{los_r_col} is supplied.}
+\item{los_unit}{Character. Unit of \code{los_r_col} / \code{los_s_col}:
+\code{"years"} or \code{"days"}. Default \code{"years"}.}
 
-\item{los_unit}{Character. Unit of \code{los_r_col} / \code{los_s_col} in
-\code{rr_table}: \code{"years"} (used as-is) or \code{"days"} (divided
-by 365, matching the day-to-year conversion already used in
-\code{daly_fit_los_rr_distribution()}). Default \code{"years"}. Ignored
-when \code{los_r_col} is \code{NULL}.}
+\item{profile_col}{Character. Profile-string column. Default
+\code{"profile_delta"}.}
+
+\item{profile_probability_col}{Character. Profile probability column in
+string profiles. Default \code{"R_mean"}. Copied to \code{probability}.}
+
+\item{profile_hospital_col}{Character or \code{NULL}. Hospital column in
+string profiles. Default \code{"group"}; \code{NULL} or absent means
+pooled profiles. Copied to \code{hospital}.}
+
+\item{profile_class_order}{Character vector (the class of each letter, in
+order) or a named list of such vectors, one per pathogen. Required for
+string profiles.}
 }
 \value{
-Named list (one entry per pathogen): original profiles data frame
-  augmented with RR_LOS_profile, dominant_class, (if available)
-  CI_lower_profile / CI_upper_profile, and (when \code{los_r_col} /
-  \code{los_s_col} are supplied) LOSR_years / LOSS_years.
+Named list (one entry per pathogen): the profiles data frame
+  augmented with \code{RR_LOS_profile}, \code{dominant_class}, (if
+  available) \code{CI_lower_profile} / \code{CI_upper_profile},
+  \code{LOSR_years} / \code{LOSS_years}, and for string profiles
+  \code{probability}, \code{hospital} and \code{los_level}.
 }
 \description{
-For each resistance profile delta (from compute_resistance_profiles()),
-determines the profile-level RR_kd_LOS using the GBD max rule:
+For each resistance profile delta, determines the profile-level relative
+LOS using the GBD max rule:
   RR_kd_LOS = max over c in C_R(d) of RR_kc_LOS   [if C_R(d) non-empty]
             = 1                                      [if d = all-susceptible]
-where C_R(d) = \{c : d_c = 1\}.
-The CI reported for each profile is that of its dominant (max-RR) class.
+where C_R(d) is the set of classes the profile is resistant to. The class
+attaining the maximum is the profile's dominant class d*. The CI reported
+for each profile is that of its dominant class.
 }
 \details{
+\strong{Ties}: when several resistant classes share the maximum RR, the
+first of them in the class order wins (\code{profile_class_order} for
+string profiles, the \code{classes} element for legacy profiles). A
+message reports how many profiles had a tie.
+
 If \code{rr_table} was fit with a \code{syndrome_name} filter, its RR
 values are syndrome-specific but get applied here to all profiles of a
-pathogen -- i.e. it assumes syndrome-invariant LOS prolongation. Refit
-with \code{syndrome_name = NULL} for a RR pooled across syndromes.
-
-Optionally, when \code{los_r_col} and \code{los_s_col} are supplied, also
-propagates the \strong{absolute} LOS for the profile's dominant class
-(resistant and susceptible) as \code{LOSR_years} / \code{LOSS_years}. This
-does not change the RR assignment above; it is an additive lookup against
-the dominant class already selected by the max rule, using whichever
-absolute-LOS columns are present in \code{rr_table} (e.g. the fitted
-medians \code{median_LOS_R} / \code{median_LOS_S} from
-\code{daly_fit_los_rr_distribution()}, or the sample means
-\code{mean_los_resistant} / \code{mean_los_susceptible} from
-\code{daly_fit_los_rr()}). \code{LOSR_years}/\code{LOSS_years} are set to
-\code{NA} for the all-susceptible profile, which has no dominant class.
+pathogen -- i.e. it assumes syndrome-invariant LOS prolongation.
 }
+\section{Profile input formats}{
+
+\describe{
+  \item{Legacy}{The named list from \code{compute_resistance_profiles()}
+    (\code{$profiles} with 0/1 class columns and \code{$classes}).}
+  \item{Profile strings}{A data frame with one row per (hospital x)
+    pathogen x profile, where the profile is a string of R/S letters such
+    as \code{"RRSR"} -- e.g. the output of
+    \code{profile_aggregate_for_daly()} (\code{group}, \code{pathogen},
+    \code{profile_delta}, \code{R_mean}). \code{profile_class_order} gives
+    the class of each letter.}
+}
+}
+
+\section{LOS for each profile}{
+
+When \code{rr_table} is the list returned by \code{daly_fit_los_rr()},
+the profile takes the adjusted LOS of its dominant class: from
+\code{rr_table$hospital} for the profile's own hospital when the profiles
+carry a hospital column (\code{los_level = "hospital"}), otherwise the
+all-hospital values in \code{rr_table$rr} (\code{los_level = "network"}).
+Days are converted to years. With a data-frame \code{rr_table}, absolute
+LOS is taken from \code{los_r_col} / \code{los_s_col} as before.
+\code{LOSR_years} / \code{LOSS_years} are \code{NA} for the
+all-susceptible profile, which has no dominant class.
+}
+
 \section{Two options for profile-level LOS}{
 
-Used together with \code{\link{daly_fit_los_rr_distribution}()}, this
-function is \strong{option 2}: per-class LOS estimates mapped to profiles
-by the max rule. \strong{Option 1} is
+This function is \strong{option 2}: per-class LOS estimates mapped to
+profiles by the max rule. \strong{Option 1} is
 \code{\link{daly_fit_los_distn_by_profile}()} (Section 5.3), which estimates LOS
 directly for each patient-level resistance profile against the fully
 susceptible profile.

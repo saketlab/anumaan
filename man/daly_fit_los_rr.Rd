@@ -152,8 +152,11 @@ A list with:
   \item{\code{draws}}{When \code{return_draws = TRUE} and
     \code{ci_method = "bootstrap"}: a list named
     \code{"pathogen | class"} (\code{"pathogen | class | hospital"} for
-    \code{"stratified"}), each with \code{RR_LOS} (vector) and
-    \code{LOSR}, \code{LOSS} (replicate x hospital matrices).}
+    \code{"stratified"}), each with \code{RR_LOS} (vector),
+    \code{LOSR}, \code{LOSS} (replicate x hospital matrices, days) and
+    \code{LOSR_all}, \code{LOSS_all} (all-hospital values, vectors). Pass
+    it to \code{daly_calc_yld_associated()} /
+    \code{daly_calc_yld_attributable()} as \code{los_draws}.}
   \item{\code{skipped}}{Pathogen x class (x hospital) combinations not
     fitted, with the reason.}
 }

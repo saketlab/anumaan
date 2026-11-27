@@ -432,8 +432,11 @@ daly_compute_patient_los <- function(
 #'   \item{\code{draws}}{When \code{return_draws = TRUE} and
 #'     \code{ci_method = "bootstrap"}: a list named
 #'     \code{"pathogen | class"} (\code{"pathogen | class | hospital"} for
-#'     \code{"stratified"}), each with \code{RR_LOS} (vector) and
-#'     \code{LOSR}, \code{LOSS} (replicate x hospital matrices).}
+#'     \code{"stratified"}), each with \code{RR_LOS} (vector),
+#'     \code{LOSR}, \code{LOSS} (replicate x hospital matrices, days) and
+#'     \code{LOSR_all}, \code{LOSS_all} (all-hospital values, vectors). Pass
+#'     it to \code{daly_calc_yld_associated()} /
+#'     \code{daly_calc_yld_attributable()} as \code{los_draws}.}
 #'   \item{\code{skipped}}{Pathogen x class (x hospital) combinations not
 #'     fitted, with the reason.}
 #' }
@@ -913,7 +916,12 @@ daly_fit_los_rr <- function(
            excess = qci(g$LOSR - g$LOSS, b_r[, h] - b_s[, h]))
     })
     names(h_ci) <- hosp_levels
-    if (return_draws) draws <- list(RR_LOS = b_rr[ok], LOSR = b_r[ok, , drop = FALSE], LOSS = b_s[ok, , drop = FALSE])
+    if (return_draws) {
+      draws <- list(
+        RR_LOS = b_rr[ok], LOSR = b_r[ok, , drop = FALSE], LOSS = b_s[ok, , drop = FALSE],
+        LOSR_all = b_net[ok, 1L], LOSS_all = b_net[ok, 2L]
+      )
+    }
   }
 
   obs_mean <- function(x) if (length(x)) mean(x) else NA_real_
@@ -2293,7 +2301,6 @@ daly_fit_mortality_rr <- function(
     dplyr::transmute(
       !!patient_id_col := .data[[patient_id_col]],
       !!facility_col := .data[[facility_col]],
-      !!organism_col := .data[[organism_col]],
       death = as.integer(
         stringr::str_to_upper(stringr::str_trim(as.character(.data[[final_outcome_col]]))) %in%
           stringr::str_to_upper(death_value)
@@ -2343,33 +2350,24 @@ daly_fit_mortality_rr <- function(
     patient_covars$comorbidity_encoded <- NA_real_
   }
 
-  # Step 6: build class-level resistance matrix
-  resistance_wide <- .build_class_resistance_wide(
-    data = df,
-    patient_id_col = patient_id_col,
-    antibiotic_class_col = antibiotic_class_col,
-    antibiotic_name_col = antibiotic_name_col,
-    antibiotic_value_col = antibiotic_value_col,
-    untested_fill = NA_integer_
-  )
-
-  class_name_map <- attr(resistance_wide, "class_name_map")
-  class_safe_cols <- setdiff(names(resistance_wide), patient_id_col)
-
-  # Step 7: merge patient-level model data
-  model_base <- patient_covars |>
-    dplyr::inner_join(resistance_wide, by = patient_id_col) |>
+  # Step 6: complete patient-level covariates. Class resistance is built per
+  # pathogen inside the loop below from that pathogen's own results, so a
+  # patient with several pathogens enters every pathogen's models and one
+  # pathogen's results never set another pathogen's resistance.
+  patient_covars <- patient_covars |>
     dplyr::filter(!is.na(death), !is.na(HAI), !is.na(Age_model), !is.na(Sex_model))
 
-  if (nrow(model_base) == 0L) {
+  if (nrow(patient_covars) == 0L) {
     warning("No complete patient-level rows available for mortality modelling.")
     return(data.frame())
   }
 
+  org_present <- unique(as.character(df[[organism_col]]))
+  org_present <- org_present[!is.na(org_present) & trimws(org_present) != ""]
   pathogens <- if (!is.null(organism_name)) {
     organism_name
   } else {
-    sort(unique(model_base[[organism_col]]))
+    sort(org_present)
   }
 
   out <- list()
@@ -2398,11 +2396,24 @@ daly_fit_mortality_rr <- function(
   }
 
   for (path in pathogens) {
-    path_df <- model_base |>
-      dplyr::filter(
-        stringr::str_to_lower(stringr::str_trim(.data[[organism_col]])) ==
-          stringr::str_to_lower(stringr::str_trim(path))
-      )
+    # Step 7: class-level resistance from this pathogen's results only
+    df_path <- df[.name_key(df[[organism_col]]) == .name_key(path), , drop = FALSE]
+    if (nrow(df_path) == 0L) {
+      next
+    }
+    resistance_wide <- .build_class_resistance_wide(
+      data = df_path,
+      patient_id_col = patient_id_col,
+      antibiotic_class_col = antibiotic_class_col,
+      antibiotic_name_col = antibiotic_name_col,
+      antibiotic_value_col = antibiotic_value_col,
+      untested_fill = NA_integer_
+    )
+    class_name_map <- attr(resistance_wide, "class_name_map")
+    class_safe_cols <- setdiff(names(resistance_wide), patient_id_col)
+
+    path_df <- patient_covars |>
+      dplyr::inner_join(resistance_wide, by = patient_id_col)
 
     if (nrow(path_df) == 0L) {
       next
@@ -2959,66 +2970,87 @@ daly_add_rr_mappings <- function(data,
 
 #' Assign Per-Class LOS RR to Resistance Profiles (Max Rule)
 #'
-#' For each resistance profile delta (from compute_resistance_profiles()),
-#' determines the profile-level RR_kd_LOS using the GBD max rule:
+#' For each resistance profile delta, determines the profile-level relative
+#' LOS using the GBD max rule:
 #'   RR_kd_LOS = max over c in C_R(d) of RR_kc_LOS   [if C_R(d) non-empty]
 #'             = 1                                      [if d = all-susceptible]
-#' where C_R(d) = \{c : d_c = 1\}.
-#' The CI reported for each profile is that of its dominant (max-RR) class.
+#' where C_R(d) is the set of classes the profile is resistant to. The class
+#' attaining the maximum is the profile's dominant class d*. The CI reported
+#' for each profile is that of its dominant class.
+#'
+#' \strong{Ties}: when several resistant classes share the maximum RR, the
+#' first of them in the class order wins (\code{profile_class_order} for
+#' string profiles, the \code{classes} element for legacy profiles). A
+#' message reports how many profiles had a tie.
 #'
 #' If \code{rr_table} was fit with a \code{syndrome_name} filter, its RR
 #' values are syndrome-specific but get applied here to all profiles of a
-#' pathogen -- i.e. it assumes syndrome-invariant LOS prolongation. Refit
-#' with \code{syndrome_name = NULL} for a RR pooled across syndromes.
+#' pathogen -- i.e. it assumes syndrome-invariant LOS prolongation.
 #'
-#' Optionally, when \code{los_r_col} and \code{los_s_col} are supplied, also
-#' propagates the \strong{absolute} LOS for the profile's dominant class
-#' (resistant and susceptible) as \code{LOSR_years} / \code{LOSS_years}. This
-#' does not change the RR assignment above; it is an additive lookup against
-#' the dominant class already selected by the max rule, using whichever
-#' absolute-LOS columns are present in \code{rr_table} (e.g. the fitted
-#' medians \code{median_LOS_R} / \code{median_LOS_S} from
-#' \code{daly_fit_los_rr_distribution()}, or the sample means
-#' \code{mean_los_resistant} / \code{mean_los_susceptible} from
-#' \code{daly_fit_los_rr()}). \code{LOSR_years}/\code{LOSS_years} are set to
-#' \code{NA} for the all-susceptible profile, which has no dominant class.
+#' @section Profile input formats:
+#' \describe{
+#'   \item{Legacy}{The named list from \code{compute_resistance_profiles()}
+#'     (\code{$profiles} with 0/1 class columns and \code{$classes}).}
+#'   \item{Profile strings}{A data frame with one row per (hospital x)
+#'     pathogen x profile, where the profile is a string of R/S letters such
+#'     as \code{"RRSR"} -- e.g. the output of
+#'     \code{profile_aggregate_for_daly()} (\code{group}, \code{pathogen},
+#'     \code{profile_delta}, \code{R_mean}). \code{profile_class_order} gives
+#'     the class of each letter.}
+#' }
+#'
+#' @section LOS for each profile:
+#' When \code{rr_table} is the list returned by \code{daly_fit_los_rr()},
+#' the profile takes the adjusted LOS of its dominant class: from
+#' \code{rr_table$hospital} for the profile's own hospital when the profiles
+#' carry a hospital column (\code{los_level = "hospital"}), otherwise the
+#' all-hospital values in \code{rr_table$rr} (\code{los_level = "network"}).
+#' Days are converted to years. With a data-frame \code{rr_table}, absolute
+#' LOS is taken from \code{los_r_col} / \code{los_s_col} as before.
+#' \code{LOSR_years} / \code{LOSS_years} are \code{NA} for the
+#' all-susceptible profile, which has no dominant class.
 #'
 #' @section Two options for profile-level LOS:
-#' Used together with \code{\link{daly_fit_los_rr_distribution}()}, this
-#' function is \strong{option 2}: per-class LOS estimates mapped to profiles
-#' by the max rule. \strong{Option 1} is
+#' This function is \strong{option 2}: per-class LOS estimates mapped to
+#' profiles by the max rule. \strong{Option 1} is
 #' \code{\link{daly_fit_los_distn_by_profile}()} (Section 5.3), which estimates LOS
 #' directly for each patient-level resistance profile against the fully
 #' susceptible profile.
 #'
-#' @param profiles_output Named list from compute_resistance_profiles().
-#' @param rr_table Data frame from daly_fit_los_rr() or daly_fit_los_rr_distribution().
-#'   Must have columns pathogen_col, class_col, rr_col, and optionally
-#'   CI_lower / CI_upper.
-#' @param pathogen_col Character. Default \code{"pathogen"}.
+#' @param profiles_output Legacy list from \code{compute_resistance_profiles()}
+#'   or a data frame of profile strings (see "Profile input formats").
+#' @param rr_table The list returned by \code{daly_fit_los_rr()}, or a data
+#'   frame with columns \code{pathogen_col}, \code{class_col}, \code{rr_col}
+#'   and optionally \code{CI_lower} / \code{CI_upper} (e.g. from
+#'   \code{daly_fit_los_rr_distribution()}).
+#' @param pathogen_col Character. Pathogen column in \code{rr_table} (and in
+#'   string profiles). Default \code{"pathogen"}.
 #' @param class_col Character. Default \code{"antibiotic_class"}.
 #' @param rr_col Character. Default \code{"RR_LOS"}.
 #' @param fallback_rr Numeric. RR for resistant classes with no match.
 #'   Default \code{1} (no attributable effect).
-#' @param los_r_col Character or \code{NULL}. Column in \code{rr_table} with
-#'   absolute LOS for resistant patients (e.g. \code{"median_LOS_R"}).
-#'   When supplied together with \code{los_s_col}, \code{LOSR_years} /
-#'   \code{LOSS_years} are added to the output. Default \code{NULL} (no
-#'   absolute LOS propagated; behaviour identical to before this parameter
-#'   existed).
-#' @param los_s_col Character or \code{NULL}. Column in \code{rr_table} with
-#'   absolute LOS for susceptible patients (e.g. \code{"median_LOS_S"}).
-#'   Required when \code{los_r_col} is supplied.
-#' @param los_unit Character. Unit of \code{los_r_col} / \code{los_s_col} in
-#'   \code{rr_table}: \code{"years"} (used as-is) or \code{"days"} (divided
-#'   by 365, matching the day-to-year conversion already used in
-#'   \code{daly_fit_los_rr_distribution()}). Default \code{"years"}. Ignored
-#'   when \code{los_r_col} is \code{NULL}.
+#' @param los_r_col,los_s_col Character or \code{NULL}. Columns in a
+#'   data-frame \code{rr_table} with absolute LOS for resistant / susceptible
+#'   patients (e.g. \code{"median_LOS_R"} / \code{"median_LOS_S"}). Ignored
+#'   when \code{rr_table} is a \code{daly_fit_los_rr()} list.
+#' @param los_unit Character. Unit of \code{los_r_col} / \code{los_s_col}:
+#'   \code{"years"} or \code{"days"}. Default \code{"years"}.
+#' @param profile_col Character. Profile-string column. Default
+#'   \code{"profile_delta"}.
+#' @param profile_probability_col Character. Profile probability column in
+#'   string profiles. Default \code{"R_mean"}. Copied to \code{probability}.
+#' @param profile_hospital_col Character or \code{NULL}. Hospital column in
+#'   string profiles. Default \code{"group"}; \code{NULL} or absent means
+#'   pooled profiles. Copied to \code{hospital}.
+#' @param profile_class_order Character vector (the class of each letter, in
+#'   order) or a named list of such vectors, one per pathogen. Required for
+#'   string profiles.
 #'
-#' @return Named list (one entry per pathogen): original profiles data frame
-#'   augmented with RR_LOS_profile, dominant_class, (if available)
-#'   CI_lower_profile / CI_upper_profile, and (when \code{los_r_col} /
-#'   \code{los_s_col} are supplied) LOSR_years / LOSS_years.
+#' @return Named list (one entry per pathogen): the profiles data frame
+#'   augmented with \code{RR_LOS_profile}, \code{dominant_class}, (if
+#'   available) \code{CI_lower_profile} / \code{CI_upper_profile},
+#'   \code{LOSR_years} / \code{LOSS_years}, and for string profiles
+#'   \code{probability}, \code{hospital} and \code{los_level}.
 #' @export
 daly_assign_rr_to_profiles <- function(
   profiles_output,
@@ -3029,15 +3061,29 @@ daly_assign_rr_to_profiles <- function(
   fallback_rr = 1,
   los_r_col = NULL,
   los_s_col = NULL,
-  los_unit = c("years", "days")
+  los_unit = c("years", "days"),
+  profile_col = "profile_delta",
+  profile_probability_col = "R_mean",
+  profile_hospital_col = "group",
+  profile_class_order = NULL
 ) {
-  if (!is.list(profiles_output) ||
-    !all(sapply(
-      profiles_output,
-      function(x) all(c("profiles", "classes") %in% names(x))
-    ))) {
-    stop("profiles_output must be the list returned by compute_resistance_profiles().")
+  los_unit <- match.arg(los_unit)
+
+  # daly_fit_los_rr() list: RR from $rr, adjusted LOS from $hospital / $rr (days)
+  los_hosp <- NULL
+  fit_list <- is.list(rr_table) && !is.data.frame(rr_table) &&
+    all(c("rr", "hospital") %in% names(rr_table))
+  if (fit_list) {
+    los_hosp <- as.data.frame(rr_table$hospital)
+    rr_table <- as.data.frame(rr_table$rr)
+    pathogen_col <- "pathogen"
+    class_col <- "antibiotic_class"
+    rr_col <- "RR_LOS"
+    los_r_col <- "LOSR"
+    los_s_col <- "LOSS"
+    los_unit <- "days"
   }
+
   missing_rr <- setdiff(c(pathogen_col, class_col, rr_col), names(rr_table))
   if (length(missing_rr) > 0L) {
     stop(sprintf(
@@ -3045,13 +3091,11 @@ daly_assign_rr_to_profiles <- function(
       paste(missing_rr, collapse = ", ")
     ))
   }
-
   do_los <- !is.null(los_r_col) || !is.null(los_s_col)
   if (do_los) {
     if (is.null(los_r_col) || is.null(los_s_col)) {
       stop("los_r_col and los_s_col must both be supplied together, or both left NULL.")
     }
-    los_unit <- match.arg(los_unit)
     missing_los <- setdiff(c(los_r_col, los_s_col), names(rr_table))
     if (length(missing_los) > 0L) {
       stop(sprintf(
@@ -3060,16 +3104,38 @@ daly_assign_rr_to_profiles <- function(
       ))
     }
   }
-
+  to_years <- function(x) if (los_unit == "days") x / 365 else x
   has_ci <- all(c("CI_lower", "CI_upper") %in% names(rr_table))
+
+  if (is.data.frame(profiles_output)) {
+    return(.assign_rr_string_profiles(
+      profiles_output, rr_table, los_hosp, pathogen_col, class_col, rr_col,
+      fallback_rr, do_los, los_r_col, los_s_col, to_years, has_ci,
+      profile_col, profile_probability_col, profile_hospital_col,
+      profile_class_order
+    ))
+  }
+
+  if (!is.list(profiles_output) ||
+    !all(sapply(
+      profiles_output,
+      function(x) all(c("profiles", "classes") %in% names(x))
+    ))) {
+    stop(
+      "profiles_output must be the list returned by compute_resistance_profiles() ",
+      "or a data frame of profile strings."
+    )
+  }
+
   out <- list()
+  n_ties <- 0L
 
   for (path in names(profiles_output)) {
     prof_list <- profiles_output[[path]]
     profiles <- prof_list$profiles
     classes <- prof_list$classes # alphabetical; matches profile cols
 
-    rr_k <- rr_table[rr_table[[pathogen_col]] == path, ]
+    rr_k <- rr_table[.name_key(rr_table[[pathogen_col]]) == .name_key(path), , drop = FALSE]
     rr_lookup <- setNames(rr_k[[rr_col]], rr_k[[class_col]])
     ci_lo_lookup <- if (has_ci) setNames(rr_k$CI_lower, rr_k[[class_col]]) else NULL
     ci_hi_lookup <- if (has_ci) setNames(rr_k$CI_upper, rr_k[[class_col]]) else NULL
@@ -3101,7 +3167,8 @@ daly_assign_rr_to_profiles <- function(
       rrs_c <- sapply(resist_cls, function(cc) {
         ifelse(cc %in% names(rr_lookup), rr_lookup[[cc]], fallback_rr)
       })
-      max_idx <- which.max(rrs_c)
+      max_idx <- which.max(rrs_c) # ties: first in class order
+      if (sum(rrs_c == rrs_c[max_idx]) > 1L) n_ties <- n_ties + 1L
       rr_profile[i] <- rrs_c[max_idx]
       dom_class[i] <- resist_cls[max_idx]
 
@@ -3129,12 +3196,8 @@ daly_assign_rr_to_profiles <- function(
       profiles$CI_upper_profile <- round(ci_hi_prof, 4L)
     }
     if (do_los) {
-      if (los_unit == "days") {
-        losr_prof <- losr_prof / 365
-        loss_prof <- loss_prof / 365
-      }
-      profiles$LOSR_years <- round(losr_prof, 6L)
-      profiles$LOSS_years <- round(loss_prof, 6L)
+      profiles$LOSR_years <- round(to_years(losr_prof), 6L)
+      profiles$LOSS_years <- round(to_years(loss_prof), 6L)
     }
 
     out[[path]] <- profiles
@@ -3152,8 +3215,125 @@ daly_assign_rr_to_profiles <- function(
       }
     ))
   }
+  if (n_ties > 0L) {
+    message(sprintf("%d profile(s) had tied maximum RR; the first class in class order was used.", n_ties))
+  }
 
   return(out)
+}
+
+# Max-rule assignment for profiles given as R/S strings (e.g. "RRSR"), one row
+# per (hospital x) pathogen x profile. Returns a named list per pathogen.
+.assign_rr_string_profiles <- function(prof, rr_table, los_hosp, pathogen_col,
+                                       class_col, rr_col, fallback_rr, do_los,
+                                       los_r_col, los_s_col, to_years, has_ci,
+                                       profile_col, probability_col, hospital_col,
+                                       class_order) {
+  prof <- as.data.frame(prof, stringsAsFactors = FALSE)
+  if (is.null(class_order)) {
+    stop("profile_class_order is required for profile strings: the class of each letter, in order.")
+  }
+  need <- c(profile_col, probability_col, pathogen_col)
+  miss <- setdiff(need, names(prof))
+  if (length(miss)) {
+    stop(sprintf("Column(s) not found in profiles_output: %s", paste(miss, collapse = ", ")))
+  }
+  has_hosp <- !is.null(hospital_col) && hospital_col %in% names(prof)
+  prof$probability <- as.numeric(prof[[probability_col]])
+  prof$hospital <- if (has_hosp) as.character(prof[[hospital_col]]) else NA_character_
+
+  # RR is shared per pathogen x class, or per hospital for stratified fits
+  rr_hosp <- if ("hospital" %in% names(rr_table)) as.character(rr_table$hospital) else rep(NA_character_, nrow(rr_table))
+  rr_key <- function(p, c, h) paste(.name_key(p), .name_key(c), ifelse(is.na(h), "", h), sep = "\r")
+  rr_k <- rr_key(rr_table[[pathogen_col]], rr_table[[class_col]], rr_hosp)
+  lk <- function(col, p, c, h) {
+    i <- match(rr_key(p, c, h), rr_k)
+    if (is.na(i)) i <- match(rr_key(p, c, NA_character_), rr_k)
+    if (is.na(i)) NA_real_ else rr_table[[col]][i]
+  }
+  hl_key <- if (!is.null(los_hosp)) {
+    paste(.name_key(los_hosp$pathogen), .name_key(los_hosp$antibiotic_class), los_hosp$hospital, sep = "\r")
+  } else {
+    character()
+  }
+
+  out <- list()
+  n_ties <- 0L; n_net <- 0L
+  for (path in unique(as.character(prof[[pathogen_col]]))) {
+    order_p <- class_order
+    if (is.list(class_order)) {
+      hit <- which(.name_key(names(class_order)) == .name_key(path))
+      if (!length(hit)) stop(sprintf("profile_class_order has no entry for pathogen '%s'.", path))
+      order_p <- class_order[[hit[1L]]]
+    }
+    df <- prof[as.character(prof[[pathogen_col]]) == path, , drop = FALSE]
+    n <- nrow(df)
+    rr_p <- rep(NA_real_, n); dom <- character(n)
+    ci_lo <- ci_hi <- rep(NA_real_, n)
+    losr <- loss <- rep(NA_real_, n); lvl <- rep(NA_character_, n)
+    for (i in seq_len(n)) {
+      letters_i <- strsplit(toupper(trimws(df[[profile_col]][i])), "")[[1]]
+      if (length(letters_i) != length(order_p) || !all(letters_i %in% c("R", "S"))) {
+        stop(sprintf(
+          "Profile '%s' for '%s' does not match profile_class_order (%d classes).",
+          df[[profile_col]][i], path, length(order_p)
+        ))
+      }
+      res_cls <- order_p[letters_i == "R"]
+      h <- df$hospital[i]
+      if (!length(res_cls)) {
+        rr_p[i] <- 1; dom[i] <- "all_susceptible"; ci_lo[i] <- 1; ci_hi[i] <- 1
+        next
+      }
+      rrs <- vapply(res_cls, function(cc) {
+        v <- lk(rr_col, path, cc, h)
+        if (is.na(v)) fallback_rr else v
+      }, numeric(1))
+      j <- which.max(rrs) # ties: first in profile_class_order
+      if (sum(rrs == rrs[j]) > 1L) n_ties <- n_ties + 1L
+      rr_p[i] <- rrs[j]; dom[i] <- res_cls[j]
+      if (has_ci) {
+        ci_lo[i] <- lk("CI_lower", path, dom[i], h)
+        ci_hi[i] <- lk("CI_upper", path, dom[i], h)
+      }
+      if (do_los) {
+        hi <- if (!is.null(los_hosp) && !is.na(h)) match(paste(.name_key(path), .name_key(dom[i]), h, sep = "\r"), hl_key) else NA_integer_
+        if (!is.na(hi)) {
+          losr[i] <- los_hosp$LOSR[hi]; loss[i] <- los_hosp$LOSS[hi]; lvl[i] <- "hospital"
+        } else {
+          losr[i] <- lk(los_r_col, path, dom[i], h); loss[i] <- lk(los_s_col, path, dom[i], h)
+          lvl[i] <- "network"
+          if (!is.null(los_hosp) && !is.na(h)) n_net <- n_net + 1L
+        }
+      }
+    }
+    df$RR_LOS_profile <- round(rr_p, 4L)
+    df$dominant_class <- dom
+    if (has_ci) {
+      df$CI_lower_profile <- round(ci_lo, 4L)
+      df$CI_upper_profile <- round(ci_hi, 4L)
+    }
+    if (do_los) {
+      df$LOSR_years <- round(to_years(losr), 6L)
+      df$LOSS_years <- round(to_years(loss), 6L)
+      df$los_level <- lvl
+    }
+    out[[path]] <- df
+    message(sprintf(
+      "'%s': relative LOS assigned to %d profile row(s) across %d hospital(s).",
+      path, n, length(unique(df$hospital))
+    ))
+  }
+  if (n_ties > 0L) {
+    message(sprintf("%d profile row(s) had tied maximum RR; the first class in profile_class_order was used.", n_ties))
+  }
+  if (n_net > 0L) {
+    warning(sprintf(
+      "%d profile row(s) had no hospital-level LOS for their dominant class; the all-hospital LOS was used (los_level = 'network').",
+      n_net
+    ), call. = FALSE)
+  }
+  out
 }
 
 #' Filter Resistance Profiles to Classes with RR Estimates

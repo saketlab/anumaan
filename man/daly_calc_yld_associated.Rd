@@ -19,7 +19,10 @@ daly_calc_yld_associated(
   state_name = NULL,
   probability_col = "probability",
   dominant_class_col = "dominant_class",
-  losr_col = "LOSR_years"
+  losr_col = "LOSR_years",
+  los_draws = NULL,
+  profile_draws = NULL,
+  conf_level = 0.95
 )
 }
 \arguments{
@@ -73,11 +76,29 @@ DW lookup. \code{NULL} uses the "India" row. Ignored when
 
 \item{losr_col}{Character. LOSR_k,d*(delta) column (years). Default
 \code{"LOSR_years"}.}
+
+\item{los_draws}{\code{NULL} or the \code{draws} element of
+\code{daly_fit_los_rr(..., ci_method = "bootstrap", return_draws = TRUE)}.
+When given, the YLD is recomputed for every bootstrap draw (with the
+dominant class of each profile held fixed) and percentile intervals are
+returned.}
+
+\item{profile_draws}{\code{NULL} or a data frame of profile-probability
+posterior draws with columns \code{pathogen}, \code{profile} (the
+profile string), \code{draw}, \code{probability} and, for
+hospital-specific profiles, \code{hospital}. Paired with
+\code{los_draws} by draw index. Without it, profile probabilities are
+held at their point estimates and the interval reflects LOS uncertainty
+only (\code{uncertainty_sources = "LOS only"}).}
+
+\item{conf_level}{Numeric. Confidence level of the interval. Default 0.95.}
 }
 \value{
 \code{P_Lk_prime_tbl} augmented with \code{I_L}, \code{DW_L},
   \code{profile_term} (= sum_delta R'_k_delta * LOSR_k_delta), and
-  \code{YLD_associated}.
+  \code{YLD_associated}; with \code{los_draws}, also
+  \code{YLD_associated_lower}, \code{YLD_associated_upper},
+  \code{n_draws} and \code{uncertainty_sources}.
 }
 \description{
 Primary, direct implementation of the profile-specific associated-YLD
@@ -137,3 +158,12 @@ profile-specific \code{LOSR_years} separately, sourcing \code{DW_L} from
 \code{DW_sepsis} is not supplied directly. Prefer supplying a pure
 disability weight via the \code{DW_sepsis} scalar for this pathway.
 }
+\section{Hospital-specific profiles}{
+
+When \code{profiles_with_los} carries a \code{hospital} column (from
+\code{daly_assign_rr_to_profiles()} with profile strings), each row of
+\code{P_Lk_prime_tbl} uses the profiles and LOS of its own hospital, named
+by \code{facility_col} (e.g. the \code{facility_level} element of
+\code{daly_calc_pathogen_fraction_nonfatal()}).
+}
+

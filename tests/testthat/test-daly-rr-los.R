@@ -271,3 +271,19 @@ test_that("daly_fit_mortality_rr accepts a comorbidity covariate", {
   )))
   expect_true(all(out$OR_death > 1))
 })
+
+test_that("daly_fit_mortality_rr builds resistance from each pathogen's own results", {
+  base <- rr_cohort(n = 300, seed = 21)
+  other <- base
+  other$organism_name <- "Escherichia coli"
+  other$antibiotic_value <- "R"
+  one <- suppressWarnings(suppressMessages(daly_fit_mortality_rr(
+    base, min_n = 10, min_deaths = 5, organism_name = "Klebsiella pneumoniae", facility_col = NULL
+  )))
+  both <- suppressWarnings(suppressMessages(daly_fit_mortality_rr(
+    rbind(base, other), min_n = 10, min_deaths = 5, facility_col = NULL
+  )))
+  kp <- both[both$pathogen == "Klebsiella pneumoniae", ]
+  expect_equal(kp$n_resistant, one$n_resistant)
+  expect_equal(kp$OR_death, one$OR_death)
+})

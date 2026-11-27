@@ -250,3 +250,106 @@ test_that("daly_calc_yld_baseline() and daly_calc_fraction_associated_yld() have
   expect_false(exists("daly_calc_yld_baseline", where = asNamespace("anumaan"), inherits = FALSE))
   expect_false(exists("daly_calc_fraction_associated_yld", where = asNamespace("anumaan"), inherits = FALSE))
 })
+
+# ---- Profile strings, hospital-specific LOS and draw-based intervals -------
+
+.fake_los_fit <- function() {
+  # shared RR per class; hospital-specific adjusted LOS in days
+  rr <- data.frame(
+    pathogen = "K", antibiotic_class = c("A", "B"), hospital = NA_character_,
+    RR_LOS = c(1.2, 1.5), CI_lower = c(1.1, 1.3), CI_upper = c(1.3, 1.7),
+    LOSR = c(24, 30), LOSS = c(20, 20), stringsAsFactors = FALSE
+  )
+  hosp <- data.frame(
+    pathogen = "K", antibiotic_class = rep(c("A", "B"), each = 2),
+    hospital = rep(c("H1", "H2"), 2),
+    LOSR = c(24, 12, 30, 15), LOSS = c(20, 10, 20, 10), stringsAsFactors = FALSE
+  )
+  set.seed(1)
+  B <- 200
+  mk <- function(r, s) {
+    list(
+      RR_LOS = rep(1, B),
+      LOSR = cbind(H1 = r[1] + stats::rnorm(B), H2 = r[2] + stats::rnorm(B)),
+      LOSS = cbind(H1 = s[1] + stats::rnorm(B), H2 = s[2] + stats::rnorm(B)),
+      LOSR_all = rep(mean(r), B), LOSS_all = rep(mean(s), B)
+    )
+  }
+  draws <- list("K | A" = mk(c(24, 12), c(20, 10)), "K | B" = mk(c(30, 15), c(20, 10)))
+  list(rr = rr, hospital = hosp, draws = draws, skipped = NULL)
+}
+
+.fake_string_profiles <- function() {
+  data.frame(
+    group = rep(c("H1", "H2"), each = 4), pathogen = "K",
+    profile_delta = rep(c("SS", "RS", "SR", "RR"), 2),
+    R_mean = c(0.4, 0.2, 0.3, 0.1, 0.5, 0.2, 0.2, 0.1),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("daly_assign_rr_to_profiles() handles profile strings with hospital-specific LOS", {
+  fit <- .fake_los_fit()
+  out <- suppressMessages(daly_assign_rr_to_profiles(
+    .fake_string_profiles(), fit, profile_class_order = c("A", "B")
+  ))$K
+  expect_equal(out$dominant_class, rep(c("all_susceptible", "A", "B", "B"), 2))
+  expect_equal(out$RR_LOS_profile, rep(c(1, 1.2, 1.5, 1.5), 2))
+  # RR profile takes its own hospital's LOS of the dominant class, in years
+  expect_equal(out$LOSR_years[out$hospital == "H2" & out$profile_delta == "RR"], round(15 / 365, 6))
+  expect_equal(out$LOSS_years[out$hospital == "H1" & out$profile_delta == "RS"], round(20 / 365, 6))
+  expect_true(all(is.na(out$LOSR_years[out$dominant_class == "all_susceptible"])))
+  expect_true(all(out$los_level[out$dominant_class != "all_susceptible"] == "hospital"))
+  expect_equal(out$probability, out$R_mean)
+})
+
+test_that("daly_assign_rr_to_profiles() breaks ties by class order and checks profile length", {
+  fit <- .fake_los_fit()
+  fit$rr$RR_LOS <- c(1.5, 1.5)
+  expect_message(
+    out <- daly_assign_rr_to_profiles(.fake_string_profiles(), fit, profile_class_order = c("A", "B")),
+    "tied"
+  )
+  expect_equal(out$K$dominant_class[out$K$profile_delta == "RR"], c("A", "A"))
+  expect_error(
+    suppressMessages(daly_assign_rr_to_profiles(.fake_string_profiles(), fit, profile_class_order = c("A", "B", "C"))),
+    "does not match"
+  )
+  expect_error(daly_assign_rr_to_profiles(.fake_string_profiles(), fit), "profile_class_order")
+})
+
+test_that("daly_calc_yld_attributable() matches each hospital to its own profiles and LOS", {
+  fit <- .fake_los_fit()
+  prof <- suppressMessages(daly_assign_rr_to_profiles(.fake_string_profiles(), fit, profile_class_order = c("A", "B")))
+  plk <- data.frame(pathogen = "K", center = c("H1", "H2"), P_Lk_prime = 0.5, N_NF_L = c(100, 200))
+  out <- suppressMessages(daly_calc_yld_attributable(prof, plk, DW_sepsis = 0.1, facility_col = "center"))
+  # H1: 0.2*(24-20) + 0.3*(30-20) + 0.1*(30-20) = 4.8 days
+  expect_equal(out$YLD_attributable[1], 100 * 0.5 * 0.1 * 4.8 / 365, tolerance = 1e-3)
+  # H2: 0.2*(12-10) + 0.2*(15-10) + 0.1*(15-10) = 1.9 days
+  expect_equal(out$YLD_attributable[2], 200 * 0.5 * 0.1 * 1.9 / 365, tolerance = 1e-3)
+  expect_error(
+    suppressMessages(daly_calc_yld_attributable(prof, plk, DW_sepsis = 0.1)),
+    "facility_col"
+  )
+})
+
+test_that("daly_calc_yld_*() return draw-based intervals from LOS and profile draws", {
+  fit <- .fake_los_fit()
+  prof <- suppressMessages(daly_assign_rr_to_profiles(.fake_string_profiles(), fit, profile_class_order = c("A", "B")))
+  plk <- data.frame(pathogen = "K", center = c("H1", "H2"), P_Lk_prime = 0.5, N_NF_L = c(100, 200))
+  a <- suppressMessages(daly_calc_yld_associated(prof, plk, DW_sepsis = 0.1, facility_col = "center",
+                                                 los_draws = fit$draws))
+  expect_true(all(a$YLD_associated_lower < a$YLD_associated & a$YLD_associated < a$YLD_associated_upper))
+  expect_equal(a$n_draws, c(200L, 200L))
+  expect_equal(a$uncertainty_sources, c("LOS only", "LOS only"))
+
+  sp <- .fake_string_profiles()
+  pdraws <- do.call(rbind, lapply(1:50, function(b) {
+    data.frame(pathogen = "K", hospital = sp$group, profile = sp$profile_delta, draw = b,
+               probability = sp$R_mean)
+  }))
+  b <- suppressMessages(daly_calc_yld_attributable(prof, plk, DW_sepsis = 0.1, facility_col = "center",
+                                                   los_draws = fit$draws, profile_draws = pdraws))
+  expect_equal(b$n_draws, c(50L, 50L))
+  expect_equal(b$uncertainty_sources, c("LOS + profile", "LOS + profile"))
+})

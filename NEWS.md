@@ -24,6 +24,21 @@
   - New arguments `classes` (a panel per pathogen), `reference_hospital`,
     `intermediate_as_resistant`, `hai_value`, `cai_value`, `icu_values`,
     `flag_min`. `hai_threshold_hours` is deprecated.
+* `daly_assign_rr_to_profiles()` accepts profiles as R/S strings (e.g. the
+  `profile_delta` / `R_mean` output of `profile_aggregate_for_daly()`) with
+  `profile_class_order` giving the class of each letter, and accepts the
+  `daly_fit_los_rr()` list directly. Each profile then takes the adjusted
+  LOS of its dominant class at its own hospital. Ties in the max rule go to
+  the first class in class order and are reported.
+* `daly_calc_yld_associated()` and `daly_calc_yld_attributable()` match each
+  hospital to its own profiles and LOS when profiles are hospital-specific,
+  and return percentile intervals when given `los_draws` (bootstrap draws
+  from `daly_fit_los_rr()`) and optionally `profile_draws` (profile
+  posterior draws).
+* `daly_fit_mortality_rr()` now builds class resistance from each pathogen's
+  own results. Previously one pathogen's results could set another
+  pathogen's resistance in the same patient, and patients with several
+  pathogens entered only one pathogen's models.
 
 * `prep_standardize_antibiotics()` now keeps combination antibiotics intact.
   Names such as "piperacillin-tazobactam" and "trimethoprim-sulfamethoxazole"
