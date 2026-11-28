@@ -54,8 +54,10 @@ test_that("facility counts, top pathogens, CFR and fatal pathogen fractions are 
   top <- suppressMessages(daly_get_top_pathogens(fac, "organism", n = 1))
   expect_equal(top$organism, "E. coli")
 
-  n <- suppressMessages(daly_count_incident_cases(fac, "syndrome", "BSI", "patient_id"))
-  expect_equal(n$n_cases, 10L)
+  n <- suppressMessages(daly_count_non_fatal_incident_cases(fac, "syndrome", "BSI", "patient_id",
+    "outcome", discharged_value = "Alive"
+  ))
+  expect_equal(n$N_NF_L, 6L) # 10 cases, 4 deaths
 
   cfr <- suppressMessages(daly_calc_case_fatality(fac, "syndrome", "BSI", "specimen", "Blood",
     "poly", "patient_id", "organism", "outcome",
@@ -166,4 +168,39 @@ test_that("daly_calc_pathogen_fraction_nonfatal weights discharged patients only
   # 6 discharged: 4 E. coli, 2 K. pneumoniae
   expect_equal(setNames(out$P_Lk_prime, out$organism), c(`E. coli` = 4 / 6, `K. pneumoniae` = 2 / 6))
   expect_equal(sum(out$P_Lk_prime), 1)
+})
+
+test_that("daly_count_non_fatal_incident_cases counts distinct discharged admissions per hospital x syndrome", {
+  adm <- data.frame(
+    readmission_id = c("A1", "A1", "A1", "A2", "A3", "A4", "A5", "A6", "A7"),
+    hospital = c("H1", "H1", "H1", "H1", "H1", "H2", "H2", "H2", "H2"),
+    syndrome = c("BSI", "BSI", "BSI", "BSI", "UTI", "bsi", "", NA, "UTI"),
+    outcome = c("Discharged", "Discharged", "Discharged", "Death", "Discharged",
+                "Discharged", "Discharged", "Discharged", "LAMA")
+  )
+  expect_message(
+    out <- daly_count_non_fatal_incident_cases(adm, "syndrome", NULL, "readmission_id", "outcome",
+      facility_col = "hospital"
+    ),
+    "2 discharged admission\\(s\\) have no syndrome"
+  )
+  out <- out[order(out$hospital, out$syndrome), ]
+  # A1 (3 rows) counts once; A2 death, A7 LAMA excluded; A5/A6 have no syndrome
+  expect_equal(out$hospital, c("H1", "H1", "H2"))
+  expect_equal(tolower(out$syndrome), c("bsi", "uti", "bsi"))
+  expect_equal(out$N_NF_L, c(1L, 1L, 1L))
+
+  bsi <- suppressMessages(daly_count_non_fatal_incident_cases(adm, "syndrome", "BSI", "readmission_id",
+    "outcome", facility_col = "hospital", facility_name = "H1"
+  ))
+  expect_equal(bsi$N_NF_L, 1L)
+  pooled <- suppressMessages(daly_count_non_fatal_incident_cases(adm, "syndrome", "bsi", "readmission_id", "outcome"))
+  expect_equal(pooled$N_NF_L, 2L) # A1 and A4, case-insensitive syndrome match
+
+  two <- rbind(adm, data.frame(readmission_id = "A1", hospital = "H1", syndrome = "UTI", outcome = "Discharged"))
+  expect_warning(
+    suppressMessages(daly_count_non_fatal_incident_cases(two, "syndrome", NULL, "readmission_id", "outcome")),
+    "more than one syndrome"
+  )
+  expect_error(daly_count_non_fatal_incident_cases(adm, "syndrome", NULL, "readmission_id", "missing_col"), "Missing column")
 })

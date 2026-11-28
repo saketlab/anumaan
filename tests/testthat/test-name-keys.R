@@ -53,8 +53,10 @@ test_that("syndrome and pathogen filters are case-agnostic", {
     specimen = "Blood", poly = FALSE,
     outcome = c("Death", "Alive", "Death", "Death")
   )
-  n <- suppressMessages(daly_count_incident_cases(fac, "syndrome", "BLOODSTREAM INFECTIONS", "patient_id"))
-  expect_equal(n$n_cases, 4L)
+  n <- suppressMessages(daly_count_non_fatal_incident_cases(fac, "syndrome", "BLOODSTREAM INFECTIONS",
+    "patient_id", "outcome", discharged_value = "alive"
+  ))
+  expect_equal(n$N_NF_L, 1L)
 
   cfr <- suppressMessages(daly_calc_case_fatality(fac, "syndrome", "bloodstream infections",
     "specimen", "Blood", "poly", "patient_id", "organism", "outcome",

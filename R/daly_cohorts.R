@@ -685,50 +685,62 @@ daly_calc_deaths_by_syndrome <- function(d_j = NULL,
   return(result)
 }
 
-# Incident cases by syndrome (direct count)
-#' Count incident cases by syndrome from facility data
+# Non-fatal incident cases by syndrome and hospital (direct count)
+#' Count Non-Fatal Incident Cases by Syndrome and Hospital
 #'
-#' Counts the number of unique patients per infectious syndrome directly from
-#' facility-level data. This is the direct-count approach to incidence --
-#' no CFR, no CR_L adjustment, no pathogen weighting. Use this when you
-#' want raw facility-reported case counts rather than the formula-derived
-#' estimate from \code{calculate_incidence_L()}.
+#' Counts the non-fatal incident cases of an infectious syndrome L at each
+#' hospital h, \eqn{I_{h,L}}: the number of distinct \strong{discharged
+#' admissions} with syndrome L. This is the direct count -- no CFR, no
+#' \code{CR_L} adjustment and no pathogen weighting. It is the incidence used
+#' in the YLD equations (see \code{daly_calc_yld_associated()}).
 #'
-#' Results are returned facility-wise when \code{facility_col} is supplied
-#' and \code{facility_name} is NULL. When \code{facility_name} is specified,
-#' only that facility is returned. When no facility information is provided,
-#' a single pooled count across all records is returned.
+#' Each admission is counted once per syndrome, however many isolates,
+#' pathogens or antibiotic rows it has. Admissions with a missing or blank
+#' syndrome are not counted under any syndrome; a message reports how many
+#' discharged admissions that excludes. A warning is raised if an admission
+#' carries more than one syndrome, because it is then counted under each.
 #'
-#' @param data          Data frame of facility-level records.
-#' @param syndrome_col  Character. Column containing infectious syndrome labels.
-#' @param syndrome_name Character. Syndrome to count cases for
-#'   (e.g., \code{"Bloodstream infections"}).
-#' @param patient_col   Character. Unique patient identifier column. Cases
-#'   are counted as distinct patients, not rows.
-#' @param facility_col  Character or NULL. Facility identifier column.
-#'   When provided without \code{facility_name}, counts are broken down
-#'   per facility. Default \code{NULL}.
-#' @param facility_name Character or NULL. If provided, restricts the count
-#'   to that facility only. Default \code{NULL}.
-#' @param pathogen_col Character or NULL. Pathogen identifier column.
-#'   Required when \code{pathogen_name} is specified. Default \code{NULL}.
-#' @param pathogen_name Character or NULL. If provided, restricts the count
-#'   to the specified pathogen(s). Default \code{NULL}.
+#' @param data Data frame with one or more rows per admission.
+#' @param syndrome_col Character. Column holding the syndrome of each
+#'   admission (e.g. \code{"chosen_syndrome"}).
+#' @param syndrome_name Character vector or \code{NULL}. Syndrome(s) to
+#'   count (matched ignoring case and spacing). \code{NULL} counts every
+#'   syndrome present.
+#' @param admission_col Character. Admission identifier column (e.g.
+#'   \code{"readmission_id"}). Cases are distinct admissions, not rows or
+#'   patients.
+#' @param outcome_col Character. Final outcome column.
+#' @param discharged_value Character. Value of \code{outcome_col} marking a
+#'   discharged (non-fatal) admission. Default \code{"Discharged"}.
+#' @param facility_col Character or \code{NULL}. Hospital column. When given,
+#'   counts are returned per hospital; \code{NULL} pools all records.
+#' @param facility_name Character or \code{NULL}. Restrict to one hospital.
 #'
-#' @return Data frame with columns:
-#'   \code{syndrome_col}, \code{n_cases} (unique patient count),
-#'   and \code{facility_col} if supplied.
+#' @return Data frame with \code{facility_col} (when given),
+#'   \code{syndrome_col} and \code{N_NF_L} (distinct discharged admissions).
+#'   Hospital x syndrome combinations with no discharged admission are not
+#'   listed.
 #' @export
-daly_count_incident_cases <- function(data,
-                                      syndrome_col,
-                                      syndrome_name,
-                                      patient_col,
-                                      facility_col = NULL,
-                                      facility_name = NULL,
-                                      pathogen_col = NULL,
-                                      pathogen_name = NULL) {
+#' @examples
+#' adm <- data.frame(
+#'   readmission_id = c("A1", "A1", "A2", "A3", "A4", "A5"),
+#'   hospital = c("H1", "H1", "H1", "H1", "H2", "H2"),
+#'   syndrome = c("BSI", "BSI", "BSI", "UTI", "BSI", ""),
+#'   outcome = c("Discharged", "Discharged", "Death", "Discharged", "Discharged", "Discharged")
+#' )
+#' daly_count_non_fatal_incident_cases(adm, "syndrome", NULL, "readmission_id", "outcome",
+#'   facility_col = "hospital"
+#' )
+daly_count_non_fatal_incident_cases <- function(data,
+                                                syndrome_col,
+                                                syndrome_name = NULL,
+                                                admission_col,
+                                                outcome_col,
+                                                discharged_value = "Discharged",
+                                                facility_col = NULL,
+                                                facility_name = NULL) {
   # Input validation
-  required_cols <- c(syndrome_col, patient_col)
+  required_cols <- c(syndrome_col, admission_col, outcome_col, facility_col)
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0) {
     stop(sprintf(
@@ -739,77 +751,81 @@ daly_count_incident_cases <- function(data,
   if (!is.null(facility_name) && is.null(facility_col)) {
     stop("facility_col must be provided when facility_name is specified.")
   }
-  if (!is.null(facility_col) && !facility_col %in% names(data)) {
-    stop(sprintf("facility_col '%s' not found in data.", facility_col))
-  }
-  if (!is.null(pathogen_name) && is.null(pathogen_col)) {
-    stop("pathogen_col must be provided when pathogen_name is specified.")
-  }
-  if (!is.null(pathogen_col) && !pathogen_col %in% names(data)) {
-    stop(sprintf("pathogen_col '%s' not found in data.", pathogen_col))
-  }
 
-  # Step 1: Filter to syndrome
-  df <- data %>%
-    dplyr::filter(.name_key(.data[[syndrome_col]]) == .name_key(syndrome_name))
-
+  # Step 1: discharged (non-fatal) records only
+  df <- data[.name_key(data[[outcome_col]]) == .name_key(discharged_value) &
+    !is.na(data[[outcome_col]]), , drop = FALSE]
   if (nrow(df) == 0) {
-    warning(sprintf("No records found for syndrome '%s'.", syndrome_name))
+    warning(sprintf("No records where '%s' == '%s'.", outcome_col, discharged_value))
     return(data.frame())
   }
 
-  # Step 1b: Optional pathogen filter
-  if (!is.null(pathogen_name)) {
-    df <- df %>% dplyr::filter(.name_key(.data[[pathogen_col]]) %in% .name_key(pathogen_name))
-    if (nrow(df) == 0) {
-      stop(sprintf(
-        "No records found for pathogen(s): %s",
-        paste(pathogen_name, collapse = ", ")
-      ))
-    }
-    message(sprintf(
-      "Pathogen filter applied: %s",
-      paste(pathogen_name, collapse = ", ")
-    ))
-  }
-
-  # Step 2: Optional single-facility restriction
+  # Step 2: optional single-hospital restriction
   if (!is.null(facility_name)) {
-    n_before <- nrow(df)
-    df <- df %>% dplyr::filter(.data[[facility_col]] == facility_name)
+    df <- df[df[[facility_col]] == facility_name & !is.na(df[[facility_col]]), , drop = FALSE]
     if (nrow(df) == 0) {
-      stop(sprintf("No records found for facility '%s'.", facility_name))
+      stop(sprintf("No discharged records found for facility '%s'.", facility_name))
     }
+  }
+
+  # Step 3: admissions without a syndrome are not counted under any syndrome
+  no_syn <- is.na(df[[syndrome_col]]) | trimws(as.character(df[[syndrome_col]])) == ""
+  n_no_syn <- length(setdiff(unique(df[[admission_col]][no_syn]), unique(df[[admission_col]][!no_syn])))
+  if (n_no_syn > 0) {
     message(sprintf(
-      "Restricted to facility '%s': %d of %d record(s) retained.",
-      facility_name, nrow(df), n_before
+      "%d discharged admission(s) have no %s and are not counted under any syndrome.",
+      n_no_syn, syndrome_col
+    ))
+  }
+  df <- df[!no_syn, , drop = FALSE]
+
+  # Step 4: optional syndrome filter
+  if (!is.null(syndrome_name)) {
+    df <- df[.name_key(df[[syndrome_col]]) %in% .name_key(syndrome_name), , drop = FALSE]
+    if (nrow(df) == 0) {
+      warning(sprintf(
+        "No discharged records found for syndrome(s): %s",
+        paste(syndrome_name, collapse = ", ")
+      ))
+      return(data.frame())
+    }
+  }
+
+  # Syndromes are grouped ignoring case and spacing; the label reported is
+  # the first spelling found in the data.
+  df$.syn_key <- .name_key(df[[syndrome_col]])
+  multi <- df %>%
+    dplyr::distinct(dplyr::across(dplyr::all_of(c(admission_col, ".syn_key")))) %>%
+    dplyr::count(.data[[admission_col]]) %>%
+    dplyr::filter(.data[["n"]] > 1L)
+  if (nrow(multi) > 0) {
+    warning(sprintf(
+      "%d admission(s) have more than one %s and are counted under each.",
+      nrow(multi), syndrome_col
     ))
   }
 
-  # Step 3: Count unique patients
-  # Group by facility if facility_col is supplied (and no specific facility
-  # was requested -- i.e., return one row per facility).
-  group_vars <- if (!is.null(facility_col)) {
-    c(facility_col, syndrome_col)
-  } else {
-    syndrome_col
-  }
-
+  # Step 5: distinct discharged admissions per (hospital x) syndrome
+  group_vars <- c(facility_col, ".syn_key")
   result <- df %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(group_vars))) %>%
     dplyr::summarise(
-      n_cases = dplyr::n_distinct(.data[[patient_col]]),
+      .syn_label = dplyr::first(as.character(.data[[syndrome_col]])),
+      N_NF_L = dplyr::n_distinct(.data[[admission_col]]),
       .groups = "drop"
-    )
+    ) %>%
+    as.data.frame()
+  result[[syndrome_col]] <- result$.syn_label
+  result <- result[, c(facility_col, syndrome_col, "N_NF_L"), drop = FALSE]
 
   message(sprintf(
-    "Incident cases for '%s': %d total unique patient(s)%s.",
-    syndrome_name,
-    sum(result$n_cases),
-    if (!is.null(facility_col)) sprintf(" across %d facility/facilities", nrow(result)) else ""
+    "Non-fatal incident cases: %d discharged admission(s) across %d syndrome(s)%s.",
+    sum(result$N_NF_L),
+    dplyr::n_distinct(result[[syndrome_col]]),
+    if (!is.null(facility_col)) sprintf(" and %d hospital(s)", dplyr::n_distinct(result[[facility_col]])) else ""
   ))
 
-  return(result)
+  result
 }
 
 
@@ -1004,7 +1020,7 @@ daly_calc_cr_l <- function(data,
 #'
 #' Use this when you have population- or facility-level death counts and want
 #' to back-calculate incidence. For a direct patient count from facility data,
-#' use \code{count_incident_cases()} instead.
+#' use \code{daly_count_non_fatal_incident_cases()} instead.
 #'
 #' @param deaths_L       Numeric scalar (pooled mode) or data frame with a
 #'   \code{facility_col} column and a \code{deaths_col} column
