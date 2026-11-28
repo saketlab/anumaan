@@ -66,5 +66,5 @@ where the syndrome-level CFR is the pathogen-weighted average:
 
 Use this when you have population- or facility-level death counts and want
 to back-calculate incidence. For a direct patient count from facility data,
-use \code{count_incident_cases()} instead.
+use \code{daly_count_non_fatal_incident_cases()} instead.
 }
