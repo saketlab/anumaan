@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">anumaan</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9046</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.0.9047</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,11 @@
       <small>Source: <a href="https://github.com/saketlab/anumaan/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0.9047" id="anumaan-0109047">anumaan 0.1.0.9047<a class="anchor" aria-label="anchor" href="#anumaan-0109047"></a></h2>
+<ul><li>
+<code>daly_count_incident_cases()</code> is renamed <code><a href="../reference/daly_count_non_fatal_incident_cases.html">daly_count_non_fatal_incident_cases()</a></code> and now counts non-fatal incident cases (I_h,L): distinct discharged admissions (<code>admission_col</code>, <code>outcome_col</code>, <code>discharged_value</code>) per syndrome and hospital, returned as <code>N_NF_L</code>. Previously it counted distinct patients of any outcome. <code>syndrome_name = NULL</code> counts every syndrome; syndromes are matched and grouped ignoring case and spacing. Admissions without a syndrome are reported and not counted, and admissions with more than one syndrome raise a warning. The pathogen filter is removed, because it made the count pathogen-specific.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0.9046" id="anumaan-0109046">anumaan 0.1.0.9046<a class="anchor" aria-label="anchor" href="#anumaan-0109046"></a></h2>
 <ul><li>

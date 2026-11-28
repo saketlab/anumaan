@@ -49,7 +49,7 @@
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yll_associated.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_calc_yll_attributable.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_compute_patient_los.html</loc></url>
-<url><loc>https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.html</loc></url>
+<url><loc>https://saketlab.github.io/anumaan/reference/daly_count_non_fatal_incident_cases.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.html</loc></url>
 <url><loc>https://saketlab.github.io/anumaan/reference/daly_fit_los_distn_by_profile.html</loc></url>

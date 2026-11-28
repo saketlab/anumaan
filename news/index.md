@@ -1,5 +1,18 @@
 # Changelog
 
+## anumaan 0.1.0.9047
+
+- `daly_count_incident_cases()` is renamed
+  [`daly_count_non_fatal_incident_cases()`](https://saketlab.github.io/anumaan/reference/daly_count_non_fatal_incident_cases.md)
+  and now counts non-fatal incident cases (I_h,L): distinct discharged
+  admissions (`admission_col`, `outcome_col`, `discharged_value`) per
+  syndrome and hospital, returned as `N_NF_L`. Previously it counted
+  distinct patients of any outcome. `syndrome_name = NULL` counts every
+  syndrome; syndromes are matched and grouped ignoring case and spacing.
+  Admissions without a syndrome are reported and not counted, and
+  admissions with more than one syndrome raise a warning. The pathogen
+  filter is removed, because it made the count pathogen-specific.
+
 ## anumaan 0.1.0.9046
 
 - [`daly_assign_rr_to_profiles()`](https://saketlab.github.io/anumaan/reference/daly_assign_rr_to_profiles.md)

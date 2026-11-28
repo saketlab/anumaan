@@ -466,8 +466,8 @@ GBD-methodology burden calculations
   : Compute YLL Attributable to AMR
 - [`daly_compute_patient_los()`](https://saketlab.github.io/anumaan/reference/daly_compute_patient_los.md)
   : Compute Patient-Level Length of Stay
-- [`daly_count_incident_cases()`](https://saketlab.github.io/anumaan/reference/daly_count_incident_cases.md)
-  : Count incident cases by syndrome from facility data
+- [`daly_count_non_fatal_incident_cases()`](https://saketlab.github.io/anumaan/reference/daly_count_non_fatal_incident_cases.md)
+  : Count Non-Fatal Incident Cases by Syndrome and Hospital
 - [`daly_derive_hai_cai_for_mortality()`](https://saketlab.github.io/anumaan/reference/daly_derive_hai_cai_for_mortality.md)
   : Classify HAI/CAI Infection Type for the Mortality Cohort
 - [`daly_filter_profiles_to_rr_classes()`](https://saketlab.github.io/anumaan/reference/daly_filter_profiles_to_rr_classes.md)
